@@ -1,0 +1,69 @@
+PawSync/
+├── frontend/          # Everything users see and interact with
+├── backend/           # Server, database, business logic
+├── docs/              # Documentation, diagrams, notes
+└── scripts/           # Automation scripts (deployment, database seeds)
+
+frontend/
+├── app/               # Pages and routes (Next.js App Router)
+│   ├── page.tsx       # Homepage
+│   ├── login/         # Login page
+│   ├── dashboard/     # Dashboard page
+│   └── pets/          # Pet pages
+│
+├── components/        # Reusable UI pieces
+│   ├── PetCard.tsx    # Card showing pet info
+│   ├── Button.tsx     # Custom button
+│   └── Navbar.tsx     # Navigation bar
+│
+├── lib/               # Helper functions and utilities
+│   ├── api.ts         # API calls to backend
+│   └── utils.ts       # Common functions
+│
+├── hooks/             # Custom React hooks
+│   ├── usePet.ts      # Hook for pet data
+│   └── useAuth.ts     # Hook for authentication
+│
+├── types/             # TypeScript type definitions
+│   └── pet.ts         # Pet data types
+│
+├── store/             # Global state management (Zustand)
+│   └── authStore.ts   # User authentication state
+│
+└── public/            # Static files (images, icons)
+    └── logo.png
+
+
+backend/src/
+├── models/            # Database schemas (what data looks like)
+│   ├── Pet.ts         # Pet model (name, age, breed, etc.)
+│   ├── User.ts        # User model (email, password, etc.)
+│   └── MedicalRecord.ts
+│
+├── controllers/       # Handle requests (business logic)
+│   ├── petController.ts      # getPets, createPet, updatePet
+│   └── authController.ts     # login, register, logout
+│
+├── routes/            # API endpoints (URLs)
+│   ├── petRoutes.ts   # /api/pets, /api/pets/:id
+│   └── authRoutes.ts  # /api/auth/login, /api/auth/register
+│
+├── services/          # Complex business logic
+│   ├── nfcService.ts  # NFC tag processing
+│   ├── aiService.ts   # AI analysis with OpenAI
+│   └── pdfService.ts  # Generate PDF reports
+│
+├── middleware/        # Functions that run before routes
+│   ├── auth.ts        # Check if user is logged in
+│   └── validation.ts  # Validate incoming data
+│
+├── config/            # Configuration files
+│   ├── database.ts    # MongoDB connection
+│   └── cloudinary.ts  # Image upload config
+│
+├── utils/             # Helper functions
+│   ├── logger.ts      # Log errors and events
+│   └── emailSender.ts # Send emails
+│
+└── types/             # TypeScript types
+    └── express.d.ts   # Custom Express types
