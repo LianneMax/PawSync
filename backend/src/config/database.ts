@@ -8,8 +8,13 @@ let gridfsBucket: GridFSBucket;
  */
 export const connectDatabase = async (): Promise<void> => {
   try {
+    // Check if MONGODB_URI exists
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI is not defined in environment variables');
+    }
+
     // Connect to MongoDB
-    const conn = await mongoose.connect(process.env.MONGODB_URI as string);
+    const conn = await mongoose.connect(process.env.MONGODB_URI);
     
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
@@ -26,15 +31,6 @@ export const connectDatabase = async (): Promise<void> => {
     });
 
     console.log('✅ GridFS Bucket initialized');
-
-    // Handle connection events
-    mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.log('⚠️  MongoDB disconnected');
-    });
 
   } catch (error) {
     console.error('❌ Error connecting to MongoDB:', error);
@@ -64,3 +60,29 @@ export const closeDatabase = async (): Promise<void> => {
     console.error('❌ Error closing MongoDB connection:', error);
   }
 };
+
+// Handle connection events
+mongoose.connection.on('connected', () => {
+  console.log('📡 Mongoose connected to MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('📴 Mongoose disconnected from MongoDB');
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await closeDatabase();
+  console.log('🛑 MongoDB connection closed due to app termination');
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await closeDatabase();
+  console.log('🛑 MongoDB connection closed due to app termination');
+  process.exit(0);
+});
