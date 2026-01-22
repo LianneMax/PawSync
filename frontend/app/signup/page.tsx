@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Mail, Lock, User, Heart, Stethoscope } from 'lucide-react'
 
 type UserType = 'pet-owner' | 'veterinarian' | null
 
 export default function SignUpPage() {
+  const router = useRouter()
   const [userType, setUserType] = useState<UserType>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -22,6 +24,22 @@ export default function SignUpPage() {
     }
     // Handle signup logic here
     console.log('Sign up:', { userType, firstName, lastName, email, password })
+
+    // Store user data in sessionStorage for use in onboarding
+    sessionStorage.setItem('signupData', JSON.stringify({
+      userType,
+      firstName,
+      lastName,
+      email
+    }))
+
+    // Redirect based on user type
+    if (userType === 'pet-owner') {
+      router.push('/onboarding/pet-profile')
+    } else {
+      // Redirect veterinarians to dashboard or different flow
+      router.push('/dashboard')
+    }
   }
 
   const handleGoogleSignIn = () => {
