@@ -162,7 +162,7 @@ export default function PetProfilePage() {
             >
               <div className="flex flex-col items-center gap-4">
                 <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
-                  species === 'cat' ? 'bg-gray-300' : 'bg-gray-300'
+                  species === 'cat' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
                 }`}>
                   <Cat className="w-10 h-10 text-white" />
                 </div>

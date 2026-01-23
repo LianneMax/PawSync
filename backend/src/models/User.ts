@@ -6,7 +6,7 @@ export interface IUser extends Document {
   password: string;
   firstName: string;
   lastName: string;
-  userType: 'pet-owner' | 'veterinarian';
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   isVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
