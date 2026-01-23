@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { connectDatabase } from './config/database';
 import testRoutes from './routes/testRoutes';
+import authRoutes from './routes/authRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -24,6 +25,9 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'PawSync API is running' });
 });
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 // Test routes
 app.use('/api/test', testRoutes);

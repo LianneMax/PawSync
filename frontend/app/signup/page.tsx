@@ -4,41 +4,85 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, User, Heart, Stethoscope } from 'lucide-react'
+import { register } from '@/lib/auth'
+import { useAuthStore } from '@/store/authStore'
 
 type UserType = 'pet-owner' | 'veterinarian' | null
 
 export default function SignUpPage() {
   const router = useRouter()
+  const { login: storeLogin } = useAuthStore()
   const [userType, setUserType] = useState<UserType>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password !== confirmPassword) {
-      alert("Passwords don't match!")
+    setError(null)
+
+    // Client-side validation
+    if (!userType) {
+      setError('Please select user type')
       return
     }
-    // Handle signup logic here
-    console.log('Sign up:', { userType, firstName, lastName, email, password })
 
-    // Store user data in sessionStorage for use in onboarding
-    sessionStorage.setItem('signupData', JSON.stringify({
-      userType,
-      firstName,
-      lastName,
-      email
-    }))
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      setError('Please fill in all fields')
+      return
+    }
 
-    // Redirect based on user type
-    if (userType === 'pet-owner') {
-      router.push('/onboarding/pet-profile')
-    } else if (userType === 'veterinarian') {
-      // Redirect veterinarians to PRC license verification
-      router.push('/onboarding/vet/prc-license')
+    if (password !== confirmPassword) {
+      setError("Passwords don't match!")
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Call backend registration
+      const response = await register(firstName, lastName, email, password, confirmPassword, userType)
+
+      if (response.status === 'ERROR') {
+        setError(response.message)
+        setLoading(false)
+        return
+      }
+
+      if (response.data) {
+        // Store user and token in auth store
+        storeLogin(response.data.user, response.data.token)
+        localStorage.setItem('authToken', response.data.token)
+
+        // Store user data in sessionStorage for use in onboarding
+        sessionStorage.setItem('signupData', JSON.stringify({
+          userType,
+          firstName,
+          lastName,
+          email
+        }))
+
+        // Redirect based on user type
+        if (userType === 'pet-owner') {
+          router.push('/onboarding/pet-profile')
+        } else if (userType === 'veterinarian') {
+          router.push('/onboarding/vet/prc-license')
+        }
+      }
+    } catch (err) {
+      setError('An error occurred during registration. Please try again.')
+      console.error('Registration error:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -57,6 +101,13 @@ export default function SignUpPage() {
             <p className="text-gray-600 mb-8">Register Your PawSync Account</p>
 
             <form onSubmit={handleSubmit}>
+              {/* Error Message */}
+              {error && (
+                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+                  {error}
+                </div>
+              )}
+
               {/* User Type Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">I am a...</label>
@@ -177,9 +228,10 @@ export default function SignUpPage() {
               {/* Login Button (Note: The design shows "Login" but this should be "Sign Up") */}
               <button
                 type="submit"
-                className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors mb-6"
+                disabled={loading}
+                className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign Up
+                {loading ? 'Creating Account...' : 'Sign Up'}
               </button>
 
               {/* Divider */}

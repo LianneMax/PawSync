@@ -3,16 +3,61 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Mail, Lock } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { login } from '@/lib/auth'
+import { useAuthStore } from '@/store/authStore'
 
 export default function LoginPage() {
+  const router = useRouter()
+  const { login: storeLogin } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log('Login:', { email, password, rememberMe })
+    setError(null)
+
+    if (!email || !password) {
+      setError('Please enter email and password')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const response = await login(email, password)
+
+      if (response.status === 'ERROR') {
+        setError(response.message)
+        setLoading(false)
+        return
+      }
+
+      if (response.data) {
+        // Store user and token in auth store
+        storeLogin(response.data.user, response.data.token)
+        localStorage.setItem('authToken', response.data.token)
+        
+        if (rememberMe) {
+          localStorage.setItem('rememberEmail', email)
+        }
+
+        // Redirect based on user type
+        if (response.data.user.userType === 'pet-owner') {
+          router.push('/onboarding/pet-profile')
+        } else {
+          router.push('/onboarding/vet/prc-license')
+        }
+      }
+    } catch (err) {
+      setError('An error occurred during login. Please try again.')
+      console.error('Login error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleGoogleSignIn = () => {
@@ -30,6 +75,13 @@ export default function LoginPage() {
             <p className="text-gray-600 mb-8">Sign in to your PawSync account</p>
 
             <form onSubmit={handleSubmit}>
+              {/* Error Message */}
+              {error && (
+                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+                  {error}
+                </div>
+              )}
+
               {/* Email Input */}
               <div className="mb-4">
                 <div className="relative">
@@ -79,9 +131,10 @@ export default function LoginPage() {
               {/* Login Button */}
               <button
                 type="submit"
-                className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors mb-6"
+                disabled={loading}
+                className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Login
+                {loading ? 'Logging in...' : 'Login'}
               </button>
 
               {/* Divider */}

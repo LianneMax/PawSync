@@ -102,8 +102,8 @@ export default function SelectClinicPage() {
       clinic: clinicData
     })
 
-    // Redirect to verification pending page or dashboard
-    router.push('/dashboard')
+    // Redirect to verification pending page
+    router.push('/onboarding/vet/verification-pending')
   }
 
   const handleBack = () => {
