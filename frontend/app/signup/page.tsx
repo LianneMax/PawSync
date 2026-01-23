@@ -36,9 +36,9 @@ export default function SignUpPage() {
     // Redirect based on user type
     if (userType === 'pet-owner') {
       router.push('/onboarding/pet-profile')
-    } else {
-      // Redirect veterinarians to dashboard or different flow
-      router.push('/dashboard')
+    } else if (userType === 'veterinarian') {
+      // Redirect veterinarians to PRC license verification
+      router.push('/onboarding/vet/prc-license')
     }
   }
 
