@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
 
 export default function PetDetailsPage() {
   const router = useRouter()
@@ -31,6 +31,40 @@ export default function PetDetailsPage() {
   const [microchipId, setMicrochipId] = useState('')
   const [notes, setNotes] = useState('')
 
+  // Clinic search state
+  const [clinicSearch, setClinicSearch] = useState('')
+  const [selectedClinic, setSelectedClinic] = useState<{ id: string; name: string; address: string } | null>(null)
+  const [showClinicResults, setShowClinicResults] = useState(false)
+
+  // Mock clinic data - replace with API call
+  const mockClinics = [
+    { id: '1', name: 'PawCare Veterinary Clinic', address: '123 Main St, Manila' },
+    { id: '2', name: 'Happy Pets Animal Hospital', address: '456 Oak Ave, Quezon City' },
+    { id: '3', name: 'VetCare Plus', address: '789 Pine Rd, Makati' },
+    { id: '4', name: 'Animal Wellness Center', address: '321 Elm St, Pasig' },
+    { id: '5', name: 'Pet Health Clinic', address: '654 Cedar Blvd, Taguig' },
+  ]
+
+  const filteredClinics = mockClinics.filter(clinic =>
+    clinic.name.toLowerCase().includes(clinicSearch.toLowerCase()) ||
+    clinic.address.toLowerCase().includes(clinicSearch.toLowerCase())
+  )
+
+  // Ref for clinic dropdown
+  const clinicDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (clinicDropdownRef.current && !clinicDropdownRef.current.contains(event.target as Node)) {
+        setShowClinicResults(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -45,7 +79,8 @@ export default function PetDetailsPage() {
       weight,
       dateOfBirth,
       microchipId,
-      notes
+      notes,
+      clinic: selectedClinic
     }
 
     sessionStorage.setItem('petDetails', JSON.stringify(petDetails))
@@ -146,6 +181,70 @@ export default function PetDetailsPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Clinic Search Section */}
+          <div className="mb-8">
+            <div className="relative" ref={clinicDropdownRef}>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              {selectedClinic ? (
+                <div className="w-full pl-12 pr-12 py-4 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-800">{selectedClinic.name}</p>
+                    <p className="text-sm text-gray-500">{selectedClinic.address}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedClinic(null)
+                      setClinicSearch('')
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Select Clinic"
+                  value={clinicSearch}
+                  onChange={(e) => {
+                    setClinicSearch(e.target.value)
+                    setShowClinicResults(true)
+                  }}
+                  onFocus={() => setShowClinicResults(true)}
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                />
+              )}
+
+              {/* Clinic Search Results Dropdown */}
+              {showClinicResults && !selectedClinic && (
+                <div className="absolute z-10 w-full mt-2 bg-white rounded-xl border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
+                  {filteredClinics.length > 0 ? (
+                    filteredClinics.map((clinic) => (
+                      <button
+                        key={clinic.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedClinic(clinic)
+                          setClinicSearch('')
+                          setShowClinicResults(false)
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                      >
+                        <p className="font-medium text-gray-800">{clinic.name}</p>
+                        <p className="text-sm text-gray-500">{clinic.address}</p>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500 text-center">
+                      No clinics found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Basic Information Section */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">
