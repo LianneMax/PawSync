@@ -40,7 +40,7 @@ export default function LoginPage() {
         // Store user and token in auth store
         storeLogin(response.data.user, response.data.token)
         localStorage.setItem('authToken', response.data.token)
-        
+
         if (rememberMe) {
           localStorage.setItem('rememberEmail', email)
         }
@@ -66,8 +66,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#7FA5A3] p-4">
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex">
+    <div className="min-h-screen flex items-center justify-center bg-[#7FA5A3] p-4 relative overflow-hidden">
+      {/* Animated Background Pattern */}
+      <div className="auth-background" />
+
+      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex relative z-10">
         {/* Left side - Login Form */}
         <div className="w-full md:w-1/2 p-12 flex flex-col justify-center">
           <div className="max-w-md mx-auto w-full">
@@ -183,7 +186,7 @@ export default function LoginPage() {
         </div>
 
         {/* Right side - Illustration */}
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-gray-50 to-gray-100 p-12 flex-col items-center justify-center">
+        <div className="hidden md:flex md:w-1/2 bg-linear-to-br from-gray-50 to-gray-100 p-12 flex-col items-center justify-center">
           <div className="max-w-md">
             {/* Illustration Placeholder - You'll need to add the actual illustration */}
             <div className="mb-8 flex justify-center">
