@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Outfit, Odor_Mean_Chey } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
+const odorMeanChey = Odor_Mean_Chey({ weight: '400', subsets: ['latin'], variable: '--font-odor-mean-chey' })
 
 export const metadata: Metadata = {
   title: 'PawSync',
@@ -16,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={`${outfit.variable} ${odorMeanChey.variable} ${outfit.className}`}>{children}</body>
     </html>
   )
 }

@@ -6,7 +6,8 @@
 
 /** Colors **/
 :root {
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-outfit), sans-serif;
+  --font-heading: var(--font-odor-mean-chey), serif;
   --font-mono: var(--font-mono);
   --background: var(--color-white);
   --foreground: var(--color-zinc-950);

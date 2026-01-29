@@ -1,13 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, User, Heart, Stethoscope } from 'lucide-react'
 import { register } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 
 type UserType = 'pet-owner' | 'veterinarian' | null
+
+const slides = [
+  { image: '/images/illustrations/slide-1.png' },
+  { image: '/images/illustrations/slide-2.png' },
+  { image: '/images/illustrations/slide-3.png' },
+  { image: '/images/illustrations/slide-4.png' },
+  { image: '/images/illustrations/slide-5.png' },
+]
+
+const SLIDE_DURATION = 3000
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -21,11 +32,60 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [exitingSlide, setExitingSlide] = useState<number | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [completedSlides, setCompletedSlides] = useState<boolean[]>(Array(slides.length).fill(false))
+  const progressRef = useRef(0)
+  const animFrameRef = useRef<number | null>(null)
+  const lastTimeRef = useRef<number>(0)
+
+  useEffect(() => {
+    lastTimeRef.current = performance.now()
+    progressRef.current = 0
+    setProgress(0)
+
+    const tick = (now: number) => {
+      const delta = now - lastTimeRef.current
+      lastTimeRef.current = now
+      progressRef.current += (delta / SLIDE_DURATION) * 100
+
+      if (progressRef.current >= 100) {
+        progressRef.current = 0
+        setCurrentSlide((prev) => {
+          const next = (prev + 1) % slides.length
+          setExitingSlide(prev)
+          if (next === 0) {
+            setCompletedSlides(Array(slides.length).fill(false))
+          } else {
+            setCompletedSlides((c) => {
+              const updated = [...c]
+              updated[prev] = true
+              return updated
+            })
+          }
+          return next
+        })
+        setProgress(0)
+        setTimeout(() => setExitingSlide(null), 700)
+      } else {
+        setProgress(progressRef.current)
+      }
+
+      animFrameRef.current = requestAnimationFrame(tick)
+    }
+
+    animFrameRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // Client-side validation
     if (!userType) {
       setError('Please select user type')
       return
@@ -49,7 +109,6 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
-      // Call backend registration
       const response = await register(firstName, lastName, email, password, confirmPassword, userType)
 
       if (response.status === 'ERROR') {
@@ -59,11 +118,9 @@ export default function SignUpPage() {
       }
 
       if (response.data) {
-        // Store user and token in auth store
         storeLogin(response.data.user, response.data.token)
         localStorage.setItem('authToken', response.data.token)
 
-        // Store user data in sessionStorage for use in onboarding
         sessionStorage.setItem('signupData', JSON.stringify({
           userType,
           firstName,
@@ -71,7 +128,6 @@ export default function SignUpPage() {
           email
         }))
 
-        // Redirect based on user type
         if (userType === 'pet-owner') {
           router.push('/onboarding/pet-profile')
         } else if (userType === 'veterinarian') {
@@ -87,7 +143,6 @@ export default function SignUpPage() {
   }
 
   const handleGoogleSignIn = () => {
-    // Handle Google sign-in logic here
     console.log('Google sign-in')
   }
 
@@ -98,10 +153,18 @@ export default function SignUpPage() {
 
       <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex relative z-10">
         {/* Left side - Sign Up Form */}
-        <div className="w-full md:w-1/2 p-12 flex flex-col justify-center">
+        <div className="w-full md:w-3/5 p-12 flex flex-col justify-center">
           <div className="max-w-md mx-auto w-full">
-            <h1 className="text-5xl font-bold text-[#5A7C7A] mb-3">Sign Up</h1>
-            <p className="text-gray-600 mb-8">Register Your PawSync Account</p>
+            {/* Sign Up - Odor Mean Chey font, centered */}
+            <h1
+              className="text-5xl text-[#5A7C7A] mb-3 text-center"
+              style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+            >
+              Sign Up
+            </h1>
+            <p className="text-gray-600 mb-8 text-center" style={{ fontFamily: 'var(--font-outfit)' }}>
+              Register Your PawSync Account
+            </p>
 
             <form onSubmit={handleSubmit}>
               {/* Error Message */}
@@ -119,19 +182,17 @@ export default function SignUpPage() {
                   <button
                     type="button"
                     onClick={() => setUserType('pet-owner')}
-                    className={`p-6 rounded-2xl border-2 transition-all ${
+                    className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
                       userType === 'pet-owner'
                         ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                         : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                        userType === 'pet-owner' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
-                      }`}>
-                        <Heart className="w-7 h-7 text-white" />
-                      </div>
-                      <span className="font-medium text-gray-700">Pet Owner</span>
+                    <span className="font-medium text-gray-700">Pet Owner</span>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      userType === 'pet-owner' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
+                    }`}>
+                      <Heart className="w-5 h-5 text-white" />
                     </div>
                   </button>
 
@@ -139,19 +200,17 @@ export default function SignUpPage() {
                   <button
                     type="button"
                     onClick={() => setUserType('veterinarian')}
-                    className={`p-6 rounded-2xl border-2 transition-all ${
+                    className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
                       userType === 'veterinarian'
                         ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                         : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                        userType === 'veterinarian' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
-                      }`}>
-                        <Stethoscope className="w-7 h-7 text-white" />
-                      </div>
-                      <span className="font-medium text-gray-700">Veterinarian</span>
+                    <span className="font-medium text-gray-700">Veterinarian</span>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      userType === 'veterinarian' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
+                    }`}>
+                      <Stethoscope className="w-5 h-5 text-white" />
                     </div>
                   </button>
                 </div>
@@ -232,9 +291,9 @@ export default function SignUpPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl hover:bg-[#6B9290] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating Account...' : 'Sign Up'}
+                {loading ? 'Creating Account...' : 'Login'}
               </button>
 
               {/* Divider */}
@@ -248,7 +307,7 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="w-full py-4 bg-white border-2 border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
+                className="w-full py-4 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
@@ -274,7 +333,7 @@ export default function SignUpPage() {
               {/* Login Link */}
               <p className="text-center mt-6 text-gray-700">
                 Already have an account?{' '}
-                <Link href="/login" className="text-[#5A7C7A] font-semibold hover:underline">
+                <Link href="/login" className="text-[#5A7C7A] hover:underline">
                   Login here
                 </Link>
               </p>
@@ -282,37 +341,49 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        {/* Right side - Illustration */}
-        <div className="hidden md:flex md:w-1/2 bg-linear-to-br from-gray-50 to-gray-100 p-12 flex-col items-center justify-center">
-          <div className="max-w-md">
-            {/* Illustration Placeholder */}
-            <div className="mb-8 flex justify-center">
-              <div className="w-80 h-80 bg-[#7FA5A3]/20 rounded-full flex items-center justify-center">
-                <div className="w-64 h-64 bg-[#7FA5A3]/30 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-32 h-32 text-[#7FA5A3]"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.49L17.5 6.5 9.99 9.99 6.5 17.5zm5.5-6.6c.61 0 1.1.49 1.1 1.1s-.49 1.1-1.1 1.1-1.1-.49-1.1-1.1.49-1.1 1.1-1.1z" />
-                  </svg>
+        {/* Right side - Auto-sliding Carousel */}
+        <div className="hidden md:flex md:w-2/5 bg-linear-to-br from-gray-50 to-gray-100 p-8 flex-col items-center justify-center relative overflow-hidden">
+          <div className="w-full flex flex-col items-center">
+            {/* Slide Image */}
+            <div className="mb-6 flex justify-center w-full aspect-square relative">
+              {slides.map((slide, index) => (
+                <div
+                  key={index}
+                  className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out ${
+                    index === currentSlide
+                      ? 'opacity-100 translate-x-0'
+                      : index === exitingSlide
+                        ? 'opacity-0 translate-x-full'
+                        : 'opacity-0 -translate-x-full pointer-events-none'
+                  }`}
+                >
+                  <Image
+                    src={slide.image}
+                    alt={`Slide ${index + 1}`}
+                    fill
+                    className="object-contain"
+                  />
                 </div>
-              </div>
+              ))}
             </div>
 
-            <h2 className="text-2xl font-bold text-[#5A7C7A] mb-3 text-center">
-              Your Pet's Health in Your Pocket
-            </h2>
-            <p className="text-gray-600 text-center leading-relaxed">
-              Pet owners can access their pet's complete medical records anytime through the web
-              platform.
-            </p>
-
-            {/* Progress Dots */}
+            {/* Progress Bars */}
             <div className="flex justify-center gap-3 mt-8">
-              <div className="w-8 h-2 bg-[#7FA5A3] rounded-full"></div>
-              <div className="w-8 h-2 bg-[#7FA5A3]/40 rounded-full"></div>
-              <div className="w-8 h-2 bg-[#7FA5A3]/40 rounded-full"></div>
+              {slides.map((_, index) => (
+                <div key={index} className="w-10 h-1.5 bg-[#7FA5A3]/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#7FA5A3] rounded-full transition-all duration-75 ease-linear"
+                    style={{
+                      width:
+                        completedSlides[index]
+                          ? '100%'
+                          : index === currentSlide
+                            ? `${progress}%`
+                            : '0%',
+                    }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
