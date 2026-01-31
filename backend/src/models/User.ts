@@ -8,9 +8,14 @@ export interface IUser extends Document {
   lastName: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   isVerified: boolean;
+  loginAttempts: number;
+  lockUntil: Date | null;
+  resetOtp: string | null;
+  resetOtpExpires: Date | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
+  isLocked(): boolean;
 }
 
 const UserSchema = new Schema(
@@ -45,6 +50,24 @@ const UserSchema = new Schema(
     isVerified: {
       type: Boolean,
       default: false // For veterinarians, this tracks PRC license verification
+    },
+    loginAttempts: {
+      type: Number,
+      default: 0
+    },
+    lockUntil: {
+      type: Date,
+      default: null
+    },
+    resetOtp: {
+      type: String,
+      default: null,
+      select: false
+    },
+    resetOtpExpires: {
+      type: Date,
+      default: null,
+      select: false
     }
   },
   {
@@ -70,6 +93,11 @@ UserSchema.pre('save', async function (this: IUser) {
 // Method to compare passwords
 UserSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
   return await bcryptjs.compare(password, this.password);
+};
+
+// Method to check if account is locked
+UserSchema.methods.isLocked = function (): boolean {
+  return !!(this.lockUntil && this.lockUntil > new Date());
 };
 
 export default mongoose.model<IUser>('User', UserSchema);

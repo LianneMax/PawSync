@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getCurrentUser, logout } from '../controllers/authController';
+import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -24,6 +24,27 @@ router.post('/login', login);
  * Header: Authorization: Bearer <token>
  */
 router.get('/me', authMiddleware, getCurrentUser);
+
+/**
+ * POST /api/auth/forgot-password
+ * Send OTP to email for password reset
+ * Body: { email }
+ */
+router.post('/forgot-password', forgotPassword);
+
+/**
+ * POST /api/auth/verify-otp
+ * Verify OTP and get reset token
+ * Body: { email, otp }
+ */
+router.post('/verify-otp', verifyOtp);
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using reset token
+ * Body: { email, resetToken, newPassword, confirmPassword }
+ */
+router.post('/reset-password', resetPassword);
 
 /**
  * POST /api/auth/logout

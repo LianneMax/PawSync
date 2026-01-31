@@ -5,6 +5,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/a
 export interface AuthResponse {
   status: 'SUCCESS' | 'ERROR';
   message: string;
+  code?: string;
+  attemptsRemaining?: number;
+  lockUntil?: string;
   data?: {
     user: {
       id: string;
@@ -15,6 +18,7 @@ export interface AuthResponse {
       isVerified: boolean;
     };
     token: string;
+    resetToken?: string;
   };
 }
 
@@ -99,6 +103,52 @@ export const logout = async (): Promise<{ status: string; message: string }> => 
     }
   });
 
+  return await response.json();
+};
+
+/**
+ * Forgot password - send OTP to email
+ */
+export const forgotPassword = async (
+  email: string
+): Promise<{ status: string; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  return await response.json();
+};
+
+/**
+ * Verify OTP
+ */
+export const verifyOtp = async (
+  email: string,
+  otp: string
+): Promise<{ status: string; message: string; data?: { resetToken: string } }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp })
+  });
+  return await response.json();
+};
+
+/**
+ * Reset password
+ */
+export const resetPassword = async (
+  email: string,
+  resetToken: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ status: string; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, resetToken, newPassword, confirmPassword })
+  });
   return await response.json();
 };
 

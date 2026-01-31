@@ -1,9 +1,26 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User, { IUser } from '../models/User';
+import { Resend } from 'resend';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCK_DURATION = 15 * 60 * 1000; // 15 minutes
+const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
+
+let resendClient: Resend | null = null;
+const getResend = (): Resend => {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey || apiKey === 'your_resend_key') {
+      throw new Error('RESEND_API_KEY is not configured. Please set a valid API key in your .env file.');
+    }
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+};
 
 /**
  * Generate JWT token
@@ -126,7 +143,20 @@ export const login = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(401).json({
         status: 'ERROR',
+        code: 'INVALID_CREDENTIALS',
         message: 'Invalid email or password'
+      });
+    }
+
+    // Check if account is locked
+    if (user.isLocked()) {
+      const remainingMs = (user.lockUntil as Date).getTime() - Date.now();
+      const remainingMinutes = Math.ceil(remainingMs / 60000);
+      return res.status(423).json({
+        status: 'ERROR',
+        code: 'ACCOUNT_LOCKED',
+        message: `Account is locked. Please try again in ${remainingMinutes} minutes.`,
+        lockUntil: user.lockUntil
       });
     }
 
@@ -134,10 +164,37 @@ export const login = async (req: Request, res: Response) => {
     const isPasswordCorrect = await user.comparePassword(password);
 
     if (!isPasswordCorrect) {
+      // Increment login attempts
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+
+      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = new Date(Date.now() + LOCK_DURATION);
+        user.loginAttempts = 0;
+        await user.save({ validateBeforeSave: false });
+
+        return res.status(423).json({
+          status: 'ERROR',
+          code: 'ACCOUNT_LOCKED',
+          message: 'Too many failed attempts. Account locked for 15 minutes.',
+          lockUntil: user.lockUntil
+        });
+      }
+
+      await user.save({ validateBeforeSave: false });
+
       return res.status(401).json({
         status: 'ERROR',
-        message: 'Invalid email or password'
+        code: 'INCORRECT_PASSWORD',
+        message: 'Your password is incorrect, please try again.',
+        attemptsRemaining: MAX_LOGIN_ATTEMPTS - user.loginAttempts
       });
+    }
+
+    // Reset login attempts on successful login
+    if (user.loginAttempts > 0 || user.lockUntil) {
+      user.loginAttempts = 0;
+      user.lockUntil = null;
+      await user.save({ validateBeforeSave: false });
     }
 
     // Generate token
@@ -206,6 +263,227 @@ export const getCurrentUser = async (req: Request, res: Response) => {
     return res.status(500).json({
       status: 'ERROR',
       message: 'An error occurred while fetching user profile'
+    });
+  }
+};
+
+/**
+ * Forgot password - send OTP to email
+ */
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Please provide an email address'
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Return success even if user not found to prevent email enumeration
+      return res.status(200).json({
+        status: 'SUCCESS',
+        message: 'If an account with that email exists, an OTP has been sent.'
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+
+    // Hash OTP before storing
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    user.resetOtp = hashedOtp;
+    user.resetOtpExpires = new Date(Date.now() + OTP_EXPIRY);
+    await user.save({ validateBeforeSave: false });
+
+    // Send OTP via email
+    try {
+      await getResend().emails.send({
+        from: 'PawSync <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'PawSync - Password Reset OTP',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #5A7C7A;">Password Reset</h2>
+            <p>Hi ${user.firstName},</p>
+            <p>You requested a password reset. Use the following code to verify your identity:</p>
+            <div style="background: #f3f4f6; padding: 20px; text-align: center; border-radius: 12px; margin: 24px 0;">
+              <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">${otp}</span>
+            </div>
+            <p style="color: #666;">This code expires in 10 minutes. If you didn't request this, please ignore this email.</p>
+            <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+          </div>
+        `
+      });
+    } catch (emailError) {
+      console.error('Email send error:', emailError);
+      // Reset the OTP fields if email fails
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({
+        status: 'ERROR',
+        message: 'Failed to send OTP email. Please try again.'
+      });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'If an account with that email exists, an OTP has been sent.'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: 'An error occurred. Please try again.'
+    });
+  }
+};
+
+/**
+ * Verify OTP
+ */
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Please provide email and OTP'
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+resetOtp +resetOtpExpires');
+
+    if (!user || !user.resetOtp || !user.resetOtpExpires) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Check if OTP has expired
+    if (user.resetOtpExpires < new Date()) {
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+      await user.save({ validateBeforeSave: false });
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'OTP has expired. Please request a new one.'
+      });
+    }
+
+    // Verify OTP
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    if (hashedOtp !== user.resetOtp) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Invalid OTP'
+      });
+    }
+
+    // Generate a temporary reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Store hashed reset token in OTP field and extend expiry
+    user.resetOtp = hashedResetToken;
+    user.resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min to reset
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'OTP verified successfully',
+      data: { resetToken }
+    });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: 'An error occurred. Please try again.'
+    });
+  }
+};
+
+/**
+ * Reset password with reset token
+ */
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, resetToken, newPassword, confirmPassword } = req.body;
+
+    if (!email || !resetToken || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Please provide all required fields'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Passwords do not match'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+resetOtp +resetOtpExpires +password');
+
+    if (!user || !user.resetOtp || !user.resetOtpExpires) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Check expiry
+    if (user.resetOtpExpires < new Date()) {
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+      await user.save({ validateBeforeSave: false });
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Reset token has expired. Please start over.'
+      });
+    }
+
+    // Verify reset token
+    const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    if (hashedResetToken !== user.resetOtp) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Invalid reset token'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.resetOtp = null;
+    user.resetOtpExpires = null;
+    user.loginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: 'An error occurred. Please try again.'
     });
   }
 };

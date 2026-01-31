@@ -3,15 +3,15 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Lock } from 'lucide-react'
+import { Mail, Lock, X, KeyRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { login } from '@/lib/auth'
+import { login, forgotPassword, verifyOtp, resetPassword } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 
 const slides = [
   {
     image: '/images/illustrations/slide-1.png'
-    
+
   },
   {
     image: '/images/illustrations/slide-2.png'
@@ -30,6 +30,8 @@ const slides = [
 
 const SLIDE_DURATION = 3000
 
+type ModalType = null | 'incorrect-password' | 'account-locked' | 'forgot-password' | 'otp' | 'new-password'
+
 export default function LoginPage() {
   const router = useRouter()
   const { login: storeLogin } = useAuthStore()
@@ -39,54 +41,35 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Modal state
+  const [activeModal, setActiveModal] = useState<ModalType>(null)
+  const [lockMinutes, setLockMinutes] = useState(15)
+
+  // Forgot password flow state
+  const [resetEmail, setResetEmail] = useState('')
+  const [otpValues, setOtpValues] = useState<string[]>(['', '', '', '', '', ''])
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [resetToken, setResetToken] = useState('')
+  const [modalLoading, setModalLoading] = useState(false)
+  const [modalError, setModalError] = useState<string | null>(null)
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0)
   const [exitingSlide, setExitingSlide] = useState<number | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [completedSlides, setCompletedSlides] = useState<boolean[]>(Array(slides.length).fill(false))
-  const progressRef = useRef(0)
-  const animFrameRef = useRef<number | null>(null)
-  const lastTimeRef = useRef<number>(0)
 
   useEffect(() => {
-    lastTimeRef.current = performance.now()
-    progressRef.current = 0
-    setProgress(0)
-
-    const tick = (now: number) => {
-      const delta = now - lastTimeRef.current
-      lastTimeRef.current = now
-      progressRef.current += (delta / SLIDE_DURATION) * 100
-
-      if (progressRef.current >= 100) {
-        progressRef.current = 0
-        setCurrentSlide((prev) => {
-          const next = (prev + 1) % slides.length
-          setExitingSlide(prev)
-          if (next === 0) {
-            setCompletedSlides(Array(slides.length).fill(false))
-          } else {
-            setCompletedSlides((c) => {
-              const updated = [...c]
-              updated[prev] = true
-              return updated
-            })
-          }
-          return next
-        })
-        setProgress(0)
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => {
+        const next = (prev + 1) % slides.length
+        setExitingSlide(prev)
         setTimeout(() => setExitingSlide(null), 700)
-      } else {
-        setProgress(progressRef.current)
-      }
+        return next
+      })
+    }, SLIDE_DURATION)
 
-      animFrameRef.current = requestAnimationFrame(tick)
-    }
-
-    animFrameRef.current = requestAnimationFrame(tick)
-
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +87,17 @@ export default function LoginPage() {
       const response = await login(email, password)
 
       if (response.status === 'ERROR') {
-        setError(response.message)
+        if (response.code === 'ACCOUNT_LOCKED') {
+          if (response.lockUntil) {
+            const remaining = Math.ceil((new Date(response.lockUntil).getTime() - Date.now()) / 60000)
+            setLockMinutes(remaining > 0 ? remaining : 15)
+          }
+          setActiveModal('account-locked')
+        } else if (response.code === 'INCORRECT_PASSWORD') {
+          setActiveModal('incorrect-password')
+        } else {
+          setError(response.message)
+        }
         setLoading(false)
         return
       }
@@ -133,6 +126,127 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = () => {
     console.log('Google sign-in')
+  }
+
+  const openForgotPassword = () => {
+    setResetEmail('')
+    setModalError(null)
+    setActiveModal('forgot-password')
+  }
+
+  const handleForgotPasswordSubmit = async () => {
+    if (!resetEmail) {
+      setModalError('Please enter your email address')
+      return
+    }
+    setModalLoading(true)
+    setModalError(null)
+    try {
+      const response = await forgotPassword(resetEmail)
+      if (response.status === 'SUCCESS') {
+        setOtpValues(['', '', '', '', '', ''])
+        setActiveModal('otp')
+      } else {
+        setModalError(response.message)
+      }
+    } catch {
+      setModalError('An error occurred. Please try again.')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      // Handle paste
+      const digits = value.replace(/\D/g, '').slice(0, 6)
+      const newOtp = [...otpValues]
+      for (let i = 0; i < 6; i++) {
+        newOtp[i] = digits[i] || ''
+      }
+      setOtpValues(newOtp)
+      const focusIndex = Math.min(digits.length, 5)
+      otpRefs.current[focusIndex]?.focus()
+      return
+    }
+
+    if (!/^\d*$/.test(value)) return
+
+    const newOtp = [...otpValues]
+    newOtp[index] = value
+    setOtpValues(newOtp)
+
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleOtpSubmit = async () => {
+    const otp = otpValues.join('')
+    if (otp.length !== 6) {
+      setModalError('Please enter the complete 6-digit code')
+      return
+    }
+    setModalLoading(true)
+    setModalError(null)
+    try {
+      const response = await verifyOtp(resetEmail, otp)
+      if (response.status === 'SUCCESS' && response.data?.resetToken) {
+        setResetToken(response.data.resetToken)
+        setNewPassword('')
+        setConfirmNewPassword('')
+        setActiveModal('new-password')
+      } else {
+        setModalError(response.message || 'Invalid OTP')
+      }
+    } catch {
+      setModalError('An error occurred. Please try again.')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const handleResetPasswordSubmit = async () => {
+    if (!newPassword || !confirmNewPassword) {
+      setModalError('Please fill in both fields')
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setModalError('Passwords do not match')
+      return
+    }
+    if (newPassword.length < 6) {
+      setModalError('Password must be at least 6 characters')
+      return
+    }
+    setModalLoading(true)
+    setModalError(null)
+    try {
+      const response = await resetPassword(resetEmail, resetToken, newPassword, confirmNewPassword)
+      if (response.status === 'SUCCESS') {
+        setActiveModal(null)
+        setError(null)
+        // Optionally show success - for now just close and let them login
+      } else {
+        setModalError(response.message)
+      }
+    } catch {
+      setModalError('An error occurred. Please try again.')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const closeModal = () => {
+    setActiveModal(null)
+    setModalError(null)
+    setModalLoading(false)
   }
 
   return (
@@ -226,9 +340,13 @@ export default function LoginPage() {
                   </button>
                   <span className="ml-2 text-gray-700">Remember me</span>
                 </label>
-                <Link href="/forgot-password" className="text-[#5A7C7A] hover:underline">
+                <button
+                  type="button"
+                  onClick={openForgotPassword}
+                  className="text-[#5A7C7A] hover:underline"
+                >
                   Forgot password?
-                </Link>
+                </button>
               </div>
 
               {/* Login Button */}
@@ -311,27 +429,285 @@ export default function LoginPage() {
               ))}
             </div>
 
-            {/* Progress Bars */}
+            {/* Slide Indicators */}
             <div className="flex justify-center gap-3 mt-8">
               {slides.map((_, index) => (
-                <div key={index} className="w-10 h-1.5 bg-[#7FA5A3]/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#7FA5A3] rounded-full transition-all duration-75 ease-linear"
-                    style={{
-                      width:
-                        completedSlides[index]
-                          ? '100%'
-                          : index === currentSlide
-                            ? `${progress}%`
-                            : '0%',
-                    }}
-                  />
-                </div>
+                <div
+                  key={index}
+                  className={`w-10 h-1.5 rounded-full transition-colors duration-300 ${
+                    index === currentSlide ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/20'
+                  }`}
+                />
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      {/* ===== MODALS ===== */}
+
+      {/* Modal Overlay */}
+      {activeModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={closeModal}
+        >
+          <div
+            className={`bg-white rounded-2xl shadow-2xl w-full p-8 relative animate-in fade-in zoom-in-95 duration-200 ${
+              activeModal === 'forgot-password' ? 'max-w-xl' : 'max-w-md'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ---- Incorrect Password Modal ---- */}
+            {activeModal === 'incorrect-password' && (
+              <div className="text-center">
+                <h2
+                  className="text-4xl text-[#8B1A1A] mb-4 text-left font-bold italic"
+                  style={{ fontFamily: 'var(--font-outfit)' }}
+                >
+                  Incorrect Password
+                </h2>
+                <p className="text-gray-700 text-lg text-left mb-8">
+                  Your password is incorrect, please try again.
+                </p>
+                <button
+                  onClick={closeModal}
+                  className="w-full max-w-xs mx-auto block py-4 bg-[#333] text-white rounded-xl hover:bg-[#444] transition-colors text-lg"
+                >
+                  Get Started
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeModal()
+                    openForgotPassword()
+                  }}
+                  className="mt-4 text-gray-500 hover:text-gray-700 underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
+
+            {/* ---- Account Locked Modal ---- */}
+            {activeModal === 'account-locked' && (
+              <div className="text-center">
+                <h2
+                  className="text-4xl text-[#8B1A1A] mb-4 text-left font-bold italic"
+                  style={{ fontFamily: 'var(--font-outfit)' }}
+                >
+                  Account Locked
+                </h2>
+                <p className="text-gray-700 text-lg text-left mb-8">
+                  You have been temporarily locked out.<br />
+                  Please try again in {lockMinutes} Minutes
+                </p>
+                <button
+                  onClick={closeModal}
+                  className="w-full max-w-xs mx-auto block py-4 bg-[#333] text-white rounded-xl hover:bg-[#444] transition-colors text-lg"
+                >
+                  Get Started
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeModal()
+                    openForgotPassword()
+                  }}
+                  className="mt-4 text-gray-500 hover:text-gray-700 underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
+
+            {/* ---- Forgot Password Modal ---- */}
+            {activeModal === 'forgot-password' && (
+              <div>
+                {/* Close button */}
+                <button
+                  onClick={closeModal}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                {/* Lock icon */}
+                <div className="mb-4">
+                  <Lock className="w-10 h-10 text-gray-700" />
+                </div>
+
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
+                <p className="text-[#5A7C7A] mb-6">
+                  Please enter your email address to reset your password
+                </p>
+
+                <div className="flex gap-4 items-start">
+                  <div className="flex-1">
+                    {modalError && (
+                      <p className="text-red-500 text-sm mb-2">{modalError}</p>
+                    )}
+
+                    {/* Email fieldset */}
+                    <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1 mb-6">
+                      <legend className="text-sm text-gray-500 px-1">Email</legend>
+                      <input
+                        type="email"
+                        placeholder="example_name@gmail.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="w-full outline-none text-gray-700 bg-transparent"
+                      />
+                    </fieldset>
+
+                    {/* Submit button */}
+                    <button
+                      onClick={handleForgotPasswordSubmit}
+                      disabled={modalLoading}
+                      className="w-full h-10 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      {modalLoading ? 'Sending...' : 'Submit'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="w-full mt-3 text-center text-gray-500 hover:text-gray-700 underline text-sm"
+                    >
+                      Back to Login
+                    </button>
+                  </div>
+
+                  {/* Illustration */}
+                  <div className="hidden sm:block w-48 h-48 relative shrink-0">
+                    <Image
+                      src="/images/illustrations/forgot-password.png"
+                      alt="Forgot Password"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ---- OTP Modal ---- */}
+            {activeModal === 'otp' && (
+              <div>
+                {/* Close button */}
+                <button
+                  onClick={closeModal}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                {/* Key icon */}
+                <div className="mb-4">
+                  <KeyRound className="w-10 h-10 text-gray-700" />
+                </div>
+
+                <h2 className="text-xl font-bold text-gray-900 mb-2">One Time Pin</h2>
+                <p className="text-[#5A7C7A] mb-6">
+                  Please enter the 6 digit code sent to your email.
+                </p>
+
+                {modalError && (
+                  <p className="text-red-500 text-sm mb-3">{modalError}</p>
+                )}
+
+                {/* OTP Inputs */}
+                <div className="flex justify-center gap-3 mb-6">
+                  {otpValues.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => { otpRefs.current[index] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      className={`w-12 h-12 text-center text-lg font-semibold rounded-lg border-2 outline-none transition-colors ${
+                        digit
+                          ? 'border-[#7FA5A3] bg-white'
+                          : 'border-gray-200 bg-gray-50'
+                      } focus:border-[#5A7C7A] focus:ring-1 focus:ring-[#5A7C7A]`}
+                    />
+                  ))}
+                </div>
+
+                {/* Confirm button */}
+                <button
+                  onClick={handleOtpSubmit}
+                  disabled={modalLoading}
+                  className="w-full py-3 bg-[#7FA5A3] text-white rounded-xl hover:bg-[#6B9290] transition-colors disabled:opacity-50 text-lg"
+                >
+                  {modalLoading ? 'Verifying...' : 'Confirm'}
+                </button>
+              </div>
+            )}
+
+            {/* ---- Create New Password Modal ---- */}
+            {activeModal === 'new-password' && (
+              <div>
+                {/* Close button */}
+                <button
+                  onClick={closeModal}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                {/* Lock icon */}
+                <div className="mb-4">
+                  <Lock className="w-10 h-10 text-gray-700" />
+                </div>
+
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Create New Password</h2>
+                <p className="text-[#5A7C7A] mb-6">
+                  Please Enter and Confirm New Password
+                </p>
+
+                {modalError && (
+                  <p className="text-red-500 text-sm mb-3">{modalError}</p>
+                )}
+
+                {/* New Password fieldset */}
+                <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1 mb-4">
+                  <legend className="text-sm text-gray-500 px-1">New Password:</legend>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full outline-none text-gray-700 bg-transparent"
+                  />
+                </fieldset>
+
+                {/* Confirm Password fieldset */}
+                <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1 mb-6">
+                  <legend className="text-sm text-gray-500 px-1">Confirm Password:</legend>
+                  <input
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="w-full outline-none text-gray-700 bg-transparent"
+                  />
+                </fieldset>
+
+                {/* Submit button */}
+                <button
+                  onClick={handleResetPasswordSubmit}
+                  disabled={modalLoading}
+                  className="w-full py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {modalLoading ? 'Updating...' : 'Submit'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -34,52 +34,18 @@ export default function SignUpPage() {
 
   const [currentSlide, setCurrentSlide] = useState(0)
   const [exitingSlide, setExitingSlide] = useState<number | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [completedSlides, setCompletedSlides] = useState<boolean[]>(Array(slides.length).fill(false))
-  const progressRef = useRef(0)
-  const animFrameRef = useRef<number | null>(null)
-  const lastTimeRef = useRef<number>(0)
 
   useEffect(() => {
-    lastTimeRef.current = performance.now()
-    progressRef.current = 0
-    setProgress(0)
-
-    const tick = (now: number) => {
-      const delta = now - lastTimeRef.current
-      lastTimeRef.current = now
-      progressRef.current += (delta / SLIDE_DURATION) * 100
-
-      if (progressRef.current >= 100) {
-        progressRef.current = 0
-        setCurrentSlide((prev) => {
-          const next = (prev + 1) % slides.length
-          setExitingSlide(prev)
-          if (next === 0) {
-            setCompletedSlides(Array(slides.length).fill(false))
-          } else {
-            setCompletedSlides((c) => {
-              const updated = [...c]
-              updated[prev] = true
-              return updated
-            })
-          }
-          return next
-        })
-        setProgress(0)
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => {
+        const next = (prev + 1) % slides.length
+        setExitingSlide(prev)
         setTimeout(() => setExitingSlide(null), 700)
-      } else {
-        setProgress(progressRef.current)
-      }
+        return next
+      })
+    }, SLIDE_DURATION)
 
-      animFrameRef.current = requestAnimationFrame(tick)
-    }
-
-    animFrameRef.current = requestAnimationFrame(tick)
-
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -367,22 +333,15 @@ export default function SignUpPage() {
               ))}
             </div>
 
-            {/* Progress Bars */}
+            {/* Slide Indicators */}
             <div className="flex justify-center gap-3 mt-8">
               {slides.map((_, index) => (
-                <div key={index} className="w-10 h-1.5 bg-[#7FA5A3]/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#7FA5A3] rounded-full transition-all duration-75 ease-linear"
-                    style={{
-                      width:
-                        completedSlides[index]
-                          ? '100%'
-                          : index === currentSlide
-                            ? `${progress}%`
-                            : '0%',
-                    }}
-                  />
-                </div>
+                <div
+                  key={index}
+                  className={`w-10 h-1.5 rounded-full transition-colors duration-300 ${
+                    index === currentSlide ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/20'
+                  }`}
+                />
               ))}
             </div>
           </div>
