@@ -17,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${outfit.variable} ${odorMeanChey.variable} ${outfit.className}`}>{children}</body>
+      <body suppressHydrationWarning className={`${outfit.variable} ${odorMeanChey.variable} ${outfit.className}`}>{children}</body>
     </html>
   )
 }
