@@ -1,3 +1,7 @@
+//Login Page
+
+
+
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
@@ -277,7 +281,7 @@ export default function LoginPage() {
               Welcome Back
             </h1>
             <p className="text-gray-600 mb-8 text-center" style={{ fontFamily: 'var(--font-outfit)' }}>
-              Sign in to your PawSync account
+              Login to your PawSync account
             </p>
 
             <form onSubmit={handleSubmit}>

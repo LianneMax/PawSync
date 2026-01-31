@@ -9,10 +9,7 @@ import {
   FileText,
   Stethoscope,
   ClipboardList,
-  Clock,
-  Users,
   Building2,
-  Settings,
   MapPin,
   QrCode,
   ArrowRight,
@@ -20,6 +17,8 @@ import {
   Shield,
   Heart,
   CheckCircle2,
+  X,
+  Smartphone,
 } from 'lucide-react'
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
@@ -53,67 +52,67 @@ const roleContent: Record<
     ],
   },
   veterinarians: {
-    heading: 'Streamline Your Veterinary Practice',
+    heading: 'Focus on Care, Not Paperwork',
     description:
-      'Access patient records instantly, manage appointments efficiently, and provide better care with digital tools',
+      'Streamline your practice with digital tools designed specifically for veterinary professionals',
     features: [
-      'Instant access to complete patient histories',
-      'Digital record creation with AI-powered summaries',
+      'Digital Medical Records',
+      'AI-Powered Notes Summarization',
+      'Quick patient lookup via NFC/QR',
       'Appointment management and scheduling',
-      'Direct communication with pet owners',
-      'License verification and credentialing',
-      'Seamless clinic collaboration',
+      'Appointment Verification through NFC/QR',
+      'Invoice generation and billing tracking',
     ],
     cards: [
-      { icon: <Stethoscope className="w-8 h-8 text-[#5A7C7A]" />, title: 'Patients', description: 'View & manage patient records' },
-      { icon: <ClipboardList className="w-8 h-8 text-[#5A7C7A]" />, title: 'Records', description: 'Create & edit medical records' },
-      { icon: <Calendar className="w-8 h-8 text-[#5A7C7A]" />, title: 'Appointments', description: 'Manage your schedule' },
-      { icon: <Clock className="w-8 h-8 text-[#5A7C7A]" />, title: 'Schedule', description: 'Set your availability' },
+      { icon: <PawPrint className="w-8 h-8 text-[#5A7C7A]" />, title: 'My Patients', description: 'Manage all your pets in one place' },
+      { icon: <Shield className="w-8 h-8 text-[#5A7C7A]" />, title: 'Electronic Medical Records', description: 'Digital Vaccination Records' },
+      { icon: <Calendar className="w-8 h-8 text-[#5A7C7A]" />, title: 'Appointments', description: 'View Daily Schedule and Consults' },
+      { icon: <ClipboardList className="w-8 h-8 text-[#5A7C7A]" />, title: 'AI-Powered', description: 'AI-Powered Notes Formatter' },
     ],
   },
   clinics: {
-    heading: 'Manage Your Clinic Efficiently',
+    heading: 'Manage Your Clinic with Ease',
     description:
-      'Oversee staff, manage appointments, and streamline operations with powerful admin tools',
+      'Complete Clinic management solution with multi-branch support, appointment handling, and patient management',
     features: [
-      'Staff management and role assignments',
-      'Clinic-wide appointment overview',
-      'Veterinarian verification management',
-      'Clinic profile and settings control',
-      'User and access management',
-      'Analytics and reporting dashboard',
+      'Multi-branch management',
+      'Veterinarian PRC Verification',
+      'Centralized patient records shared from other branches (on approval)',
+      'Appointment Scheduling for all Veterinarians',
+      'Appointment Verification through NFC/QR',
+      'Comprehensive Billing and Invoicing',
     ],
     cards: [
-      { icon: <Building2 className="w-8 h-8 text-[#5A7C7A]" />, title: 'Dashboard', description: 'Clinic overview at a glance' },
-      { icon: <Users className="w-8 h-8 text-[#5A7C7A]" />, title: 'Staff', description: 'Manage your team' },
-      { icon: <Calendar className="w-8 h-8 text-[#5A7C7A]" />, title: 'Appointments', description: 'Clinic-wide scheduling' },
-      { icon: <Settings className="w-8 h-8 text-[#5A7C7A]" />, title: 'Settings', description: 'Clinic configuration' },
+      { icon: <Building2 className="w-8 h-8 text-[#5A7C7A]" />, title: 'Branches', description: 'Manage Multiple Locations' },
+      { icon: <Shield className="w-8 h-8 text-[#5A7C7A]" />, title: 'Veterinarians', description: 'Veterinarian PRC Verification and Management' },
+      { icon: <Calendar className="w-8 h-8 text-[#5A7C7A]" />, title: 'Appointments', description: 'Appointment Verification and Scheduling' },
+      { icon: <FileText className="w-8 h-8 text-[#5A7C7A]" />, title: 'Record Sharing', description: 'Complete Medical History' },
     ],
   },
 }
 
 const powerFeatures = [
   {
-    icon: <MapPin className="w-6 h-6 text-red-400" />,
-    iconBg: 'bg-red-50',
+    icon: <MapPin className="w-6 h-6 text-[#C0736E]" />,
+    iconBg: 'bg-[#F5E0DE]',
     title: 'Lost Pet Recovery',
     description: 'Mark pets as lost and track last scanned location on map',
   },
   {
-    icon: <FileText className="w-6 h-6 text-emerald-500" />,
-    iconBg: 'bg-emerald-50',
+    icon: <FileText className="w-6 h-6 text-[#C4A44A]" />,
+    iconBg: 'bg-[#F5EEDB]',
     title: 'Electronic Records',
     description: 'Complete Veterinary Medical records with AI-powered summaries',
   },
   {
-    icon: <Shield className="w-6 h-6 text-green-500" />,
-    iconBg: 'bg-green-50',
+    icon: <Shield className="w-6 h-6 text-[#4A9E6E]" />,
+    iconBg: 'bg-[#DFF0E5]',
     title: 'Digital Vaccine Card',
     description: 'Access vaccination history anytime, anywhere. Never lose a paper record again',
   },
   {
-    icon: <QrCode className="w-6 h-6 text-blue-500" />,
-    iconBg: 'bg-blue-50',
+    icon: <QrCode className="w-6 h-6 text-[#5A7AAD]" />,
+    iconBg: 'bg-[#DEE5F0]',
     title: 'NFC & QR Tags',
     description: 'Instant pet identification with a simple tap or scan. No app required',
   },
@@ -128,23 +127,45 @@ const steps = [
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<RoleTab>('pet-owners')
+  const [showScanModal, setShowScanModal] = useState(false)
+  const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'unsupported' | 'error'>('idle')
   const content = roleContent[activeTab]
+
+  const handleTapNfc = async () => {
+    if (!('NDEFReader' in window)) {
+      setNfcStatus('unsupported')
+      return
+    }
+    try {
+      setNfcStatus('scanning')
+      const ndef = new (window as unknown as { NDEFReader: new () => { scan: () => Promise<void>; onreading: ((event: { serialNumber: string }) => void) | null } }).NDEFReader()
+      await ndef.scan()
+      ndef.onreading = (event) => {
+        const tagId = event.serialNumber
+        window.location.href = `/pet/${tagId}`
+      }
+    } catch {
+      setNfcStatus('error')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
       {/* ===== NAVBAR ===== */}
-      <nav className="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3">
           <Image
-            src="/images/logos/pawsync-logo.png"
+            src="/images/logos/Manual LOGO 2 (2) 2.png"
             alt="PawSync Logo"
             width={40}
             height={40}
+            className="rounded-[10px]"
           />
-          <span className="text-xl font-semibold text-gray-800">PawSync</span>
+          <span className="text-xl font-semibold text-[#476B6B]">PawSync</span>
         </Link>
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+          <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
             <ScanLine className="w-4 h-4" />
             Scan Pet Tag
           </button>
@@ -155,10 +176,11 @@ export default function Home() {
             Sign In
           </Link>
         </div>
+        </div>
       </nav>
 
       {/* ===== HERO SECTION ===== */}
-      <section className="bg-linear-to-b from-[#f0f5f5] to-white py-20">
+      <section className="bg-[#F5FAF9] py-20">
         <div className="max-w-4xl mx-auto text-center px-4">
           <h1
             className="text-5xl md:text-6xl text-gray-800 mb-6 leading-tight"
@@ -178,7 +200,7 @@ export default function Home() {
             >
               Get Started <ArrowRight className="w-5 h-5" />
             </Link>
-            <button className="flex items-center gap-2 px-8 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-lg">
+            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-lg">
               <ScanLine className="w-5 h-5" />
               Scan Pet Tag
             </button>
@@ -187,7 +209,7 @@ export default function Home() {
       </section>
 
       {/* ===== BUILT FOR EVERYONE ===== */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <h2
             className="text-3xl md:text-4xl text-gray-800 text-center mb-3"
@@ -270,13 +292,13 @@ export default function Home() {
       </section>
 
       {/* ===== POWER FEATURES ===== */}
-      <section className="py-20 px-4 bg-gray-50">
+      <section className="py-20 px-4 bg-[#F5FAF9]">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl text-gray-800 text-center mb-3 italic"
+            className="text-3xl md:text-4xl text-gray-800 text-center mb-3"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
-            Power Features for All
+            Powerful Features for All
           </h2>
           <p className="text-gray-500 text-center mb-12 max-w-xl mx-auto">
             From digital vaccine cards to clinic management, PawSync has you covered
@@ -284,8 +306,8 @@ export default function Home() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {powerFeatures.map((feature, i) => (
-              <div key={i} className="bg-white rounded-xl p-6 border border-gray-100 hover:shadow-md transition-shadow">
-                <div className={`w-12 h-12 ${feature.iconBg} rounded-xl flex items-center justify-center mb-4`}>
+              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                <div className={`w-12 h-12 ${feature.iconBg} rounded-full flex items-center justify-center mb-4`}>
                   {feature.icon}
                 </div>
                 <h4 className="font-semibold text-gray-800 mb-2">{feature.title}</h4>
@@ -334,6 +356,63 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {/* ===== SCAN PET TAG MODAL ===== */}
+      {showScanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-[fadeIn_0.15s_ease-out]" onClick={() => { setShowScanModal(false); setNfcStatus('idle') }}>
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 relative animate-[scaleIn_0.15s_ease-out]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => { setShowScanModal(false); setNfcStatus('idle') }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                <QrCode className="w-10 h-10 text-[#5A7C7A]" />
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+                Scan Pet Tag
+              </h3>
+              <p className="text-gray-500 text-sm mb-8">
+                Access pet information instantly by scanning their NFC tag or QR code
+              </p>
+
+              <button
+                onClick={handleTapNfc}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors font-medium mb-4"
+              >
+                <Smartphone className="w-5 h-5" />
+                {nfcStatus === 'scanning' ? 'Scanning... Hold tag near device' : 'Tap NFC Tag'}
+              </button>
+
+              {nfcStatus === 'unsupported' && (
+                <p className="text-red-500 text-xs mb-4">NFC is not supported on this device or browser.</p>
+              )}
+              {nfcStatus === 'error' && (
+                <p className="text-red-500 text-xs mb-4">Failed to start NFC scan. Please try again.</p>
+              )}
+
+              <div className="flex items-center gap-4 w-full mb-4">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-gray-400 text-sm font-medium">OR</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <button className="w-full flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium mb-6">
+                <QrCode className="w-5 h-5" />
+                Scan QR Code
+              </button>
+
+              <p className="text-gray-400 text-xs">
+                You&apos;ll see basic pet information and owner contact details if the owner has shared them
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
