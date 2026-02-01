@@ -15,7 +15,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   login: (user: User, token: string) => void;
   logout: () => void;
@@ -24,6 +24,16 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   isAuthenticated: () => boolean;
+}
+
+/**
+ * Check if the authToken cookie exists.
+ * When "remember me" is unchecked the cookie is a session cookie,
+ * so it disappears after the browser is closed.
+ */
+function hasAuthCookie(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.cookie.split('; ').some((c) => c.startsWith('authToken='));
 }
 
 /**
@@ -44,6 +54,8 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         set({ user: null, token: null });
+        localStorage.removeItem('authToken');
+        document.cookie = 'authToken=; path=/; max-age=0';
       },
 
       setUser: (user: User | null) => {
@@ -68,11 +80,19 @@ export const useAuthStore = create<AuthState>()(
       }
     }),
     {
-      name: 'auth-store', // Key in localStorage
+      name: 'auth-store',
       partialize: (state) => ({
         user: state.user,
         token: state.token
-      })
+      }),
+      onRehydrateStorage: () => (state) => {
+        // After Zustand restores from localStorage, check if the
+        // authToken cookie still exists. If not, the browser was
+        // closed without "remember me" — clear the session.
+        if (state?.token && !hasAuthCookie()) {
+          state.logout();
+        }
+      }
     }
   )
 );

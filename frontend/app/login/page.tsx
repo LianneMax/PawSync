@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Lock, X, KeyRound } from 'lucide-react'
+import { Mail, Lock, X, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { login, forgotPassword, verifyOtp, resetPassword } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
@@ -44,6 +44,9 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false)
 
   // Modal state
   const [activeModal, setActiveModal] = useState<ModalType>(null)
@@ -58,6 +61,15 @@ export default function LoginPage() {
   const [modalLoading, setModalLoading] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  // Pre-fill remembered email on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('rememberEmail')
+    if (saved) {
+      setEmail(saved)
+      setRememberMe(true)
+    }
+  }, [])
 
   // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -112,6 +124,12 @@ export default function LoginPage() {
 
         if (rememberMe) {
           localStorage.setItem('rememberEmail', email)
+          // Set a persistent cookie (30 days) so the session survives browser restarts
+          document.cookie = `authToken=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+        } else {
+          localStorage.removeItem('rememberEmail')
+          // Session cookie — cleared when the browser closes
+          document.cookie = `authToken=${response.data.token}; path=/; SameSite=Lax`
         }
 
         if (response.data.user.userType === 'pet-owner') {
@@ -298,6 +316,8 @@ export default function LoginPage() {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -312,13 +332,22 @@ export default function LoginPage() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
+                    className="w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
               </div>
 
@@ -680,23 +709,43 @@ export default function LoginPage() {
                 {/* New Password fieldset */}
                 <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1 mb-4">
                   <legend className="text-sm text-gray-500 px-1">New Password:</legend>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full outline-none text-gray-700 bg-transparent"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full outline-none text-gray-700 bg-transparent pr-8"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-0 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </fieldset>
 
                 {/* Confirm Password fieldset */}
                 <fieldset className="border border-gray-300 rounded-lg px-3 pb-3 pt-1 mb-6">
                   <legend className="text-sm text-gray-500 px-1">Confirm Password:</legend>
-                  <input
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="w-full outline-none text-gray-700 bg-transparent"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type={showConfirmNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="w-full outline-none text-gray-700 bg-transparent pr-8"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                      className="absolute right-0 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showConfirmNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </fieldset>
 
                 {/* Submit button */}
