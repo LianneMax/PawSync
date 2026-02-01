@@ -54,7 +54,7 @@ export default function VerificationSuccessPage() {
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="w-24 h-24 bg-[#22C55E] rounded-full flex items-center justify-center">
-            <Check className="w-12 h-12 text-white stroke-[3]" />
+            <Check className="w-12 h-12 text-white stroke-3" />
           </div>
         </div>
 
@@ -116,13 +116,13 @@ export default function VerificationSuccessPage() {
         {/* Verified Badge Notice */}
         <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-5 mb-6">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-[#DCFCE7] rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-[#DCFCE7] rounded-xl flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-[#16A34A]" />
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 mb-1">Verified Badge Active</h4>
               <p className="text-sm text-gray-600">
-                Your profile now displays a verified badge, letting pet owners know you're a
+                Your profile now displays a verified badge, letting pet owners know you&apos;re a
                 licensed veterinarian.
               </p>
             </div>
