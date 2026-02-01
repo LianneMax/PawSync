@@ -22,6 +22,7 @@ import {
   Camera,
 } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
+import MouseEffectBackground from '@/components/kokonutui/mouse-effect-background'
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
 
@@ -261,7 +262,14 @@ export default function Home() {
       </nav>
 
       {/* ===== HERO SECTION ===== */}
-      <section className="bg-[#F5FAF9] py-20">
+      <MouseEffectBackground
+        className="bg-[#F5FAF9] py-20"
+        dotColor="#7FA5A3"
+        dotSize={3}
+        dotSpacing={20}
+        repulsionRadius={100}
+        repulsionStrength={25}
+      >
         <div className="max-w-4xl mx-auto text-center px-4">
           <h1
             className="text-5xl md:text-6xl text-gray-800 mb-6 leading-tight"
@@ -287,7 +295,7 @@ export default function Home() {
             </button>
           </div>
         </div>
-      </section>
+      </MouseEffectBackground>
 
       {/* ===== BUILT FOR EVERYONE ===== */}
       <section className="py-20 px-4 bg-white">
