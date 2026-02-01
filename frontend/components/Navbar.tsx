@@ -72,29 +72,21 @@ export default function Navbar({
   isExpanded: controlledExpanded,
   onToggle
 }: NavbarProps) {
-  const [internalExpanded, setInternalExpanded] = useState(true)
+  const [isHovering, setIsHovering] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const pathname = usePathname()
 
-  // Support both controlled and uncontrolled usage
-  const isExpanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded
+  // Expand only on hover
+  const isExpanded = isHovering
 
   const navItems = navItemsByUserType[userType]
-
-  const toggleNavbar = () => {
-    const newValue = !isExpanded
-    if (onToggle) {
-      onToggle(newValue)
-    }
-    if (controlledExpanded === undefined) {
-      setInternalExpanded(newValue)
-    }
-  }
 
   return (
     <>
       {/* Navbar */}
       <nav
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
         className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 flex flex-col ${
           isExpanded ? 'w-72' : 'w-20'
         }`}
@@ -109,22 +101,13 @@ export default function Navbar({
                 </div>
                 <span className="text-white font-bold text-lg">PawSync Clinic</span>
               </div>
-              <button
-                onClick={toggleNavbar}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
             </>
           ) : (
-            <button
-              onClick={toggleNavbar}
-              className="w-full flex justify-center p-2 hover:bg-white/10 rounded-lg transition-colors"
-            >
+            <div className="w-full flex justify-center">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                 <PawPrint className="w-6 h-6 text-white" />
               </div>
-            </button>
+            </div>
           )}
         </div>
 
