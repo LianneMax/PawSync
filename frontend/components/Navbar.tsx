@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useAuthStore } from '@/store/authStore'
 import {
   Search,
   Home,
@@ -13,14 +14,21 @@ import {
   Receipt,
   Bell,
   Settings,
-  ChevronLeft,
-  Menu,
   Users,
   ClipboardList,
   Building2,
   UserCog,
-  MoreVertical
+  MoreVertical,
+  LogOut,
+  User
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type UserType = 'pet-owner' | 'veterinarian' | 'clinic-admin'
 
@@ -74,26 +82,54 @@ export default function Navbar({
   onToggle
 }: NavbarProps) {
   const [isHovering, setIsHovering] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const pathname = usePathname()
+  const router = useRouter()
+  const logout = useAuthStore((state) => state.logout)
+  const collapseTimer = useRef<NodeJS.Timeout | null>(null)
+  const navRef = useRef<HTMLElement>(null)
 
-  // Expand only on hover
-  const isExpanded = controlledExpanded ?? isHovering
+  // Expand on hover or while the dropdown menu is open
+  const isExpanded = controlledExpanded ?? (isHovering || menuOpen)
 
   const navItems = navItemsByUserType[userType]
+
+  const handleMouseEnter = useCallback(() => {
+    if (collapseTimer.current) {
+      clearTimeout(collapseTimer.current)
+      collapseTimer.current = null
+    }
+    setIsHovering(true)
+    onToggle?.(true)
+  }, [onToggle])
+
+  const handleMouseLeave = useCallback(() => {
+    if (menuOpen) return
+    setIsHovering(false)
+    onToggle?.(false)
+  }, [menuOpen, onToggle])
+
+  const handleMenuChange = useCallback((open: boolean) => {
+    setMenuOpen(open)
+    if (!open) {
+      // After menu closes, check if mouse is still over the nav with a small delay
+      collapseTimer.current = setTimeout(() => {
+        if (navRef.current && !navRef.current.matches(':hover')) {
+          setIsHovering(false)
+          onToggle?.(false)
+        }
+      }, 100)
+    }
+  }, [onToggle])
 
   return (
     <>
       {/* Navbar */}
       <nav
-        onMouseEnter={() => {
-          setIsHovering(true)
-          onToggle?.(true)
-        }}
-        onMouseLeave={() => {
-          setIsHovering(false)
-          onToggle?.(false)
-        }}
+        ref={navRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 flex flex-col ${
           isExpanded ? 'w-72' : 'w-20'
         }`}
@@ -196,19 +232,7 @@ export default function Navbar({
             )}
           </Link>
 
-          {/* Settings */}
-          <Link
-            href="/settings"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors ${
-              !isExpanded ? 'justify-center px-0' : ''
-            }`}
-            title={!isExpanded ? 'Settings' : undefined}
-          >
-            <Settings className="w-5 h-5" />
-            {isExpanded && <span className="font-medium whitespace-nowrap">Settings</span>}
-          </Link>
-
-          {/* User Profile */}
+          {/* User Profile with Dropdown */}
           <div
             className={`mt-4 p-3 bg-white/10 rounded-xl flex items-center gap-3 ${
               !isExpanded ? 'justify-center' : ''
@@ -231,9 +255,49 @@ export default function Navbar({
                   <p className="text-white font-semibold truncate whitespace-nowrap">{userName}</p>
                   <p className="text-white/70 text-sm truncate whitespace-nowrap">{userEmail}</p>
                 </div>
-                <button className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-                  <MoreVertical className="w-5 h-5 text-white/70" />
-                </button>
+                <DropdownMenu open={menuOpen} onOpenChange={handleMenuChange}>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                      <MoreVertical className="w-5 h-5 text-white/70" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="end" className="w-48 mb-2">
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/notifications" className="flex items-center gap-2">
+                        <Bell className="w-4 h-4" />
+                        Notifications
+                        {notificationCount > 0 && (
+                          <span className="ml-auto text-xs bg-[#7FA5A3] text-white px-1.5 py-0.5 rounded-full">
+                            {notificationCount > 99 ? '99+' : notificationCount}
+                          </span>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex items-center gap-2">
+                        <Settings className="w-4 h-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onSelect={() => {
+                        logout()
+                        router.push('/login')
+                      }}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>
