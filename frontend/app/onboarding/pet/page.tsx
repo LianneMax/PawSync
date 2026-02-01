@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Dog, Cat, Image as ImageIcon, Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { BreedCombobox } from '@/components/ui/breed-combobox'
 
 type PetSpecies = 'dog' | 'cat' | null
 
@@ -32,13 +35,11 @@ export default function PetOnboardingPage() {
   // Pet Details state (Step 3)
   const [fullName, setFullName] = useState('')
   const [breed, setBreed] = useState('')
-  const [crossBreed, setCrossBreed] = useState('')
-  const [isCrossBreed, setIsCrossBreed] = useState(false)
+  const [secondaryBreed, setSecondaryBreed] = useState('')
   const [sex, setSex] = useState('')
   const [sterilization, setSterilization] = useState('')
   const [weight, setWeight] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
-  const [microchipId, setMicrochipId] = useState('')
   const [notes, setNotes] = useState('')
 
   // Clinic search state
@@ -113,9 +114,7 @@ export default function PetOnboardingPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const petDetails = {
-      fullName, breed,
-      crossBreed: isCrossBreed ? crossBreed : null,
-      isCrossBreed, sex, sterilization, weight, dateOfBirth, microchipId, notes,
+      fullName, breed, secondaryBreed: secondaryBreed || null, sex, sterilization, weight, dateOfBirth, notes,
       clinic: selectedClinic
     }
     sessionStorage.setItem('petDetails', JSON.stringify(petDetails))
@@ -372,7 +371,7 @@ export default function PetOnboardingPage() {
                         setShowClinicResults(true)
                       }}
                       onFocus={() => setShowClinicResults(true)}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
                     />
                   )}
 
@@ -416,80 +415,51 @@ export default function PetOnboardingPage() {
                     placeholder="Full name*"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                    className="w-full h-13 px-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
                     required
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <input
-                    type="text"
-                    placeholder="Breed*"
+                  <BreedCombobox
+                    species={species}
                     value={breed}
-                    onChange={(e) => setBreed(e.target.value)}
-                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                    onChange={setBreed}
+                    placeholder="Primary Breed*"
                     required
                   />
-                  <input
-                    type="text"
-                    placeholder="Cross Breed (Optional)"
-                    value={crossBreed}
-                    onChange={(e) => {
-                      setCrossBreed(e.target.value)
-                      if (e.target.value) setIsCrossBreed(true)
-                    }}
-                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                  <BreedCombobox
+                    species={species}
+                    value={secondaryBreed}
+                    onChange={setSecondaryBreed}
+                    placeholder="Secondary Breed (optional)"
                   />
-                </div>
-
-                <div className="mb-4">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isCrossBreed}
-                      onChange={(e) => setIsCrossBreed(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3] cursor-pointer"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Cross Breed</span>
-                  </label>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div className="relative">
-                    <select
-                      value={sex}
-                      onChange={(e) => setSex(e.target.value)}
-                      className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all appearance-none cursor-pointer"
-                      required
-                    >
-                      <option value="">Sex*</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                      </svg>
-                    </div>
+                  <div>
+                    <Select value={sex} onValueChange={(val) => setSex(val)} required>
+                      <SelectTrigger className="w-full h-13 px-4 bg-gray-50 rounded-xl border-gray-200 shadow-xs shadow-black/5 text-base">
+                        <SelectValue placeholder="Sex*" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <div className="relative">
-                    <select
-                      value={sterilization}
-                      onChange={(e) => setSterilization(e.target.value)}
-                      className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all appearance-none cursor-pointer"
-                      required
-                    >
-                      <option value="">Sterilization*</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                      <option value="unknown">Unknown</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                      </svg>
-                    </div>
+                  <div>
+                    <Select value={sterilization} onValueChange={(val) => setSterilization(val)} required>
+                      <SelectTrigger className="w-full h-13 px-4 bg-gray-50 rounded-xl border-gray-200 shadow-xs shadow-black/5 text-base">
+                        <SelectValue placeholder="Sterilization*" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="unknown">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <input
@@ -497,31 +467,19 @@ export default function PetOnboardingPage() {
                     placeholder="Weight (kg)*"
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
-                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                    className="w-full h-13 px-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
                     required
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <input
-                      type="date"
-                      placeholder="Date of Birth*"
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                      className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>
-                  </div>
-
-                  <input
-                    type="text"
-                    placeholder="Microchip ID (if any)"
-                    value={microchipId}
-                    onChange={(e) => setMicrochipId(e.target.value)}
-                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                <div className="mb-4">
+                  <DatePicker
+                    value={dateOfBirth}
+                    onChange={setDateOfBirth}
+                    placeholder="Date of Birth*"
+                    required
                   />
+                  <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>
                 </div>
 
                 <div className="mb-4">
@@ -530,7 +488,7 @@ export default function PetOnboardingPage() {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={4}
-                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all resize-none"
+                    className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all resize-none"
                   />
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Check, ArrowLeft, ArrowRight, Upload, FileText, Search } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { DatePicker } from '@/components/ui/date-picker'
 
 // Sample clinic data - in a real app, this would come from an API
 const clinicsData = [
@@ -331,12 +332,10 @@ export default function VetOnboardingPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <input
-                      type="date"
-                      placeholder="Date of Registration"
+                    <DatePicker
                       value={registrationDate}
-                      onChange={(e) => setRegistrationDate(e.target.value)}
-                      className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                      onChange={setRegistrationDate}
+                      placeholder="Date of Registration"
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1 ml-1">
@@ -344,12 +343,10 @@ export default function VetOnboardingPage() {
                     </p>
                   </div>
                   <div>
-                    <input
-                      type="date"
-                      placeholder="Expiration Date"
+                    <DatePicker
                       value={expirationDate}
-                      onChange={(e) => setExpirationDate(e.target.value)}
-                      className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                      onChange={setExpirationDate}
+                      placeholder="Expiration Date"
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1 ml-1">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   Search,
@@ -102,7 +103,12 @@ export default function Navbar({
         <div className="p-4 flex items-center justify-left w-full">
           <div className="flex items-center gap-3 transition-all duration-300">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <PawPrint className="w-6 h-6 text-white" />
+              <Image
+                src="/images/logos/pawsync-logo-white.png"
+                alt="PawSync Logo"
+                width={43}
+                height={43}
+              />
             </div>
             <span
               className={`text-white font-bold text-lg whitespace-nowrap transition-all duration-200 ${
