@@ -77,7 +77,7 @@ export default function Navbar({
   const pathname = usePathname()
 
   // Expand only on hover
-  const isExpanded = isHovering
+  const isExpanded = controlledExpanded ?? isHovering
 
   const navItems = navItemsByUserType[userType]
 
@@ -85,16 +85,23 @@ export default function Navbar({
     <>
       {/* Navbar */}
       <nav
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
+        onMouseEnter={() => {
+          setIsHovering(true)
+          onToggle?.(true)
+        }}
+        onMouseLeave={() => {
+          setIsHovering(false)
+          onToggle?.(false)
+        }}
         className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 flex flex-col ${
           isExpanded ? 'w-72' : 'w-20'
         }`}
       >
+
         {/* Header with Logo */}
-        <div className="p-4 flex items-center justify-center w-full">
+        <div className="p-4 flex items-center justify-left w-full">
           <div className="flex items-center gap-3 transition-all duration-300">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
               <PawPrint className="w-6 h-6 text-white" />
             </div>
             {isExpanded && <span className="text-white font-bold text-lg whitespace-nowrap">PawSync Clinic</span>}
@@ -138,7 +145,7 @@ export default function Navbar({
                     title={!isExpanded ? item.label : undefined}
                   >
                     {item.icon}
-                    {isExpanded && <span className="font-medium">{item.label}</span>}
+                    {isExpanded && <span className="font-medium whitespace-nowrap">{item.label}</span>}
                   </Link>
                 </li>
               )
@@ -165,10 +172,10 @@ export default function Navbar({
               )}
             </div>
             {isExpanded && (
-              <span className="font-medium flex-1">Notifications</span>
+              <span className="font-medium flex-1 whitespace-nowrap">Notifications</span>
             )}
             {isExpanded && notificationCount > 0 && (
-              <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-medium rounded-full">
+              <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-medium rounded-full whitespace-nowrap">
                 {notificationCount}
               </span>
             )}
@@ -183,7 +190,7 @@ export default function Navbar({
             title={!isExpanded ? 'Settings' : undefined}
           >
             <Settings className="w-5 h-5" />
-            {isExpanded && <span className="font-medium">Settings</span>}
+            {isExpanded && <span className="font-medium whitespace-nowrap">Settings</span>}
           </Link>
 
           {/* User Profile */}
@@ -206,8 +213,8 @@ export default function Navbar({
             {isExpanded && (
               <>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold truncate">{userName}</p>
-                  <p className="text-white/70 text-sm truncate">{userEmail}</p>
+                  <p className="text-white font-semibold truncate whitespace-nowrap">{userName}</p>
+                  <p className="text-white/70 text-sm truncate whitespace-nowrap">{userEmail}</p>
                 </div>
                 <button className="p-1 hover:bg-white/10 rounded-lg transition-colors">
                   <MoreVertical className="w-5 h-5 text-white/70" />

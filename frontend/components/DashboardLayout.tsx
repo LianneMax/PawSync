@@ -25,7 +25,7 @@ export default function DashboardLayout({
   userType: userTypeOverride
 }: DashboardLayoutProps) {
   const [userData, setUserData] = useState<UserData | null>(null)
-  const [isNavHovering, setIsNavHovering] = useState(false)
+  const [isNavExpanded, setIsNavExpanded] = useState(false)
 
   useEffect(() => {
     // Get user data from sessionStorage or auth state
@@ -60,29 +60,25 @@ export default function DashboardLayout({
   }
 
   return (
-    <div 
-      className="min-h-screen bg-gray-50"
-      onMouseEnter={() => setIsNavHovering(false)}
-      onMouseMove={(e) => {
-        // Check if mouse is over the navbar area (left 100px to account for expansion)
-        setIsNavHovering(e.clientX < 100)
-      }}
-      onMouseLeave={() => setIsNavHovering(false)}
-    >
+    <div className="min-h-screen bg-gray-50">
       <Navbar
         userType={userData.userType}
         userName={`${userData.firstName} ${userData.lastName}`.trim()}
         userEmail={userData.email}
         userAvatar={userData.avatar}
         notificationCount={notificationCount}
+        isExpanded={isNavExpanded}
+        onToggle={setIsNavExpanded}
       />
+
 
       {/* Main Content Area - adjusts margin based on navbar hover state */}
       <main
         className={`min-h-screen transition-all duration-300 ${
-          isNavHovering ? 'ml-72' : 'ml-20'
+          isNavExpanded ? 'ml-72' : 'ml-20'
         }`}
       >
+
         {children}
       </main>
     </div>
