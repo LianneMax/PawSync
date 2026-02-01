@@ -51,6 +51,8 @@ export default function LoginPage() {
   // Modal state
   const [activeModal, setActiveModal] = useState<ModalType>(null)
   const [lockMinutes, setLockMinutes] = useState(15)
+  const [lockSecondsLeft, setLockSecondsLeft] = useState(0)
+  const lockTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Forgot password flow state
   const [resetEmail, setResetEmail] = useState('')
@@ -107,6 +109,31 @@ export default function LoginPage() {
           if (response.lockUntil) {
             const remaining = Math.ceil((new Date(response.lockUntil).getTime() - Date.now()) / 60000)
             setLockMinutes(remaining > 0 ? remaining : 15)
+            // Start a live countdown in seconds
+            const totalSecs = Math.max(Math.ceil((new Date(response.lockUntil).getTime() - Date.now()) / 1000), 0)
+            setLockSecondsLeft(totalSecs)
+            if (lockTimerRef.current) clearInterval(lockTimerRef.current)
+            lockTimerRef.current = setInterval(() => {
+              setLockSecondsLeft((prev) => {
+                if (prev <= 1) {
+                  if (lockTimerRef.current) clearInterval(lockTimerRef.current)
+                  return 0
+                }
+                return prev - 1
+              })
+            }, 1000)
+          } else {
+            setLockSecondsLeft(lockMinutes * 60)
+            if (lockTimerRef.current) clearInterval(lockTimerRef.current)
+            lockTimerRef.current = setInterval(() => {
+              setLockSecondsLeft((prev) => {
+                if (prev <= 1) {
+                  if (lockTimerRef.current) clearInterval(lockTimerRef.current)
+                  return 0
+                }
+                return prev - 1
+              })
+            }, 1000)
           }
           setActiveModal('account-locked')
         } else if (response.code === 'INCORRECT_PASSWORD') {
@@ -269,6 +296,10 @@ export default function LoginPage() {
     setActiveModal(null)
     setModalError(null)
     setModalLoading(false)
+    if (lockTimerRef.current) {
+      clearInterval(lockTimerRef.current)
+      lockTimerRef.current = null
+    }
   }
 
   return (
@@ -283,7 +314,7 @@ export default function LoginPage() {
             {/* Centered Logo */}
             <div className="flex justify-center mb-4">
               <Image
-                src="/images/logos/pawsync-logo.png"
+                src="/images/logos/pawsync-logo-medium-outline.png"
                 alt="PawSync Logo"
                 width={80}
                 height={80}
@@ -495,7 +526,7 @@ export default function LoginPage() {
             {activeModal === 'incorrect-password' && (
               <div className="text-center">
                 <h2
-                  className="text-4xl text-[#8B1A1A] mb-4 text-left font-bold italic"
+                  className="text-[26px] text-[#8B1A1A] mb-4 text-left font-bold"
                   style={{ fontFamily: 'var(--font-outfit)' }}
                 >
                   Incorrect Password
@@ -505,9 +536,9 @@ export default function LoginPage() {
                 </p>
                 <button
                   onClick={closeModal}
-                  className="w-full max-w-xs mx-auto block py-4 bg-[#333] text-white rounded-xl hover:bg-[#444] transition-colors text-lg"
+                  className="w-full max-w-xs mx-auto flex items-center justify-center h-10 bg-[#333] text-white rounded-xl hover:bg-[#444] transition-colors"
                 >
-                  Get Started
+                  Try Again
                 </button>
                 <button
                   type="button"
@@ -526,20 +557,23 @@ export default function LoginPage() {
             {activeModal === 'account-locked' && (
               <div className="text-center">
                 <h2
-                  className="text-4xl text-[#8B1A1A] mb-4 text-left font-bold italic"
+                  className="text-[26px] text-[#8B1A1A] mb-4 text-left font-bold"
                   style={{ fontFamily: 'var(--font-outfit)' }}
                 >
                   Account Locked
                 </h2>
                 <p className="text-gray-700 text-lg text-left mb-8">
                   You have been temporarily locked out.<br />
-                  Please try again in {lockMinutes} Minutes
+                  {lockSecondsLeft > 0
+                    ? `Please try again in ${Math.floor(lockSecondsLeft / 60)}:${String(lockSecondsLeft % 60).padStart(2, '0')}`
+                    : 'You can now try again'}
                 </p>
                 <button
                   onClick={closeModal}
-                  className="w-full max-w-xs mx-auto block py-4 bg-[#333] text-white rounded-xl hover:bg-[#444] transition-colors text-lg"
+                  disabled={lockSecondsLeft > 0}
+                  className="w-full max-w-xs mx-auto flex items-center justify-center h-10 bg-[#333] text-white rounded-xl hover:bg-[#444] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Get Started
+                  Try Again
                 </button>
                 <button
                   type="button"
