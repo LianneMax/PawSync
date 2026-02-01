@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Check, ArrowLeft, ArrowRight, Upload, FileText, Search } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 // Sample clinic data - in a real app, this would come from an API
 const clinicsData = [
@@ -161,16 +162,7 @@ export default function VetOnboardingPage() {
     router.push('/onboarding/vet/verification-pending')
   }
 
-  // Get user data from signup
-  const getUserData = () => {
-    if (typeof window !== 'undefined') {
-      const data = sessionStorage.getItem('signupData')
-      return data ? JSON.parse(data) : null
-    }
-    return null
-  }
-
-  const userData = getUserData()
+  const userData = useAuthStore((state) => state.user)
 
   // Slide classes
   const getSlideClass = () => {
@@ -190,23 +182,22 @@ export default function VetOnboardingPage() {
   const shouldAnimate = slidePhase === 'exit' || slidePhase === 'idle'
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 pb-12 overflow-hidden">
+    <div className="min-h-screen bg-[#F8F6F2] p-4 pb-12 overflow-hidden">
       {/* Header with user info */}
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex justify-between items-center">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden">
+          <div className="w-14 h-14 bg-[#476B6B] rounded-xl flex items-center justify-center shadow-sm">
             <Image
-              src="/images/logos/Manual LOGO 2 (2) 2.png"
+              src="/images/logos/pawsync-logo-white.png"
               alt="PawSync Logo"
-              width={64}
-              height={64}
-              className="w-full h-full object-cover rounded-[10px]"
+              width={38}
+              height={38}
             />
           </div>
           {userData && (
-            <div className="bg-white px-6 py-3 rounded-xl shadow-sm">
-              <p className="font-semibold text-gray-800">{userData.firstName} {userData.lastName}</p>
-              <p className="text-sm text-gray-600">{userData.email}</p>
+            <div className="h-14 bg-[#F8F6F2] px-6 rounded-xl shadow-sm flex flex-col items-center justify-center">
+              <p className="font-bold text-gray-800" style={{ fontSize: '14px' }}>{userData.firstName} {userData.lastName}</p>
+              <p className="text-gray-600" style={{ fontSize: '14px' }}>{userData.email}</p>
             </div>
           )}
         </div>

@@ -235,13 +235,14 @@ export default function Home() {
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto">
         <Link href="/" className="flex items-center gap-3">
-          <Image
-            src="/images/logos/Manual LOGO 2 (2) 2.png"
-            alt="PawSync Logo"
-            width={40}
-            height={40}
-            className="rounded-[10px]"
-          />
+          <div className="w-14 h-14 bg-[#476B6B] rounded-xl flex items-center justify-center">
+            <Image
+              src="/images/logos/pawsync-logo-white.png"
+              alt="PawSync Logo"
+              width={45}
+              height={45}
+            />
+          </div>
           <span className="text-xl font-semibold text-[#476B6B]">PawSync</span>
         </Link>
         <div className="flex items-center gap-4">

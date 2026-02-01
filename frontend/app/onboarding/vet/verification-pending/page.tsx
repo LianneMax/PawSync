@@ -54,7 +54,7 @@ export default function VerificationPendingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#F8F6F2] flex items-center justify-center p-4">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-lg p-10">
         {/* Icon */}
         <div className="flex justify-center mb-6">
