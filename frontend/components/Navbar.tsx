@@ -92,23 +92,13 @@ export default function Navbar({
         }`}
       >
         {/* Header with Logo */}
-        <div className="p-4 flex items-center justify-between">
-          {isExpanded ? (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <PawPrint className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-white font-bold text-lg">PawSync Clinic</span>
-              </div>
-            </>
-          ) : (
-            <div className="w-full flex justify-center">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <PawPrint className="w-6 h-6 text-white" />
-              </div>
+        <div className="p-4 flex items-center justify-center w-full">
+          <div className="flex items-center gap-3 transition-all duration-300">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <PawPrint className="w-6 h-6 text-white" />
             </div>
-          )}
+            {isExpanded && <span className="text-white font-bold text-lg whitespace-nowrap">PawSync Clinic</span>}
+          </div>
         </div>
 
         {/* Search Bar */}
