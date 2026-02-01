@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   X,
   Smartphone,
+  Camera,
 } from 'lucide-react'
+import { Html5Qrcode } from 'html5-qrcode'
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
 
@@ -93,7 +95,7 @@ const roleContent: Record<
 
 const powerFeatures = [
   {
-    icon: <MapPin className="w-6 h-6 text-[#C0736E]" />,
+    icon: <MapPin className="w-6 h-6 text-[#983232]" />,
     iconBg: 'bg-[#F5E0DE]',
     title: 'Lost Pet Recovery',
     description: 'Mark pets as lost and track last scanned location on map',
@@ -129,7 +131,22 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<RoleTab>('pet-owners')
   const [showScanModal, setShowScanModal] = useState(false)
   const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'unsupported' | 'error'>('idle')
+  const [qrStatus, setQrStatus] = useState<'idle' | 'scanning' | 'error'>('idle')
   const content = roleContent[activeTab]
+
+  const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const qrScannerRef = useRef<Html5Qrcode | null>(null)
+  const qrContainerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+      if (qrScannerRef.current) {
+        qrScannerRef.current.stop().catch(() => {})
+        qrScannerRef.current = null
+      }
+    }
+  }, [])
 
   const handleTapNfc = async () => {
     if (!('NDEFReader' in window)) {
@@ -140,13 +157,76 @@ export default function Home() {
       setNfcStatus('scanning')
       const ndef = new (window as unknown as { NDEFReader: new () => { scan: () => Promise<void>; onreading: ((event: { serialNumber: string }) => void) | null } }).NDEFReader()
       await ndef.scan()
+
+      nfcTimeoutRef.current = setTimeout(() => {
+        setNfcStatus('error')
+      }, 15000)
+
       ndef.onreading = (event) => {
+        if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
         const tagId = event.serialNumber
         window.location.href = `/pet/${tagId}`
       }
     } catch {
       setNfcStatus('error')
     }
+  }
+
+  const handleRetryNfc = () => {
+    setNfcStatus('idle')
+    handleTapNfc()
+  }
+
+  const stopQrScanner = async () => {
+    if (qrScannerRef.current) {
+      try {
+        await qrScannerRef.current.stop()
+      } catch { /* ignore */ }
+      qrScannerRef.current = null
+    }
+  }
+
+  const handleScanQr = async () => {
+    setNfcStatus('idle')
+    setQrStatus('scanning')
+
+    // Wait for the container div to render
+    await new Promise((r) => setTimeout(r, 100))
+
+    const container = document.getElementById('qr-reader')
+    if (!container) {
+      setQrStatus('error')
+      return
+    }
+
+    try {
+      const scanner = new Html5Qrcode('qr-reader')
+      qrScannerRef.current = scanner
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          // QR code detected — navigate to pet page
+          stopQrScanner()
+          setQrStatus('idle')
+          window.location.href = decodedText.startsWith('http') ? decodedText : `/pet/${decodedText}`
+        },
+        () => {
+          // QR scan frame — no match yet, do nothing
+        },
+      )
+    } catch {
+      setQrStatus('error')
+    }
+  }
+
+  const handleCloseScanModal = () => {
+    setShowScanModal(false)
+    setNfcStatus('idle')
+    setQrStatus('idle')
+    stopQrScanner()
+    if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
   }
 
   return (
@@ -359,57 +439,242 @@ export default function Home() {
 
       {/* ===== SCAN PET TAG MODAL ===== */}
       {showScanModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-[fadeIn_0.15s_ease-out]" onClick={() => { setShowScanModal(false); setNfcStatus('idle') }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-[fadeIn_0.15s_ease-out]" onClick={handleCloseScanModal}>
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 relative animate-[scaleIn_0.15s_ease-out]" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => { setShowScanModal(false); setNfcStatus('idle') }}
+              onClick={handleCloseScanModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                <QrCode className="w-10 h-10 text-[#5A7C7A]" />
+            {/* ---- SCANNING STATE ---- */}
+            {nfcStatus === 'scanning' && (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="relative w-28 h-28 mb-8">
+                  {/* Pulse rings */}
+                  <div className="absolute inset-0 rounded-full border-2 border-[#5A7C7A]/30 animate-[nfcPulse_2s_ease-out_infinite]" />
+                  <div className="absolute inset-0 rounded-full border-2 border-[#5A7C7A]/20 animate-[nfcPulse_2s_ease-out_0.6s_infinite]" />
+                  <div className="absolute inset-0 rounded-full border-2 border-[#5A7C7A]/10 animate-[nfcPulse_2s_ease-out_1.2s_infinite]" />
+                  {/* Center icon */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 bg-[#5A7C7A] rounded-full flex items-center justify-center animate-pulse">
+                      <Smartphone className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold text-[#476B6B] mb-2">
+                  Searching for NFC Tag...
+                </h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  Hold the NFC tag close to your device&apos;s NFC reader
+                </p>
+
+                <div className="flex items-center gap-2 text-[#5A7C7A] text-sm font-medium">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-[#5A7C7A] rounded-full animate-[nfcDot_1.4s_ease-in-out_infinite]" />
+                    <span className="w-2 h-2 bg-[#5A7C7A] rounded-full animate-[nfcDot_1.4s_ease-in-out_0.2s_infinite]" />
+                    <span className="w-2 h-2 bg-[#5A7C7A] rounded-full animate-[nfcDot_1.4s_ease-in-out_0.4s_infinite]" />
+                  </div>
+                  Detecting NFC tag
+                </div>
+
+                <button
+                  onClick={handleCloseScanModal}
+                  className="mt-8 px-6 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
               </div>
+            )}
 
-              <h3 className="text-2xl font-bold text-gray-800 mb-2" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
-                Scan Pet Tag
-              </h3>
-              <p className="text-gray-500 text-sm mb-8">
-                Access pet information instantly by scanning their NFC tag or QR code
-              </p>
+            {/* ---- ERROR STATE ---- */}
+            {nfcStatus === 'error' && (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="w-20 h-20 bg-[#F5E0DE] rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
+                  <Smartphone className="w-10 h-10 text-[#983232]" />
+                </div>
 
-              <button
-                onClick={handleTapNfc}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors font-medium mb-4"
-              >
-                <Smartphone className="w-5 h-5" />
-                {nfcStatus === 'scanning' ? 'Scanning... Hold tag near device' : 'Tap NFC Tag'}
-              </button>
+                <h3 className="text-xl font-bold text-[#476B6B] mb-2">
+                  No NFC Tag Detected
+                </h3>
+                <p className="text-gray-500 text-sm mb-2">
+                  We couldn&apos;t find an NFC tag nearby. This could be because:
+                </p>
+                <ul className="text-gray-500 text-sm text-left mb-6 space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    The tag wasn&apos;t close enough to the device
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    The NFC tag may be damaged or unresponsive
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    Your device&apos;s NFC reader may be obstructed
+                  </li>
+                </ul>
 
-              {nfcStatus === 'unsupported' && (
-                <p className="text-red-500 text-xs mb-4">NFC is not supported on this device or browser.</p>
-              )}
-              {nfcStatus === 'error' && (
-                <p className="text-red-500 text-xs mb-4">Failed to start NFC scan. Please try again.</p>
-              )}
-
-              <div className="flex items-center gap-4 w-full mb-4">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-gray-400 text-sm font-medium">OR</span>
-                <div className="flex-1 h-px bg-gray-200" />
+                <button
+                  onClick={handleRetryNfc}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors font-medium mb-3"
+                >
+                  <Smartphone className="w-5 h-5" />
+                  Try Again
+                </button>
+                <button
+                  onClick={handleCloseScanModal}
+                  className="w-full px-6 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
               </div>
+            )}
 
-              <button className="w-full flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium mb-6">
-                <QrCode className="w-5 h-5" />
-                Scan QR Code
-              </button>
+            {/* ---- UNSUPPORTED STATE ---- */}
+            {nfcStatus === 'unsupported' && qrStatus === 'idle' && (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="w-20 h-20 bg-[#F5E0DE] rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
+                  <Smartphone className="w-10 h-10 text-[#983232]" />
+                </div>
 
-              <p className="text-gray-400 text-xs">
-                You&apos;ll see basic pet information and owner contact details if the owner has shared them
-              </p>
-            </div>
+                <h3 className="text-xl font-bold text-[#476B6B] mb-2">
+                  NFC Not Supported
+                </h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  Your device or browser does not support NFC scanning. Try using a QR code instead, or use a device with NFC capabilities.
+                </p>
+
+                <button
+                  onClick={handleScanQr}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors mb-3"
+                >
+                  <QrCode className="w-5 h-5" />
+                  Scan QR Code Instead
+                </button>
+                <button
+                  onClick={handleCloseScanModal}
+                  className="w-full px-6 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {/* ---- QR SCANNING STATE ---- */}
+            {qrStatus === 'scanning' && (
+              <div className="flex flex-col items-center text-center py-4">
+                <h3 className="text-xl font-bold text-[#476B6B] mb-2">
+                  <Camera className="w-5 h-5 inline-block mr-2 -mt-0.5" />
+                  Scan QR Code
+                </h3>
+                <p className="text-gray-500 text-sm mb-4">
+                  Point your camera at the pet&apos;s QR code tag
+                </p>
+
+                <div
+                  id="qr-reader"
+                  ref={qrContainerRef}
+                  className="w-full rounded-lg overflow-hidden mb-4"
+                  style={{ minHeight: 280 }}
+                />
+
+                <button
+                  onClick={handleCloseScanModal}
+                  className="w-full px-6 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {/* ---- QR ERROR STATE ---- */}
+            {qrStatus === 'error' && (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="w-20 h-20 bg-[#F5E0DE] rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
+                  <Camera className="w-10 h-10 text-[#983232]" />
+                </div>
+
+                <h3 className="text-xl font-bold text-[#476B6B] mb-2">
+                  Camera Access Failed
+                </h3>
+                <p className="text-gray-500 text-sm mb-2">
+                  We couldn&apos;t access your camera. This could be because:
+                </p>
+                <ul className="text-gray-500 text-sm text-left mb-6 space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    Camera permission was denied in your browser
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    Your device doesn&apos;t have a camera
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    Another app is using the camera
+                  </li>
+                </ul>
+
+                <button
+                  onClick={handleScanQr}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors font-medium mb-3"
+                >
+                  <Camera className="w-5 h-5" />
+                  Try Again
+                </button>
+                <button
+                  onClick={handleCloseScanModal}
+                  className="w-full px-6 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {/* ---- IDLE STATE (default) ---- */}
+            {nfcStatus === 'idle' && qrStatus === 'idle' && (
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
+                  <QrCode className="w-10 h-10 text-[#5A7C7A]" />
+                </div>
+
+                <h3 className="text-2xl text-[#476B6B] mb-2" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+                  Scan Pet Tag
+                </h3>
+                <p className="text-gray-500 text-sm mb-8">
+                  Access pet information instantly by scanning their NFC tag or QR code
+                </p>
+
+                <button
+                  onClick={handleTapNfc}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors font-medium mb-4"
+                >
+                  <Smartphone className="w-5 h-5" />
+                  Tap NFC Tag
+                </button>
+
+                <div className="flex items-center gap-4 w-full mb-4">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-gray-400 text-sm font-medium">OR</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                <button
+                  onClick={handleScanQr}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium mb-6"
+                >
+                  <QrCode className="w-5 h-5" />
+                  Scan QR Code
+                </button>
+
+                <p className="text-gray-400 text-xs">
+                  You&apos;ll see basic pet information and owner contact details if the owner has shared them
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
