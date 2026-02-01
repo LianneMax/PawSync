@@ -219,7 +219,7 @@ export default function Navbar({
               !isExpanded ? 'justify-center' : ''
             }`}
           >
-            <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+            <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden shrink-0">
               {userAvatar ? (
                 <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
               ) : (

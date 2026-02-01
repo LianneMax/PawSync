@@ -59,7 +59,7 @@ export default function VerificationFailedPage() {
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="w-24 h-24 bg-[#DC2626] rounded-full flex items-center justify-center">
-            <X className="w-12 h-12 text-white stroke-[3]" />
+            <X className="w-12 h-12 text-white stroke-3" />
           </div>
         </div>
 
@@ -114,7 +114,7 @@ export default function VerificationFailedPage() {
         {/* Rejection Reason */}
         <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-2xl p-5 mb-6">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-[#DC2626] shrink-0 mt-0.5" />
             <div>
               <h4 className="font-semibold text-[#DC2626] mb-1">Reason for Rejection:</h4>
               <p className="text-sm text-gray-700">
