@@ -44,13 +44,13 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
   'pet-owner': [
     { label: 'Dashboard', href: '/dashboard', icon: <Home className="w-5 h-5" /> },
     { label: 'My Pets', href: '/my-pets', icon: <PawPrint className="w-5 h-5" /> },
-    { label: 'Appointments', href: '/appointments', icon: <Calendar className="w-5 h-5" /> },
+    { label: 'Appointments', href: '/my-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Vaccine Cards', href: '/vaccine-cards', icon: <FileText className="w-5 h-5" /> },
     { label: 'Billing and Invoicing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
   'veterinarian': [
     { label: 'Dashboard', href: '/dashboard', icon: <Home className="w-5 h-5" /> },
-    { label: 'Appointments', href: '/appointments', icon: <Calendar className="w-5 h-5" /> },
+    { label: 'Appointments', href: '/vet-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'My Schedule', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
   ],
