@@ -115,9 +115,9 @@ export default function LoginPage() {
         }
 
         if (response.data.user.userType === 'pet-owner') {
-          router.push('/onboarding/pet-profile')
+          router.push('/onboarding/pet')
         } else {
-          router.push('/onboarding/vet/prc-license')
+          router.push('/onboarding/vet')
         }
       }
     } catch (err) {

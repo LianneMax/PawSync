@@ -45,7 +45,7 @@ export default function VerificationFailedPage() {
   }
 
   const handleResubmit = () => {
-    router.push('/onboarding/vet/prc-license')
+    router.push('/onboarding/vet')
   }
 
   const handleContactSupport = () => {

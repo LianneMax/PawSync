@@ -50,7 +50,7 @@ export default function VerificationPendingPage() {
   }
 
   const handleEditSubmission = () => {
-    router.push('/onboarding/vet/prc-license')
+    router.push('/onboarding/vet')
   }
 
   return (

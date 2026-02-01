@@ -95,9 +95,9 @@ export default function SignUpPage() {
         }))
 
         if (userType === 'pet-owner') {
-          router.push('/onboarding/pet-profile')
+          router.push('/onboarding/pet')
         } else if (userType === 'veterinarian') {
-          router.push('/onboarding/vet/prc-license')
+          router.push('/onboarding/vet')
         }
       }
     } catch (err) {
