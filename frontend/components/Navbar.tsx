@@ -104,7 +104,16 @@ export default function Navbar({
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
               <PawPrint className="w-6 h-6 text-white" />
             </div>
-            {isExpanded && <span className="text-white font-bold text-lg whitespace-nowrap">PawSync Clinic</span>}
+            <span
+              className={`text-white font-bold text-lg whitespace-nowrap transition-all duration-200 ${
+                isExpanded
+                  ? 'opacity-100 translate-x-0'
+                  : 'opacity-0 -translate-x-2 pointer-events-none'
+              }`}
+            >
+              PawSync Clinic
+            </span>
+
           </div>
         </div>
 
