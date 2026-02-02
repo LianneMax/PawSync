@@ -9,6 +9,9 @@ const odorMeanChey = Odor_Mean_Chey({ weight: '400', subsets: ['latin'], variabl
 export const metadata: Metadata = {
   title: 'PawSync',
   description: 'NFC-Enabled Centralized Pet Medical Record System',
+  icons: {
+    icon: '/images/logos/pawsync-logo-medium.png',
+  },
 }
 
 export default function RootLayout({

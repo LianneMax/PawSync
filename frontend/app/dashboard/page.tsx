@@ -500,7 +500,7 @@ export default function DashboardPage() {
         <div className="bg-[#476B6B] rounded-2xl p-6 lg:p-8 text-white relative overflow-hidden">
           <div className="relative z-10">
             <h1
-              className="text-2xl lg:text-3xl font-bold mb-2"
+              className="text-2xl lg:text-3xl mb-2"
               style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
             >
               Welcome Back, {userName}
@@ -518,18 +518,18 @@ export default function DashboardPage() {
         <section>
           <div className="mb-4">
             <h2
-              className="text-xl font-bold text-[#476B6B]"
+              className="text-[32px] text-[#476B6B]"
               style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
             >
               My Pets
             </h2>
             <p className="text-sm text-gray-500">Manage your Furry Family Members</p>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-4 overflow-x-auto pb-2 pt-4">
             {mockPets.map((pet) => (
               <div
                 key={pet.id}
-                className={`bg-white rounded-2xl p-5 w-[314px] h-[206px] shrink-0 cursor-pointer hover:shadow-md transition-shadow relative flex flex-col ${
+                className={`bg-white rounded-2xl p-5 w-[314px] h-[206px] shrink-0 cursor-pointer hover:shadow-md transition-shadow relative flex flex-col overflow-visible ${
                   pet.isLost
                     ? 'border-2 border-[#900B09]'
                     : 'border border-gray-200'
@@ -537,32 +537,32 @@ export default function DashboardPage() {
                 onClick={() => handlePetClick(pet)}
               >
                 {pet.isLost && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#900B09] text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
+                  <div className="absolute -top-3 right-4 bg-[#900B09] text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
                     Marked as LOST
                   </div>
                 )}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0">
                     <PawPrint className="w-6 h-6 text-gray-400" />
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900">{pet.name}</p>
+                    <p className="font-bold text-gray-900 text-base">{pet.name}</p>
                     <p className="text-xs text-gray-500">
                       {pet.breed} | {pet.sex} | {pet.age}
                     </p>
                   </div>
                 </div>
-                <div className="border-t border-gray-100 my-2" />
-                <div className="flex gap-3 mt-auto">
-                  <div className="flex-1 bg-[#F8F6F2] rounded-lg px-3 py-2 text-center">
+                <div className="border-t border-gray-200 my-3" />
+                <div className="flex gap-2 mt-auto">
+                  <div className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
                     <p className="text-sm font-bold text-gray-900">{pet.weight}</p>
                     <p className="text-[10px] text-gray-400">Weight</p>
                   </div>
-                  <div className="flex-1 bg-[#F8F6F2] rounded-lg px-3 py-2 text-center">
+                  <div className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
                     <p className="text-sm font-bold text-gray-900">{pet.lastVisit}</p>
                     <p className="text-[10px] text-gray-400">Last Visit</p>
                   </div>
-                  <div className="flex-1 bg-[#F8F6F2] rounded-lg px-3 py-2 text-center">
+                  <div className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
                     <p className="text-sm font-bold text-gray-900">{pet.nextVisit}</p>
                     <p className="text-[10px] text-gray-400">Next Visit</p>
                   </div>
@@ -587,7 +587,7 @@ export default function DashboardPage() {
         <section>
           <div className="mb-4">
             <h2
-              className="text-xl font-bold text-[#476B6B]"
+              className="text-[32px] text-[#476B6B]"
               style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
             >
               Quick Actions
@@ -615,7 +615,7 @@ export default function DashboardPage() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2
-              className="text-xl font-bold text-[#476B6B]"
+              className="text-[32px] text-[#476B6B]"
               style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
             >
               Upcoming Appointments
