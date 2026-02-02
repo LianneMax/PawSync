@@ -186,11 +186,11 @@ export default function Navbar({
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                  className={`flex items-center gap-3 rounded-xl transition-colors ${
                     isActive
                       ? 'bg-white/20 text-white border-l-4 border-white'
                       : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  } ${!isExpanded ? 'justify-center px-0' : ''}`}
+                  } ${!isExpanded ? 'justify-center w-11 h-11 mx-auto px-0 py-0' : 'px-4 py-3'}`}
                   title={!isExpanded ? item.label : undefined}
                 >
                   {item.icon}

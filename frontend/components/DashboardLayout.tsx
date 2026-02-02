@@ -30,7 +30,7 @@ interface UserData {
 
 interface DashboardLayoutProps {
   children: ReactNode
-  notificationCount?: number
+
   userType?: UserType
 }
 
@@ -96,7 +96,6 @@ function getNotificationIcon(type: Notification['type']) {
 
 export default function DashboardLayout({
   children,
-  notificationCount = 0,
   userType: userTypeOverride
 }: DashboardLayoutProps) {
   const [userData, setUserData] = useState<UserData | null>(null)
@@ -175,7 +174,7 @@ export default function DashboardLayout({
         userName={`${userData.firstName} ${userData.lastName}`.trim()}
         userEmail={userData.email}
         userAvatar={userData.avatar}
-        notificationCount={unreadCount || notificationCount}
+        notificationCount={unreadCount}
         isExpanded={isNavExpanded}
         onToggle={setIsNavExpanded}
         onOpenNotifications={() => setNotificationsOpen(true)}

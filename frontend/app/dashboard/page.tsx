@@ -169,83 +169,92 @@ function PetDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
         <DialogDescription className="sr-only">Pet profile details for {pet.name}</DialogDescription>
         <div className="flex flex-col lg:flex-row">
           {/* Left Column - Pet Info */}
-          <div className="lg:w-1/2 p-6 lg:p-8">
-            {/* Avatar */}
-            <div className="flex justify-center mb-4">
-              <div className="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center">
-                <PawPrint className="w-12 h-12 text-gray-400" />
-              </div>
-            </div>
-            {/* Name */}
-            <h2
-              className="text-2xl font-bold text-center text-gray-900 mb-4"
-              style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-            >
-              {pet.name}
-            </h2>
-            {/* Breed / Sex / Age pills */}
-            <div className="flex justify-center gap-2 mb-6">
-              <div className="bg-[#476B6B] text-white rounded-full px-4 py-1.5">
-                <p className="text-[10px] text-white/70">Breed</p>
-                <p className="text-sm font-semibold -mt-0.5">{pet.breed}</p>
-              </div>
-              <div className="bg-[#476B6B] text-white rounded-full px-4 py-1.5">
-                <p className="text-[10px] text-white/70">Sex</p>
-                <p className="text-sm font-semibold -mt-0.5">{pet.sex}</p>
-              </div>
-              <div className="bg-[#476B6B] text-white rounded-full px-4 py-1.5">
-                <p className="text-[10px] text-white/70">Age</p>
-                <p className="text-sm font-semibold -mt-0.5">{pet.age}</p>
-              </div>
-            </div>
-            {/* Info grid */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-[#F8F6F2] rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Weight</p>
-                <p className="text-base font-bold text-gray-900">{pet.weight.replace(' kg', '')} KG</p>
-              </div>
-              <div className="bg-[#F8F6F2] rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Birth Date</p>
-                <p className="text-base font-bold text-gray-900">{pet.birthDate}</p>
-              </div>
-              <div className="bg-[#F8F6F2] rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Sterilization</p>
-                <p className="text-base font-bold text-gray-900">{pet.sterilization}</p>
-              </div>
-              <div className="bg-[#F8F6F2] rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Microchip Number</p>
-                <p className="text-base font-bold text-gray-900">{pet.microchipNumber}</p>
-              </div>
-            </div>
-            {/* Allergies */}
-            {pet.allergies.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-gray-900 mb-2">Known Allergies</p>
-                <div className="flex gap-2 flex-wrap">
-                  {pet.allergies.map((allergy) => (
-                    <span
-                      key={allergy}
-                      className="bg-[#7FA5A3] text-white px-4 py-1.5 rounded-full text-sm font-medium"
-                    >
-                      {allergy}
-                    </span>
-                  ))}
+          <div className="lg:w-1/2 p-6 lg:p-8 flex flex-col">
+            {/* Pet Details Container */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.1)] p-6 mb-4">
+              {/* Avatar */}
+              <div className="flex justify-center mb-4">
+                <div className="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center">
+                  <PawPrint className="w-12 h-12 text-gray-400" />
                 </div>
               </div>
-            )}
-            {/* Vet Info */}
-            <div className="bg-[#476B6B] rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-300 rounded-full shrink-0" />
+              {/* Name */}
+              <h2
+                className="text-[24px] text-center text-[#476B6B] mb-4"
+                style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+              >
+                {pet.name}
+              </h2>
+              {/* Breed / Sex / Age pills */}
+              <div className="bg-[#F1F0ED] rounded-[10px] p-2 flex gap-2 mb-6">
+                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
+                  <p className="text-[9px] text-white/70 text-left">Breed</p>
+                  <p className="text-[12px] text-center">{pet.breed}</p>
+                </div>
+                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
+                  <p className="text-[9px] text-white/70 text-left">Sex</p>
+                  <p className="text-[12px] text-center">{pet.sex}</p>
+                </div>
+                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
+                  <p className="text-[9px] text-white/70 text-left">Age</p>
+                  <p className="text-[12px] text-center">{pet.age}</p>
+                </div>
+              </div>
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-[#F1F0ED] rounded-2xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Weight</p>
+                  <p className="text-[14px] font-bold text-[#173636]">{pet.weight.replace(' kg', '')} KG</p>
+                </div>
+                <div className="bg-[#F1F0ED] rounded-2xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Birth Date</p>
+                  <p className="text-[14px] font-bold text-[#173636]">{pet.birthDate}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="bg-[#F1F0ED] rounded-2xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Sterilization</p>
+                  <p className="text-[14px] font-bold text-[#173636]">{pet.sterilization}</p>
+                </div>
+                <div className="bg-[#F1F0ED] rounded-2xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">NFC and QR ID</p>
+                  <p className="text-[14px] font-bold text-[#173636]">{pet.microchipNumber}</p>
+                </div>
+              </div>
+              {/* Allergies */}
+              {pet.allergies.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-[#173636] mb-3">Known Allergies</p>
+                  <div className="bg-[#F1F0ED] rounded-2xl p-2 flex gap-2">
+                    {pet.allergies.map((allergy) => (
+                      <span
+                        key={allergy}
+                        className="bg-[#476B6B] text-white py-2 rounded-2xl text-[12px] font-medium flex-1 text-center"
+                      >
+                        {allergy}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Vet Info - separate card with shadow */}
+            <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_4px_24px_rgba(0,0,0,0.1)]">
+              <div className="w-10 h-10 bg-white/20 rounded-full shrink-0 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">{pet.vet.name.charAt(0)}</span>
+              </div>
               <div className="flex-1">
                 <p className="text-white font-semibold text-sm">{pet.vet.name}</p>
                 <p className="text-white/70 text-xs">{pet.vet.clinic}</p>
               </div>
               {pet.vet.verified && (
-                <span className="bg-[#7FA5A3] text-white text-[10px] font-semibold px-2 py-1 rounded-full">
+                <span className="bg-[#9EC4C8] text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-[#679D82] rounded-full animate-pulse" />
                   PRC Verified
                 </span>
               )}
@@ -253,15 +262,15 @@ function PetDetailModal({
           </div>
 
           {/* Right Column - NFC & Actions */}
-          <div className="lg:w-1/2 p-6 lg:p-8 border-t lg:border-t-0 lg:border-l border-gray-200 space-y-4">
+          <div className="lg:w-1/2 p-6 lg:p-8 space-y-4">
             {/* NFC Tag Status */}
             <div className="border border-gray-200 rounded-xl p-4">
-              <p className="font-semibold text-gray-900 text-sm">NFC Tag Status</p>
+              <p className="font-semibold text-[#173636] text-sm">NFC Tag Status</p>
               <p className="text-xs text-gray-400 mb-3">Tag ID: {pet.nfcTagId}</p>
               <div className={`rounded-lg p-3 mb-3 ${pet.isLost ? 'bg-red-50' : 'bg-[#F8F6F2]'}`}>
                 <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${pet.isLost ? 'bg-red-500' : 'bg-green-500'}`} />
-                  <p className="text-sm font-medium text-gray-900">
+                  <span className={`w-2.5 h-2.5 rounded-full ${pet.isLost ? 'bg-red-500' : 'bg-[#679D82] animate-pulse'}`} />
+                  <p className="text-sm font-medium text-[#173636]">
                     {pet.isLost ? 'LOST - Showing Lost Pet Alert' : 'Normal - Showing Pet Profile'}
                   </p>
                 </div>
@@ -277,7 +286,7 @@ function PetDetailModal({
               onClick={() => {/* navigate to book appointment */}}
             >
               <div>
-                <p className="font-semibold text-gray-900 text-sm">Book Appointment</p>
+                <p className="font-semibold text-[#173636] text-sm">Book Appointment</p>
                 <p className="text-xs text-gray-400">Schedule a Vet Visit for {pet.name}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -287,7 +296,7 @@ function PetDetailModal({
               onClick={() => {/* navigate to medical records */}}
             >
               <div>
-                <p className="font-semibold text-gray-900 text-sm">View Medical Records</p>
+                <p className="font-semibold text-[#173636] text-sm">View Medical Records</p>
                 <p className="text-xs text-gray-400">Medical History and Reports</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -297,7 +306,7 @@ function PetDetailModal({
               onClick={() => {/* navigate to vaccine card */}}
             >
               <div>
-                <p className="font-semibold text-gray-900 text-sm">Vaccine Card</p>
+                <p className="font-semibold text-[#173636] text-sm">Vaccine Card</p>
                 <p className="text-xs text-gray-400">View Vaccination History</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -307,7 +316,7 @@ function PetDetailModal({
               onClick={() => onReportLost(pet)}
             >
               <div>
-                <p className="font-semibold text-gray-900 text-sm">Report {pet.name} as Lost</p>
+                <p className="font-semibold text-[#173636] text-sm">Report {pet.name} as Lost</p>
                 <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -413,7 +422,7 @@ function ReportLostPetModal({
           onClick={() => {
             toast('Pet Reported as Lost', {
               description: `${pet.name} has been marked as lost. NFC tag updated.`,
-              icon: <AlertTriangle className="w-4 h-4 text-red-500" />,
+              icon: <AlertTriangle className="w-4 h-4 text-[#900B09]" />,
             })
             onClose()
           }}
@@ -494,7 +503,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardLayout notificationCount={3}>
+    <DashboardLayout>
       <div className="p-4 pt-5 lg:p-6 lg:pt-5 space-y-6">
         {/* Welcome Banner */}
         <div className="bg-[#476B6B] rounded-2xl p-6 lg:p-8 text-white relative overflow-hidden">
@@ -612,7 +621,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Upcoming Appointments */}
-        <section>
+        <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2
               className="text-[32px] text-[#476B6B]"
@@ -628,17 +637,17 @@ export default function DashboardPage() {
               <Filter className="w-4 h-4" />
             </button>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
             {mockAppointments.map((appt) => (
               <div
                 key={appt.id}
-                className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-[#F8F6F2] rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
               >
-                <div className="flex flex-col items-center justify-center bg-[#7FA5A3]/10 rounded-xl w-14 h-14 shrink-0">
-                  <span className="text-lg font-bold text-[#7FA5A3] leading-tight">
+                <div className="flex flex-col items-center justify-center bg-[#7FA5A3]/20 rounded-xl w-14 h-14 shrink-0">
+                  <span className="text-lg font-bold text-[#476B6B] leading-tight">
                     {appt.date.getDate()}
                   </span>
-                  <span className="text-[10px] text-[#7FA5A3] font-medium">
+                  <span className="text-[10px] text-[#476B6B] font-medium">
                     {monthNames[appt.date.getMonth()]}
                   </span>
                 </div>
@@ -655,7 +664,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </div>
-                <div className="hidden sm:flex items-center gap-2 bg-[#F8F6F2] rounded-lg px-3 py-2">
+                <div className="hidden sm:flex items-center gap-2 bg-white rounded-lg px-3 py-2">
                   <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
                     <PawPrint className="w-3 h-3 text-gray-400" />
                   </div>
