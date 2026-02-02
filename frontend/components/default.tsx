@@ -1,21 +1,25 @@
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+'use client';
 
-export default function TooltipDemo() {
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+
+export default function SonnerDemo() {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="outline">
-            <Info className="h-4 w-4" />
-            Default tooltip
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Get detailed information about this feature.</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() =>
+        toast('Meeting Reminder', {
+          description: 'Your team meeting today at 3:00 PM.',
+          duration: 5000,
+          action: {
+            label: 'Join',
+            onClick: () => console.log('Reschedule clicked'),
+          },
+        })
+      }
+    >
+      Show Toast
+    </Button>
   );
 }

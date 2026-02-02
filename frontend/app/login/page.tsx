@@ -165,6 +165,9 @@ export default function LoginPage() {
           document.cookie = `authToken=${response.data.token}; path=/; SameSite=Lax`
         }
 
+        // Flag so the dashboard can show welcome toast notifications
+        sessionStorage.setItem('justLoggedIn', 'true')
+
         if (response.data.user.userType === 'pet-owner') {
           router.push('/onboarding/pet')
         } else {
