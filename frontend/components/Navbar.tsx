@@ -138,7 +138,7 @@ export default function Navbar({
         {/* Header with Logo */}
         <div className="p-4 flex items-center justify-left w-full">
           <div className="flex items-center gap-3 transition-all duration-300">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
               <Image
                 src="/images/logos/pawsync-logo-white.png"
                 alt="PawSync Logo"
@@ -240,7 +240,7 @@ export default function Navbar({
           >
             <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden shrink-0">
               {userAvatar ? (
-                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
+                <Image src={userAvatar} alt={userName} width={40} height={40} className="w-full h-full object-cover" unoptimized />
               ) : (
                 <div className="w-full h-full bg-gray-400 flex items-center justify-center">
                   <span className="text-white font-bold text-sm">

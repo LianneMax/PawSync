@@ -302,7 +302,7 @@ export default function MouseEffectCard({
       )}
     >
       <CardContent
-        className="relative h-[400px] w-full overflow-hidden p-0"
+        className="relative h-100 w-full overflow-hidden p-0"
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
         ref={innerContainerRef}
