@@ -33,6 +33,7 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [currentSlide, setCurrentSlide] = useState(0)
   const [exitingSlide, setExitingSlide] = useState<number | null>(null)
@@ -54,25 +55,30 @@ export default function SignUpPage() {
     e.preventDefault()
     setError(null)
 
-    if (!userType) {
-      setError('Please select user type')
-      return
-    }
+    const newFieldErrors: Record<string, string> = {}
+    if (!userType) newFieldErrors.userType = 'Please select a user type'
+    if (!firstName.trim()) newFieldErrors.firstName = 'This field is required'
+    if (!lastName.trim()) newFieldErrors.lastName = 'This field is required'
+    if (!email.trim()) newFieldErrors.email = 'This field is required'
+    if (!password) newFieldErrors.password = 'This field is required'
+    if (!confirmPassword) newFieldErrors.confirmPassword = 'This field is required'
 
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields')
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors)
       return
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match!")
+      setFieldErrors({ confirmPassword: "Passwords don't match" })
       return
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setFieldErrors({ password: 'Password must be at least 6 characters' })
       return
     }
+
+    setFieldErrors({})
 
     setLoading(true)
 
@@ -136,10 +142,10 @@ export default function SignUpPage() {
               Register Your PawSync Account
             </p>
 
-            <form onSubmit={handleSubmit}>
-              {/* Error Message */}
+            <form onSubmit={handleSubmit} noValidate>
+              {/* Server Error Message */}
               {error && (
-                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+                <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded-xl text-sm">
                   {error}
                 </div>
               )}
@@ -151,11 +157,13 @@ export default function SignUpPage() {
                   {/* Pet Owner Button */}
                   <button
                     type="button"
-                    onClick={() => setUserType('pet-owner')}
+                    onClick={() => { setUserType('pet-owner'); setFieldErrors(prev => ({ ...prev, userType: '' })) }}
                     className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
-                      userType === 'pet-owner'
-                        ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      fieldErrors.userType && !userType
+                        ? 'border-red-400 bg-white'
+                        : userType === 'pet-owner'
+                          ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <span className="font-medium text-gray-700">Pet Owner</span>
@@ -169,11 +177,13 @@ export default function SignUpPage() {
                   {/* Veterinarian Button */}
                   <button
                     type="button"
-                    onClick={() => setUserType('veterinarian')}
+                    onClick={() => { setUserType('veterinarian'); setFieldErrors(prev => ({ ...prev, userType: '' })) }}
                     className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
-                      userType === 'veterinarian'
-                        ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      fieldErrors.userType && !userType
+                        ? 'border-red-400 bg-white'
+                        : userType === 'veterinarian'
+                          ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <span className="font-medium text-gray-700">Veterinarian</span>
@@ -184,31 +194,36 @@ export default function SignUpPage() {
                     </div>
                   </button>
                 </div>
+                {fieldErrors.userType && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.userType}</p>}
               </div>
 
               {/* Name Inputs - Side by Side */}
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
-                    required
-                  />
+                <div>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="First Name"
+                      value={firstName}
+                      onChange={(e) => { setFirstName(e.target.value); setFieldErrors(prev => ({ ...prev, firstName: '' })) }}
+                      className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.firstName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    />
+                  </div>
+                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.firstName}</p>}
                 </div>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
-                    required
-                  />
+                <div>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Last Name"
+                      value={lastName}
+                      onChange={(e) => { setLastName(e.target.value); setFieldErrors(prev => ({ ...prev, lastName: '' })) }}
+                      className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.lastName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    />
+                  </div>
+                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.lastName}</p>}
                 </div>
               </div>
 
@@ -222,11 +237,11 @@ export default function SignUpPage() {
                     autoComplete="email"
                     placeholder="Email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
-                    required
+                    onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })) }}
+                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.email ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                 </div>
+                {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
               </div>
 
               {/* Password Input */}
@@ -239,9 +254,8 @@ export default function SignUpPage() {
                     autoComplete="new-password"
                     placeholder="Create Password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
-                    required
+                    onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })) }}
+                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.password ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                   <button
                     type="button"
@@ -251,6 +265,7 @@ export default function SignUpPage() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {fieldErrors.password && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.password}</p>}
               </div>
 
               {/* Confirm Password Input */}
@@ -263,9 +278,8 @@ export default function SignUpPage() {
                     autoComplete="new-password"
                     placeholder="Confirm Password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
-                    required
+                    onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, confirmPassword: '' })) }}
+                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                   <button
                     type="button"
@@ -275,6 +289,7 @@ export default function SignUpPage() {
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.confirmPassword}</p>}
               </div>
 
               {/* Sign Up Button */}

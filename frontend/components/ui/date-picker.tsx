@@ -12,10 +12,11 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  error?: boolean;
   className?: string;
 }
 
-export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', required, className }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [textValue, setTextValue] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -92,7 +93,10 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', requir
 
   return (
     <div className={cn('relative', className)}>
-      <div className="relative flex items-center w-full h-13 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus-within:ring-2 focus-within:ring-[#7FA5A3] focus-within:border-transparent transition-all">
+      <div className={cn(
+        "relative flex items-center w-full h-13 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus-within:ring-2 focus-within:ring-[#7FA5A3] focus-within:border-transparent transition-all",
+        error ? 'border-red-400' : 'border-gray-200',
+      )}>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <button
@@ -128,8 +132,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', requir
         )}
       </div>
 
-      {/* Hidden input for form validation */}
-      {required && <input type="text" value={value} required tabIndex={-1} className="sr-only" onChange={() => {}} />}
+      {error && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
     </div>
   );
 }

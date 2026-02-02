@@ -41,6 +41,7 @@ export default function PetOnboardingPage() {
   const [weight, setWeight] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [notes, setNotes] = useState('')
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Clinic search state
   const [clinicSearch, setClinicSearch] = useState('')
@@ -113,6 +114,20 @@ export default function PetOnboardingPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const newErrors: Record<string, boolean> = {}
+    if (!fullName.trim()) newErrors.fullName = true
+    if (!breed) newErrors.breed = true
+    if (!sex) newErrors.sex = true
+    if (!sterilization) newErrors.sterilization = true
+    if (!weight.trim()) newErrors.weight = true
+    if (!dateOfBirth) newErrors.dateOfBirth = true
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+    setErrors({})
+
     const petDetails = {
       fullName, breed, secondaryBreed: secondaryBreed || null, sex, sterilization, weight, dateOfBirth, notes,
       clinic: selectedClinic
@@ -339,7 +354,7 @@ export default function PetOnboardingPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               {/* Clinic Search Section */}
               <div className="mb-8">
                 <div className="relative" ref={clinicDropdownRef}>
@@ -414,19 +429,19 @@ export default function PetOnboardingPage() {
                     type="text"
                     placeholder="Full name*"
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full h-13 px-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    required
+                    onChange={(e) => { setFullName(e.target.value); setErrors(prev => ({ ...prev, fullName: false })) }}
+                    className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.fullName ? 'border-red-400' : 'border-gray-200'}`}
                   />
+                  {errors.fullName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <BreedCombobox
                     species={species}
                     value={breed}
-                    onChange={setBreed}
+                    onChange={(v) => { setBreed(v); setErrors(prev => ({ ...prev, breed: false })) }}
                     placeholder="Primary Breed*"
-                    required
+                    error={errors.breed}
                   />
                   <BreedCombobox
                     species={species}
@@ -438,8 +453,8 @@ export default function PetOnboardingPage() {
 
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div>
-                    <Select value={sex} onValueChange={(val) => setSex(val)} required>
-                      <SelectTrigger className="w-full h-13 px-4 bg-gray-50 rounded-xl border-gray-200 shadow-xs shadow-black/5 text-base">
+                    <Select value={sex} onValueChange={(val) => { setSex(val); setErrors(prev => ({ ...prev, sex: false })) }}>
+                      <SelectTrigger className={`w-full h-13 px-4 bg-gray-50 rounded-xl shadow-xs shadow-black/5 text-base ${errors.sex ? 'border-red-400' : 'border-gray-200'}`}>
                         <SelectValue placeholder="Sex*" />
                       </SelectTrigger>
                       <SelectContent>
@@ -447,11 +462,12 @@ export default function PetOnboardingPage() {
                         <SelectItem value="female">Female</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.sex && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
                   </div>
 
                   <div>
-                    <Select value={sterilization} onValueChange={(val) => setSterilization(val)} required>
-                      <SelectTrigger className="w-full h-13 px-4 bg-gray-50 rounded-xl border-gray-200 shadow-xs shadow-black/5 text-base">
+                    <Select value={sterilization} onValueChange={(val) => { setSterilization(val); setErrors(prev => ({ ...prev, sterilization: false })) }}>
+                      <SelectTrigger className={`w-full h-13 px-4 bg-gray-50 rounded-xl shadow-xs shadow-black/5 text-base ${errors.sterilization ? 'border-red-400' : 'border-gray-200'}`}>
                         <SelectValue placeholder="Sterilization*" />
                       </SelectTrigger>
                       <SelectContent>
@@ -460,26 +476,29 @@ export default function PetOnboardingPage() {
                         <SelectItem value="unknown">Unknown</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.sterilization && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
                   </div>
 
-                  <input
-                    type="text"
-                    placeholder="Weight (kg)*"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    className="w-full h-13 px-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Weight (kg)*"
+                      value={weight}
+                      onChange={(e) => { setWeight(e.target.value); setErrors(prev => ({ ...prev, weight: false })) }}
+                      className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.weight ? 'border-red-400' : 'border-gray-200'}`}
+                    />
+                    {errors.weight && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+                  </div>
                 </div>
 
                 <div className="mb-4">
                   <DatePicker
                     value={dateOfBirth}
-                    onChange={setDateOfBirth}
+                    onChange={(v) => { setDateOfBirth(v); setErrors(prev => ({ ...prev, dateOfBirth: false })) }}
                     placeholder="Date of Birth*"
-                    required
+                    error={errors.dateOfBirth}
                   />
-                  <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>
+                  {!errors.dateOfBirth && <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>}
                 </div>
 
                 <div className="mb-4">

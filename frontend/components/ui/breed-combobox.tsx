@@ -46,10 +46,11 @@ interface BreedComboboxProps {
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  error?: boolean;
   className?: string;
 }
 
-export function BreedCombobox({ species, value, onChange, placeholder = 'Select Breed*', required, className }: BreedComboboxProps) {
+export function BreedCombobox({ species, value, onChange, placeholder = 'Select Breed*', error, className }: BreedComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [breeds, setBreeds] = React.useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -105,7 +106,8 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
           placeholder={!value}
           aria-expanded={open}
           className={cn(
-            'w-full h-13 px-4 rounded-xl border-gray-200 bg-gray-50 hover:bg-gray-50 text-base font-normal shadow-xs shadow-black/5',
+            'w-full h-13 px-4 rounded-xl bg-gray-50 hover:bg-gray-50 text-base font-normal shadow-xs shadow-black/5',
+            error ? 'border-red-400' : 'border-gray-200',
             !value && 'text-gray-400',
             className,
           )}
@@ -139,7 +141,7 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
           </CommandList>
         </Command>
       </PopoverContent>
-      {required && <input type="text" value={value} required tabIndex={-1} className="sr-only" onChange={() => {}} />}
+      {error && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
     </Popover>
   );
 }

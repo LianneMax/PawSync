@@ -80,6 +80,7 @@ export default function VetOnboardingPage() {
   const [registrationDate, setRegistrationDate] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
   const [fileName, setFileName] = useState('')
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Select Clinic state (Step 3)
   const [searchQuery, setSearchQuery] = useState('')
@@ -111,6 +112,20 @@ export default function VetOnboardingPage() {
 
   const handleContinueToClinic = (e: React.FormEvent) => {
     e.preventDefault()
+
+    const newErrors: Record<string, boolean> = {}
+    if (!firstName.trim()) newErrors.firstName = true
+    if (!lastName.trim()) newErrors.lastName = true
+    if (!middleName.trim()) newErrors.middleName = true
+    if (!prcNumber.trim()) newErrors.prcNumber = true
+    if (!registrationDate) newErrors.registrationDate = true
+    if (!expirationDate) newErrors.expirationDate = true
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+    setErrors({})
 
     // Store PRC license data in sessionStorage
     const prcLicenseData = {
@@ -265,7 +280,7 @@ export default function VetOnboardingPage() {
               </p>
             </div>
 
-            <form onSubmit={handleContinueToClinic}>
+            <form onSubmit={handleContinueToClinic} noValidate>
               {/* Full Name Section */}
               <div className="mb-8">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">
@@ -273,33 +288,39 @@ export default function VetOnboardingPage() {
                 </h3>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <input
-                    type="text"
-                    placeholder="First Name*"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Last Name*"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="First Name*"
+                      value={firstName}
+                      onChange={(e) => { setFirstName(e.target.value); setErrors(prev => ({ ...prev, firstName: false })) }}
+                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.firstName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                    />
+                    {errors.firstName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Last Name*"
+                      value={lastName}
+                      onChange={(e) => { setLastName(e.target.value); setErrors(prev => ({ ...prev, lastName: false })) }}
+                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.lastName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                    />
+                    {errors.lastName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Middle Name*"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                    className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    required
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Middle Name*"
+                      value={middleName}
+                      onChange={(e) => { setMiddleName(e.target.value); setErrors(prev => ({ ...prev, middleName: false })) }}
+                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.middleName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                    />
+                    {errors.middleName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                  </div>
                   <input
                     type="text"
                     placeholder="Suffix (if any)"
@@ -321,37 +342,41 @@ export default function VetOnboardingPage() {
                     type="text"
                     placeholder="PRC Registration Number #"
                     value={prcNumber}
-                    onChange={(e) => setPrcNumber(e.target.value)}
-                    className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    required
+                    onChange={(e) => { setPrcNumber(e.target.value); setErrors(prev => ({ ...prev, prcNumber: false })) }}
+                    className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.prcNumber ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
-                  <p className="text-xs text-gray-500 mt-1 ml-1">
-                    Enter your 7-digit PRC license number for Veterinary Medicine
-                  </p>
+                  {errors.prcNumber
+                    ? <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>
+                    : <p className="text-xs text-gray-500 mt-1 ml-1">Enter your 7-digit PRC license number for Veterinary Medicine</p>
+                  }
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <DatePicker
                       value={registrationDate}
-                      onChange={setRegistrationDate}
+                      onChange={(v) => { setRegistrationDate(v); setErrors(prev => ({ ...prev, registrationDate: false })) }}
                       placeholder="Date of Registration"
-                      required
+                      error={errors.registrationDate}
                     />
-                    <p className="text-xs text-gray-500 mt-1 ml-1">
-                      When your license was first issued
-                    </p>
+                    {!errors.registrationDate && (
+                      <p className="text-xs text-gray-500 mt-1 ml-1">
+                        When your license was first issued
+                      </p>
+                    )}
                   </div>
                   <div>
                     <DatePicker
                       value={expirationDate}
-                      onChange={setExpirationDate}
+                      onChange={(v) => { setExpirationDate(v); setErrors(prev => ({ ...prev, expirationDate: false })) }}
                       placeholder="Expiration Date"
-                      required
+                      error={errors.expirationDate}
                     />
-                    <p className="text-xs text-gray-500 mt-1 ml-1">
-                      When your current license expires
-                    </p>
+                    {!errors.expirationDate && (
+                      <p className="text-xs text-gray-500 mt-1 ml-1">
+                        When your current license expires
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
