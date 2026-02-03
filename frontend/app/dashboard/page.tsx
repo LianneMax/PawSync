@@ -170,6 +170,7 @@ function PetDetailModal({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
+        <DialogTitle className="sr-only">{pet.name} - Pet Details</DialogTitle>
         <DialogDescription className="sr-only">Pet profile details for {pet.name}</DialogDescription>
         <div className="flex flex-col lg:flex-row">
           {/* Left Column - Pet Info */}

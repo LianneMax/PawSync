@@ -58,14 +58,14 @@ export default function VerificationPendingPage() {
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-lg p-10">
         {/* Icon */}
         <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-[#E89B3C] rounded-3xl flex items-center justify-center">
+          <div className="w-24 h-24 bg-[#E89B3C] rounded-3xl flex items-center justify-center animate-bounce-slow">
             <FileText className="w-12 h-12 text-white" />
           </div>
         </div>
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl font-bold text-[#4F4F4F] mb-3">
             Verification In Progress
           </h1>
           <p className="text-gray-600">
@@ -83,35 +83,35 @@ export default function VerificationPendingPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Full Name</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.fullName || 'Maria Cruz Santos, DVM'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">PRC License No.</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.prcNumber || '0045678'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Date of Registration</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.registrationDate || 'June 15, 2020'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Expiration Date</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.expirationDate || 'December 31, 2026'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Submitted</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.submittedDate || 'January 20, 2026'}
               </span>
             </div>

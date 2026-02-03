@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import MouseEffectBackground from '@/components/kokonutui/mouse-effect-background'
+import SmoothTab from '@/components/kokonutui/smooth-tab'
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
 
@@ -126,6 +127,12 @@ const steps = [
   { number: 2, title: 'Set up your Profile', description: 'Add your pets, credentials or clinic information to get started' },
   { number: 3, title: 'Request for a Personalized tag', description: 'Pet owners are recommended to get an NFC/QR tag for their pets' },
   { number: 4, title: 'Start Managing', description: 'Access Records, Schedule Appointments, and connect with your pet care networks' },
+]
+
+const roleTabs = [
+  { id: 'pet-owners', title: 'Pet Owners', icon: Heart, color: 'bg-[#5A7C7A]' },
+  { id: 'veterinarians', title: 'Veterinarians', icon: Stethoscope, color: 'bg-[#5A7C7A]' },
+  { id: 'clinics', title: 'Clinics', icon: Building2, color: 'bg-[#5A7C7A]' },
 ]
 
 export default function Home() {
@@ -285,11 +292,11 @@ export default function Home() {
           <div className="flex items-center justify-center gap-4">
             <Link
               href="/signup"
-              className="flex items-center gap-2 px-8 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors text-lg"
+              className="flex items-center gap-2 px-8 py-3 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] hover:scale-105 hover:shadow-lg transition-all duration-200 text-lg"
             >
               Get Started <ArrowRight className="w-5 h-5" />
             </Link>
-            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-lg">
+            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:scale-105 hover:shadow-lg transition-all duration-200 text-lg">
               <ScanLine className="w-5 h-5" />
               Scan Pet Tag
             </button>
@@ -310,41 +317,16 @@ export default function Home() {
             Weather you&apos;re a pet owner, veterinarian or clinic admin, PawSync has the tools you need.
           </p>
 
-          {/* Role Tabs */}
-          <div className="flex justify-center gap-3 mb-12">
-            <button
-              onClick={() => setActiveTab('pet-owners')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full transition-colors font-medium ${
-                activeTab === 'pet-owners'
-                  ? 'bg-[#5A7C7A] text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Heart className="w-5 h-5" />
-              Pet Owners
-            </button>
-            <button
-              onClick={() => setActiveTab('veterinarians')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full transition-colors font-medium ${
-                activeTab === 'veterinarians'
-                  ? 'bg-[#5A7C7A] text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Stethoscope className="w-5 h-5" />
-              Veterinarians
-            </button>
-            <button
-              onClick={() => setActiveTab('clinics')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full transition-colors font-medium ${
-                activeTab === 'clinics'
-                  ? 'bg-[#5A7C7A] text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Building2 className="w-5 h-5" />
-              Clinics
-            </button>
+          {/* Role Tabs with Slider */}
+          <div className="flex justify-center mb-12">
+            <SmoothTab
+              items={roleTabs}
+              defaultTabId="pet-owners"
+              showContent={false}
+              activeColor="bg-[#5A7C7A]"
+              onChange={(tabId) => setActiveTab(tabId as RoleTab)}
+              className="inline-flex"
+            />
           </div>
 
           {/* Role Content */}

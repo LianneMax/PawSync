@@ -53,14 +53,14 @@ export default function VerificationSuccessPage() {
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-lg p-10">
         {/* Icon */}
         <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-[#22C55E] rounded-full flex items-center justify-center">
+          <div className="w-24 h-24 bg-[#22C55E] rounded-full flex items-center justify-center animate-bounce-slow">
             <Check className="w-12 h-12 text-white stroke-3" />
           </div>
         </div>
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl font-bold text-[#4F4F4F] mb-3">
             License Verified! 🎉
           </h1>
           <p className="text-gray-600">
@@ -78,28 +78,28 @@ export default function VerificationSuccessPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Full Name</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {verificationData?.fullName || 'Maria Cruz Santos, DVM'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">PRC License No.</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {verificationData?.prcNumber || '0045678'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Valid Until</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {verificationData?.validUntil || 'December 31, 2026'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Verified On</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {verificationData?.verifiedOn || 'January 21, 2026'}
               </span>
             </div>
@@ -120,7 +120,7 @@ export default function VerificationSuccessPage() {
               <Shield className="w-5 h-5 text-[#16A34A]" />
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-1">Verified Badge Active</h4>
+              <h4 className="font-semibold text-[#4F4F4F] mb-1">Verified Badge Active</h4>
               <p className="text-sm text-gray-600">
                 Your profile now displays a verified badge, letting pet owners know you&apos;re a
                 licensed veterinarian.

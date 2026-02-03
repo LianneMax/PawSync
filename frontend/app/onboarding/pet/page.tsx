@@ -3,17 +3,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Dog, Cat, Image as ImageIcon, Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
+import { Dog, Cat, Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
+import AvatarUpload from '@/components/avatar-upload'
 
 type PetSpecies = 'dog' | 'cat' | null
 
 export default function PetOnboardingPage() {
   const router = useRouter()
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const clinicDropdownRef = useRef<HTMLDivElement>(null)
 
   // Step state: 2 = Pet Profile, 3 = Basic Details
@@ -71,18 +71,6 @@ export default function PetOnboardingPage() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setPhotoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
 
   const goToStep = (step: number) => {
     if (step === currentStep || slidePhase !== 'idle') return
@@ -283,30 +271,20 @@ export default function PetOnboardingPage() {
 
             {/* Photo Upload Section */}
             <div className="bg-gray-50 rounded-2xl p-8 mb-8">
-              <div className="flex items-start gap-6">
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="shrink-0 w-32 h-32 bg-white rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-[#7FA5A3] transition-colors overflow-hidden"
-                >
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="Pet preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center">
-                      <ImageIcon className="w-10 h-10 text-gray-400 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">Add Photo</p>
-                    </div>
-                  )}
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-
-                <div className="flex-1">
+              <AvatarUpload
+                className="w-full"
+                maxSize={5 * 1024 * 1024}
+                onFileChange={(file) => {
+                  if (file?.preview) {
+                    setPhotoPreview(file.preview)
+                    setPhotoFile(file.file instanceof File ? file.file : null)
+                  } else {
+                    setPhotoPreview(null)
+                    setPhotoFile(null)
+                  }
+                }}
+              >
+                <div className="flex-1 pt-2">
                   <h3 className="font-semibold text-gray-800 mb-2">Upload a photo of your pet</h3>
                   <p className="text-sm text-gray-600 mb-1">
                     This helps vets identify your pet and makes their profile more personal.
@@ -315,7 +293,7 @@ export default function PetOnboardingPage() {
                     You can also skip this and add a photo later!
                   </p>
                 </div>
-              </div>
+              </AvatarUpload>
             </div>
 
             {/* Action Buttons */}

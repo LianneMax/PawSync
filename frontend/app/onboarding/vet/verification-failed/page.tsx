@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, AlertTriangle, MessageCircle, RotateCcw } from 'lucide-react'
+import { X, AlertTriangle, RotateCcw } from 'lucide-react'
 
 interface SubmissionData {
   fullName: string
@@ -48,24 +48,19 @@ export default function VerificationFailedPage() {
     router.push('/onboarding/vet')
   }
 
-  const handleContactSupport = () => {
-    // Open support contact (email or chat)
-    window.location.href = 'mailto:support@pawsync.com'
-  }
-
   return (
     <div className="min-h-screen bg-[#F8F6F2] flex items-center justify-center p-4">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-lg p-10">
         {/* Icon */}
         <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-[#DC2626] rounded-full flex items-center justify-center">
+          <div className="w-24 h-24 bg-[#DC2626] rounded-full flex items-center justify-center animate-bounce-slow">
             <X className="w-12 h-12 text-white stroke-3" />
           </div>
         </div>
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl font-bold text-[#4F4F4F] mb-3">
             Verification Unsuccessful
           </h1>
           <p className="text-gray-600">
@@ -83,21 +78,21 @@ export default function VerificationFailedPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Full Name</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.fullName || 'Maria Cruz Santos'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">PRC License No.</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.prcNumber || '0045678'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Submitted</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-[#4F4F4F]">
                 {submissionData?.submittedDate || 'January 20, 2026'}
               </span>
             </div>
@@ -124,24 +119,14 @@ export default function VerificationFailedPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={handleContactSupport}
-            className="flex items-center justify-center gap-2 py-4 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Contact Support
-          </button>
-
-          <button
-            onClick={handleResubmit}
-            className="flex items-center justify-center gap-2 py-4 bg-[#5A7C7A] text-white rounded-xl font-semibold hover:bg-[#4A6C6A] transition-colors"
-          >
-            <RotateCcw className="w-5 h-5" />
-            Resubmit
-          </button>
-        </div>
+        {/* Action Button */}
+        <button
+          onClick={handleResubmit}
+          className="w-full flex items-center justify-center gap-2 py-4 bg-[#5A7C7A] text-white rounded-xl font-semibold hover:bg-[#4A6C6A] transition-colors"
+        >
+          <RotateCcw className="w-5 h-5" />
+          Resubmit
+        </button>
       </div>
     </div>
   )

@@ -227,6 +227,15 @@ html {
   50% { opacity: 0.7; transform: scale(1.05); }
 }
 
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 1.5s ease-in-out infinite;
+}
+
 /*---break---*/
 @layer base {
   * {

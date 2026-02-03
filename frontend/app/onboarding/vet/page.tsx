@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Check, ArrowLeft, ArrowRight, Upload, FileText, Search } from 'lucide-react'
+import { Check, ArrowLeft, ArrowRight, Search } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { DatePicker } from '@/components/ui/date-picker'
+import ProgressUpload from '@/components/progress-upload'
 
 // Sample clinic data - in a real app, this would come from an API
 const clinicsData = [
@@ -58,7 +59,6 @@ const clinicsData = [
 
 export default function VetOnboardingPage() {
   const router = useRouter()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Step state: 2 = PRC License, 3 = Select Clinic
   const [currentStep, setCurrentStep] = useState(2)
@@ -91,13 +91,6 @@ export default function VetOnboardingPage() {
   const filteredClinics = clinicsData.filter(clinic =>
     clinic.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFileName(file.name)
-    }
-  }
 
   const goToStep = (step: number) => {
     if (step === currentStep || slidePhase !== 'idle') return
@@ -387,46 +380,24 @@ export default function VetOnboardingPage() {
                   PRC ID Photo
                 </h3>
 
-                <div className="bg-gray-50 rounded-2xl p-8 border-2 border-dashed border-gray-300">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-200 rounded-xl mx-auto mb-4 flex items-center justify-center">
-                      <FileText className="w-8 h-8 text-gray-500" />
-                    </div>
-                    <p className="font-semibold text-gray-800 mb-2">
-                      Submit a PDF File of your PRC ID
-                    </p>
-                    <p className="text-sm text-gray-500 mb-4">
-                      Take a clear photo showing all details visible of both FRONT and BACK.
-                    </p>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Choose File
-                    </button>
-
-                    {fileName && (
-                      <p className="text-sm text-[#5A7C7A] mt-3 font-medium">
-                        Selected: {fileName}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-gray-400 mt-3">
-                      Accepted file type: PDF
-                    </p>
-                  </div>
-                </div>
+                <ProgressUpload
+                  maxFiles={1}
+                  multiple={false}
+                  maxSize={10 * 1024 * 1024}
+                  accept="image/jpeg,image/png,application/pdf"
+                  simulateUpload={true}
+                  title="Submit a PDF File of your PRC ID"
+                  titleClassName="text-[#476B6B]"
+                  description="Take a clear photo showing all details visible of both FRONT and BACK."
+                  hint="Accepted file types: JPG, PNG, PDF"
+                  onFilesChange={(files) => {
+                    if (files.length > 0 && files[0].file instanceof File) {
+                      setFileName(files[0].file.name)
+                    } else {
+                      setFileName('')
+                    }
+                  }}
+                />
               </div>
 
               {/* Action Buttons */}
