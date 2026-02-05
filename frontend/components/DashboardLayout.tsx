@@ -30,7 +30,7 @@ interface UserData {
 
 interface DashboardLayoutProps {
   children: ReactNode
-
+  notificationCount?: number
   userType?: UserType
 }
 
