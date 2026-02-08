@@ -146,6 +146,7 @@ export default function Home() {
   const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const qrScannerRef = useRef<Html5Qrcode | null>(null)
   const qrContainerRef = useRef<HTMLDivElement | null>(null)
+  const nfcWsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     return () => {
@@ -154,30 +155,69 @@ export default function Home() {
         qrScannerRef.current.stop().catch(() => {})
         qrScannerRef.current = null
       }
+      if (nfcWsRef.current) {
+        nfcWsRef.current.close()
+        nfcWsRef.current = null
+      }
     }
   }, [])
 
   const handleTapNfc = async () => {
-    if (!('NDEFReader' in window)) {
-      setNfcStatus('unsupported')
-      return
+    // Try browser Web NFC API first (mobile devices)
+    if ('NDEFReader' in window) {
+      try {
+        setNfcStatus('scanning')
+        const ndef = new (window as unknown as { NDEFReader: new () => { scan: () => Promise<void>; onreading: ((event: { serialNumber: string }) => void) | null } }).NDEFReader()
+        await ndef.scan()
+
+        nfcTimeoutRef.current = setTimeout(() => {
+          setNfcStatus('error')
+        }, 15000)
+
+        ndef.onreading = (event) => {
+          if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+          const tagId = event.serialNumber
+          window.location.href = `/pet/${tagId}`
+        }
+        return
+      } catch {
+        setNfcStatus('error')
+        return
+      }
     }
+
+    // Fall back to backend NFC reader via WebSocket (desktop with USB reader)
     try {
       setNfcStatus('scanning')
-      const ndef = new (window as unknown as { NDEFReader: new () => { scan: () => Promise<void>; onreading: ((event: { serialNumber: string }) => void) | null } }).NDEFReader()
-      await ndef.scan()
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const backendHost = apiUrl.replace(/\/api$/, '')
+      const wsUrl = backendHost.replace(/^http/, 'ws') + '/ws/nfc'
+      const ws = new WebSocket(wsUrl)
+      nfcWsRef.current = ws
 
       nfcTimeoutRef.current = setTimeout(() => {
+        ws.close()
+        nfcWsRef.current = null
         setNfcStatus('error')
       }, 15000)
 
-      ndef.onreading = (event) => {
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data)
+        if (msg.type === 'card' && msg.data?.uid) {
+          if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+          ws.close()
+          nfcWsRef.current = null
+          window.location.href = `/pet/${msg.data.uid}`
+        }
+      }
+
+      ws.onerror = () => {
         if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
-        const tagId = event.serialNumber
-        window.location.href = `/pet/${tagId}`
+        nfcWsRef.current = null
+        setNfcStatus('unsupported')
       }
     } catch {
-      setNfcStatus('error')
+      setNfcStatus('unsupported')
     }
   }
 

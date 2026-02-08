@@ -68,7 +68,7 @@ function SheetContent({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Content> & SheetContentProps) {
+}: SheetContentProps) {
   return (
     <SheetPortal>
       {overlay && <SheetOverlay />}

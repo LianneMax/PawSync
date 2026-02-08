@@ -1,10 +1,14 @@
 import express, { Request, Response } from 'express';
+import http from 'http';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import { connectDatabase } from './config/database';
 import testRoutes from './routes/testRoutes';
 import authRoutes from './routes/authRoutes';
+import nfcRoutes from './routes/nfcRoutes';
+import { nfcService } from './services/nfcService';
+import { initNfcWebSocket } from './websocket/nfcWebSocket';
 
 // Load environment variables
 dotenv.config();
@@ -32,6 +36,9 @@ app.use('/api/auth', authRoutes);
 // Test routes
 app.use('/api/test', testRoutes);
 
+// NFC routes
+app.use('/api/nfc', nfcRoutes);
+
 // 404 handler - must be after all routes
 app.use((req: Request, res: Response) => {
   res.status(404).json({ 
@@ -44,9 +51,19 @@ app.use((req: Request, res: Response) => {
 const startServer = async () => {
   try {
     await connectDatabase();
-    app.listen(PORT, () => {
+
+    const server = http.createServer(app);
+
+    // Initialize NFC WebSocket (real-time card/reader events)
+    initNfcWebSocket(server);
+
+    // Start NFC reader detection
+    nfcService.init();
+
+    server.listen(PORT, () => {
       console.log('🚀 ================================');
       console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`🚀 NFC WebSocket at ws://localhost:${PORT}/ws/nfc`);
       console.log('🚀 ================================');
     });
   } catch (error) {
