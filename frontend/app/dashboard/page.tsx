@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
+import { getMyPets, togglePetLost, type Pet as APIPet } from '@/lib/pets'
 import {
   Calendar,
   PawPrint,
@@ -46,47 +47,45 @@ interface Pet {
   vet: { name: string; clinic: string; verified: boolean }
 }
 
-// --- Mock Data ---
-const mockPets: Pet[] = [
-  {
-    id: '1',
-    name: 'Coco',
-    species: 'Dog',
-    breed: 'Pomeranian',
-    sex: 'Female',
-    age: '1 Year Old',
-    weight: '2.8 kg',
-    birthDate: '12/25/25',
-    lastVisit: 'Jan 5',
-    nextVisit: 'Jan 25',
-    image: null,
-    isLost: true,
-    sterilization: 'UNNEUTERED',
-    microchipNumber: '-',
-    allergies: ['Chicken', 'Eggs', 'Milk'],
-    nfcTagId: 'PAWSYNC-NFC-001',
-    vet: { name: 'Dr. Gino Bailon', clinic: 'BaiVet Animal Clinic', verified: true },
-  },
-  {
-    id: '2',
-    name: 'Coco',
-    species: 'Dog',
-    breed: 'Pomeranian',
-    sex: 'Female',
-    age: '1 Year Old',
-    weight: '2.8 kg',
-    birthDate: '12/25/25',
-    lastVisit: 'Jan 5',
-    nextVisit: 'Jan 25',
-    image: null,
-    isLost: false,
-    sterilization: 'UNNEUTERED',
-    microchipNumber: '-',
-    allergies: ['Chicken', 'Eggs', 'Milk'],
-    nfcTagId: 'PAWSYNC-NFC-002',
-    vet: { name: 'Dr. Gino Bailon', clinic: 'BaiVet Animal Clinic', verified: true },
-  },
-]
+// --- Helpers ---
+function calculateAge(dateOfBirth: string): string {
+  const birth = new Date(dateOfBirth)
+  const now = new Date()
+  const years = now.getFullYear() - birth.getFullYear()
+  const months = now.getMonth() - birth.getMonth()
+  const totalMonths = years * 12 + months
+  if (totalMonths < 1) return 'Newborn'
+  if (totalMonths < 12) return `${totalMonths} Month${totalMonths > 1 ? 's' : ''} Old`
+  const y = Math.floor(totalMonths / 12)
+  return `${y} Year${y > 1 ? 's' : ''} Old`
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
+}
+
+function apiPetToDashboardPet(apiPet: APIPet): Pet {
+  return {
+    id: apiPet._id,
+    name: apiPet.name,
+    species: apiPet.species.charAt(0).toUpperCase() + apiPet.species.slice(1),
+    breed: apiPet.breed,
+    sex: apiPet.sex.charAt(0).toUpperCase() + apiPet.sex.slice(1),
+    age: calculateAge(apiPet.dateOfBirth),
+    weight: `${apiPet.weight} kg`,
+    birthDate: formatDate(apiPet.dateOfBirth),
+    lastVisit: '-',
+    nextVisit: '-',
+    image: apiPet.photo,
+    isLost: apiPet.isLost,
+    sterilization: apiPet.sterilization === 'yes' ? 'NEUTERED' : apiPet.sterilization === 'no' ? 'UNNEUTERED' : 'UNKNOWN',
+    microchipNumber: apiPet.microchipNumber || '-',
+    allergies: apiPet.allergies,
+    nfcTagId: apiPet.nfcTagId || '-',
+    vet: { name: '-', clinic: '-', verified: false },
+  }
+}
 
 const mockAppointments = [
   {
@@ -334,10 +333,12 @@ function ReportLostPetModal({
   pet,
   open,
   onClose,
+  onMarkedLost,
 }: {
   pet: Pet | null
   open: boolean
   onClose: () => void
+  onMarkedLost?: () => void
 }) {
   const [contactName, setContactName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
@@ -420,11 +421,20 @@ function ReportLostPetModal({
 
         <button
           className="w-full bg-[#900B09] hover:bg-[#7A0A08] text-white font-semibold py-3 rounded-xl mt-4 transition-colors flex items-center justify-center gap-2"
-          onClick={() => {
-            toast('Pet Reported as Lost', {
-              description: `${pet.name} has been marked as lost. NFC tag updated.`,
-              icon: <AlertTriangle className="w-4 h-4 text-[#900B09]" />,
-            })
+          onClick={async () => {
+            try {
+              const token = useAuthStore.getState().token
+              if (token) {
+                await togglePetLost(pet.id, true, token)
+              }
+              toast('Pet Reported as Lost', {
+                description: `${pet.name} has been marked as lost. NFC tag updated.`,
+                icon: <AlertTriangle className="w-4 h-4 text-[#900B09]" />,
+              })
+              onMarkedLost?.()
+            } catch {
+              toast('Error', { description: 'Failed to update pet status. Please try again.' })
+            }
             onClose()
           }}
         >
@@ -440,7 +450,10 @@ function ReportLostPetModal({
 export default function DashboardPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
+  const token = useAuthStore((state) => state.token)
   const [userName, setUserName] = useState('User')
+  const [pets, setPets] = useState<Pet[]>([])
+  const [petsLoading, setPetsLoading] = useState(true)
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [petModalOpen, setPetModalOpen] = useState(false)
   const [reportLostOpen, setReportLostOpen] = useState(false)
@@ -458,6 +471,29 @@ export default function DashboardPage() {
     }
   }, [user])
 
+  // Fetch pets from API
+  const fetchPets = useCallback(async () => {
+    if (!token) {
+      setPetsLoading(false)
+      return
+    }
+    try {
+      setPetsLoading(true)
+      const response = await getMyPets(token)
+      if (response.status === 'SUCCESS' && response.data?.pets) {
+        setPets(response.data.pets.map(apiPetToDashboardPet))
+      }
+    } catch (error) {
+      console.error('Failed to fetch pets:', error)
+    } finally {
+      setPetsLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    fetchPets()
+  }, [fetchPets])
+
   // Show login toast notifications on first load
   useEffect(() => {
     const justLoggedIn = sessionStorage.getItem('justLoggedIn')
@@ -465,18 +501,11 @@ export default function DashboardPage() {
       sessionStorage.removeItem('justLoggedIn')
 
       setTimeout(() => {
-        toast('Vaccination Reminder', {
-          description: "Coco's rabies vaccination is due on January, 2026. Schedule an appointment soon!",
-          icon: <Syringe className="w-4 h-4 text-yellow-500" />,
-        })
-      }, 500)
-
-      setTimeout(() => {
-        toast('Appointment Confirmed!', {
-          description: 'Your appointment at BaiVet Animal Clinic has been confirmed.',
+        toast('Welcome!', {
+          description: 'You have successfully logged in.',
           icon: <Calendar className="w-4 h-4 text-green-500" />,
         })
-      }, 1500)
+      }, 500)
     }
   }, [])
 
@@ -493,9 +522,8 @@ export default function DashboardPage() {
 
   const handleQuickAction = (href: string) => {
     if (href === '#') {
-      // Mark Pet as Lost quick action - open report modal for first pet
-      if (mockPets.length > 0) {
-        setReportLostPet(mockPets[0])
+      if (pets.length > 0) {
+        setReportLostPet(pets[0])
         setReportLostOpen(true)
       }
     } else {
@@ -516,7 +544,9 @@ export default function DashboardPage() {
               Welcome Back, {userName}
             </h1>
             <p className="text-white/80 text-sm lg:text-base">
-              Coco has a vaccination due next week. Don&apos;t forget to schedule an appointment!
+              {pets.length > 0
+                ? `You have ${pets.length} pet${pets.length > 1 ? 's' : ''} registered. Keep their records up to date!`
+                : 'Add your first pet to get started with PawSync!'}
             </p>
           </div>
           <div className="absolute inset-0 opacity-5">
@@ -536,7 +566,12 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500">Manage your Furry Family Members</p>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2 pt-4">
-            {mockPets.map((pet) => (
+            {petsLoading && pets.length === 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 w-[314px] h-[206px] shrink-0 flex items-center justify-center">
+                <p className="text-sm text-gray-400 animate-pulse">Loading pets...</p>
+              </div>
+            )}
+            {pets.map((pet) => (
               <div
                 key={pet.id}
                 className={`bg-white rounded-2xl p-5 w-[314px] h-[206px] shrink-0 cursor-pointer hover:shadow-md transition-shadow relative flex flex-col overflow-visible ${
@@ -700,6 +735,7 @@ export default function DashboardPage() {
         pet={reportLostPet}
         open={reportLostOpen}
         onClose={() => setReportLostOpen(false)}
+        onMarkedLost={fetchPets}
       />
     </DashboardLayout>
   )

@@ -6,6 +6,8 @@ import helmet from 'helmet';
 import { connectDatabase } from './config/database';
 import testRoutes from './routes/testRoutes';
 import authRoutes from './routes/authRoutes';
+import petRoutes from './routes/petRoutes';
+import userRoutes from './routes/userRoutes';
 import nfcRoutes from './routes/nfcRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
@@ -32,6 +34,12 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+
+// User routes
+app.use('/api/users', userRoutes);
+
+// Pet routes
+app.use('/api/pets', petRoutes);
 
 // Test routes
 app.use('/api/test', testRoutes);
