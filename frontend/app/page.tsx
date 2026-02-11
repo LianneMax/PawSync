@@ -24,7 +24,6 @@ import {
 import { Html5Qrcode } from 'html5-qrcode'
 import MouseEffectBackground from '@/components/kokonutui/mouse-effect-background'
 import SmoothTab from '@/components/kokonutui/smooth-tab'
-import PawPrints from '@/components/paw-prints'
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
 
@@ -280,9 +279,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white relative">
-      {/* Animated Paw Prints Background */}
-      <PawPrints />
-
       {/* ===== NAVBAR ===== */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto">
