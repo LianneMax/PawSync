@@ -1,0 +1,318 @@
+import { Request, Response } from 'express';
+import Clinic from '../models/Clinic';
+import ClinicBranch from '../models/ClinicBranch';
+import AssignedVet from '../models/AssignedVet';
+
+// ==================== CLINIC ====================
+
+/**
+ * Get clinics managed by the authenticated admin
+ */
+export const getMyClinics = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinics = await Clinic.find({ adminId: req.user.userId, isActive: true }).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { clinics }
+    });
+  } catch (error) {
+    console.error('Get clinics error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching clinics' });
+  }
+};
+
+/**
+ * Get all active clinics with their branches (public - for vet/user onboarding)
+ */
+export const getAllClinics = async (req: Request, res: Response) => {
+  try {
+    const clinics = await Clinic.find({ isActive: true })
+      .select('name address')
+      .sort({ name: 1 });
+
+    const clinicsWithBranches = await Promise.all(
+      clinics.map(async (clinic) => {
+        const branches = await ClinicBranch.find({ clinicId: clinic._id, isActive: true })
+          .select('name address isMain')
+          .sort({ isMain: -1, name: 1 });
+
+        return {
+          _id: clinic._id,
+          name: clinic.name,
+          address: clinic.address,
+          branches
+        };
+      })
+    );
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { clinics: clinicsWithBranches }
+    });
+  } catch (error) {
+    console.error('Get all clinics error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching clinics' });
+  }
+};
+
+// ==================== BRANCHES ====================
+
+/**
+ * Get all branches for a clinic
+ */
+export const getBranches = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branches = await ClinicBranch.find({ clinicId: clinic._id })
+      .sort({ isMain: -1, createdAt: -1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { branches }
+    });
+  } catch (error) {
+    console.error('Get branches error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching branches' });
+  }
+};
+
+/**
+ * Add a branch to a clinic
+ */
+export const addBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { name, address, phone, email, isMain } = req.body;
+
+    // If this branch is set as main, unset the current main branch
+    if (isMain) {
+      await ClinicBranch.updateMany(
+        { clinicId: clinic._id, isMain: true },
+        { isMain: false }
+      );
+    }
+
+    const branch = await ClinicBranch.create({
+      clinicId: clinic._id,
+      name,
+      address,
+      phone: phone || null,
+      email: email || null,
+      isMain: isMain || false
+    });
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Branch added successfully',
+      data: { branch }
+    });
+  } catch (error: any) {
+    console.error('Add branch error:', error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while adding the branch' });
+  }
+};
+
+/**
+ * Update a branch
+ */
+export const updateBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: req.params.branchId, clinicId: clinic._id });
+
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const { name, address, phone, email, isMain, isActive } = req.body;
+
+    // If setting as main, unset the current main branch first
+    if (isMain && !branch.isMain) {
+      await ClinicBranch.updateMany(
+        { clinicId: clinic._id, isMain: true },
+        { isMain: false }
+      );
+    }
+
+    const allowedFields: Record<string, any> = { name, address, phone, email, isMain, isActive };
+    for (const [key, value] of Object.entries(allowedFields)) {
+      if (value !== undefined) {
+        (branch as any)[key] = value;
+      }
+    }
+
+    await branch.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Branch updated successfully',
+      data: { branch }
+    });
+  } catch (error: any) {
+    console.error('Update branch error:', error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating the branch' });
+  }
+};
+
+/**
+ * Delete a branch
+ */
+export const deleteBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: req.params.branchId, clinicId: clinic._id });
+
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    await branch.deleteOne();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Branch deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete branch error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the branch' });
+  }
+};
+
+// ==================== VET ASSIGNMENT ====================
+
+/**
+ * Assign a vet to a clinic branch (clinic admin approves vet registration)
+ */
+export const assignVetToBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { branchId, vetId } = req.body;
+
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id, isActive: true });
+
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    // Check if the vet is already assigned to this branch
+    const existing = await AssignedVet.findOne({ vetId, clinicBranchId: branchId, isActive: true });
+
+    if (existing) {
+      return res.status(400).json({ status: 'ERROR', message: 'Vet is already assigned to this branch' });
+    }
+
+    const assignment = await AssignedVet.create({
+      vetId,
+      clinicId: clinic._id,
+      clinicBranchId: branchId,
+      clinicName: clinic.name,
+      clinicAddress: branch.address,
+      assignedAt: new Date()
+    });
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Vet assigned to branch successfully',
+      data: { assignment }
+    });
+  } catch (error) {
+    console.error('Assign vet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while assigning the vet' });
+  }
+};
+
+/**
+ * Remove a vet from a clinic branch
+ */
+export const removeVetFromBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const assignment = await AssignedVet.findOne({
+      _id: req.params.assignmentId,
+      clinicId: clinic._id,
+      isActive: true
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ status: 'ERROR', message: 'Assignment not found' });
+    }
+
+    assignment.isActive = false;
+    await assignment.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Vet removed from branch successfully'
+    });
+  } catch (error) {
+    console.error('Remove vet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while removing the vet' });
+  }
+};

@@ -44,7 +44,7 @@ const UserSchema = new Schema(
     },
     userType: {
       type: String,
-      enum: ['pet-owner', 'veterinarian'],
+      enum: ['pet-owner', 'veterinarian', 'clinic-admin'],
       required: [true, 'Please specify user type']
     },
     isVerified: {

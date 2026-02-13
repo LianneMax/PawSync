@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes';
 import petRoutes from './routes/petRoutes';
 import userRoutes from './routes/userRoutes';
 import nfcRoutes from './routes/nfcRoutes';
+import clinicRoutes from './routes/clinicRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 
@@ -43,6 +44,9 @@ app.use('/api/pets', petRoutes);
 
 // Test routes
 app.use('/api/test', testRoutes);
+
+// Clinic routes
+app.use('/api/clinics', clinicRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);

@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAssignedVet extends Document {
   vetId: mongoose.Types.ObjectId;
   petId: mongoose.Types.ObjectId;
+  clinicId: mongoose.Types.ObjectId | null;
+  clinicBranchId: mongoose.Types.ObjectId | null;
   clinicName: string;
   clinicAddress: string | null;
   assignedAt: Date;
@@ -25,6 +27,18 @@ const AssignedVetSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Pet',
       required: [true, 'Pet is required'],
+      index: true
+    },
+    clinicId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null,
+      index: true
+    },
+    clinicBranchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ClinicBranch',
+      default: null,
       index: true
     },
     clinicName: {

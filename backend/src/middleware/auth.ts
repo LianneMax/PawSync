@@ -8,7 +8,7 @@ declare global {
       user?: {
         userId: string;
         email: string;
-        userType: 'pet-owner' | 'veterinarian';
+        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
       };
     }
   }
@@ -85,6 +85,27 @@ export const petOwnerOnly = (req: Request, res: Response, next: NextFunction) =>
     return res.status(403).json({
       status: 'ERROR',
       message: 'This endpoint is only available for pet owners'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to check if user is clinic admin
+ */
+export const clinicAdminOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      status: 'ERROR',
+      message: 'Authentication required'
+    });
+  }
+
+  if (req.user.userType !== 'clinic-admin') {
+    return res.status(403).json({
+      status: 'ERROR',
+      message: 'This endpoint is only available for clinic admins'
     });
   }
 
