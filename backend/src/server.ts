@@ -9,6 +9,7 @@ import petRoutes from './routes/petRoutes';
 import userRoutes from './routes/userRoutes';
 import nfcRoutes from './routes/nfcRoutes';
 import clinicRoutes from './routes/clinicRoutes';
+import medicalRecordRoutes from './routes/medicalRecordRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 
@@ -24,8 +25,8 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health check route
 app.get('/api/health', (req: Request, res: Response) => {
@@ -43,6 +44,9 @@ app.use('/api/pets', petRoutes);
 
 // Clinic routes
 app.use('/api/clinics', clinicRoutes);
+
+// Medical record routes
+app.use('/api/medical-records', medicalRecordRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);
