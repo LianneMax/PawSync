@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import { connectDatabase } from './config/database';
-import testRoutes from './routes/testRoutes';
 import authRoutes from './routes/authRoutes';
 import petRoutes from './routes/petRoutes';
 import userRoutes from './routes/userRoutes';
@@ -41,9 +40,6 @@ app.use('/api/users', userRoutes);
 
 // Pet routes
 app.use('/api/pets', petRoutes);
-
-// Test routes
-app.use('/api/test', testRoutes);
 
 // Clinic routes
 app.use('/api/clinics', clinicRoutes);
