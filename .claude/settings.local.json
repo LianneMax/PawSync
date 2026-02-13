@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(tree:*)",
-      "Bash(npx shadcn@latest:*)"
+      "Bash(npx shadcn@latest:*)",
+      "Bash(dir:*)",
+      "Bash(test:*)"
     ]
   }
 }
