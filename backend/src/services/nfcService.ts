@@ -1,5 +1,6 @@
-import { NFC, Reader } from 'nfc-pcsc';
 import { EventEmitter } from 'events';
+import { fork, ChildProcess } from 'child_process';
+import path from 'path';
 
 export interface NfcReader {
   name: string;
@@ -13,58 +14,81 @@ export interface NfcCardEvent {
 }
 
 class NfcService extends EventEmitter {
-  private nfc: NFC | null = null;
-  private readers: Map<string, Reader> = new Map();
+  private readers: Map<string, boolean> = new Map();
   private initialized = false;
+  private worker: ChildProcess | null = null;
 
   init() {
     if (this.initialized) return;
-
-    this.nfc = new NFC();
     this.initialized = true;
 
-    this.nfc.on('reader', (reader: Reader) => {
-      console.log(`[NFC] Reader connected: ${reader.name}`);
-      this.readers.set(reader.name, reader);
-      this.emit('reader:connect', { name: reader.name, connected: true });
+    const workerPath = path.join(__dirname, 'nfcWorker.js');
 
-      reader.on('card', (card: { uid: string; atr: Buffer }) => {
-        const event: NfcCardEvent = {
-          reader: reader.name,
-          uid: card.uid,
-          atr: card.atr.toString('hex'),
-        };
-        console.log(`[NFC] Card detected on ${reader.name}: ${card.uid}`);
-        this.emit('card', event);
-      });
+    try {
+      this.worker = fork(workerPath, [], { silent: true });
+    } catch {
+      console.log('[NFC] Could not start NFC worker — NFC features disabled');
+      return;
+    }
 
-      reader.on('card.off', (card: { uid: string }) => {
-        console.log(`[NFC] Card removed from ${reader.name}: ${card.uid}`);
-        this.emit('card:remove', { reader: reader.name, uid: card.uid });
-      });
+    const initTimeout = setTimeout(() => {
+      if (this.worker) {
+        this.worker.kill();
+        this.worker = null;
+        console.log('[NFC] No NFC hardware detected — NFC features disabled');
+      }
+    }, 5000);
 
-      reader.on('error', (err: Error) => {
-        console.error(`[NFC] Reader error (${reader.name}):`, err.message);
-        this.emit('reader:error', { reader: reader.name, error: err.message });
-      });
-
-      reader.on('end', () => {
-        console.log(`[NFC] Reader disconnected: ${reader.name}`);
-        this.readers.delete(reader.name);
-        this.emit('reader:disconnect', { name: reader.name, connected: false });
-      });
+    this.worker.on('message', (msg: any) => {
+      switch (msg.type) {
+        case 'ready':
+          clearTimeout(initTimeout);
+          console.log('[NFC] Service initialized — waiting for readers...');
+          break;
+        case 'reader:connect':
+          console.log(`[NFC] Reader connected: ${msg.data.name}`);
+          this.readers.set(msg.data.name, true);
+          this.emit('reader:connect', msg.data);
+          break;
+        case 'reader:disconnect':
+          console.log(`[NFC] Reader disconnected: ${msg.data.name}`);
+          this.readers.delete(msg.data.name);
+          this.emit('reader:disconnect', msg.data);
+          break;
+        case 'card':
+          console.log(`[NFC] Card detected on ${msg.data.reader}: ${msg.data.uid}`);
+          this.emit('card', msg.data);
+          break;
+        case 'card:remove':
+          console.log(`[NFC] Card removed from ${msg.data.reader}: ${msg.data.uid}`);
+          this.emit('card:remove', msg.data);
+          break;
+        case 'error':
+          console.warn('[NFC] Service error:', msg.data);
+          break;
+        case 'init-failed':
+          clearTimeout(initTimeout);
+          console.log('[NFC] No NFC hardware detected — NFC features disabled');
+          this.worker?.kill();
+          this.worker = null;
+          break;
+      }
     });
 
-    this.nfc.on('error', (err: Error) => {
-      console.error('[NFC] Service error:', err.message);
-      this.emit('error', err);
+    this.worker.on('exit', () => {
+      clearTimeout(initTimeout);
+      this.worker = null;
     });
 
-    console.log('[NFC] Service initialized — waiting for readers...');
+    this.worker.on('error', () => {
+      clearTimeout(initTimeout);
+      console.log('[NFC] Could not start NFC worker — NFC features disabled');
+      this.worker = null;
+    });
   }
 
   getReaders(): NfcReader[] {
-    return Array.from(this.readers.entries()).map(([name]) => ({
+    return Array.from(this.readers.keys()).map((name) => ({
       name,
       connected: true,
     }));

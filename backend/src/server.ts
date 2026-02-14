@@ -69,7 +69,7 @@ const startServer = async () => {
     // Initialize NFC WebSocket (real-time card/reader events)
     initNfcWebSocket(server);
 
-    // Start NFC reader detection
+    // Start NFC reader detection (runs in separate process, never blocks server)
     nfcService.init();
 
     server.listen(PORT, () => {

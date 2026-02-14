@@ -298,7 +298,7 @@ export default function SignUpPage() {
                 disabled={loading}
                 className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl hover:bg-[#6B9290] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating Account...' : 'Login'}
+                {loading ? 'Creating Account...' : 'Sign Up'}
               </button>
 
               {/* Divider */}
