@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { Mail, Lock, X, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { login, forgotPassword, verifyOtp, resetPassword } from '@/lib/auth'
+import { getMyPets } from '@/lib/pets'
 import { useAuthStore } from '@/store/authStore'
 
 const slides = [
@@ -169,9 +170,15 @@ export default function LoginPage() {
         sessionStorage.setItem('justLoggedIn', 'true')
 
         if (response.data.user.userType === 'pet-owner') {
-          router.push('/onboarding/pet')
+          // Check if they already have pets — skip onboarding if so
+          const petsResponse = await getMyPets(response.data.token)
+          if (petsResponse.status === 'SUCCESS' && petsResponse.data?.pets && petsResponse.data.pets.length > 0) {
+            router.push('/dashboard')
+          } else {
+            router.push('/onboarding/pet')
+          }
         } else {
-          router.push('/onboarding/vet')
+          router.push('/dashboard')
         }
       }
     } catch (err) {

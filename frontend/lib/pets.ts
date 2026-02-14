@@ -89,6 +89,26 @@ export const deletePet = async (id: string, token?: string): Promise<{ status: s
 };
 
 /**
+ * Remove a pet with a reason
+ */
+export const removePet = async (id: string, reason: string, details?: string, token?: string): Promise<{ status: string; message: string }> => {
+  return authenticatedFetch(`/pets/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason, details })
+  }, token);
+};
+
+/**
+ * Transfer pet ownership to another pet-owner
+ */
+export const transferPet = async (id: string, newOwnerEmail: string, token?: string): Promise<{ status: string; message: string }> => {
+  return authenticatedFetch(`/pets/${id}/transfer`, {
+    method: 'POST',
+    body: JSON.stringify({ newOwnerEmail })
+  }, token);
+};
+
+/**
  * Mark/unmark a pet as lost
  */
 export const togglePetLost = async (id: string, isLost: boolean, token?: string): Promise<PetResponse> => {

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPet, getMyPets, getPetById, updatePet, deletePet, getPetByNfc } from '../controllers/petController';
+import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc } from '../controllers/petController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -33,6 +33,12 @@ router.get('/:id', authMiddleware, getPetById);
  * Update a pet
  */
 router.put('/:id', authMiddleware, updatePet);
+
+/**
+ * POST /api/pets/:id/transfer
+ * Transfer pet ownership to another pet-owner
+ */
+router.post('/:id/transfer', authMiddleware, transferPet);
 
 /**
  * DELETE /api/pets/:id

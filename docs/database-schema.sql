@@ -45,6 +45,7 @@ CREATE TABLE users (
 -- MongoDB Collection: pets
 -- ============================================================
 -- Stores all pet profiles belonging to pet owners.
+-- BUSINESS RULE: A pet owner must register at least one pet during onboarding.
 --
 -- INPUTS (Pet Onboarding / Add Pet):
 --   ownerId, name, species, breed, secondaryBreed (optional),

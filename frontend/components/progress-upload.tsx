@@ -224,7 +224,7 @@ export default function ProgressUpload({
             )}
           </div>
 
-          <Button onClick={openFileDialog} className="bg-[#5A7C7A] hover:bg-[#4a6a68] font-normal">
+          <Button type="button" onClick={openFileDialog} className="bg-[#5A7C7A] hover:bg-[#4a6a68] font-normal">
             <UploadIcon />
             Select files
           </Button>

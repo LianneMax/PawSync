@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Dog, Cat, Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { createPet, getMyPets } from '@/lib/pets'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
@@ -13,7 +14,17 @@ import AvatarUpload from '@/components/avatar-upload'
 type PetSpecies = 'dog' | 'cat' | null
 
 export default function PetOnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F8F6F2]" />}>
+      <PetOnboardingContent />
+    </Suspense>
+  )
+}
+
+function PetOnboardingContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isFromDashboard = searchParams.get('from') === 'dashboard'
   const clinicDropdownRef = useRef<HTMLDivElement>(null)
 
   // Step state: 2 = Pet Profile, 3 = Basic Details
@@ -21,11 +32,24 @@ export default function PetOnboardingPage() {
   const [slidePhase, setSlidePhase] = useState<'idle' | 'exit' | 'enter'>('idle')
   const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward')
   const [mounted, setMounted] = useState(false)
+  const [existingPetName, setExistingPetName] = useState<string | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50)
     return () => clearTimeout(t)
   }, [])
+
+  // Fetch existing pet name when adding from dashboard
+  useEffect(() => {
+    if (!isFromDashboard) return
+    const token = useAuthStore.getState().token || localStorage.getItem('authToken')
+    if (!token) return
+    getMyPets(token).then((res) => {
+      if (res.status === 'SUCCESS' && res.data?.pets && res.data.pets.length > 0) {
+        setExistingPetName(res.data.pets[0].name)
+      }
+    }).catch(() => {})
+  }, [isFromDashboard])
 
   // Pet Profile state (Step 2)
   const [species, setSpecies] = useState<PetSpecies>(null)
@@ -42,6 +66,8 @@ export default function PetOnboardingPage() {
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [notes, setNotes] = useState('')
   const [errors, setErrors] = useState<Record<string, boolean>>({})
+  const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Clinic search state
   const [clinicSearch, setClinicSearch] = useState('')
@@ -97,11 +123,13 @@ export default function PetOnboardingPage() {
   }
 
   const handleBackToSignup = () => {
-    router.push('/signup')
+    router.push(isFromDashboard ? '/dashboard' : '/signup')
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitError(null)
+
     const newErrors: Record<string, boolean> = {}
     if (!fullName.trim()) newErrors.fullName = true
     if (!breed) newErrors.breed = true
@@ -109,19 +137,41 @@ export default function PetOnboardingPage() {
     if (!sterilization) newErrors.sterilization = true
     if (!weight.trim()) newErrors.weight = true
     if (!dateOfBirth) newErrors.dateOfBirth = true
+    if (dateOfBirth && new Date(dateOfBirth) > new Date()) newErrors.dateOfBirthFuture = true
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
     }
     setErrors({})
+    setSubmitLoading(true)
 
-    const petDetails = {
-      fullName, breed, secondaryBreed: secondaryBreed || null, sex, sterilization, weight, dateOfBirth, notes,
-      clinic: selectedClinic
+    try {
+      const token = useAuthStore.getState().token || localStorage.getItem('authToken')
+      const response = await createPet({
+        name: fullName,
+        species: species as 'dog' | 'cat',
+        breed,
+        secondaryBreed: secondaryBreed || undefined,
+        sex: sex as 'male' | 'female',
+        dateOfBirth,
+        weight: parseFloat(weight),
+        sterilization: sterilization as 'yes' | 'no' | 'unknown',
+        photo: photoPreview || undefined,
+        notes: notes || undefined,
+      }, token || undefined)
+
+      if (response.status === 'ERROR') {
+        setSubmitError(response.message || 'Failed to create pet. Please try again.')
+        setSubmitLoading(false)
+        return
+      }
+
+      router.push('/dashboard')
+    } catch {
+      setSubmitError('An error occurred while saving your pet. Please try again.')
+      setSubmitLoading(false)
     }
-    sessionStorage.setItem('petDetails', JSON.stringify(petDetails))
-    router.push('/dashboard')
   }
 
   const userData = useAuthStore((state) => state.user)
@@ -168,13 +218,13 @@ export default function PetOnboardingPage() {
       {/* Progress Steps */}
       <div className="max-w-2xl mx-auto mb-12">
         <div className="flex items-center justify-center gap-4">
-          {/* Step 1 - Sign Up (Completed) */}
+          {/* Step 1 - Sign Up / Dashboard (Completed) */}
           <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)' }}>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-[#7FA5A3] flex items-center justify-center">
                 <Check className="w-6 h-6 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Sign Up</span>
+              <span className="text-sm font-medium text-gray-700">{isFromDashboard ? 'Dashboard' : 'Sign Up'}</span>
             </div>
           </div>
 
@@ -216,10 +266,21 @@ export default function PetOnboardingPage() {
           <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-12 transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(20px)', transitionDelay: '400ms' }}>
             {/* Header */}
             <div className="text-center mb-12">
-              <h1 className="text-4xl font-bold text-[#5A7C7A] mb-3">Let&apos;s Meet your furry friend</h1>
+              <h1 className="text-4xl font-bold text-[#5A7C7A] mb-3">
+                {isFromDashboard ? "Let's Meet another furry friend" : "Let's Meet your furry friend"}
+              </h1>
               <p className="text-gray-600">
-                To get started with PawSync, we need to create a profile<br />
-                for at least one pet. What type of pet do you have?
+                {isFromDashboard ? (
+                  <>
+                    Give {existingPetName || 'your pet'} a new friend!<br />
+                    What type of pet do you have?
+                  </>
+                ) : (
+                  <>
+                    To get started with PawSync, we need to create a profile<br />
+                    for at least one pet. What type of pet do you have?
+                  </>
+                )}
               </p>
             </div>
 
@@ -275,9 +336,13 @@ export default function PetOnboardingPage() {
                 className="w-full"
                 maxSize={5 * 1024 * 1024}
                 onFileChange={(file) => {
-                  if (file?.preview) {
-                    setPhotoPreview(file.preview)
-                    setPhotoFile(file.file instanceof File ? file.file : null)
+                  if (file?.file instanceof File) {
+                    const reader = new FileReader()
+                    reader.onloadend = () => {
+                      setPhotoPreview(reader.result as string)
+                    }
+                    reader.readAsDataURL(file.file)
+                    setPhotoFile(file.file)
                   } else {
                     setPhotoPreview(null)
                     setPhotoFile(null)
@@ -333,6 +398,13 @@ export default function PetOnboardingPage() {
             </div>
 
             <form onSubmit={handleSubmit} noValidate>
+              {/* Error Message */}
+              {submitError && (
+                <div className="mb-6 p-3 bg-red-50 border border-red-300 text-red-700 rounded-xl text-sm">
+                  {submitError}
+                </div>
+              )}
+
               {/* Clinic Search Section */}
               <div className="mb-8">
                 <div className="relative" ref={clinicDropdownRef}>
@@ -472,11 +544,14 @@ export default function PetOnboardingPage() {
                 <div className="mb-4">
                   <DatePicker
                     value={dateOfBirth}
-                    onChange={(v) => { setDateOfBirth(v); setErrors(prev => ({ ...prev, dateOfBirth: false })) }}
+                    onChange={(v) => { setDateOfBirth(v); setErrors(prev => ({ ...prev, dateOfBirth: false, dateOfBirthFuture: false })) }}
                     placeholder="Date of Birth*"
-                    error={errors.dateOfBirth}
+                    error={errors.dateOfBirth || errors.dateOfBirthFuture}
                   />
-                  {!errors.dateOfBirth && <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>}
+                  {errors.dateOfBirthFuture
+                    ? <p className="text-xs text-red-500 mt-1 ml-1">Date of birth cannot be in the future</p>
+                    : !errors.dateOfBirth && <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>
+                  }
                 </div>
 
                 <div className="mb-4">
@@ -503,10 +578,11 @@ export default function PetOnboardingPage() {
 
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+                  disabled={submitLoading}
+                  className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Continue
-                  <ArrowRight className="w-5 h-5" />
+                  {submitLoading ? 'Saving...' : 'Continue'}
+                  {!submitLoading && <ArrowRight className="w-5 h-5" />}
                 </button>
               </div>
             </form>

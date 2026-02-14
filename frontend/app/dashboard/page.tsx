@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, togglePetLost, type Pet as APIPet } from '@/lib/pets'
+import { getMyPets, togglePetLost, removePet, transferPet, type Pet as APIPet } from '@/lib/pets'
 import {
   Calendar,
   PawPrint,
@@ -16,6 +17,7 @@ import {
   MapPin,
   Filter,
   ChevronRight,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -32,6 +34,7 @@ interface Pet {
   name: string
   species: string
   breed: string
+  secondaryBreed: string | null
   sex: string
   age: string
   weight: string
@@ -71,6 +74,7 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     name: apiPet.name,
     species: apiPet.species.charAt(0).toUpperCase() + apiPet.species.slice(1),
     breed: apiPet.breed,
+    secondaryBreed: apiPet.secondaryBreed || null,
     sex: apiPet.sex.charAt(0).toUpperCase() + apiPet.sex.slice(1),
     age: calculateAge(apiPet.dateOfBirth),
     weight: `${apiPet.weight} kg`,
@@ -158,11 +162,13 @@ function PetDetailModal({
   open,
   onClose,
   onReportLost,
+  onRemovePet,
 }: {
   pet: Pet | null
   open: boolean
   onClose: () => void
   onReportLost: (pet: Pet) => void
+  onRemovePet: (pet: Pet) => void
 }) {
   if (!pet) return null
 
@@ -178,8 +184,12 @@ function PetDetailModal({
             <div className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.1)] p-6 mb-4">
               {/* Avatar */}
               <div className="flex justify-center mb-4">
-                <div className="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center">
-                  <PawPrint className="w-12 h-12 text-gray-400" />
+                <div className="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                  {pet.image ? (
+                    <Image src={pet.image} alt={pet.name} width={112} height={112} className="w-full h-full object-cover" unoptimized />
+                  ) : (
+                    <PawPrint className="w-12 h-12 text-gray-400" />
+                  )}
                 </div>
               </div>
               {/* Name */}
@@ -192,8 +202,11 @@ function PetDetailModal({
               {/* Breed / Sex / Age pills */}
               <div className="bg-[#F1F0ED] rounded-[10px] p-2 flex gap-2 mb-6">
                 <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
-                  <p className="text-[9px] text-white/70 text-left">Breed</p>
+                  <p className="text-[9px] text-white/70 text-left">Breed{pet.secondaryBreed ? ' (Mixed)' : ''}</p>
                   <p className="text-[12px] text-center">{pet.breed}</p>
+                  {pet.secondaryBreed && (
+                    <p className="text-[10px] text-white/70 text-center">× {pet.secondaryBreed}</p>
+                  )}
                 </div>
                 <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
                   <p className="text-[9px] text-white/70 text-left">Sex</p>
@@ -244,21 +257,33 @@ function PetDetailModal({
             </div>
 
             {/* Vet Info - separate card with shadow */}
-            <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_4px_24px_rgba(0,0,0,0.1)]">
-              <div className="w-10 h-10 bg-white/20 rounded-full shrink-0 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">{pet.vet.name.charAt(0)}</span>
+            {pet.vet.name !== '-' ? (
+              <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_4px_24px_rgba(0,0,0,0.1)]">
+                <div className="w-10 h-10 bg-white/20 rounded-full shrink-0 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">{pet.vet.name.charAt(0)}</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm">{pet.vet.name}</p>
+                  <p className="text-white/70 text-xs">{pet.vet.clinic}</p>
+                </div>
+                {pet.vet.verified && (
+                  <span className="bg-[#9EC4C8] text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-[#679D82] rounded-full animate-pulse" />
+                    PRC Verified
+                  </span>
+                )}
               </div>
-              <div className="flex-1">
-                <p className="text-white font-semibold text-sm">{pet.vet.name}</p>
-                <p className="text-white/70 text-xs">{pet.vet.clinic}</p>
+            ) : (
+              <div className="bg-gray-100 border border-dashed border-gray-300 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-200 rounded-full shrink-0 flex items-center justify-center">
+                  <span className="text-gray-400 font-bold text-sm">?</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-500 font-semibold text-sm">No veterinarian assigned</p>
+                  <p className="text-gray-400 text-xs">Book an appointment to get a vet assigned</p>
+                </div>
               </div>
-              {pet.vet.verified && (
-                <span className="bg-[#9EC4C8] text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-[#679D82] rounded-full animate-pulse" />
-                  PRC Verified
-                </span>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Right Column - NFC & Actions */}
@@ -320,6 +345,16 @@ function PetDetailModal({
                 <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+            <button
+              className="w-full border border-red-200 rounded-xl p-4 text-left hover:bg-red-50 transition-colors flex items-center justify-between"
+              onClick={() => onRemovePet(pet)}
+            >
+              <div>
+                <p className="font-semibold text-[#900B09] text-sm">Remove {pet.name}</p>
+                <p className="text-xs text-gray-400">Transfer ownership or remove from profile</p>
+              </div>
+              <Trash2 className="w-4 h-4 text-[#900B09]" />
             </button>
           </div>
         </div>
@@ -446,6 +481,232 @@ function ReportLostPetModal({
   )
 }
 
+// --- Remove Pet Modal ---
+const REMOVAL_REASONS = [
+  { value: 'passed-away', label: 'Pet passed away' },
+  { value: 'relocated', label: 'Pet was relocated' },
+  { value: 'transfer', label: 'Transferred to another owner' },
+  { value: 'other', label: 'Other' },
+] as const
+
+function RemovePetModal({
+  pet,
+  open,
+  onClose,
+  onPetRemoved,
+}: {
+  pet: Pet | null
+  open: boolean
+  onClose: () => void
+  onPetRemoved?: () => void
+}) {
+  const [reason, setReason] = useState('')
+  const [details, setDetails] = useState('')
+  const [newOwnerEmail, setNewOwnerEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const resetForm = () => {
+    setReason('')
+    setDetails('')
+    setNewOwnerEmail('')
+    setError('')
+  }
+
+  const handleClose = () => {
+    resetForm()
+    onClose()
+  }
+
+  if (!pet) return null
+
+  const isTransfer = reason === 'transfer'
+
+  const handleConfirm = async () => {
+    if (!reason) {
+      setError('Please select a reason')
+      return
+    }
+    if (isTransfer && !newOwnerEmail.trim()) {
+      setError('Please enter the new owner\'s email')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const token = useAuthStore.getState().token
+      if (!token) return
+
+      if (isTransfer) {
+        const response = await transferPet(pet.id, newOwnerEmail.trim(), token)
+        if (response.status === 'ERROR') {
+          setError(response.message || 'Transfer failed')
+          setLoading(false)
+          return
+        }
+        toast('Pet Transferred', {
+          description: response.message || `${pet.name} has been transferred successfully.`,
+          icon: <PawPrint className="w-4 h-4 text-[#7FA5A3]" />,
+        })
+      } else {
+        const reasonLabel = REMOVAL_REASONS.find((r) => r.value === reason)?.label || reason
+        const response = await removePet(pet.id, reasonLabel, details || undefined, token)
+        if (response.status === 'ERROR') {
+          setError(response.message || 'Removal failed')
+          setLoading(false)
+          return
+        }
+        toast('Pet Removed', {
+          description: `${pet.name} has been removed from your profile.`,
+          icon: <Trash2 className="w-4 h-4 text-[#900B09]" />,
+        })
+      }
+
+      onPetRemoved?.()
+      handleClose()
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="max-w-lg w-[95vw] p-6">
+        <DialogHeader className="mb-0">
+          <DialogTitle
+            className="text-2xl text-[#900B09]"
+            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+          >
+            Remove Pet
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Remove {pet.name} from your profile
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Info Box */}
+        <div className="bg-[#FFF8E1] border border-[#FFE082] rounded-xl p-4 mb-4">
+          <p className="text-sm font-semibold text-[#B71C1C] mb-2">
+            This action cannot be undone
+          </p>
+          <p className="text-xs text-gray-700 leading-relaxed">
+            Removing a pet will permanently delete their profile, medical records,
+            and all associated data from your account. If you are transferring
+            ownership, the pet&apos;s profile will be moved to the new owner.
+          </p>
+        </div>
+
+        {/* Pet info */}
+        <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-gray-700 mb-4">
+          {pet.name} — {pet.breed}
+        </div>
+
+        {/* Reason Selection */}
+        <div className="space-y-3 mb-4">
+          <label className="text-sm font-semibold text-gray-900 block">Reason for Removal</label>
+          {REMOVAL_REASONS.map((r) => (
+            <label
+              key={r.value}
+              className={`flex items-center gap-3 border rounded-xl p-3 cursor-pointer transition-colors ${
+                reason === r.value
+                  ? 'border-[#7FA5A3] bg-[#F8F6F2]'
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="removal-reason"
+                value={r.value}
+                checked={reason === r.value}
+                onChange={(e) => {
+                  setReason(e.target.value)
+                  setError('')
+                }}
+                className="accent-[#7FA5A3]"
+              />
+              <span className="text-sm text-gray-700">{r.label}</span>
+            </label>
+          ))}
+        </div>
+
+        {/* Transfer email input (conditional) */}
+        {isTransfer && (
+          <div className="mb-4">
+            <label className="text-sm font-semibold text-gray-900 block mb-1.5">
+              New Owner&apos;s Email
+            </label>
+            <input
+              type="email"
+              placeholder="Enter the pet-owner's email address"
+              value={newOwnerEmail}
+              onChange={(e) => {
+                setNewOwnerEmail(e.target.value)
+                setError('')
+              }}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              The recipient must have a PawSync pet-owner account
+            </p>
+          </div>
+        )}
+
+        {/* Details (optional for non-transfer) */}
+        {!isTransfer && reason && (
+          <div className="mb-4">
+            <label className="text-sm font-semibold text-gray-900 block mb-1.5">
+              Additional Details (Optional)
+            </label>
+            <textarea
+              placeholder="Any additional notes..."
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              rows={2}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+            />
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {/* Confirm button */}
+        <button
+          disabled={loading}
+          className={`w-full font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+            isTransfer
+              ? 'bg-[#476B6B] hover:bg-[#3a5a5a] text-white'
+              : 'bg-[#900B09] hover:bg-[#7A0A08] text-white'
+          }`}
+          onClick={handleConfirm}
+        >
+          {loading ? (
+            'Processing...'
+          ) : isTransfer ? (
+            <>
+              <PawPrint className="w-4 h-4" />
+              Transfer {pet.name}
+            </>
+          ) : (
+            <>
+              <Trash2 className="w-4 h-4" />
+              Remove {pet.name}
+            </>
+          )}
+        </button>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // --- Main Dashboard ---
 export default function DashboardPage() {
   const router = useRouter()
@@ -458,6 +719,8 @@ export default function DashboardPage() {
   const [petModalOpen, setPetModalOpen] = useState(false)
   const [reportLostOpen, setReportLostOpen] = useState(false)
   const [reportLostPet, setReportLostPet] = useState<Pet | null>(null)
+  const [removePetOpen, setRemovePetOpen] = useState(false)
+  const [removePetTarget, setRemovePetTarget] = useState<Pet | null>(null)
 
   useEffect(() => {
     if (user?.firstName) {
@@ -518,6 +781,12 @@ export default function DashboardPage() {
     setPetModalOpen(false)
     setReportLostPet(pet)
     setTimeout(() => setReportLostOpen(true), 200)
+  }
+
+  const handleRemovePet = (pet: Pet) => {
+    setPetModalOpen(false)
+    setRemovePetTarget(pet)
+    setTimeout(() => setRemovePetOpen(true), 200)
   }
 
   const handleQuickAction = (href: string) => {
@@ -587,8 +856,12 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0">
-                    <PawPrint className="w-6 h-6 text-gray-400" />
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+                    {pet.image ? (
+                      <Image src={pet.image} alt={pet.name} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                    ) : (
+                      <PawPrint className="w-6 h-6 text-gray-400" />
+                    )}
                   </div>
                   <div>
                     <p className="font-bold text-gray-900 text-base">{pet.name}</p>
@@ -617,7 +890,7 @@ export default function DashboardPage() {
             {/* Add New Pet Card */}
             <div
               className="bg-white rounded-2xl border-2 border-dashed border-gray-300 w-[314px] h-[206px] shrink-0 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors"
-              onClick={() => router.push('/onboarding/pet')}
+              onClick={() => router.push('/onboarding/pet?from=dashboard')}
             >
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                 <Plus className="w-6 h-6 text-gray-400" />
@@ -728,6 +1001,7 @@ export default function DashboardPage() {
         open={petModalOpen}
         onClose={() => setPetModalOpen(false)}
         onReportLost={handleReportLost}
+        onRemovePet={handleRemovePet}
       />
 
       {/* Report Lost Pet Modal */}
@@ -736,6 +1010,14 @@ export default function DashboardPage() {
         open={reportLostOpen}
         onClose={() => setReportLostOpen(false)}
         onMarkedLost={fetchPets}
+      />
+
+      {/* Remove Pet Modal */}
+      <RemovePetModal
+        pet={removePetTarget}
+        open={removePetOpen}
+        onClose={() => setRemovePetOpen(false)}
+        onPetRemoved={fetchPets}
       />
     </DashboardLayout>
   )

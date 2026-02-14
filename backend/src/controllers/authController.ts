@@ -4,8 +4,8 @@ import crypto from 'crypto';
 import User, { IUser } from '../models/User';
 import { Resend } from 'resend';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
+const getJwtSecret = () => process.env.JWT_SECRET || 'your-secret-key';
+const getJwtExpire = () => process.env.JWT_EXPIRE || '7d';
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOCK_DURATION = 15 * 60 * 1000; // 15 minutes
 const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
@@ -32,8 +32,8 @@ const generateToken = (user: IUser): string => {
       email: user.email,
       userType: user.userType
     },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRE } as any
+    getJwtSecret(),
+    { expiresIn: getJwtExpire() } as any
   );
 };
 

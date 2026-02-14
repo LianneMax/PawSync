@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Pet from '../models/Pet';
+import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
 
 /**
@@ -157,7 +158,7 @@ export const updatePet = async (req: Request, res: Response) => {
 };
 
 /**
- * Delete a pet
+ * Delete a pet (with optional removal reason)
  */
 export const deletePet = async (req: Request, res: Response) => {
   try {
@@ -175,6 +176,11 @@ export const deletePet = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to delete this pet' });
     }
 
+    const { reason, details } = req.body || {};
+    if (reason) {
+      console.log(`[Pet Removed] Pet "${pet.name}" (${pet._id}) removed by user ${req.user.userId}. Reason: ${reason}${details ? ` — ${details}` : ''}`);
+    }
+
     // Remove vet-pet relationships
     await AssignedVet.deleteMany({ petId: pet._id });
     await pet.deleteOne();
@@ -186,6 +192,65 @@ export const deletePet = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Delete pet error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the pet' });
+  }
+};
+
+/**
+ * Transfer pet ownership to another pet-owner
+ */
+export const transferPet = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { newOwnerEmail } = req.body;
+
+    if (!newOwnerEmail) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide the new owner\'s email' });
+    }
+
+    const pet = await Pet.findById(req.params.id);
+
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    if (pet.ownerId.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to transfer this pet' });
+    }
+
+    // Find the new owner
+    const newOwner = await User.findOne({ email: newOwnerEmail.toLowerCase() });
+
+    if (!newOwner) {
+      return res.status(404).json({ status: 'ERROR', message: 'No account found with that email address' });
+    }
+
+    if (newOwner._id.toString() === req.user.userId) {
+      return res.status(400).json({ status: 'ERROR', message: 'You cannot transfer a pet to yourself' });
+    }
+
+    if (newOwner.userType !== 'pet-owner') {
+      return res.status(400).json({ status: 'ERROR', message: 'The recipient must have a pet-owner account' });
+    }
+
+    // Transfer ownership
+    pet.ownerId = newOwner._id as any;
+    await pet.save();
+
+    // Remove existing vet assignments (don't carry over to new owner)
+    await AssignedVet.deleteMany({ petId: pet._id });
+
+    console.log(`[Pet Transferred] Pet "${pet.name}" (${pet._id}) transferred from user ${req.user.userId} to user ${newOwner._id}`);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: `Pet transferred successfully to ${newOwner.firstName} ${newOwner.lastName}`
+    });
+  } catch (error) {
+    console.error('Transfer pet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while transferring the pet' });
   }
 };
 
