@@ -71,7 +71,7 @@ export default function VerificationSuccessPage() {
 
         {/* Verification Details Card */}
         <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">
+          <h3 className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide mb-4">
             Verification Details
           </h3>
 

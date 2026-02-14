@@ -71,7 +71,7 @@ export default function VerificationFailedPage() {
 
         {/* Submission Details Card */}
         <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">
+          <h3 className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide mb-4">
             Submission Details
           </h3>
 
@@ -112,7 +112,7 @@ export default function VerificationFailedPage() {
             <AlertTriangle className="w-5 h-5 text-[#DC2626] shrink-0 mt-0.5" />
             <div>
               <h4 className="font-semibold text-[#DC2626] mb-1">Reason for Rejection:</h4>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-[#4F4F4F]">
                 {rejectionReason}
               </p>
             </div>

@@ -294,7 +294,7 @@ export default function Home() {
           <span className="text-xl font-semibold text-[#476B6B]">PawSync</span>
         </Link>
         <div className="flex items-center gap-4">
-          <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+          <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 transition-colors">
             <ScanLine className="w-4 h-4" />
             Scan Pet Tag
           </button>
@@ -319,7 +319,7 @@ export default function Home() {
       >
         <div className="max-w-4xl mx-auto text-center px-4">
           <h1
-            className="text-5xl md:text-6xl text-gray-800 mb-6 leading-tight"
+            className="text-5xl md:text-6xl text-[#4F4F4F] mb-6 leading-tight"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
             Keep Your Pet&apos;s Health Records{' '}
@@ -336,7 +336,7 @@ export default function Home() {
             >
               Get Started <ArrowRight className="w-5 h-5" />
             </Link>
-            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:scale-105 hover:shadow-lg transition-all duration-200 text-lg">
+            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 bg-white border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 hover:scale-105 hover:shadow-lg transition-all duration-200 text-lg">
               <ScanLine className="w-5 h-5" />
               Scan Pet Tag
             </button>
@@ -348,7 +348,7 @@ export default function Home() {
       <section className="py-20 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl text-gray-800 text-center mb-3"
+            className="text-3xl md:text-4xl text-[#4F4F4F] text-center mb-3"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
             Built for Everyone in Pet Care
@@ -373,7 +373,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-start">
             {/* Left - Description & Features */}
             <div>
-              <h3 className="text-2xl font-semibold text-gray-800 mb-3">{content.heading}</h3>
+              <h3 className="text-2xl font-semibold text-[#4F4F4F] mb-3">{content.heading}</h3>
               <p className="text-gray-500 mb-6">{content.description}</p>
               <ul className="space-y-3">
                 {content.features.map((feature, i) => (
@@ -393,7 +393,7 @@ export default function Home() {
                   className="bg-gray-50 rounded-xl p-6 flex flex-col items-center text-center hover:shadow-md transition-shadow"
                 >
                   <div className="mb-3">{card.icon}</div>
-                  <h4 className="font-semibold text-gray-800 mb-1">{card.title}</h4>
+                  <h4 className="font-semibold text-[#4F4F4F] mb-1">{card.title}</h4>
                   <p className="text-gray-500 text-sm">{card.description}</p>
                 </div>
               ))}
@@ -406,7 +406,7 @@ export default function Home() {
       <section className="py-20 px-4 bg-[#F5FAF9]">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl text-gray-800 text-center mb-3"
+            className="text-3xl md:text-4xl text-[#4F4F4F] text-center mb-3"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
             Powerful Features for All
@@ -421,7 +421,7 @@ export default function Home() {
                 <div className={`w-12 h-12 ${feature.iconBg} rounded-full flex items-center justify-center mb-4`}>
                   {feature.icon}
                 </div>
-                <h4 className="font-semibold text-gray-800 mb-2">{feature.title}</h4>
+                <h4 className="font-semibold text-[#4F4F4F] mb-2">{feature.title}</h4>
                 <p className="text-gray-500 text-sm">{feature.description}</p>
               </div>
             ))}
@@ -433,7 +433,7 @@ export default function Home() {
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl text-gray-800 text-center mb-16 font-semibold"
+            className="text-3xl md:text-4xl text-[#4F4F4F] text-center mb-16 font-semibold"
           >
             How PawSync Works
           </h2>
@@ -444,7 +444,7 @@ export default function Home() {
                 <div className="w-16 h-16 rounded-full bg-[#7FA5A3] flex items-center justify-center text-white text-2xl font-bold mb-4">
                   {step.number}
                 </div>
-                <h4 className="font-semibold text-gray-800 mb-2">{step.title}</h4>
+                <h4 className="font-semibold text-[#4F4F4F] mb-2">{step.title}</h4>
                 <p className="text-gray-500 text-sm">{step.description}</p>
               </div>
             ))}
@@ -695,7 +695,7 @@ export default function Home() {
 
                 <button
                   onClick={handleScanQr}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium mb-6"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 transition-colors font-medium mb-6"
                 >
                   <QrCode className="w-5 h-5" />
                   Scan QR Code

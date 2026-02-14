@@ -11,7 +11,7 @@ export default function PatientRecordsPage() {
     <DashboardLayout notificationCount={12}>
       <div className="p-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Patient Records</h1>
+          <h1 className="text-3xl font-bold text-[#4F4F4F] mb-6">Patient Records</h1>
 
           <div className="flex gap-4 items-center">
             <div className="flex-1 relative">
@@ -24,7 +24,7 @@ export default function PatientRecordsPage() {
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
               />
             </div>
-            <button className="flex items-center gap-2 text-gray-600 hover:text-gray-800 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+            <button className="flex items-center gap-2 text-gray-600 hover:text-[#4F4F4F] px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
               <Filter className="w-5 h-5" />
               Filter
             </button>
@@ -33,7 +33,7 @@ export default function PatientRecordsPage() {
 
         <div className="bg-white rounded-2xl p-12 shadow-sm text-center border-2 border-dashed border-gray-200">
           <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-700 mb-2">No patient records found</h2>
+          <h2 className="text-2xl font-semibold text-[#4F4F4F] mb-2">No patient records found</h2>
           <p className="text-gray-500 mb-6">
             Patient records will appear here as you create and manage patient profiles.
           </p>
@@ -44,7 +44,7 @@ export default function PatientRecordsPage() {
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-blue-500">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Stats</h3>
+            <h3 className="text-lg font-semibold text-[#4F4F4F] mb-4">Quick Stats</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Total Patients</span>
@@ -62,7 +62,7 @@ export default function PatientRecordsPage() {
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-purple-500">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Updates</h3>
+            <h3 className="text-lg font-semibold text-[#4F4F4F] mb-4">Recent Updates</h3>
             <p className="text-gray-500 text-center py-6">
               No recent patient updates
             </p>

@@ -205,7 +205,7 @@ export default function VetOnboardingPage() {
           </div>
           {userData && (
             <div className="h-14 bg-[#F8F6F2] px-6 rounded-xl shadow-sm flex flex-col items-center justify-center">
-              <p className="font-bold text-gray-800" style={{ fontSize: '14px' }}>{userData.firstName} {userData.lastName}</p>
+              <p className="font-bold text-[#4F4F4F]" style={{ fontSize: '14px' }}>{userData.firstName} {userData.lastName}</p>
               <p className="text-gray-600" style={{ fontSize: '14px' }}>{userData.email}</p>
             </div>
           )}
@@ -221,7 +221,7 @@ export default function VetOnboardingPage() {
               <div className="w-12 h-12 rounded-full bg-[#7FA5A3] flex items-center justify-center">
                 <Check className="w-6 h-6 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Sign Up</span>
+              <span className="text-sm font-medium text-[#4F4F4F]">Sign Up</span>
             </div>
           </div>
 
@@ -238,7 +238,7 @@ export default function VetOnboardingPage() {
                   <span className="text-white font-semibold">2</span>
                 )}
               </div>
-              <span className="text-sm font-medium text-gray-700">PRC License</span>
+              <span className="text-sm font-medium text-[#4F4F4F]">PRC License</span>
             </div>
           </div>
 
@@ -251,7 +251,7 @@ export default function VetOnboardingPage() {
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`}>
                 <span className={`font-semibold transition-colors duration-500 ${currentStep >= 3 ? 'text-white' : 'text-gray-600'}`}>3</span>
               </div>
-              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-gray-700' : 'text-gray-500'}`}>Select Clinic</span>
+              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-[#4F4F4F]' : 'text-gray-500'}`}>Select Clinic</span>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@ export default function VetOnboardingPage() {
             <form onSubmit={handleContinueToClinic} noValidate>
               {/* Full Name Section */}
               <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">
                   Full Name (as it appears on PRC ID)
                 </h3>
 
@@ -326,7 +326,7 @@ export default function VetOnboardingPage() {
 
               {/* PRC License Details Section */}
               <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">
                   PRC License Details
                 </h3>
 
@@ -376,7 +376,7 @@ export default function VetOnboardingPage() {
 
               {/* PRC ID Photo Section */}
               <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">
                   PRC ID Photo
                 </h3>
 
@@ -405,7 +405,7 @@ export default function VetOnboardingPage() {
                 <button
                   type="button"
                   onClick={handleBackToSignup}
-                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5" />
                   Back
@@ -464,7 +464,7 @@ export default function VetOnboardingPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-gray-200 rounded-xl"></div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">{clinic.name}</h3>
+                        <h3 className="font-semibold text-[#4F4F4F]">{clinic.name}</h3>
                         <p className="text-sm text-gray-500">{clinic.branches.length} Branches</p>
                       </div>
                     </div>
@@ -506,7 +506,7 @@ export default function VetOnboardingPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-gray-800">{branch.name}</span>
+                                  <span className="font-medium text-[#4F4F4F]">{branch.name}</span>
                                   {branch.isMain && (
                                     <span className="px-2 py-0.5 bg-[#7FA5A3] text-white text-xs rounded-full">
                                       MAIN
@@ -530,7 +530,7 @@ export default function VetOnboardingPage() {
               <button
                 type="button"
                 onClick={handleBackToPrc}
-                className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Back

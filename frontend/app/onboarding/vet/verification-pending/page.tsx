@@ -76,7 +76,7 @@ export default function VerificationPendingPage() {
 
         {/* Submission Details Card */}
         <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">
+          <h3 className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide mb-4">
             Submission Details
           </h3>
 
@@ -137,7 +137,7 @@ export default function VerificationPendingPage() {
         {/* Edit Submission Button */}
         <button
           onClick={handleEditSubmission}
-          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-gray-200 rounded-xl font-semibold text-[#4F4F4F] hover:bg-gray-50 transition-colors"
         >
           <Edit className="w-5 h-5" />
           Edit Submission

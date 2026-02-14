@@ -90,6 +90,7 @@ export default function Navbar({
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
   const collapseTimer = useRef<NodeJS.Timeout | null>(null)
+  const hoverTimer = useRef<NodeJS.Timeout | null>(null)
   const navRef = useRef<HTMLElement>(null)
 
   // Expand on hover or while the dropdown menu is open
@@ -102,11 +103,19 @@ export default function Navbar({
       clearTimeout(collapseTimer.current)
       collapseTimer.current = null
     }
-    setIsHovering(true)
-    onToggle?.(true)
+    // Delay expansion to prevent accidental triggers when passing through
+    hoverTimer.current = setTimeout(() => {
+      setIsHovering(true)
+      onToggle?.(true)
+    }, 100)
   }, [onToggle])
 
   const handleMouseLeave = useCallback(() => {
+    // Cancel pending expansion if mouse leaves before delay
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current)
+      hoverTimer.current = null
+    }
     if (menuOpen) return
     setIsHovering(false)
     onToggle?.(false)

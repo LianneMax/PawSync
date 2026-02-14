@@ -38,13 +38,13 @@ export default function MySchedulePage() {
   return (
     <DashboardLayout notificationCount={12}>
       <div className="p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Schedule</h1>
+        <h1 className="text-3xl font-bold text-[#4F4F4F] mb-8">My Schedule</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar */}
           <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">{monthName}</h2>
+              <h2 className="text-xl font-semibold text-[#4F4F4F]">{monthName}</h2>
               <div className="flex gap-2">
                 <button
                   onClick={previousMonth}
@@ -83,7 +83,7 @@ export default function MySchedulePage() {
                       ? 'bg-gray-50'
                       : day === 2
                         ? 'bg-[#7FA5A3] text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors'
+                        : 'bg-gray-50 text-[#4F4F4F] hover:bg-gray-100 cursor-pointer transition-colors'
                   }`}
                 >
                   {day}
@@ -94,7 +94,7 @@ export default function MySchedulePage() {
 
           {/* Upcoming Appointments */}
           <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-[#4F4F4F] mb-6 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Upcoming
             </h2>
@@ -107,7 +107,7 @@ export default function MySchedulePage() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Working Hours</h3>
+              <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Working Hours</h3>
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex justify-between">
                   <span>Monday - Friday:</span>
@@ -128,7 +128,7 @@ export default function MySchedulePage() {
 
         {/* Daily Schedule */}
         <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Today's Schedule</h2>
+          <h2 className="text-xl font-semibold text-[#4F4F4F] mb-6">Today's Schedule</h2>
           <div className="space-y-3">
             {Array.from({ length: 8 }, (_, i) => {
               const hour = 9 + i

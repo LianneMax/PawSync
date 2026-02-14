@@ -131,7 +131,7 @@ export default function MedicalRecordReportPage() {
         <div className="flex items-center justify-between mb-6 print:hidden">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#4F4F4F] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -180,7 +180,7 @@ export default function MedicalRecordReportPage() {
                 <Calendar className="w-4 h-4 text-[#5A7C7A] mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Date of Visit</p>
-                  <p className="text-sm font-medium text-gray-800">{formatDate(record.createdAt)}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{formatDate(record.createdAt)}</p>
                   <p className="text-xs text-gray-500">{formatTime(record.createdAt)}</p>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function MedicalRecordReportPage() {
                 <User className="w-4 h-4 text-[#5A7C7A] mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Attending Veterinarian</p>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-[#4F4F4F]">
                     Dr. {vet.firstName || ''} {vet.lastName || ''}
                   </p>
                   {vet.email && <p className="text-xs text-gray-500">{vet.email}</p>}
@@ -202,32 +202,32 @@ export default function MedicalRecordReportPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
-                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Patient Information</h3>
+                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Patient Information</h3>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#F8F6F2] rounded-xl p-4">
                 <div>
                   <p className="text-xs text-gray-500">Name</p>
-                  <p className="text-sm font-medium text-gray-800">{pet.name || '-'}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.name || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Species</p>
-                  <p className="text-sm font-medium text-gray-800 capitalize">{pet.species || '-'}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F] capitalize">{pet.species || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Breed</p>
-                  <p className="text-sm font-medium text-gray-800">{pet.breed || '-'}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.breed || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Sex</p>
-                  <p className="text-sm font-medium text-gray-800 capitalize">{pet.sex || '-'}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F] capitalize">{pet.sex || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Age</p>
-                  <p className="text-sm font-medium text-gray-800">{pet.dateOfBirth ? calculateAge(pet.dateOfBirth) : '-'}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calculateAge(pet.dateOfBirth) : '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Weight (Record)</p>
-                  <p className="text-sm font-medium text-gray-800">{pet.weight ? `${pet.weight} kg` : '-'}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '-'}</p>
                 </div>
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function MedicalRecordReportPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />
-                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Examination Vitals</h3>
+                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Examination Vitals</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -265,8 +265,8 @@ export default function MedicalRecordReportPage() {
                           key={v.key}
                           className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F8F6F2]'}`}
                         >
-                          <td className="py-2.5 px-4 font-medium text-gray-700">{v.label}</td>
-                          <td className="py-2.5 px-4 text-gray-800">{displayValue}</td>
+                          <td className="py-2.5 px-4 font-medium text-[#4F4F4F]">{v.label}</td>
+                          <td className="py-2.5 px-4 text-[#4F4F4F]">{displayValue}</td>
                           <td className="py-2.5 px-4 text-gray-600 italic">{entry.notes || '-'}</td>
                         </tr>
                       )
@@ -283,7 +283,7 @@ export default function MedicalRecordReportPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <ImageIcon className="w-4 h-4 text-[#5A7C7A]" />
-                    <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Image Observations</h3>
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Image Observations</h3>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {record.images.map((img, index) => (
@@ -316,12 +316,12 @@ export default function MedicalRecordReportPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <FileText className="w-4 h-4 text-[#5A7C7A]" />
-                    <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">
                       Overall Observation / Additional Notes
                     </h3>
                   </div>
                   <div className="bg-[#F8F6F2] rounded-xl p-4">
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-[#4F4F4F] leading-relaxed whitespace-pre-wrap">
                       {record.overallObservation}
                     </p>
                   </div>
@@ -338,7 +338,7 @@ export default function MedicalRecordReportPage() {
               </div>
               <div className="text-right">
                 <div className="w-48 border-b border-gray-400 mb-1" />
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-[#4F4F4F]">
                   Dr. {vet.firstName || ''} {vet.lastName || ''}
                 </p>
                 <p className="text-xs text-gray-500">Attending Veterinarian</p>

@@ -151,7 +151,7 @@ const BillingInvoicing: React.FC = () => {
       case 'Awaiting Approval':
         return 'bg-yellow-100 text-yellow-700'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-gray-100 text-[#4F4F4F]'
     }
   }
 
@@ -159,17 +159,17 @@ const BillingInvoicing: React.FC = () => {
     <DashboardLayout userType="clinic-admin" notificationCount={12}>
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Billing and Invoicing</h1>
+          <h1 className="text-3xl font-bold text-[#4F4F4F]">Billing and Invoicing</h1>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
           {/* Invoices Section */}
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">Invoices</h2>
+              <h2 className="text-xl font-semibold text-[#4F4F4F]">Invoices</h2>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 text-gray-600 hover:text-[#4F4F4F] px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Filter className="w-5 h-5" />
                 Filter
@@ -205,13 +205,13 @@ const BillingInvoicing: React.FC = () => {
                 <button
                   onClick={handleDelete}
                   disabled={selectedRecords.size === 0}
-                  className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="inline-flex items-center px-4 py-2 text-sm text-[#4F4F4F] hover:text-[#4F4F4F] disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
                 </button>
                 <button
-                  className="inline-flex items-center px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="inline-flex items-center px-4 py-2 text-sm text-[#4F4F4F] hover:text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export
@@ -288,16 +288,16 @@ const BillingInvoicing: React.FC = () => {
                           {record.client}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
+                      <td className="px-4 py-4 text-sm text-[#4F4F4F]">
                         {record.patient}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
+                      <td className="px-4 py-4 text-sm text-[#4F4F4F]">
                         {record.veterinarian}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
+                      <td className="px-4 py-4 text-sm text-[#4F4F4F]">
                         {record.branchAvailed}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
+                      <td className="px-4 py-4 text-sm text-[#4F4F4F]">
                         {record.amountDue}
                       </td>
                       <td className="px-4 py-4">
@@ -344,7 +344,7 @@ const BillingInvoicing: React.FC = () => {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                className="px-4 py-2 text-[#4F4F4F] hover:text-[#4F4F4F]"
               >
                 Cancel
               </button>
@@ -381,7 +381,7 @@ const BillingInvoicing: React.FC = () => {
                   setShowEditModal(false)
                   setEditingRecord(null)
                 }}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                className="px-4 py-2 text-[#4F4F4F] hover:text-[#4F4F4F]"
               >
                 Cancel
               </button>

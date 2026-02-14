@@ -225,7 +225,7 @@ export default function NewMedicalRecordPage() {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">New Medical Record</h1>
+            <h1 className="text-2xl font-bold text-[#4F4F4F]">New Medical Record</h1>
             <p className="text-sm text-gray-500 mt-0.5">Fill out the examination details below</p>
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function NewMedicalRecordPage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <PawPrint className="w-5 h-5 text-[#5A7C7A]" />
-            <h2 className="text-lg font-semibold text-gray-900">Select Pet</h2>
+            <h2 className="text-lg font-semibold text-[#4F4F4F]">Select Pet</h2>
           </div>
 
           <div className="relative">
@@ -254,7 +254,7 @@ export default function NewMedicalRecordPage() {
                     </div>
                   )}
                   <div>
-                    <p className="font-medium text-gray-800">{selectedPet.name}</p>
+                    <p className="font-medium text-[#4F4F4F]">{selectedPet.name}</p>
                     <p className="text-xs text-gray-500">{selectedPet.breed} &middot; {selectedPet.species}</p>
                   </div>
                 </div>
@@ -288,7 +288,7 @@ export default function NewMedicalRecordPage() {
                         </div>
                       )}
                       <div>
-                        <p className="font-medium text-gray-800">{pet.name}</p>
+                        <p className="font-medium text-[#4F4F4F]">{pet.name}</p>
                         <p className="text-xs text-gray-500">{pet.breed} &middot; {pet.species}</p>
                       </div>
                     </button>
@@ -303,7 +303,7 @@ export default function NewMedicalRecordPage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <Stethoscope className="w-5 h-5 text-[#5A7C7A]" />
-            <h2 className="text-lg font-semibold text-gray-900">Examination Vitals</h2>
+            <h2 className="text-lg font-semibold text-[#4F4F4F]">Examination Vitals</h2>
           </div>
 
           <div className="overflow-x-auto">
@@ -319,7 +319,7 @@ export default function NewMedicalRecordPage() {
                 {vitalRows.map((row) => (
                   <tr key={row.key} className="border-b border-gray-100 last:border-b-0">
                     <td className="py-3 px-4">
-                      <span className="text-sm font-medium text-gray-800">{row.label}</span>
+                      <span className="text-sm font-medium text-[#4F4F4F]">{row.label}</span>
                       {row.unit && <span className="text-xs text-gray-400 ml-1">({row.unit})</span>}
                     </td>
                     <td className="py-3 px-4">
@@ -343,7 +343,7 @@ export default function NewMedicalRecordPage() {
                               onChange={() => handleVitalValue(row.key, 'yes')}
                               className="w-4 h-4 accent-[#5A7C7A]"
                             />
-                            <span className="text-sm text-gray-700">Yes</span>
+                            <span className="text-sm text-[#4F4F4F]">Yes</span>
                           </label>
                           <label className="flex items-center gap-1.5 cursor-pointer">
                             <input
@@ -354,7 +354,7 @@ export default function NewMedicalRecordPage() {
                               onChange={() => handleVitalValue(row.key, 'no')}
                               className="w-4 h-4 accent-[#5A7C7A]"
                             />
-                            <span className="text-sm text-gray-700">No</span>
+                            <span className="text-sm text-[#4F4F4F]">No</span>
                           </label>
                         </div>
                       )}
@@ -379,7 +379,7 @@ export default function NewMedicalRecordPage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <ImagePlus className="w-5 h-5 text-[#5A7C7A]" />
-            <h2 className="text-lg font-semibold text-gray-900">Image Observations</h2>
+            <h2 className="text-lg font-semibold text-[#4F4F4F]">Image Observations</h2>
           </div>
 
           <input
@@ -436,7 +436,7 @@ export default function NewMedicalRecordPage() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <FileText className="w-5 h-5 text-[#5A7C7A]" />
-            <h2 className="text-lg font-semibold text-gray-900">Overall Observation / Additional Notes</h2>
+            <h2 className="text-lg font-semibold text-[#4F4F4F]">Overall Observation / Additional Notes</h2>
           </div>
 
           <textarea

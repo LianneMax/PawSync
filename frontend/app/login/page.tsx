@@ -418,7 +418,7 @@ export default function LoginPage() {
                       </svg>
                     )}
                   </button>
-                  <span className="ml-2 text-gray-700">Remember me</span>
+                  <span className="ml-2 text-[#4F4F4F]">Remember me</span>
                 </label>
                 <button
                   type="button"
@@ -473,7 +473,7 @@ export default function LoginPage() {
               </button>
 
               {/* Sign Up Link */}
-              <p className="text-center mt-6 text-gray-700">
+              <p className="text-center mt-6 text-[#4F4F4F]">
                 Don&apos;t have an account?{' '}
                 <Link href="/signup" className="text-[#5A7C7A] hover:underline">
                   Sign up here
@@ -547,7 +547,7 @@ export default function LoginPage() {
                 >
                   Incorrect Password
                 </h2>
-                <p className="text-gray-700 text-lg text-left mb-8">
+                <p className="text-[#4F4F4F] text-lg text-left mb-8">
                   Your password is incorrect, please try again.
                 </p>
                 <button
@@ -562,7 +562,7 @@ export default function LoginPage() {
                     closeModal()
                     openForgotPassword()
                   }}
-                  className="mt-4 text-gray-500 hover:text-gray-700 underline"
+                  className="mt-4 text-gray-500 hover:text-[#4F4F4F] underline"
                 >
                   Forgot Password?
                 </button>
@@ -578,7 +578,7 @@ export default function LoginPage() {
                 >
                   Account Locked
                 </h2>
-                <p className="text-gray-700 text-lg text-left mb-8">
+                <p className="text-[#4F4F4F] text-lg text-left mb-8">
                   You have been temporarily locked out.<br />
                   {lockSecondsLeft > 0
                     ? `Please try again in ${Math.floor(lockSecondsLeft / 60)}:${String(lockSecondsLeft % 60).padStart(2, '0')}`
@@ -597,7 +597,7 @@ export default function LoginPage() {
                     closeModal()
                     openForgotPassword()
                   }}
-                  className="mt-4 text-gray-500 hover:text-gray-700 underline"
+                  className="mt-4 text-gray-500 hover:text-[#4F4F4F] underline"
                 >
                   Forgot Password?
                 </button>
@@ -617,10 +617,10 @@ export default function LoginPage() {
 
                 {/* Lock icon */}
                 <div className="mb-4">
-                  <Lock className="w-10 h-10 text-gray-700" />
+                  <Lock className="w-10 h-10 text-[#4F4F4F]" />
                 </div>
 
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
+                <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">Forgot Password?</h2>
                 <p className="text-[#5A7C7A] mb-6">
                   Please enter your email address to reset your password
                 </p>
@@ -639,7 +639,7 @@ export default function LoginPage() {
                         placeholder="example_name@gmail.com"
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
-                        className="w-full outline-none text-gray-700 bg-transparent"
+                        className="w-full outline-none text-[#4F4F4F] bg-transparent"
                       />
                     </fieldset>
 
@@ -647,7 +647,7 @@ export default function LoginPage() {
                     <button
                       onClick={handleForgotPasswordSubmit}
                       disabled={modalLoading}
-                      className="w-full h-10 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      className="w-full h-10 border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 transition-colors disabled:opacity-50"
                     >
                       {modalLoading ? 'Sending...' : 'Submit'}
                     </button>
@@ -655,7 +655,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="w-full mt-3 text-center text-gray-500 hover:text-gray-700 underline text-sm"
+                      className="w-full mt-3 text-center text-gray-500 hover:text-[#4F4F4F] underline text-sm"
                     >
                       Back to Login
                     </button>
@@ -687,10 +687,10 @@ export default function LoginPage() {
 
                 {/* Key icon */}
                 <div className="mb-4">
-                  <KeyRound className="w-10 h-10 text-gray-700" />
+                  <KeyRound className="w-10 h-10 text-[#4F4F4F]" />
                 </div>
 
-                <h2 className="text-xl font-bold text-gray-900 mb-2">One Time Pin</h2>
+                <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">One Time Pin</h2>
                 <p className="text-[#5A7C7A] mb-6">
                   Please enter the 6 digit code sent to your email.
                 </p>
@@ -744,10 +744,10 @@ export default function LoginPage() {
 
                 {/* Lock icon */}
                 <div className="mb-4">
-                  <Lock className="w-10 h-10 text-gray-700" />
+                  <Lock className="w-10 h-10 text-[#4F4F4F]" />
                 </div>
 
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Create New Password</h2>
+                <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">Create New Password</h2>
                 <p className="text-[#5A7C7A] mb-6">
                   Please Enter and Confirm New Password
                 </p>
@@ -765,7 +765,7 @@ export default function LoginPage() {
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full outline-none text-gray-700 bg-transparent pr-8"
+                      className="w-full outline-none text-[#4F4F4F] bg-transparent pr-8"
                     />
                     <button
                       type="button"
@@ -786,7 +786,7 @@ export default function LoginPage() {
                       autoComplete="new-password"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="w-full outline-none text-gray-700 bg-transparent pr-8"
+                      className="w-full outline-none text-[#4F4F4F] bg-transparent pr-8"
                     />
                     <button
                       type="button"
@@ -802,7 +802,7 @@ export default function LoginPage() {
                 <button
                   onClick={handleResetPasswordSubmit}
                   disabled={modalLoading}
-                  className="w-full py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="w-full py-3 border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   {modalLoading ? 'Updating...' : 'Submit'}
                 </button>

@@ -152,7 +152,7 @@ export default function SignUpPage() {
 
               {/* User Type Selection */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">I am a...</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-3">I am a...</label>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pet Owner Button */}
                   <button
@@ -166,7 +166,7 @@ export default function SignUpPage() {
                           : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <span className="font-medium text-gray-700">Pet Owner</span>
+                    <span className="font-medium text-[#4F4F4F]">Pet Owner</span>
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                       userType === 'pet-owner' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
                     }`}>
@@ -186,7 +186,7 @@ export default function SignUpPage() {
                           : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <span className="font-medium text-gray-700">Veterinarian</span>
+                    <span className="font-medium text-[#4F4F4F]">Veterinarian</span>
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                       userType === 'veterinarian' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
                     }`}>
@@ -336,7 +336,7 @@ export default function SignUpPage() {
               </button>
 
               {/* Login Link */}
-              <p className="text-center mt-6 text-gray-700">
+              <p className="text-center mt-6 text-[#4F4F4F]">
                 Already have an account?{' '}
                 <Link href="/login" className="text-[#5A7C7A] hover:underline">
                   Login here

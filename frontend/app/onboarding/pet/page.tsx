@@ -208,7 +208,7 @@ function PetOnboardingContent() {
           </div>
           {userData && (
             <div className="h-14 bg-[#F8F6F2] px-6 rounded-xl shadow-sm flex flex-col items-center justify-center">
-              <p className="font-bold text-gray-800" style={{ fontSize: '14px' }}>{userData.firstName} {userData.lastName}</p>
+              <p className="font-bold text-[#4F4F4F]" style={{ fontSize: '14px' }}>{userData.firstName} {userData.lastName}</p>
               <p className="text-gray-600" style={{ fontSize: '14px' }}>{userData.email}</p>
             </div>
           )}
@@ -224,7 +224,7 @@ function PetOnboardingContent() {
               <div className="w-12 h-12 rounded-full bg-[#7FA5A3] flex items-center justify-center">
                 <Check className="w-6 h-6 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-700">{isFromDashboard ? 'Dashboard' : 'Sign Up'}</span>
+              <span className="text-sm font-medium text-[#4F4F4F]">{isFromDashboard ? 'Dashboard' : 'Sign Up'}</span>
             </div>
           </div>
 
@@ -241,7 +241,7 @@ function PetOnboardingContent() {
                   <span className="text-white font-semibold">2</span>
                 )}
               </div>
-              <span className="text-sm font-medium text-gray-700">Pet Profile</span>
+              <span className="text-sm font-medium text-[#4F4F4F]">Pet Profile</span>
             </div>
           </div>
 
@@ -254,7 +254,7 @@ function PetOnboardingContent() {
               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`}>
                 <span className={`font-semibold transition-colors duration-500 ${currentStep >= 3 ? 'text-white' : 'text-gray-600'}`}>3</span>
               </div>
-              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-gray-700' : 'text-gray-500'}`}>Basic Details</span>
+              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-[#4F4F4F]' : 'text-gray-500'}`}>Basic Details</span>
             </div>
           </div>
         </div>
@@ -286,7 +286,7 @@ function PetOnboardingContent() {
 
             {/* Species Selection */}
             <div className="mb-8">
-              <label className="block text-sm font-semibold text-gray-700 mb-4">
+              <label className="block text-sm font-semibold text-[#4F4F4F] mb-4">
                 Select your pet&apos;s species
               </label>
               <div className="grid grid-cols-2 gap-6">
@@ -305,7 +305,7 @@ function PetOnboardingContent() {
                     }`}>
                       <Dog className="w-10 h-10 text-white" />
                     </div>
-                    <span className="font-semibold text-gray-700 text-lg">Dog - Canine</span>
+                    <span className="font-semibold text-[#4F4F4F] text-lg">Dog - Canine</span>
                   </div>
                 </button>
 
@@ -324,7 +324,7 @@ function PetOnboardingContent() {
                     }`}>
                       <Cat className="w-10 h-10 text-white" />
                     </div>
-                    <span className="font-semibold text-gray-700 text-lg">Cat - Feline</span>
+                    <span className="font-semibold text-[#4F4F4F] text-lg">Cat - Feline</span>
                   </div>
                 </button>
               </div>
@@ -350,7 +350,7 @@ function PetOnboardingContent() {
                 }}
               >
                 <div className="flex-1 pt-2">
-                  <h3 className="font-semibold text-gray-800 mb-2">Upload a photo of your pet</h3>
+                  <h3 className="font-semibold text-[#4F4F4F] mb-2">Upload a photo of your pet</h3>
                   <p className="text-sm text-gray-600 mb-1">
                     This helps vets identify your pet and makes their profile more personal.
                   </p>
@@ -366,7 +366,7 @@ function PetOnboardingContent() {
               <button
                 type="button"
                 onClick={handleBackToSignup}
-                className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Back
@@ -412,7 +412,7 @@ function PetOnboardingContent() {
                   {selectedClinic ? (
                     <div className="w-full pl-12 pr-12 py-4 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-gray-800">{selectedClinic.name}</p>
+                        <p className="font-medium text-[#4F4F4F]">{selectedClinic.name}</p>
                         <p className="text-sm text-gray-500">{selectedClinic.address}</p>
                       </div>
                       <button
@@ -454,7 +454,7 @@ function PetOnboardingContent() {
                             }}
                             className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
                           >
-                            <p className="font-medium text-gray-800">{clinic.name}</p>
+                            <p className="font-medium text-[#4F4F4F]">{clinic.name}</p>
                             <p className="text-sm text-gray-500">{clinic.address}</p>
                           </button>
                         ))
@@ -470,7 +470,7 @@ function PetOnboardingContent() {
 
               {/* Basic Information Section */}
               <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-[#4F4F4F] mb-4 pb-2 border-b border-gray-200">
                   Basic Information
                 </h3>
 
@@ -570,7 +570,7 @@ function PetOnboardingContent() {
                 <button
                   type="button"
                   onClick={handleBackToProfile}
-                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5" />
                   Back

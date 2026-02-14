@@ -200,19 +200,18 @@ function PetDetailModal({
                 {pet.name}
               </h2>
               {/* Breed / Sex / Age pills */}
-              <div className="bg-[#F1F0ED] rounded-[10px] p-2 flex gap-2 mb-6">
-                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
-                  <p className="text-[9px] text-white/70 text-left">Breed{pet.secondaryBreed ? ' (Mixed)' : ''}</p>
-                  <p className="text-[12px] text-center">{pet.breed}</p>
-                  {pet.secondaryBreed && (
-                    <p className="text-[10px] text-white/70 text-center">× {pet.secondaryBreed}</p>
-                  )}
+              <div className={`bg-[#F1F0ED] rounded-[10px] p-2 grid gap-2 mb-6 ${pet.secondaryBreed ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                <div className={`bg-[#476B6B] text-white rounded-[10px] py-2 px-3 ${pet.secondaryBreed ? 'col-span-2' : ''}`}>
+                  <p className="text-[9px] text-white/70 text-left">{pet.secondaryBreed ? 'Crossbreed' : 'Breed'}</p>
+                  <p className="text-[12px] text-center">
+                    {pet.secondaryBreed ? `${pet.breed} · ${pet.secondaryBreed}` : pet.breed}
+                  </p>
                 </div>
-                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
+                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3">
                   <p className="text-[9px] text-white/70 text-left">Sex</p>
                   <p className="text-[12px] text-center">{pet.sex}</p>
                 </div>
-                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3 flex-1">
+                <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3">
                   <p className="text-[9px] text-white/70 text-left">Age</p>
                   <p className="text-[12px] text-center">{pet.age}</p>
                 </div>
@@ -221,27 +220,27 @@ function PetDetailModal({
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="bg-[#F1F0ED] rounded-2xl p-4">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Weight</p>
-                  <p className="text-[14px] font-bold text-[#173636]">{pet.weight.replace(' kg', '')} KG</p>
+                  <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.weight.replace(' kg', '')} KG</p>
                 </div>
                 <div className="bg-[#F1F0ED] rounded-2xl p-4">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Birth Date</p>
-                  <p className="text-[14px] font-bold text-[#173636]">{pet.birthDate}</p>
+                  <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.birthDate}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="bg-[#F1F0ED] rounded-2xl p-4">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Sterilization</p>
-                  <p className="text-[14px] font-bold text-[#173636]">{pet.sterilization}</p>
+                  <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.sterilization}</p>
                 </div>
                 <div className="bg-[#F1F0ED] rounded-2xl p-4">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">NFC and QR ID</p>
-                  <p className="text-[14px] font-bold text-[#173636]">{pet.microchipNumber}</p>
+                  <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.microchipNumber}</p>
                 </div>
               </div>
               {/* Allergies */}
               {pet.allergies.length > 0 && (
                 <div>
-                  <p className="text-sm font-semibold text-[#173636] mb-3">Known Allergies</p>
+                  <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Known Allergies</p>
                   <div className="bg-[#F1F0ED] rounded-2xl p-2 flex gap-2">
                     {pet.allergies.map((allergy) => (
                       <span
@@ -290,12 +289,12 @@ function PetDetailModal({
           <div className="lg:w-1/2 p-6 lg:p-8 space-y-4">
             {/* NFC Tag Status */}
             <div className="border border-gray-200 rounded-xl p-4">
-              <p className="font-semibold text-[#173636] text-sm">NFC Tag Status</p>
+              <p className="font-semibold text-[#4F4F4F] text-sm">NFC Tag Status</p>
               <p className="text-xs text-gray-400 mb-3">Tag ID: {pet.nfcTagId}</p>
               <div className={`rounded-lg p-3 mb-3 ${pet.isLost ? 'bg-red-50' : 'bg-[#F8F6F2]'}`}>
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full ${pet.isLost ? 'bg-red-500' : 'bg-[#679D82] animate-pulse'}`} />
-                  <p className="text-sm font-medium text-[#173636]">
+                  <p className="text-sm font-medium text-[#4F4F4F]">
                     {pet.isLost ? 'LOST - Showing Lost Pet Alert' : 'Normal - Showing Pet Profile'}
                   </p>
                 </div>
@@ -311,7 +310,7 @@ function PetDetailModal({
               onClick={() => {/* navigate to book appointment */}}
             >
               <div>
-                <p className="font-semibold text-[#173636] text-sm">Book Appointment</p>
+                <p className="font-semibold text-[#4F4F4F] text-sm">Book Appointment</p>
                 <p className="text-xs text-gray-400">Schedule a Vet Visit for {pet.name}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -321,7 +320,7 @@ function PetDetailModal({
               onClick={() => {/* navigate to medical records */}}
             >
               <div>
-                <p className="font-semibold text-[#173636] text-sm">View Medical Records</p>
+                <p className="font-semibold text-[#4F4F4F] text-sm">View Medical Records</p>
                 <p className="text-xs text-gray-400">Medical History and Reports</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -331,7 +330,7 @@ function PetDetailModal({
               onClick={() => {/* navigate to vaccine card */}}
             >
               <div>
-                <p className="font-semibold text-[#173636] text-sm">Vaccine Card</p>
+                <p className="font-semibold text-[#4F4F4F] text-sm">Vaccine Card</p>
                 <p className="text-xs text-gray-400">View Vaccination History</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -341,7 +340,7 @@ function PetDetailModal({
               onClick={() => onReportLost(pet)}
             >
               <div>
-                <p className="font-semibold text-[#173636] text-sm">Report {pet.name} as Lost</p>
+                <p className="font-semibold text-[#4F4F4F] text-sm">Report {pet.name} as Lost</p>
                 <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -386,7 +385,7 @@ function ReportLostPetModal({
       <DialogContent className="max-w-lg w-[95vw] p-6">
         <DialogHeader className="mb-0">
           <DialogTitle
-            className="text-2xl font-bold text-[#900B09]"
+            className="text-2xl text-[#900B09]"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
             Report Lost Pet
@@ -397,15 +396,15 @@ function ReportLostPetModal({
         </DialogHeader>
 
         {/* Info Box */}
-        <div className="bg-[#FFF8E1] border border-[#FFE082] rounded-xl p-4 mb-4">
+        <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
           <p className="text-sm font-semibold text-[#B71C1C] mb-2">
             What happens when you report a pet as lost?
           </p>
-          <p className="text-xs text-gray-700 leading-relaxed">
+          <p className="text-xs text-[#4F4F4F] leading-relaxed">
             When someone scans your pet&apos;s NFC tag, they will see a &quot;LOST PET&quot; alert with your basic
             contact information. This helps strangers who find your pet contact you immediately.
           </p>
-          <p className="text-xs text-gray-700 mt-2 leading-relaxed">
+          <p className="text-xs text-[#4F4F4F] mt-2 leading-relaxed">
             Note that you will be able to see the last scanned location of your pet
           </p>
         </div>
@@ -413,14 +412,14 @@ function ReportLostPetModal({
         {/* Form */}
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-semibold text-gray-900 block mb-1.5">Select Pet</label>
-            <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-gray-700">
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
+            <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F]">
               {pet.name} - {pet.breed}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-semibold text-gray-900 block mb-1.5">Name Shown</label>
+              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Name Shown</label>
               <input
                 type="text"
                 placeholder="Your Name"
@@ -430,7 +429,7 @@ function ReportLostPetModal({
               />
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-900 block mb-1.5">Contact Number</label>
+              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Contact Number</label>
               <input
                 type="text"
                 placeholder="+63 123 456 7890"
@@ -441,7 +440,7 @@ function ReportLostPetModal({
             </div>
           </div>
           <div>
-            <label className="text-sm font-semibold text-gray-900 block mb-1.5">
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
               Additional Message (Optional)
             </label>
             <textarea
@@ -589,11 +588,11 @@ function RemovePetModal({
         </DialogHeader>
 
         {/* Info Box */}
-        <div className="bg-[#FFF8E1] border border-[#FFE082] rounded-xl p-4 mb-4">
+        <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
           <p className="text-sm font-semibold text-[#B71C1C] mb-2">
             This action cannot be undone
           </p>
-          <p className="text-xs text-gray-700 leading-relaxed">
+          <p className="text-xs text-[#4F4F4F] leading-relaxed">
             Removing a pet will permanently delete their profile, medical records,
             and all associated data from your account. If you are transferring
             ownership, the pet&apos;s profile will be moved to the new owner.
@@ -601,13 +600,13 @@ function RemovePetModal({
         </div>
 
         {/* Pet info */}
-        <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-gray-700 mb-4">
+        <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] mb-4">
           {pet.name} — {pet.breed}
         </div>
 
         {/* Reason Selection */}
         <div className="space-y-3 mb-4">
-          <label className="text-sm font-semibold text-gray-900 block">Reason for Removal</label>
+          <label className="text-sm font-semibold text-[#4F4F4F] block">Reason for Removal</label>
           {REMOVAL_REASONS.map((r) => (
             <label
               key={r.value}
@@ -628,7 +627,7 @@ function RemovePetModal({
                 }}
                 className="accent-[#7FA5A3]"
               />
-              <span className="text-sm text-gray-700">{r.label}</span>
+              <span className="text-sm text-[#4F4F4F]">{r.label}</span>
             </label>
           ))}
         </div>
@@ -636,7 +635,7 @@ function RemovePetModal({
         {/* Transfer email input (conditional) */}
         {isTransfer && (
           <div className="mb-4">
-            <label className="text-sm font-semibold text-gray-900 block mb-1.5">
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
               New Owner&apos;s Email
             </label>
             <input
@@ -658,7 +657,7 @@ function RemovePetModal({
         {/* Details (optional for non-transfer) */}
         {!isTransfer && reason && (
           <div className="mb-4">
-            <label className="text-sm font-semibold text-gray-900 block mb-1.5">
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
               Additional Details (Optional)
             </label>
             <textarea
@@ -864,7 +863,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900 text-base">{pet.name}</p>
+                    <p className="font-bold text-[#4F4F4F] text-base">{pet.name}</p>
                     <p className="text-xs text-gray-500">
                       {pet.breed} | {pet.sex} | {pet.age}
                     </p>
@@ -873,15 +872,15 @@ export default function DashboardPage() {
                 <div className="border-t border-gray-200 my-3" />
                 <div className="flex gap-2 mt-auto">
                   <div className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
-                    <p className="text-sm font-bold text-gray-900">{pet.weight}</p>
+                    <p className="text-sm font-bold text-[#4F4F4F]">{pet.weight}</p>
                     <p className="text-[10px] text-gray-400">Weight</p>
                   </div>
                   <div className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
-                    <p className="text-sm font-bold text-gray-900">{pet.lastVisit}</p>
+                    <p className="text-sm font-bold text-[#4F4F4F]">{pet.lastVisit}</p>
                     <p className="text-[10px] text-gray-400">Last Visit</p>
                   </div>
                   <div className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
-                    <p className="text-sm font-bold text-gray-900">{pet.nextVisit}</p>
+                    <p className="text-sm font-bold text-[#4F4F4F]">{pet.nextVisit}</p>
                     <p className="text-[10px] text-gray-400">Next Visit</p>
                   </div>
                 </div>
@@ -895,7 +894,7 @@ export default function DashboardPage() {
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                 <Plus className="w-6 h-6 text-gray-400" />
               </div>
-              <p className="font-semibold text-gray-700">Add New Pet</p>
+              <p className="font-semibold text-[#4F4F4F]">Add New Pet</p>
               <p className="text-xs text-gray-400 mt-0.5">Register another Furry Friend</p>
             </div>
           </div>
@@ -922,7 +921,7 @@ export default function DashboardPage() {
                 <div className="w-10 h-10 bg-[#F8F6F2] rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#7FA5A3]/15 transition-colors">
                   {action.icon}
                 </div>
-                <p className="font-semibold text-gray-900 text-sm">{action.label}</p>
+                <p className="font-semibold text-[#4F4F4F] text-sm">{action.label}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{action.description}</p>
               </div>
             ))}
@@ -961,7 +960,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900">{appt.title}</p>
+                  <p className="font-semibold text-[#4F4F4F]">{appt.title}</p>
                   <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -978,7 +977,7 @@ export default function DashboardPage() {
                     <PawPrint className="w-3 h-3 text-gray-400" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-900">{appt.petName}</p>
+                    <p className="text-xs font-semibold text-[#4F4F4F]">{appt.petName}</p>
                     <p className="text-[10px] text-gray-400">{appt.petBreed}</p>
                   </div>
                 </div>
