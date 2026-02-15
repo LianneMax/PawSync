@@ -177,6 +177,10 @@ export default function LoginPage() {
           } else {
             router.push('/onboarding/pet')
           }
+        } else if (response.data.user.userType === 'veterinarian') {
+          router.push('/vet-dashboard')
+        } else if (response.data.user.userType === 'clinic-admin') {
+          router.push('/clinic-admin')
         } else {
           router.push('/dashboard')
         }

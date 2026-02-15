@@ -59,17 +59,17 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Billing and Invoicing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
   'veterinarian': [
-    { label: 'Dashboard', href: '/dashboard', icon: <Home className="w-5 h-5" /> },
+    { label: 'Dashboard', href: '/vet-dashboard', icon: <Home className="w-5 h-5" /> },
     { label: 'Appointments', href: '/vet-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
+    { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
     { label: 'My Schedule', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
   ],
   'clinic-admin': [
-    { label: 'Dashboard', href: '/dashboard', icon: <Home className="w-5 h-5" /> },
-    { label: 'Staff Management', href: '/staff', icon: <Users className="w-5 h-5" /> },
+    { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" /> },
+    { label: 'Verification', href: '/clinic-admin/verification', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Appointments', href: '/appointments', icon: <Calendar className="w-5 h-5" /> },
-    { label: 'Clinic Settings', href: '/clinic-settings', icon: <Building2 className="w-5 h-5" /> },
-    { label: 'User Management', href: '/users', icon: <UserCog className="w-5 h-5" /> },
+    { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
 }
 

@@ -2,6 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useState } from 'react'
 import Navbar from './Navbar'
+import { useAuthStore } from '@/store/authStore'
 import {
   BellRing,
   Syringe,
@@ -98,31 +99,44 @@ export default function DashboardLayout({
   children,
   userType: userTypeOverride
 }: DashboardLayoutProps) {
+  const authUser = useAuthStore((state) => state.user)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
 
   useEffect(() => {
-    const signupData = sessionStorage.getItem('signupData')
-    if (signupData) {
-      const parsed = JSON.parse(signupData)
+    // Priority: 1) explicit override prop, 2) auth store, 3) sessionStorage, 4) fallback
+    const resolvedUserType: UserType = userTypeOverride || (authUser?.userType as UserType) || 'pet-owner'
+
+    if (authUser) {
       setUserData({
-        firstName: parsed.firstName,
-        lastName: parsed.lastName,
-        email: parsed.email,
-        userType: userTypeOverride || (parsed.userType as UserType),
-        avatar: parsed.avatar
+        firstName: authUser.firstName,
+        lastName: authUser.lastName,
+        email: authUser.email,
+        userType: resolvedUserType
       })
     } else {
-      setUserData({
-        firstName: 'Lianne',
-        lastName: 'Balbastro',
-        email: 'lianne_balbastro@dlsu.edu.ph',
-        userType: userTypeOverride || 'pet-owner'
-      })
+      const signupData = sessionStorage.getItem('signupData')
+      if (signupData) {
+        const parsed = JSON.parse(signupData)
+        setUserData({
+          firstName: parsed.firstName,
+          lastName: parsed.lastName,
+          email: parsed.email,
+          userType: resolvedUserType,
+          avatar: parsed.avatar
+        })
+      } else {
+        setUserData({
+          firstName: 'Lianne',
+          lastName: 'Balbastro',
+          email: 'lianne_balbastro@dlsu.edu.ph',
+          userType: resolvedUserType
+        })
+      }
     }
-  }, [userTypeOverride])
+  }, [userTypeOverride, authUser])
 
   // Simulate a new system notification arriving after a delay
   useEffect(() => {
