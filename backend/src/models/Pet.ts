@@ -14,6 +14,7 @@ export interface IPet extends Document {
   nfcTagId: string | null;
   photo: string | null;
   notes: string | null;
+  bloodType: string | null;
   allergies: string[];
   isLost: boolean;
   createdAt: Date;
@@ -78,6 +79,10 @@ const PetSchema = new Schema(
       default: null
     },
     notes: {
+      type: String,
+      default: null
+    },
+    bloodType: {
       type: String,
       default: null
     },

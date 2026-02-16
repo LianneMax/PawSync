@@ -15,6 +15,7 @@ export interface Pet {
   nfcTagId: string | null;
   photo: string | null;
   notes: string | null;
+  bloodType: string | null;
   allergies: string[];
   isLost: boolean;
   createdAt: string;

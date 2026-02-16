@@ -4,59 +4,91 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Mail, Lock, User, Building2, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Building2, Eye, EyeOff, Check, ArrowLeft, ArrowRight, MapPin, Phone, Clock } from 'lucide-react'
 import { register } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
+import ProgressUpload from '@/components/progress-upload'
 
-const slides = [
-  { image: '/images/illustrations/slide-1.png' },
-  { image: '/images/illustrations/slide-2.png' },
-  { image: '/images/illustrations/slide-3.png' },
-  { image: '/images/illustrations/slide-4.png' },
-  { image: '/images/illustrations/slide-5.png' },
-]
-
-const SLIDE_DURATION = 3000
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function ClinicSignupPage() {
   const router = useRouter()
   const { login: storeLogin } = useAuthStore()
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+
+  // Multi-step state
+  const [currentStep, setCurrentStep] = useState(1)
+  const [slidePhase, setSlidePhase] = useState<'idle' | 'exit' | 'enter'>('idle')
+  const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 50)
+    return () => clearTimeout(t)
+  }, [])
+
+  // Step 1 - Sign Up
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [clinicName, setClinicName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [exitingSlide, setExitingSlide] = useState<number | null>(null)
+  // Step 2 - Clinic Logo
+  const [clinicLogoBase64, setClinicLogoBase64] = useState('')
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => {
-        const next = (prev + 1) % slides.length
-        setExitingSlide(prev)
-        setTimeout(() => setExitingSlide(null), 700)
-        return next
-      })
-    }, SLIDE_DURATION)
-    return () => clearInterval(interval)
-  }, [])
+  // Step 3 - Branch Details
+  const [branchName, setBranchName] = useState('')
+  const [branchAddress, setBranchAddress] = useState('')
+  const [branchCity, setBranchCity] = useState('')
+  const [branchProvince, setBranchProvince] = useState('')
+  const [branchPhone, setBranchPhone] = useState('')
+  const [branchEmail, setBranchEmail] = useState('')
+  const [openingTime, setOpeningTime] = useState('')
+  const [closingTime, setClosingTime] = useState('')
+  const [operatingDays, setOperatingDays] = useState<string[]>([])
+  const [branchErrors, setBranchErrors] = useState<Record<string, string>>({})
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Submit state
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const goToStep = (step: number) => {
+    if (step === currentStep || slidePhase !== 'idle') return
+    setSlideDirection(step > currentStep ? 'forward' : 'backward')
+    setSlidePhase('exit')
+    setTimeout(() => {
+      setCurrentStep(step)
+      setSlidePhase('enter')
+      setTimeout(() => setSlidePhase('idle'), 300)
+    }, 300)
+  }
+
+  const getSlideClass = () => {
+    if (slidePhase === 'exit') {
+      return slideDirection === 'forward'
+        ? '-translate-x-full opacity-0'
+        : 'translate-x-full opacity-0'
+    }
+    if (slidePhase === 'enter') {
+      return slideDirection === 'forward'
+        ? 'translate-x-full opacity-0'
+        : '-translate-x-full opacity-0'
+    }
+    return 'translate-x-0 opacity-100'
+  }
+
+  const shouldAnimate = slidePhase === 'exit' || slidePhase === 'idle'
+
+  // Step 1 validation
+  const handleStep1Continue = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
     const newFieldErrors: Record<string, string> = {}
-    if (!firstName.trim()) newFieldErrors.firstName = 'This field is required'
-    if (!lastName.trim()) newFieldErrors.lastName = 'This field is required'
-    if (!email.trim()) newFieldErrors.email = 'This field is required'
     if (!clinicName.trim()) newFieldErrors.clinicName = 'This field is required'
+    if (!email.trim()) newFieldErrors.email = 'This field is required'
     if (!password) newFieldErrors.password = 'This field is required'
     if (password && password.length < 6) newFieldErrors.password = 'Password must be at least 6 characters'
     if (!confirmPassword) newFieldErrors.confirmPassword = 'This field is required'
@@ -69,10 +101,49 @@ export default function ClinicSignupPage() {
       return
     }
     setFieldErrors({})
+    goToStep(2)
+  }
+
+  // Step 3 validation & submit
+  const handleFinalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    const newBranchErrors: Record<string, string> = {}
+    if (!branchAddress.trim()) newBranchErrors.branchAddress = 'This field is required'
+
+    if (Object.keys(newBranchErrors).length > 0) {
+      setBranchErrors(newBranchErrors)
+      return
+    }
+    setBranchErrors({})
     setLoading(true)
 
     try {
-      const response = await register(firstName, lastName, email, password, 'clinic-admin')
+      const branchDetails = {
+        name: branchName.trim() || `${clinicName} - Main Branch`,
+        address: branchAddress.trim(),
+        city: branchCity.trim() || undefined,
+        province: branchProvince.trim() || undefined,
+        phone: branchPhone.trim() || undefined,
+        email: branchEmail.trim() || undefined,
+        openingTime: openingTime || undefined,
+        closingTime: closingTime || undefined,
+        operatingDays: operatingDays.length > 0 ? operatingDays : undefined
+      }
+
+      // Use clinic name as the admin's display name
+      const response = await register(
+        clinicName,
+        'Admin',
+        email,
+        password,
+        confirmPassword,
+        'clinic-admin',
+        clinicName,
+        branchDetails,
+        clinicLogoBase64 || undefined
+      )
 
       if (response.status === 'ERROR') {
         setError(response.message)
@@ -85,10 +156,7 @@ export default function ClinicSignupPage() {
         localStorage.setItem('authToken', response.data.token)
         document.cookie = `authToken=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
 
-        // Store clinic name in session for onboarding
         sessionStorage.setItem('signupData', JSON.stringify({
-          firstName,
-          lastName,
           email,
           userType: 'clinic-admin',
           clinicName,
@@ -104,37 +172,93 @@ export default function ClinicSignupPage() {
     }
   }
 
+  const toggleDay = (day: string) => {
+    setOperatingDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#476B6B] p-4 relative overflow-hidden">
-      <div className="auth-background" />
+    <div className="min-h-screen bg-[#F8F6F2] p-4 pb-12 overflow-hidden">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-8">
+        <div className="flex justify-between items-center">
+          <div className="w-14 h-14 bg-[#476B6B] rounded-xl flex items-center justify-center shadow-sm">
+            <Image
+              src="/images/logos/pawsync-logo-white.png"
+              alt="PawSync Logo"
+              width={38}
+              height={38}
+            />
+          </div>
+        </div>
+      </div>
 
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex relative z-10">
-        {/* Left side - Signup Form */}
-        <div className="w-full md:w-3/5 p-12 flex flex-col justify-center">
-          <div className="max-w-md mx-auto w-full">
-            {/* Logo */}
-            <div className="flex justify-center mb-4">
-              <Image
-                src="/images/logos/pawsync-logo-medium-outline.png"
-                alt="PawSync Logo"
-                width={80}
-                height={80}
-                priority
-              />
+      {/* Progress Steps */}
+      <div className="max-w-2xl mx-auto mb-12">
+        <div className="flex items-center justify-center gap-4">
+          {/* Step 1 - Sign Up */}
+          <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 bg-[#7FA5A3]">
+                {currentStep > 1 ? (
+                  <Check className="w-6 h-6 text-white" />
+                ) : (
+                  <span className="text-white font-semibold">1</span>
+                )}
+              </div>
+              <span className="text-sm font-medium text-[#4F4F4F]">Sign Up</span>
+            </div>
+          </div>
+
+          {/* Connector 1-2 */}
+          <div className={`h-1 transition-all duration-500 ease-out ${currentStep >= 2 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`} style={{ width: mounted ? '4rem' : '0rem', transitionDelay: '150ms' }}></div>
+
+          {/* Step 2 - Clinic Logo */}
+          <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)', transitionDelay: '300ms' }}>
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${currentStep >= 2 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`}>
+                {currentStep > 2 ? (
+                  <Check className="w-6 h-6 text-white" />
+                ) : (
+                  <span className={`font-semibold transition-colors duration-500 ${currentStep >= 2 ? 'text-white' : 'text-gray-600'}`}>2</span>
+                )}
+              </div>
+              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 2 ? 'text-[#4F4F4F]' : 'text-gray-500'}`}>Clinic Logo</span>
+            </div>
+          </div>
+
+          {/* Connector 2-3 */}
+          <div className={`h-1 transition-all duration-500 ease-out ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`} style={{ width: mounted ? '4rem' : '0rem', transitionDelay: '450ms' }}></div>
+
+          {/* Step 3 - Branch Details */}
+          <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)', transitionDelay: '600ms' }}>
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`}>
+                <span className={`font-semibold transition-colors duration-500 ${currentStep >= 3 ? 'text-white' : 'text-gray-600'}`}>3</span>
+              </div>
+              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-[#4F4F4F]' : 'text-gray-500'}`}>Branch Details</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sliding Content */}
+      <div className={`${shouldAnimate ? 'transition-all duration-300 ease-out' : ''} ${getSlideClass()}`}>
+
+        {/* Step 1 - Sign Up */}
+        {currentStep === 1 && (
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-12 transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(20px)', transitionDelay: '400ms' }}>
+            <div className="text-center mb-10">
+              <h1 className="text-3xl font-bold text-[#5A7C7A] mb-3">
+                Register Your Clinic
+              </h1>
+              <p className="text-gray-600">
+                Create an administrator account to manage your veterinary clinic
+              </p>
             </div>
 
-            <h1
-              className="text-4xl text-[#476B6B] mb-2 text-center"
-              style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-            >
-              Register Your Clinic
-            </h1>
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <Building2 className="w-4 h-4 text-[#7FA5A3]" />
-              <p className="text-[#7FA5A3] text-sm font-medium">Create an administrator account</p>
-            </div>
-
-            <form onSubmit={handleSubmit} noValidate>
+            <form onSubmit={handleStep1Continue} noValidate>
               {error && (
                 <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
                   {error}
@@ -142,72 +266,45 @@ export default function ClinicSignupPage() {
               )}
 
               {/* Clinic Name */}
-              <div className="mb-3">
+              <div className="mb-4">
                 <div className="relative">
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
-                    placeholder="Clinic Name"
+                    placeholder="Clinic Name*"
                     value={clinicName}
                     onChange={(e) => { setClinicName(e.target.value); setFieldErrors(prev => ({ ...prev, clinicName: '' })) }}
-                    className={`w-full pl-12 pr-4 py-3.5 bg-gray-100 rounded-xl border-2 ${fieldErrors.clinicName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#476B6B] transition-all`}
+                    className={`w-full pl-12 pr-4 py-4 bg-white rounded-xl border ${fieldErrors.clinicName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
                 </div>
                 {fieldErrors.clinicName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.clinicName}</p>}
               </div>
 
-              {/* Name row */}
-              <div className="mb-3 flex gap-3">
-                <div className="flex-1">
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="text"
-                      placeholder="First Name"
-                      value={firstName}
-                      onChange={(e) => { setFirstName(e.target.value); setFieldErrors(prev => ({ ...prev, firstName: '' })) }}
-                      className={`w-full pl-12 pr-4 py-3.5 bg-gray-100 rounded-xl border-2 ${fieldErrors.firstName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#476B6B] transition-all`}
-                    />
-                  </div>
-                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.firstName}</p>}
-                </div>
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => { setLastName(e.target.value); setFieldErrors(prev => ({ ...prev, lastName: '' })) }}
-                    className={`w-full px-4 py-3.5 bg-gray-100 rounded-xl border-2 ${fieldErrors.lastName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#476B6B] transition-all`}
-                  />
-                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.lastName}</p>}
-                </div>
-              </div>
-
               {/* Email */}
-              <div className="mb-3">
+              <div className="mb-4">
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="email"
-                    placeholder="Email"
+                    placeholder="Email*"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })) }}
-                    className={`w-full pl-12 pr-4 py-3.5 bg-gray-100 rounded-xl border-2 ${fieldErrors.email ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#476B6B] transition-all`}
+                    className={`w-full pl-12 pr-4 py-4 bg-white rounded-xl border ${fieldErrors.email ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
                 </div>
                 {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
               </div>
 
               {/* Password */}
-              <div className="mb-3">
+              <div className="mb-4">
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
+                    placeholder="Password*"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })) }}
-                    className={`w-full pl-12 pr-12 py-3.5 bg-gray-100 rounded-xl border-2 ${fieldErrors.password ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#476B6B] transition-all`}
+                    className={`w-full pl-12 pr-12 py-4 bg-white rounded-xl border ${fieldErrors.password ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -217,15 +314,15 @@ export default function ClinicSignupPage() {
               </div>
 
               {/* Confirm Password */}
-              <div className="mb-6">
+              <div className="mb-8">
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="Confirm Password"
+                    placeholder="Confirm Password*"
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, confirmPassword: '' })) }}
-                    className={`w-full pl-12 pr-12 py-3.5 bg-gray-100 rounded-xl border-2 ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#476B6B] transition-all`}
+                    className={`w-full pl-12 pr-12 py-4 bg-white rounded-xl border ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -234,16 +331,26 @@ export default function ClinicSignupPage() {
                 {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.confirmPassword}</p>}
               </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-[#476B6B] text-white rounded-xl hover:bg-[#3a5a5a] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                {loading ? 'Creating account...' : 'Register Clinic'}
-              </button>
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                <Link
+                  href="/clinic-login"
+                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back to Login
+                </Link>
 
-              <p className="text-center text-[#4F4F4F] text-sm">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+                >
+                  Continue
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-center text-[#4F4F4F] text-sm mt-6">
                 Already have a clinic account?{' '}
                 <Link href="/clinic-login" className="text-[#476B6B] hover:underline font-medium">
                   Sign in here
@@ -251,39 +358,250 @@ export default function ClinicSignupPage() {
               </p>
             </form>
           </div>
-        </div>
+        )}
 
-        {/* Right side */}
-        <div className="hidden md:flex md:w-2/5 bg-linear-to-br from-[#476B6B]/10 to-[#7FA5A3]/10 p-8 flex-col items-center justify-center relative overflow-hidden">
-          <div className="w-full flex flex-col items-center">
-            <div className="mb-6 flex justify-center w-full aspect-square relative">
-              {slides.map((slide, index) => (
-                <div
-                  key={index}
-                  className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out ${
-                    index === currentSlide
-                      ? 'opacity-100 translate-x-0'
-                      : index === exitingSlide
-                        ? 'opacity-0 translate-x-full'
-                        : 'opacity-0 -translate-x-full pointer-events-none'
-                  }`}
-                >
-                  <Image src={slide.image} alt={`Slide ${index + 1}`} fill className="object-contain" />
-                </div>
-              ))}
+        {/* Step 2 - Clinic Logo */}
+        {currentStep === 2 && (
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-12">
+            <div className="text-center mb-10">
+              <h1 className="text-3xl font-bold text-[#5A7C7A] mb-3">
+                Upload Clinic Logo
+              </h1>
+              <p className="text-gray-600">
+                Add your clinic&apos;s logo to help pet owners recognize your brand.
+                <br />You can skip this step and upload it later.
+              </p>
             </div>
-            <div className="flex justify-center gap-3 mt-8">
-              {slides.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-10 h-1.5 rounded-full transition-colors duration-300 ${
-                    index === currentSlide ? 'bg-[#476B6B]' : 'bg-[#476B6B]/20'
-                  }`}
-                />
-              ))}
+
+            <div className="mb-8">
+              <ProgressUpload
+                maxFiles={1}
+                multiple={false}
+                maxSize={5 * 1024 * 1024}
+                accept="image/jpeg,image/png,image/webp"
+                simulateUpload={true}
+                title="Upload your clinic logo"
+                titleClassName="text-[#476B6B]"
+                description="A clear, high-quality logo helps build trust with pet owners."
+                hint="Accepted file types: JPG, PNG, WEBP (max 5MB)"
+                onFilesChange={(files) => {
+                  if (files.length > 0 && files[0].file instanceof File) {
+                    const reader = new FileReader()
+                    reader.onloadend = () => {
+                      setClinicLogoBase64(reader.result as string)
+                    }
+                    reader.readAsDataURL(files[0].file)
+                  } else {
+                    setClinicLogoBase64('')
+                  }
+                }}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => goToStep(1)}
+                className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back
+              </button>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => goToStep(3)}
+                  className="px-6 py-4 text-gray-500 hover:text-[#4F4F4F] font-medium transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToStep(3)}
+                  className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+                >
+                  Continue
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Step 3 - Branch Details */}
+        {currentStep === 3 && (
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-12">
+            <div className="text-center mb-10">
+              <h1 className="text-3xl font-bold text-[#5A7C7A] mb-3">
+                Main Branch Details
+              </h1>
+              <p className="text-gray-600">
+                Set up your clinic&apos;s main branch location and contact information.
+                <br />You can add more branches later from your dashboard.
+              </p>
+            </div>
+
+            <form onSubmit={handleFinalSubmit} noValidate>
+              {error && (
+                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Branch Name */}
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Branch Name</h3>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder={`${clinicName} - Main Branch`}
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1 ml-1">Leave blank to use the default name</p>
+              </div>
+
+              {/* Location */}
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Location</h3>
+                <div className="mb-4">
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Street Address*"
+                      value={branchAddress}
+                      onChange={(e) => { setBranchAddress(e.target.value); setBranchErrors(prev => ({ ...prev, branchAddress: '' })) }}
+                      className={`w-full pl-12 pr-4 py-4 bg-white rounded-xl border ${branchErrors.branchAddress ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                    />
+                  </div>
+                  {branchErrors.branchAddress && <p className="text-xs text-red-500 mt-1 ml-1">{branchErrors.branchAddress}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={branchCity}
+                    onChange={(e) => setBranchCity(e.target.value)}
+                    className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Province / Region"
+                    value={branchProvince}
+                    onChange={(e) => setBranchProvince(e.target.value)}
+                    className="w-full px-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="tel"
+                      placeholder="Phone Number"
+                      value={branchPhone}
+                      onChange={(e) => setBranchPhone(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="email"
+                      placeholder="Branch Email"
+                      value={branchEmail}
+                      onChange={(e) => setBranchEmail(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Operating Hours */}
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Operating Hours</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block ml-1">Opening Time</label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="time"
+                        value={openingTime}
+                        onChange={(e) => setOpeningTime(e.target.value)}
+                        className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block ml-1">Closing Time</label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="time"
+                        value={closingTime}
+                        onChange={(e) => setClosingTime(e.target.value)}
+                        className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Operating Days */}
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Operating Days</h3>
+                <div className="flex gap-2">
+                  {DAYS_OF_WEEK.map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${
+                        operatingDays.includes(day)
+                          ? 'bg-[#7FA5A3] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => goToStep(2)}
+                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Creating Clinic...' : 'Register Clinic'}
+                  {!loading && <ArrowRight className="w-5 h-5" />}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   )

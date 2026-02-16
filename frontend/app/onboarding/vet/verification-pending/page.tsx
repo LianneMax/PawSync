@@ -127,7 +127,7 @@ export default function VerificationPendingPage() {
 
         {/* Email Notice */}
         <p className="text-sm text-gray-500 text-center mb-6">
-          You'll receive an email at{' '}
+          You&apos;ll receive an email at{' '}
           <span className="text-[#7FA5A3] font-medium">
             {submissionData?.email || 'maria.santos@email.com'}
           </span>{' '}

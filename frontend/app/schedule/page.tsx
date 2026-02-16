@@ -128,7 +128,7 @@ export default function MySchedulePage() {
 
         {/* Daily Schedule */}
         <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-[#4F4F4F] mb-6">Today's Schedule</h2>
+          <h2 className="text-xl font-semibold text-[#4F4F4F] mb-6">Today&apos;s Schedule</h2>
           <div className="space-y-3">
             {Array.from({ length: 8 }, (_, i) => {
               const hour = 9 + i

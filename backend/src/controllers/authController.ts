@@ -44,13 +44,26 @@ const generateToken = (user: IUser): string => {
  */
 export const register = async (req: Request, res: Response) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword, userType } = req.body;
+    const { email, password, confirmPassword, userType } = req.body;
+    let { firstName, lastName } = req.body;
 
     // Validation
-    if (!firstName || !lastName || !email || !password || !confirmPassword || !userType) {
+    if (!email || !password || !confirmPassword || !userType) {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Please provide all required fields'
+      });
+    }
+
+    // For clinic-admin, derive name from clinic name if not provided
+    const { clinicName, branchDetails, clinicLogo } = req.body;
+    if (userType === 'clinic-admin') {
+      if (!firstName) firstName = clinicName || 'Clinic';
+      if (!lastName) lastName = 'Admin';
+    } else if (!firstName || !lastName) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Please provide first name and last name'
       });
     }
 
@@ -88,7 +101,6 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Clinic admin requires clinicName
-    const { clinicName } = req.body;
     if (userType === 'clinic-admin' && !clinicName) {
       return res.status(400).json({
         status: 'ERROR',
@@ -108,18 +120,33 @@ export const register = async (req: Request, res: Response) => {
 
     // Auto-create Clinic and main branch for clinic-admin
     if (userType === 'clinic-admin') {
-      const clinic = await Clinic.create({
+      const clinicDoc = new Clinic({
         name: clinicName,
         adminId: newUser._id,
-        email: email.toLowerCase()
+        email: email.toLowerCase(),
+        ...(clinicLogo && { logo: clinicLogo })
       });
+      const clinic = await clinicDoc.save();
 
-      await ClinicBranch.create({
+      const mainBranch = await ClinicBranch.create({
         clinicId: clinic._id,
-        name: 'Main Branch',
-        address: 'To be updated',
+        name: branchDetails?.name || `${clinicName} - Main Branch`,
+        address: branchDetails?.address || 'To be updated',
+        city: branchDetails?.city || null,
+        province: branchDetails?.province || null,
+        phone: branchDetails?.phone || null,
+        email: branchDetails?.email || email.toLowerCase(),
+        openingTime: branchDetails?.openingTime || null,
+        closingTime: branchDetails?.closingTime || null,
+        operatingDays: branchDetails?.operatingDays || [],
         isMain: true
       });
+
+      // Store the main branch reference and copy branch details to clinic
+      clinic.mainBranchId = mainBranch._id as any;
+      clinic.address = branchDetails?.address || null;
+      clinic.phone = branchDetails?.phone || null;
+      await clinic.save();
     }
 
     // Generate token

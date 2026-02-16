@@ -36,6 +36,8 @@ interface NavItem {
   label: string
   href: string
   icon: React.ReactNode
+  section?: string
+  badge?: string
 }
 
 interface NavbarProps {
@@ -66,9 +68,12 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'My Schedule', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
   ],
   'clinic-admin': [
-    { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" /> },
-    { label: 'Verification', href: '/clinic-admin/verification', icon: <ClipboardList className="w-5 h-5" /> },
-    { label: 'Appointments', href: '/appointments', icon: <Calendar className="w-5 h-5" /> },
+    { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" />, section: 'MAIN MENU' },
+    { label: 'Patients', href: '/clinic-admin/patients', icon: <PawPrint className="w-5 h-5" />, badge: '1,247' },
+    { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" />, badge: '12' },
+    { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
+    { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
+    { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" />, badge: '2' },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
 }
@@ -189,10 +194,16 @@ export default function Navbar({
       {/* Navigation Items */}
       <div className="flex-1 px-2 overflow-y-auto">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const isActive = pathname === item.href
+            const showSection = item.section && (index === 0 || navItems[index - 1]?.section !== item.section)
             return (
               <li key={item.href}>
+                {showSection && isExpanded && (
+                  <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wider px-4 pt-4 pb-2">
+                    {item.section}
+                  </p>
+                )}
                 <Link
                   href={item.href}
                   className={`flex items-center gap-3 rounded-xl transition-colors ${
@@ -204,6 +215,11 @@ export default function Navbar({
                 >
                   {item.icon}
                   {isExpanded && <span className="font-medium whitespace-nowrap">{item.label}</span>}
+                  {isExpanded && item.badge && (
+                    <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#9EC4C8] text-white min-w-5 text-center">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               </li>
             )

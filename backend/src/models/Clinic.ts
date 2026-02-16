@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IClinic extends Document {
   name: string;
   adminId: mongoose.Types.ObjectId;
+  mainBranchId: mongoose.Types.ObjectId | null;
+  logo: string | null;
   address: string | null;
   phone: string | null;
   email: string | null;
@@ -23,6 +25,15 @@ const ClinicSchema = new Schema(
       ref: 'User',
       required: [true, 'Clinic admin is required'],
       index: true
+    },
+    mainBranchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ClinicBranch',
+      default: null
+    },
+    logo: {
+      type: String,
+      default: null
     },
     address: {
       type: String,

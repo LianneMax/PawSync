@@ -59,7 +59,7 @@ export default function VetAppointmentsPage() {
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-2xl p-6 shadow-sm border-l-4 border-blue-500">
-            <h3 className="text-lg font-semibold text-[#4F4F4F] mb-4">Today's Summary</h3>
+            <h3 className="text-lg font-semibold text-[#4F4F4F] mb-4">Today&apos;s Summary</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Scheduled Appointments</span>

@@ -376,7 +376,9 @@ export default function SmoothTab({
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                   }}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   transition={transition as any}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   variants={slideVariants as any}
                 >
                   {selectedItem?.cardContent}

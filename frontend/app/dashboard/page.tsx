@@ -45,6 +45,7 @@ interface Pet {
   isLost: boolean
   sterilization: string
   microchipNumber: string
+  bloodType: string
   allergies: string[]
   nfcTagId: string
   vet: { name: string; clinic: string; verified: boolean }
@@ -85,6 +86,7 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     isLost: apiPet.isLost,
     sterilization: apiPet.sterilization === 'yes' ? 'NEUTERED' : apiPet.sterilization === 'no' ? 'UNNEUTERED' : 'UNKNOWN',
     microchipNumber: apiPet.microchipNumber || '-',
+    bloodType: apiPet.bloodType || '-',
     allergies: apiPet.allergies,
     nfcTagId: apiPet.nfcTagId || '-',
     vet: { name: '-', clinic: '-', verified: false },
@@ -233,8 +235,8 @@ function PetDetailModal({
                   <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.sterilization}</p>
                 </div>
                 <div className="bg-[#F1F0ED] rounded-2xl p-4">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">NFC and QR ID</p>
-                  <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.microchipNumber}</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Blood Type</p>
+                  <p className="text-[14px] font-bold text-[#4F4F4F]">{pet.bloodType}</p>
                 </div>
               </div>
               {/* Allergies */}

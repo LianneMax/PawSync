@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 import AssignedVet from '../models/AssignedVet';
+import VetApplication from '../models/VetApplication';
+import User from '../models/User';
 
 // ==================== CLINIC ====================
 
@@ -32,7 +34,7 @@ export const getMyClinics = async (req: Request, res: Response) => {
 export const getAllClinics = async (req: Request, res: Response) => {
   try {
     const clinics = await Clinic.find({ isActive: true })
-      .select('name address')
+      .select('name address mainBranchId')
       .sort({ name: 1 });
 
     const clinicsWithBranches = await Promise.all(
@@ -45,6 +47,7 @@ export const getAllClinics = async (req: Request, res: Response) => {
           _id: clinic._id,
           name: clinic.name,
           address: clinic.address,
+          mainBranchId: clinic.mainBranchId || null,
           branches
         };
       })
@@ -129,6 +132,11 @@ export const addBranch = async (req: Request, res: Response) => {
       isMain: isMain || false
     });
 
+    // Update clinic's mainBranchId if this is the new main
+    if (isMain) {
+      await Clinic.findByIdAndUpdate(clinic._id, { mainBranchId: branch._id });
+    }
+
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Branch added successfully',
@@ -183,6 +191,11 @@ export const updateBranch = async (req: Request, res: Response) => {
     }
 
     await branch.save();
+
+    // Update clinic's mainBranchId if this branch is now the main
+    if (isMain) {
+      await Clinic.findByIdAndUpdate(clinic._id, { mainBranchId: branch._id });
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -319,5 +332,99 @@ export const removeVetFromBranch = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Remove vet error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while removing the vet' });
+  }
+};
+
+// ==================== DASHBOARD ====================
+
+/**
+ * Get dashboard stats for the clinic admin
+ */
+export const getClinicDashboardStats = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const [branchCount, approvedVetCount, pendingApplicationCount] = await Promise.all([
+      ClinicBranch.countDocuments({ clinicId: clinic._id, isActive: true }),
+      VetApplication.countDocuments({ clinicId: clinic._id, status: 'approved' }),
+      VetApplication.countDocuments({ clinicId: clinic._id, status: 'pending' }),
+    ]);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        clinic: {
+          _id: clinic._id,
+          name: clinic.name,
+        },
+        stats: {
+          totalVeterinarians: approvedVetCount,
+          activeBranches: branchCount,
+          pendingApplications: pendingApplicationCount,
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get dashboard stats error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching dashboard stats' });
+  }
+};
+
+/**
+ * Get approved vets for a clinic (with their details)
+ */
+export const getClinicVets = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const approvedApplications = await VetApplication.find({
+      clinicId: clinic._id,
+      status: 'approved'
+    })
+      .populate('vetId', 'firstName lastName email')
+      .populate('branchId', 'name')
+      .populate('verificationId', 'prcLicenseNumber')
+      .sort({ createdAt: -1 });
+
+    const vets = approvedApplications.map((app) => {
+      const vet = app.vetId as any;
+      const branch = app.branchId as any;
+      const verification = app.verificationId as any;
+
+      return {
+        _id: app._id,
+        vetId: vet?._id || null,
+        name: vet ? `Dr. ${vet.firstName} ${vet.lastName}` : 'Unknown',
+        email: vet?.email || '',
+        initials: vet ? `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}` : '??',
+        branch: branch?.name || 'Unassigned',
+        prcLicense: verification?.prcLicenseNumber || '-',
+        status: 'Active',
+      };
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { vets }
+    });
+  } catch (error) {
+    console.error('Get clinic vets error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
   }
 };

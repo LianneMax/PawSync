@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -57,7 +57,15 @@ function buildEmptyVitals(): Record<string, { value: string; notes: string }> {
   return v
 }
 
-export default function NewMedicalRecordPage() {
+export default function NewMedicalRecordPageWrapper() {
+  return (
+    <Suspense fallback={<DashboardLayout><div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" /></div></DashboardLayout>}>
+      <NewMedicalRecordPage />
+    </Suspense>
+  )
+}
+
+function NewMedicalRecordPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedPetId = searchParams.get('petId')
@@ -168,6 +176,7 @@ export default function NewMedicalRecordPage() {
       const formattedVitals: Vitals = {} as Vitals
       vitalRows.forEach((row) => {
         const entry = vitals[row.key]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(formattedVitals as any)[row.key] = {
           value: row.type === 'number' ? parseFloat(entry.value) || 0 : entry.value,
           notes: entry.notes,

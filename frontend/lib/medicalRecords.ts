@@ -27,9 +27,13 @@ export interface ImageFragment {
 
 export interface MedicalRecord {
   _id: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   petId: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vetId: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicId: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicBranchId: any;
   vitals: Vitals;
   images: ImageFragment[];

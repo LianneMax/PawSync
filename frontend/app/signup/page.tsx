@@ -83,7 +83,7 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
-      const response = await register(firstName, lastName, email, password, confirmPassword, userType)
+      const response = await register(firstName, lastName, email, password, confirmPassword, userType!)
 
       if (response.status === 'ERROR') {
         setError(response.message)

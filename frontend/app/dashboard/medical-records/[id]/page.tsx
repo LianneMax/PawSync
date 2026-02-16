@@ -251,6 +251,7 @@ export default function MedicalRecordReportPage() {
                   </thead>
                   <tbody>
                     {vitalsConfig.map((v, i) => {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       const entry = (record.vitals as any)?.[v.key]
                       if (!entry) return null
                       const displayValue =

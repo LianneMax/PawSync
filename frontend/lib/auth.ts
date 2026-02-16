@@ -14,7 +14,7 @@ export interface AuthResponse {
       firstName: string;
       lastName: string;
       email: string;
-      userType: 'pet-owner' | 'veterinarian';
+      userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
       isVerified: boolean;
     };
     token: string;
@@ -27,7 +27,7 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  userType: 'pet-owner' | 'veterinarian';
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   isVerified: boolean;
 }
 
@@ -40,7 +40,20 @@ export const register = async (
   email: string,
   password: string,
   confirmPassword: string,
-  userType: 'pet-owner' | 'veterinarian'
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin',
+  clinicName?: string,
+  branchDetails?: {
+    name?: string
+    address?: string
+    city?: string
+    province?: string
+    phone?: string
+    email?: string
+    openingTime?: string
+    closingTime?: string
+    operatingDays?: string[]
+  },
+  clinicLogo?: string
 ): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
@@ -53,7 +66,10 @@ export const register = async (
       email,
       password,
       confirmPassword,
-      userType
+      userType,
+      ...(clinicName && { clinicName }),
+      ...(branchDetails && { branchDetails }),
+      ...(clinicLogo && { clinicLogo })
     })
   });
 

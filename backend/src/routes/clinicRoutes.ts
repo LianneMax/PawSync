@@ -7,7 +7,9 @@ import {
   updateBranch,
   deleteBranch,
   assignVetToBranch,
-  removeVetFromBranch
+  removeVetFromBranch,
+  getClinicDashboardStats,
+  getClinicVets
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
 
@@ -24,6 +26,18 @@ router.get('/', getAllClinics);
  * Get clinics managed by the authenticated admin
  */
 router.get('/mine', authMiddleware, clinicAdminOnly, getMyClinics);
+
+/**
+ * GET /api/clinics/mine/stats
+ * Get dashboard stats for the clinic admin
+ */
+router.get('/mine/stats', authMiddleware, clinicAdminOnly, getClinicDashboardStats);
+
+/**
+ * GET /api/clinics/mine/vets
+ * Get approved vets for the clinic
+ */
+router.get('/mine/vets', authMiddleware, clinicAdminOnly, getClinicVets);
 
 /**
  * GET /api/clinics/:clinicId/branches

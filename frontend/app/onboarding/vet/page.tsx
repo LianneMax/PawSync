@@ -19,6 +19,7 @@ interface ApiClinic {
   _id: string
   name: string
   address: string | null
+  mainBranchId: string | null
   branches: ApiBranch[]
 }
 
@@ -129,7 +130,21 @@ export default function VetOnboardingPage() {
     } else {
       setSelectedClinic(clinicId)
       setExpandedClinic(clinicId)
-      setSelectedBranch(null)
+
+      const clinic = clinics.find(c => c._id === clinicId)
+      if (clinic) {
+        if (clinic.branches.length === 0 && clinic.mainBranchId) {
+          // No branches visible but has a main branch — auto-select it
+          setSelectedBranch(clinic.mainBranchId)
+        } else if (clinic.branches.length === 1) {
+          // Only one branch — auto-select it
+          setSelectedBranch(clinic.branches[0]._id)
+        } else {
+          setSelectedBranch(null)
+        }
+      } else {
+        setSelectedBranch(null)
+      }
     }
   }
 
@@ -541,7 +556,12 @@ export default function VetOnboardingPage() {
                         <div className="w-14 h-14 bg-gray-200 rounded-xl"></div>
                         <div>
                           <h3 className="font-semibold text-[#4F4F4F]">{clinic.name}</h3>
-                          <p className="text-sm text-gray-500">{clinic.branches.length} Branch{clinic.branches.length !== 1 ? 'es' : ''}</p>
+                          <p className="text-sm text-gray-500">
+                            {clinic.branches.length === 0
+                              ? 'Main Branch'
+                              : `${clinic.branches.length} Branch${clinic.branches.length !== 1 ? 'es' : ''}`
+                            }
+                          </p>
                         </div>
                       </div>
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
@@ -558,43 +578,67 @@ export default function VetOnboardingPage() {
                     {/* Branches (Expandable) */}
                     {expandedClinic === clinic._id && (
                       <div className="bg-gray-50 px-5 pb-5">
-                        <p className="text-sm font-medium text-gray-600 mb-3">Select Branch</p>
-                        <div className="space-y-2">
-                          {clinic.branches.map((branch) => (
-                            <div
-                              key={branch._id}
-                              onClick={() => handleBranchSelect(branch._id)}
-                              className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-colors ${
-                                selectedBranch === branch._id
-                                  ? 'bg-[#7FA5A3]/10 border border-[#7FA5A3]'
-                                  : 'bg-white border border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
+                        {clinic.branches.length === 0 ? (
+                          <>
+                            <p className="text-sm font-medium text-gray-600 mb-3">Branch</p>
+                            <div className="flex items-center justify-between p-4 rounded-xl bg-[#7FA5A3]/10 border border-[#7FA5A3]">
                               <div className="flex items-center gap-3">
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                  selectedBranch === branch._id
-                                    ? 'border-[#7FA5A3]'
-                                    : 'border-gray-300'
-                                }`}>
-                                  {selectedBranch === branch._id && (
-                                    <div className="w-2.5 h-2.5 bg-[#7FA5A3] rounded-full"></div>
-                                  )}
+                                <div className="w-5 h-5 rounded-full border-2 border-[#7FA5A3] flex items-center justify-center">
+                                  <div className="w-2.5 h-2.5 bg-[#7FA5A3] rounded-full"></div>
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <span className="font-medium text-[#4F4F4F]">{branch.name}</span>
-                                    {branch.isMain && (
-                                      <span className="px-2 py-0.5 bg-[#7FA5A3] text-white text-xs rounded-full">
-                                        MAIN
-                                      </span>
-                                    )}
+                                    <span className="font-medium text-[#4F4F4F]">Main Branch</span>
+                                    <span className="px-2 py-0.5 bg-[#7FA5A3] text-white text-xs rounded-full">
+                                      MAIN
+                                    </span>
                                   </div>
-                                  <p className="text-sm text-gray-500">{branch.address}</p>
+                                  <p className="text-sm text-gray-500">{clinic.address || 'Primary clinic location'}</p>
                                 </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-gray-600 mb-3">Select Branch</p>
+                            <div className="space-y-2">
+                              {clinic.branches.map((branch) => (
+                                <div
+                                  key={branch._id}
+                                  onClick={() => handleBranchSelect(branch._id)}
+                                  className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-colors ${
+                                    selectedBranch === branch._id
+                                      ? 'bg-[#7FA5A3]/10 border border-[#7FA5A3]'
+                                      : 'bg-white border border-gray-200 hover:border-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                      selectedBranch === branch._id
+                                        ? 'border-[#7FA5A3]'
+                                        : 'border-gray-300'
+                                    }`}>
+                                      {selectedBranch === branch._id && (
+                                        <div className="w-2.5 h-2.5 bg-[#7FA5A3] rounded-full"></div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-[#4F4F4F]">{branch.name}</span>
+                                        {branch.isMain && (
+                                          <span className="px-2 py-0.5 bg-[#7FA5A3] text-white text-xs rounded-full">
+                                            MAIN
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-500">{branch.address}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

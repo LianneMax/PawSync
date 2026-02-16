@@ -48,7 +48,7 @@ CREATE TABLE users (
 -- Auto-created when a clinic-admin registers.
 --
 -- INPUTS (Auto-created on clinic-admin signup):
---   name (from clinicName), adminId, email
+--   name (from clinicName), adminId, email, mainBranchId (set after main branch created)
 --
 -- OUTPUTS (API Response):
 --   All fields. Used in vet onboarding clinic selection,
@@ -58,6 +58,7 @@ CREATE TABLE clinics (
     _id                 CHAR(24)        PRIMARY KEY,            -- MongoDB ObjectId
     name                VARCHAR(255)    NOT NULL,               -- Clinic name
     admin_id            CHAR(24)        NOT NULL,               -- FK → users._id (clinic-admin)
+    main_branch_id      CHAR(24)        DEFAULT NULL,           -- FK → clinic_branches._id (main branch reference)
     address             VARCHAR(500)    DEFAULT NULL,           -- Main address
     phone               VARCHAR(50)     DEFAULT NULL,
     email               VARCHAR(255)    DEFAULT NULL,           -- Lowercase
@@ -66,7 +67,8 @@ CREATE TABLE clinics (
     updated_at          DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_admin_id (admin_id),
-    FOREIGN KEY (admin_id) REFERENCES users(_id) ON DELETE CASCADE
+    FOREIGN KEY (admin_id) REFERENCES users(_id) ON DELETE CASCADE,
+    FOREIGN KEY (main_branch_id) REFERENCES clinic_branches(_id) ON DELETE SET NULL
 );
 
 
@@ -367,6 +369,7 @@ CREATE TABLE medical_record_images (
 --  clinics ──1:N──► clinic_branches
 --      A clinic can have many branches.
 --      Each branch belongs to one clinic.
+--      clinics.main_branch_id references the designated main branch.
 --
 --  users (veterinarian) ──M:N──► pets  (via assigned_vets)
 --      A vet can be assigned to many pets.
