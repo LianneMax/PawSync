@@ -19,7 +19,6 @@ import {
   X,
   ChevronDown,
   PawPrint,
-  MapPin,
   Video,
   Users,
   Check,
@@ -30,11 +29,17 @@ import {
   DialogContent,
 } from '@/components/ui/dialog'
 
-// ---- Mock data for vets & clinics (replace with API later) ----
+// ---- Mock data for clinics, branches & vets (replace with API later) ----
+const mockBranches = [
+  { _id: 'b1', clinicId: 'c1', clinicName: 'BaiVet Animal Clinic', branchName: 'Parañaque City' },
+  { _id: 'b2', clinicId: 'c1', clinicName: 'BaiVet Animal Clinic', branchName: 'Makati City' },
+  { _id: 'b3', clinicId: 'c2', clinicName: 'Pet Care Plus Veterinary', branchName: 'Quezon City' },
+]
+
 const mockVets = [
-  { _id: 'vet1', firstName: 'Maria', lastName: 'Santos', clinicId: 'c1', clinicBranchId: 'b1', clinicName: 'BaiVet Animal Clinic', branchName: 'Parañaque City' },
-  { _id: 'vet2', firstName: 'Juan', lastName: 'Reyes', clinicId: 'c1', clinicBranchId: 'b2', clinicName: 'BaiVet Animal Clinic', branchName: 'Makati City' },
-  { _id: 'vet3', firstName: 'Ana', lastName: 'Cruz', clinicId: 'c2', clinicBranchId: 'b3', clinicName: 'Pet Care Plus Veterinary', branchName: 'Quezon City' },
+  { _id: 'vet1', firstName: 'Maria', lastName: 'Santos', clinicId: 'c1', clinicBranchId: 'b1' },
+  { _id: 'vet2', firstName: 'Juan', lastName: 'Reyes', clinicId: 'c1', clinicBranchId: 'b2' },
+  { _id: 'vet3', firstName: 'Ana', lastName: 'Cruz', clinicId: 'c2', clinicBranchId: 'b3' },
 ]
 
 const appointmentModes = [
@@ -319,6 +324,7 @@ function ScheduleModal({
   // Form state
   const [pets, setPets] = useState<Pet[]>([])
   const [selectedPetId, setSelectedPetId] = useState('')
+  const [selectedBranchId, setSelectedBranchId] = useState('')
   const [selectedVetId, setSelectedVetId] = useState('')
   const [mode, setMode] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
@@ -374,10 +380,18 @@ function ScheduleModal({
     }
   }, [mode])
 
+  // Reset vet when branch changes
+  useEffect(() => {
+    setSelectedVetId('')
+    setSelectedSlot(null)
+    setSlots([])
+  }, [selectedBranchId])
+
   // Reset form on close
   useEffect(() => {
     if (!open) {
       setSelectedPetId('')
+      setSelectedBranchId('')
       setSelectedVetId('')
       setMode('')
       setSelectedTypes([])
@@ -386,7 +400,8 @@ function ScheduleModal({
     }
   }, [open])
 
-  const selectedVet = mockVets.find((v) => v._id === selectedVetId)
+  const selectedBranch = mockBranches.find((b) => b._id === selectedBranchId)
+  const vetsForBranch = mockVets.filter((v) => v.clinicBranchId === selectedBranchId)
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) =>
@@ -396,6 +411,7 @@ function ScheduleModal({
 
   const handleSubmit = async () => {
     if (!selectedPetId) return toast.error('Please select a pet')
+    if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!selectedVetId) return toast.error('Please select a veterinarian')
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
@@ -406,8 +422,8 @@ function ScheduleModal({
       const res = await createAppointment({
         petId: selectedPetId,
         vetId: selectedVetId,
-        clinicId: selectedVet?.clinicId || '',
-        clinicBranchId: selectedVet?.clinicBranchId || '',
+        clinicId: selectedBranch?.clinicId || '',
+        clinicBranchId: selectedBranchId,
         mode: mode as 'online' | 'face-to-face',
         types: selectedTypes,
         date: selectedDate,
@@ -455,7 +471,7 @@ function ScheduleModal({
         <div className="flex px-8 pb-8 pt-4 gap-8">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
-            {/* Row 1: Pet + Vet */}
+            {/* Row 1: Pet + Branch */}
             <div className="grid grid-cols-2 gap-4">
               <Dropdown
                 label="Select pet"
@@ -465,15 +481,15 @@ function ScheduleModal({
                 onSelect={setSelectedPetId}
               />
               <Dropdown
-                label="Chosen Veterinarian"
-                value={selectedVetId}
+                label="Vet Clinic Branch"
+                value={selectedBranchId}
                 placeholder="Menu Label"
-                options={mockVets.map((v) => ({ value: v._id, label: `Dr. ${v.firstName} ${v.lastName}` }))}
-                onSelect={setSelectedVetId}
+                options={mockBranches.map((b) => ({ value: b._id, label: `${b.clinicName} — ${b.branchName}` }))}
+                onSelect={setSelectedBranchId}
               />
             </div>
 
-            {/* Row 2: Mode + Branch */}
+            {/* Row 2: Mode + Vet */}
             <div className="grid grid-cols-2 gap-4">
               <Dropdown
                 label="Mode of Appointment"
@@ -482,15 +498,22 @@ function ScheduleModal({
                 options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
                 onSelect={setMode}
               />
-              <div>
-                <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Vet Clinic Branch</p>
-                <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span className={selectedVet ? 'text-[#4F4F4F]' : 'text-gray-400'}>
-                    {selectedVet ? `${selectedVet.clinicName} — ${selectedVet.branchName}` : 'Select a vet first'}
-                  </span>
+              {!selectedBranchId ? (
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
+                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                    Select a clinic branch first
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <Dropdown
+                  label="Chosen Veterinarian"
+                  value={selectedVetId}
+                  placeholder="Menu Label"
+                  options={vetsForBranch.map((v) => ({ value: v._id, label: `Dr. ${v.firstName} ${v.lastName}` }))}
+                  onSelect={setSelectedVetId}
+                />
+              )}
             </div>
 
             {/* Row 3: Type of Appointment */}
