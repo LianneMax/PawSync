@@ -12,6 +12,7 @@ import clinicRoutes from './routes/clinicRoutes';
 import verificationRoutes from './routes/verificationRoutes';
 import vetApplicationRoutes from './routes/vetApplicationRoutes';
 import medicalRecordRoutes from './routes/medicalRecordRoutes';
+import appointmentRoutes from './routes/appointmentRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 
@@ -55,6 +56,9 @@ app.use('/api/vet-applications', vetApplicationRoutes);
 
 // Medical record routes
 app.use('/api/medical-records', medicalRecordRoutes);
+
+// Appointment routes
+app.use('/api/appointments', appointmentRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);
