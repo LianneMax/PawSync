@@ -8,57 +8,23 @@ import { useAuthStore } from '@/store/authStore'
 import { DatePicker } from '@/components/ui/date-picker'
 import ProgressUpload from '@/components/progress-upload'
 
-// Sample clinic data - in a real app, this would come from an API
-const clinicsData = [
-  {
-    id: 1,
-    name: 'BaiVet Animal Clinic',
-    branches: [
-      { id: 1, name: 'Parañaque City', address: '123 Street, Parañaque City', isMain: true },
-      { id: 2, name: 'Makati City', address: '456 Avenue, Makati City', isMain: false },
-      { id: 3, name: 'Taguig City', address: '789 Road, Taguig City', isMain: false },
-    ]
-  },
-  {
-    id: 2,
-    name: 'Pet Care Plus Veterinary',
-    branches: [
-      { id: 4, name: 'Quezon City', address: '321 Boulevard, Quezon City', isMain: true },
-      { id: 5, name: 'Manila', address: '654 Street, Manila', isMain: false },
-      { id: 6, name: 'Pasig City', address: '987 Lane, Pasig City', isMain: false },
-    ]
-  },
-  {
-    id: 3,
-    name: 'Pet Care Plus Veterinary',
-    branches: [
-      { id: 7, name: 'Caloocan', address: '111 Drive, Caloocan', isMain: true },
-      { id: 8, name: 'Valenzuela', address: '222 Way, Valenzuela', isMain: false },
-      { id: 9, name: 'Malabon', address: '333 Path, Malabon', isMain: false },
-    ]
-  },
-  {
-    id: 4,
-    name: 'Pet Care Plus Veterinary',
-    branches: [
-      { id: 10, name: 'Las Piñas', address: '444 Circle, Las Piñas', isMain: true },
-      { id: 11, name: 'Muntinlupa', address: '555 Square, Muntinlupa', isMain: false },
-      { id: 12, name: 'San Juan', address: '666 Court, San Juan', isMain: false },
-    ]
-  },
-  {
-    id: 5,
-    name: 'Pet Care Plus Veterinary',
-    branches: [
-      { id: 13, name: 'Mandaluyong', address: '777 Plaza, Mandaluyong', isMain: true },
-      { id: 14, name: 'Marikina', address: '888 Park, Marikina', isMain: false },
-      { id: 15, name: 'Pasay', address: '999 Center, Pasay', isMain: false },
-    ]
-  },
-]
+interface ApiBranch {
+  _id: string
+  name: string
+  address: string
+  isMain: boolean
+}
+
+interface ApiClinic {
+  _id: string
+  name: string
+  address: string | null
+  branches: ApiBranch[]
+}
 
 export default function VetOnboardingPage() {
   const router = useRouter()
+  const { user, token } = useAuthStore()
 
   // Step state: 2 = PRC License, 3 = Select Clinic
   const [currentStep, setCurrentStep] = useState(2)
@@ -79,16 +45,42 @@ export default function VetOnboardingPage() {
   const [prcNumber, setPrcNumber] = useState('')
   const [registrationDate, setRegistrationDate] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
+  const [prcIdPhotoBase64, setPrcIdPhotoBase64] = useState('')
   const [fileName, setFileName] = useState('')
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
   // Select Clinic state (Step 3)
+  const [clinics, setClinics] = useState<ApiClinic[]>([])
+  const [loadingClinics, setLoadingClinics] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedClinic, setSelectedClinic] = useState<number | null>(null)
-  const [selectedBranch, setSelectedBranch] = useState<number | null>(null)
-  const [expandedClinic, setExpandedClinic] = useState<number | null>(null)
+  const [selectedClinic, setSelectedClinic] = useState<string | null>(null)
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
+  const [expandedClinic, setExpandedClinic] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
-  const filteredClinics = clinicsData.filter(clinic =>
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
+  // Fetch real clinics from API
+  useEffect(() => {
+    const fetchClinics = async () => {
+      setLoadingClinics(true)
+      try {
+        const res = await fetch(`${API_URL}/clinics`)
+        const data = await res.json()
+        if (data.status === 'SUCCESS') {
+          setClinics(data.data.clinics)
+        }
+      } catch (err) {
+        console.error('Failed to fetch clinics:', err)
+      } finally {
+        setLoadingClinics(false)
+      }
+    }
+    fetchClinics()
+  }, [API_URL])
+
+  const filteredClinics = clinics.filter(clinic =>
     clinic.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -120,13 +112,6 @@ export default function VetOnboardingPage() {
     }
     setErrors({})
 
-    // Store PRC license data in sessionStorage
-    const prcLicenseData = {
-      firstName, lastName, middleName, suffix,
-      prcNumber, registrationDate, expirationDate, fileName
-    }
-    sessionStorage.setItem('prcLicenseData', JSON.stringify(prcLicenseData))
-
     goToStep(3)
   }
 
@@ -138,7 +123,7 @@ export default function VetOnboardingPage() {
     router.push('/signup')
   }
 
-  const handleClinicSelect = (clinicId: number) => {
+  const handleClinicSelect = (clinicId: string) => {
     if (expandedClinic === clinicId) {
       setExpandedClinic(null)
     } else {
@@ -148,27 +133,101 @@ export default function VetOnboardingPage() {
     }
   }
 
-  const handleBranchSelect = (branchId: number) => {
+  const handleBranchSelect = (branchId: string) => {
     setSelectedBranch(branchId)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedClinic || !selectedBranch) {
       alert('Please select a clinic and branch')
       return
     }
 
-    const clinicData = {
-      clinicId: selectedClinic,
-      branchId: selectedBranch,
-      clinicName: clinicsData.find(c => c.id === selectedClinic)?.name,
-      branchName: clinicsData
-        .find(c => c.id === selectedClinic)
-        ?.branches.find(b => b.id === selectedBranch)?.name
+    if (!token) {
+      alert('You must be logged in to submit')
+      return
     }
-    sessionStorage.setItem('clinicData', JSON.stringify(clinicData))
 
-    router.push('/onboarding/vet/verification-pending')
+    setSubmitting(true)
+    setSubmitError('')
+
+    try {
+      // Submit PRC verification
+      const verificationRes = await fetch(`${API_URL}/verifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          middleName: middleName || null,
+          suffix: suffix || null,
+          prcLicenseNumber: prcNumber,
+          profession: 'Veterinary Medicine',
+          registrationDate,
+          expirationDate,
+          prcIdPhoto: prcIdPhotoBase64 || null,
+          clinicId: selectedClinic,
+          branchId: selectedBranch
+        })
+      })
+
+      const verificationData = await verificationRes.json()
+
+      if (verificationData.status !== 'SUCCESS') {
+        setSubmitError(verificationData.message || 'Failed to submit verification')
+        setSubmitting(false)
+        return
+      }
+
+      // Submit vet application to the clinic
+      const applicationRes = await fetch(`${API_URL}/vet-applications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          clinicId: selectedClinic,
+          branchId: selectedBranch,
+          verificationId: verificationData.data.verification._id
+        })
+      })
+
+      const applicationData = await applicationRes.json()
+
+      if (applicationData.status !== 'SUCCESS') {
+        setSubmitError(applicationData.message || 'Failed to submit application')
+        setSubmitting(false)
+        return
+      }
+
+      // Store data in sessionStorage for the verification-pending page to display
+      const prcLicenseData = {
+        firstName, lastName, middleName, suffix,
+        prcNumber, registrationDate, expirationDate, fileName
+      }
+      sessionStorage.setItem('prcLicenseData', JSON.stringify(prcLicenseData))
+
+      const selectedClinicObj = clinics.find(c => c._id === selectedClinic)
+      const selectedBranchObj = selectedClinicObj?.branches.find(b => b._id === selectedBranch)
+      const clinicData = {
+        clinicId: selectedClinic,
+        branchId: selectedBranch,
+        clinicName: selectedClinicObj?.name,
+        branchName: selectedBranchObj?.name
+      }
+      sessionStorage.setItem('clinicData', JSON.stringify(clinicData))
+
+      router.push('/onboarding/vet/verification-pending')
+    } catch (err) {
+      console.error('Submission error:', err)
+      setSubmitError('An error occurred. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const userData = useAuthStore((state) => state.user)
@@ -393,8 +452,15 @@ export default function VetOnboardingPage() {
                   onFilesChange={(files) => {
                     if (files.length > 0 && files[0].file instanceof File) {
                       setFileName(files[0].file.name)
+                      // Convert file to base64 for storage
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        setPrcIdPhotoBase64(reader.result as string)
+                      }
+                      reader.readAsDataURL(files[0].file)
                     } else {
                       setFileName('')
+                      setPrcIdPhotoBase64('')
                     }
                   }}
                 />
@@ -452,78 +518,96 @@ export default function VetOnboardingPage() {
 
             {/* Clinic List */}
             <div className="space-y-4 mb-8 max-h-96 overflow-y-auto">
-              {filteredClinics.map((clinic) => (
-                <div key={clinic.id} className="border border-gray-200 rounded-2xl overflow-hidden">
-                  {/* Clinic Header */}
-                  <div
-                    onClick={() => handleClinicSelect(clinic.id)}
-                    className={`flex items-center justify-between p-5 cursor-pointer transition-colors ${
-                      selectedClinic === clinic.id ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gray-200 rounded-xl"></div>
-                      <div>
-                        <h3 className="font-semibold text-[#4F4F4F]">{clinic.name}</h3>
-                        <p className="text-sm text-gray-500">{clinic.branches.length} Branches</p>
+              {loadingClinics ? (
+                <div className="text-center py-12">
+                  <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">Loading clinics...</p>
+                </div>
+              ) : filteredClinics.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No clinics found. Please check back later.</p>
+                </div>
+              ) : (
+                filteredClinics.map((clinic) => (
+                  <div key={clinic._id} className="border border-gray-200 rounded-2xl overflow-hidden">
+                    {/* Clinic Header */}
+                    <div
+                      onClick={() => handleClinicSelect(clinic._id)}
+                      className={`flex items-center justify-between p-5 cursor-pointer transition-colors ${
+                        selectedClinic === clinic._id ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-gray-200 rounded-xl"></div>
+                        <div>
+                          <h3 className="font-semibold text-[#4F4F4F]">{clinic.name}</h3>
+                          <p className="text-sm text-gray-500">{clinic.branches.length} Branch{clinic.branches.length !== 1 ? 'es' : ''}</p>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        selectedClinic === clinic._id
+                          ? 'border-[#7FA5A3] bg-[#7FA5A3]'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedClinic === clinic._id && (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        )}
                       </div>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      selectedClinic === clinic.id
-                        ? 'border-[#7FA5A3] bg-[#7FA5A3]'
-                        : 'border-gray-300'
-                    }`}>
-                      {selectedClinic === clinic.id && (
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Branches (Expandable) */}
-                  {expandedClinic === clinic.id && (
-                    <div className="bg-gray-50 px-5 pb-5">
-                      <p className="text-sm font-medium text-gray-600 mb-3">Select Branch</p>
-                      <div className="space-y-2">
-                        {clinic.branches.map((branch) => (
-                          <div
-                            key={branch.id}
-                            onClick={() => handleBranchSelect(branch.id)}
-                            className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-colors ${
-                              selectedBranch === branch.id
-                                ? 'bg-[#7FA5A3]/10 border border-[#7FA5A3]'
-                                : 'bg-white border border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                selectedBranch === branch.id
-                                  ? 'border-[#7FA5A3]'
-                                  : 'border-gray-300'
-                              }`}>
-                                {selectedBranch === branch.id && (
-                                  <div className="w-2.5 h-2.5 bg-[#7FA5A3] rounded-full"></div>
-                                )}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-[#4F4F4F]">{branch.name}</span>
-                                  {branch.isMain && (
-                                    <span className="px-2 py-0.5 bg-[#7FA5A3] text-white text-xs rounded-full">
-                                      MAIN
-                                    </span>
+                    {/* Branches (Expandable) */}
+                    {expandedClinic === clinic._id && (
+                      <div className="bg-gray-50 px-5 pb-5">
+                        <p className="text-sm font-medium text-gray-600 mb-3">Select Branch</p>
+                        <div className="space-y-2">
+                          {clinic.branches.map((branch) => (
+                            <div
+                              key={branch._id}
+                              onClick={() => handleBranchSelect(branch._id)}
+                              className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-colors ${
+                                selectedBranch === branch._id
+                                  ? 'bg-[#7FA5A3]/10 border border-[#7FA5A3]'
+                                  : 'bg-white border border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  selectedBranch === branch._id
+                                    ? 'border-[#7FA5A3]'
+                                    : 'border-gray-300'
+                                }`}>
+                                  {selectedBranch === branch._id && (
+                                    <div className="w-2.5 h-2.5 bg-[#7FA5A3] rounded-full"></div>
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-500">{branch.address}</p>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-[#4F4F4F]">{branch.name}</span>
+                                    {branch.isMain && (
+                                      <span className="px-2 py-0.5 bg-[#7FA5A3] text-white text-xs rounded-full">
+                                        MAIN
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-500">{branch.address}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                ))
+              )}
             </div>
+
+            {/* Submit Error */}
+            {submitError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm text-red-600">{submitError}</p>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex items-center justify-between pt-6 border-t border-gray-200">
@@ -539,10 +623,11 @@ export default function VetOnboardingPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+                disabled={submitting}
+                className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Submit for Verification
-                <ArrowRight className="w-5 h-5" />
+                {submitting ? 'Submitting...' : 'Submit for Verification'}
+                {!submitting && <ArrowRight className="w-5 h-5" />}
               </button>
             </div>
           </div>

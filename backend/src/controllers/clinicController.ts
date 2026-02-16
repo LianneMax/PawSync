@@ -105,7 +105,7 @@ export const addBranch = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const { name, address, phone, email, isMain } = req.body;
+    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain } = req.body;
 
     // If this branch is set as main, unset the current main branch
     if (isMain) {
@@ -119,8 +119,13 @@ export const addBranch = async (req: Request, res: Response) => {
       clinicId: clinic._id,
       name,
       address,
+      city: city || null,
+      province: province || null,
       phone: phone || null,
       email: email || null,
+      openingTime: openingTime || null,
+      closingTime: closingTime || null,
+      operatingDays: operatingDays || [],
       isMain: isMain || false
     });
 
@@ -160,7 +165,7 @@ export const updateBranch = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
 
-    const { name, address, phone, email, isMain, isActive } = req.body;
+    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain, isActive } = req.body;
 
     // If setting as main, unset the current main branch first
     if (isMain && !branch.isMain) {
@@ -170,7 +175,7 @@ export const updateBranch = async (req: Request, res: Response) => {
       );
     }
 
-    const allowedFields: Record<string, any> = { name, address, phone, email, isMain, isActive };
+    const allowedFields: Record<string, any> = { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain, isActive };
     for (const [key, value] of Object.entries(allowedFields)) {
       if (value !== undefined) {
         (branch as any)[key] = value;

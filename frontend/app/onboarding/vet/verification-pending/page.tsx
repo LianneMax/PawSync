@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Edit } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 interface SubmissionData {
   fullName: string
@@ -15,16 +16,15 @@ interface SubmissionData {
 
 export default function VerificationPendingPage() {
   const router = useRouter()
+  const { user } = useAuthStore()
   const [submissionData, setSubmissionData] = useState<SubmissionData | null>(null)
 
   useEffect(() => {
     // Get data from sessionStorage
     const prcData = sessionStorage.getItem('prcLicenseData')
-    const signupData = sessionStorage.getItem('signupData')
 
-    if (prcData && signupData) {
+    if (prcData) {
       const prc = JSON.parse(prcData)
-      const signup = JSON.parse(signupData)
 
       const fullName = `${prc.firstName} ${prc.middleName ? prc.middleName + ' ' : ''}${prc.lastName}${prc.suffix ? ', ' + prc.suffix : ''}`
 
@@ -34,10 +34,10 @@ export default function VerificationPendingPage() {
         registrationDate: formatDate(prc.registrationDate),
         expirationDate: formatDate(prc.expirationDate),
         submittedDate: formatDate(new Date().toISOString().split('T')[0]),
-        email: signup.email
+        email: user?.email || ''
       })
     }
-  }, [])
+  }, [user])
 
   const formatDate = (dateString: string) => {
     if (!dateString) return ''

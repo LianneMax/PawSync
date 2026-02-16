@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import {
   CheckCircle2,
@@ -14,44 +14,56 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useAuthStore } from '@/store/authStore'
 
 // ==================== TYPES ====================
 
-interface VerificationRequest {
-  id: string
-  name: string
+interface VetUser {
+  _id: string
+  firstName: string
+  lastName: string
   email: string
-  initials: string
-  status: 'Pending' | 'Verified' | 'Rejected'
-  prcLicenseNumber: string
-  profession: string
-  dateOfRegistration: string
-  expirationDate: string
-  rejectionReason?: string
 }
 
-// ==================== MOCK DATA ====================
+interface BranchRef {
+  _id: string
+  name: string
+}
 
-const mockRequests: VerificationRequest[] = [
-  { id: '1', name: 'Maria Cruz Santos', email: 'maria.santos@email.com', initials: 'MS', status: 'Pending', prcLicenseNumber: '0045678', profession: 'Veterinary Medicine', dateOfRegistration: 'June 15, 2020', expirationDate: 'December 31, 2026' },
-  { id: '2', name: 'Carlos Rivera', email: 'carlos.rivera@email.com', initials: 'CR', status: 'Pending', prcLicenseNumber: '0067890', profession: 'Veterinary Medicine', dateOfRegistration: 'March 10, 2019', expirationDate: 'September 30, 2026' },
-  { id: '3', name: 'Sofia Garcia', email: 'sofia.garcia@email.com', initials: 'SG', status: 'Verified', prcLicenseNumber: '0034567', profession: 'Veterinary Medicine', dateOfRegistration: 'January 5, 2018', expirationDate: 'July 31, 2027' },
-  { id: '4', name: 'Miguel Torres', email: 'miguel.torres@email.com', initials: 'MT', status: 'Verified', prcLicenseNumber: '0012345', profession: 'Veterinary Medicine', dateOfRegistration: 'August 20, 2017', expirationDate: 'February 28, 2027' },
-  { id: '5', name: 'Ana Reyes', email: 'ana.reyes@email.com', initials: 'AR', status: 'Rejected', prcLicenseNumber: '0098765', profession: 'Veterinary Medicine', dateOfRegistration: 'April 12, 2021', expirationDate: 'October 31, 2026', rejectionReason: 'The uploaded PRC ID photo is blurry and the license number is not clearly visible.' },
-  { id: '6', name: 'David Lim', email: 'david.lim@email.com', initials: 'DL', status: 'Rejected', prcLicenseNumber: '0076543', profession: 'Veterinary Medicine', dateOfRegistration: 'November 1, 2020', expirationDate: 'May 31, 2026', rejectionReason: 'License has expired. Please submit a renewed PRC license.' },
-]
+interface VerificationRequest {
+  _id: string
+  vetId: VetUser
+  firstName: string
+  lastName: string
+  middleName: string | null
+  suffix: string | null
+  prcLicenseNumber: string
+  profession: string
+  registrationDate: string
+  expirationDate: string
+  prcIdPhoto: string | null
+  status: 'pending' | 'verified' | 'rejected'
+  rejectionReason: string | null
+  branchId: BranchRef | null
+  createdAt: string
+}
 
 // ==================== STATUS BADGE ====================
 
 function VerificationStatusBadge({ status }: { status: VerificationRequest['status'] }) {
   const styles = {
-    Pending: 'bg-orange-100 text-orange-700',
-    Verified: 'bg-green-100 text-green-700',
-    Rejected: 'bg-red-100 text-red-700',
+    pending: 'bg-orange-100 text-orange-700',
+    verified: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-700',
+  }
+  const labels = {
+    pending: 'Pending',
+    verified: 'Verified',
+    rejected: 'Rejected',
   }
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status]}`}>
-      {status}
+      {labels[status]}
     </span>
   )
 }
@@ -59,8 +71,10 @@ function VerificationStatusBadge({ status }: { status: VerificationRequest['stat
 // ==================== MAIN COMPONENT ====================
 
 export default function VerificationPage() {
-  const [requests, setRequests] = useState(mockRequests)
-  const [activeTab, setActiveTab] = useState<'Pending' | 'Verified' | 'Rejected'>('Pending')
+  const { token } = useAuthStore()
+  const [requests, setRequests] = useState<VerificationRequest[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'rejected'>('pending')
   const [verifyChecked, setVerifyChecked] = useState<Record<string, boolean>>({})
 
   // Modal states
@@ -68,36 +82,113 @@ export default function VerificationPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
 
-  const pendingCount = requests.filter(r => r.status === 'Pending').length
-  const verifiedCount = requests.filter(r => r.status === 'Verified').length
-  const rejectedCount = requests.filter(r => r.status === 'Rejected').length
+  // Photo viewer
+  const [viewPhotoOpen, setViewPhotoOpen] = useState(false)
+  const [viewPhotoSrc, setViewPhotoSrc] = useState('')
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
+  const fetchVerifications = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/verifications/clinic`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        setRequests(data.data.verifications)
+      }
+    } catch (err) {
+      console.error('Failed to fetch verifications:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [token, API_URL])
+
+  useEffect(() => {
+    fetchVerifications()
+  }, [fetchVerifications])
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length
+  const verifiedCount = requests.filter(r => r.status === 'verified').length
+  const rejectedCount = requests.filter(r => r.status === 'rejected').length
 
   const filtered = requests.filter(r => r.status === activeTab)
 
-  const handleReject = () => {
-    if (!selectedRequest || !rejectionReason.trim()) return
-    setRequests(prev => prev.map(r =>
-      r.id === selectedRequest.id ? { ...r, status: 'Rejected' as const, rejectionReason } : r
-    ))
-    setRejectOpen(false)
-    setRejectionReason('')
-    setSelectedRequest(null)
+  const getInitials = (req: VerificationRequest) => {
+    const first = req.firstName?.[0] || ''
+    const last = req.lastName?.[0] || ''
+    return (first + last).toUpperCase()
   }
 
-  const handleVerify = () => {
-    if (!selectedRequest) return
-    setRequests(prev => prev.map(r =>
-      r.id === selectedRequest.id ? { ...r, status: 'Verified' as const } : r
-    ))
-    setConfirmOpen(false)
-    setSelectedRequest(null)
+  const getFullName = (req: VerificationRequest) => {
+    let name = `${req.firstName} ${req.middleName ? req.middleName + ' ' : ''}${req.lastName}`
+    if (req.suffix) name += `, ${req.suffix}`
+    return name
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+
+  const handleReject = async () => {
+    if (!selectedRequest || !rejectionReason.trim() || !token) return
+    setActionLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/verifications/${selectedRequest._id}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason: rejectionReason })
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        await fetchVerifications()
+        setRejectOpen(false)
+        setRejectionReason('')
+        setSelectedRequest(null)
+      }
+    } catch (err) {
+      console.error('Reject error:', err)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleVerify = async () => {
+    if (!selectedRequest || !token) return
+    setActionLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/verifications/${selectedRequest._id}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        await fetchVerifications()
+        setConfirmOpen(false)
+        setSelectedRequest(null)
+      }
+    } catch (err) {
+      console.error('Verify error:', err)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const tabs = [
-    { key: 'Pending' as const, label: 'Pending', count: pendingCount },
-    { key: 'Verified' as const, label: 'Verified', count: verifiedCount },
-    { key: 'Rejected' as const, label: 'Rejected', count: rejectedCount },
+    { key: 'pending' as const, label: 'Pending', count: pendingCount },
+    { key: 'verified' as const, label: 'Verified', count: verifiedCount },
+    { key: 'rejected' as const, label: 'Rejected', count: rejectedCount },
   ]
 
   return (
@@ -133,111 +224,147 @@ export default function VerificationPage() {
 
         {/* Request Cards */}
         <div className="space-y-6">
-          {filtered.length === 0 && (
+          {loading ? (
+            <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+              <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-500">Loading verification requests...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
               <CheckCircle2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No {activeTab.toLowerCase()} verification requests</p>
+              <p className="text-gray-500">No {activeTab} verification requests</p>
             </div>
+          ) : (
+            filtered.map((req) => (
+              <div key={req._id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                {/* Profile header */}
+                <div className="p-6 flex items-center gap-4 border-b border-gray-100">
+                  <div className="w-12 h-12 bg-[#F1F0ED] rounded-full flex items-center justify-center shrink-0">
+                    <span className="text-[#4F4F4F] font-semibold">{getInitials(req)}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold text-[#4F4F4F]">{getFullName(req)}</h3>
+                      <VerificationStatusBadge status={req.status} />
+                    </div>
+                    <p className="text-sm text-gray-500">{req.vetId?.email || ''}</p>
+                  </div>
+                </div>
+
+                {/* PRC Details */}
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-[#F8F6F2] rounded-xl p-4">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">PRC License Number</p>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">{req.prcLicenseNumber}</p>
+                    </div>
+                    <div className="bg-[#F8F6F2] rounded-xl p-4">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Profession</p>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">{req.profession}</p>
+                    </div>
+                    <div className="bg-[#F8F6F2] rounded-xl p-4">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Date of Registration</p>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">{formatDate(req.registrationDate)}</p>
+                    </div>
+                    <div className="bg-[#F8F6F2] rounded-xl p-4">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Expiration Date</p>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">{formatDate(req.expirationDate)}</p>
+                    </div>
+                  </div>
+
+                  {/* PRC ID Photo */}
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-[#4F4F4F] mb-3">PRC ID Photo</h4>
+                    <div className="flex items-center gap-4">
+                      {req.prcIdPhoto ? (
+                        <div className="w-32 h-24 bg-[#F1F0ED] rounded-xl flex items-center justify-center border border-gray-200 overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={req.prcIdPhoto} alt="PRC ID" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-32 h-24 bg-[#F1F0ED] rounded-xl flex items-center justify-center border border-gray-200">
+                          <span className="text-xs text-gray-400">No photo</span>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {req.prcIdPhoto && (
+                          <>
+                            <button
+                              onClick={() => { setViewPhotoSrc(req.prcIdPhoto!); setViewPhotoOpen(true) }}
+                              className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View Full Size
+                            </button>
+                            <a
+                              href={req.prcIdPhoto}
+                              download="prc-id.png"
+                              className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Download
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rejected reason */}
+                  {req.status === 'rejected' && req.rejectionReason && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                      <p className="text-sm font-medium text-red-700 mb-1">Rejection Reason</p>
+                      <p className="text-sm text-red-600">{req.rejectionReason}</p>
+                    </div>
+                  )}
+
+                  {/* Actions for pending */}
+                  {req.status === 'pending' && (
+                    <>
+                      <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={verifyChecked[req._id] || false}
+                          onChange={(e) => setVerifyChecked(prev => ({ ...prev, [req._id]: e.target.checked }))}
+                          className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
+                        />
+                        <span className="text-sm text-gray-600">Verify license details match the uploaded ID photo</span>
+                      </label>
+
+                      <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                        <button
+                          onClick={() => { setSelectedRequest(req); setRejectOpen(true) }}
+                          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
+                        >
+                          <XCircle className="w-4 h-4" /> Reject
+                        </button>
+                        <button
+                          onClick={() => { setSelectedRequest(req); setConfirmOpen(true) }}
+                          disabled={!verifyChecked[req._id]}
+                          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <CheckCircle2 className="w-4 h-4" /> Mark as Verified
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))
           )}
-
-          {filtered.map((req) => (
-            <div key={req.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              {/* Profile header */}
-              <div className="p-6 flex items-center gap-4 border-b border-gray-100">
-                <div className="w-12 h-12 bg-[#F1F0ED] rounded-full flex items-center justify-center shrink-0">
-                  <span className="text-[#4F4F4F] font-semibold">{req.initials}</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-[#4F4F4F]">{req.name}</h3>
-                    <VerificationStatusBadge status={req.status} />
-                  </div>
-                  <p className="text-sm text-gray-500">{req.email}</p>
-                </div>
-              </div>
-
-              {/* PRC Details */}
-              <div className="p-6">
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-[#F8F6F2] rounded-xl p-4">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">PRC License Number</p>
-                    <p className="text-sm font-semibold text-[#4F4F4F]">{req.prcLicenseNumber}</p>
-                  </div>
-                  <div className="bg-[#F8F6F2] rounded-xl p-4">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Profession</p>
-                    <p className="text-sm font-semibold text-[#4F4F4F]">{req.profession}</p>
-                  </div>
-                  <div className="bg-[#F8F6F2] rounded-xl p-4">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Date of Registration</p>
-                    <p className="text-sm font-semibold text-[#4F4F4F]">{req.dateOfRegistration}</p>
-                  </div>
-                  <div className="bg-[#F8F6F2] rounded-xl p-4">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Expiration Date</p>
-                    <p className="text-sm font-semibold text-[#4F4F4F]">{req.expirationDate}</p>
-                  </div>
-                </div>
-
-                {/* PRC ID Photo */}
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-[#4F4F4F] mb-3">PRC ID Photo</h4>
-                  <div className="flex items-center gap-4">
-                    <div className="w-32 h-24 bg-[#F1F0ED] rounded-xl flex items-center justify-center border border-gray-200">
-                      <span className="text-xs text-gray-400">PRC ID</span>
-                    </div>
-                    <div className="space-y-2">
-                      <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <Eye className="w-3.5 h-3.5" /> View Full Size
-                      </button>
-                      <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <Download className="w-3.5 h-3.5" /> Download
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rejected reason */}
-                {req.status === 'Rejected' && req.rejectionReason && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-                    <p className="text-sm font-medium text-red-700 mb-1">Rejection Reason</p>
-                    <p className="text-sm text-red-600">{req.rejectionReason}</p>
-                  </div>
-                )}
-
-                {/* Actions for pending */}
-                {req.status === 'Pending' && (
-                  <>
-                    <label className="flex items-center gap-2 mb-4 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={verifyChecked[req.id] || false}
-                        onChange={(e) => setVerifyChecked(prev => ({ ...prev, [req.id]: e.target.checked }))}
-                        className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
-                      />
-                      <span className="text-sm text-gray-600">Verify license details match the uploaded ID photo</span>
-                    </label>
-
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                      <button
-                        onClick={() => { setSelectedRequest(req); setRejectOpen(true) }}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
-                      >
-                        <XCircle className="w-4 h-4" /> Reject
-                      </button>
-                      <button
-                        onClick={() => { setSelectedRequest(req); setConfirmOpen(true) }}
-                        disabled={!verifyChecked[req.id]}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <CheckCircle2 className="w-4 h-4" /> Mark as Verified
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
+
+      {/* ==================== VIEW PHOTO MODAL ==================== */}
+      <Dialog open={viewPhotoOpen} onOpenChange={setViewPhotoOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">PRC ID Photo</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {viewPhotoSrc && <img src={viewPhotoSrc} alt="PRC ID Full Size" className="max-w-full max-h-[70vh] rounded-xl" />}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ==================== REJECT MODAL ==================== */}
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
@@ -270,10 +397,10 @@ export default function VerificationPage() {
             </button>
             <button
               onClick={handleReject}
-              disabled={!rejectionReason.trim()}
+              disabled={!rejectionReason.trim() || actionLoading}
               className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Reject Verification
+              {actionLoading ? 'Rejecting...' : 'Reject Verification'}
             </button>
           </div>
         </DialogContent>
@@ -291,7 +418,7 @@ export default function VerificationPage() {
               <CheckCircle2 className="w-8 h-8 text-green-500" />
             </div>
             <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">
-              Verify {selectedRequest?.name}?
+              Verify {selectedRequest ? getFullName(selectedRequest) : ''}?
             </h3>
             <p className="text-sm text-gray-500">
               By confirming, you acknowledge that you have reviewed the submitted PRC license details and ID photo, and they are valid and authentic.
@@ -302,7 +429,7 @@ export default function VerificationPage() {
             <div className="bg-[#F8F6F2] rounded-xl p-4 text-center">
               <p className="text-sm text-gray-500">License Details:</p>
               <p className="text-sm font-medium text-[#4F4F4F] mt-1">
-                <strong>PRC No.:</strong> {selectedRequest.prcLicenseNumber} &bull; <strong>Expires:</strong> {selectedRequest.expirationDate}
+                <strong>PRC No.:</strong> {selectedRequest.prcLicenseNumber} &bull; <strong>Expires:</strong> {formatDate(selectedRequest.expirationDate)}
               </p>
             </div>
           )}
@@ -311,8 +438,12 @@ export default function VerificationPage() {
             <button onClick={() => setConfirmOpen(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
               Cancel
             </button>
-            <button onClick={handleVerify} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors">
-              Confirm Verification
+            <button
+              onClick={handleVerify}
+              disabled={actionLoading}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-green-500 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {actionLoading ? 'Verifying...' : 'Confirm Verification'}
             </button>
           </div>
         </DialogContent>

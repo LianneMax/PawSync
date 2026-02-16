@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User, { IUser } from '../models/User';
+import Clinic from '../models/Clinic';
+import ClinicBranch from '../models/ClinicBranch';
 import { Resend } from 'resend';
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'your-secret-key';
@@ -78,10 +80,19 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Validate user type
-    if (!['pet-owner', 'veterinarian'].includes(userType)) {
+    if (!['pet-owner', 'veterinarian', 'clinic-admin'].includes(userType)) {
       return res.status(400).json({
         status: 'ERROR',
-        message: 'Invalid user type. Must be "pet-owner" or "veterinarian"'
+        message: 'Invalid user type. Must be "pet-owner", "veterinarian", or "clinic-admin"'
+      });
+    }
+
+    // Clinic admin requires clinicName
+    const { clinicName } = req.body;
+    if (userType === 'clinic-admin' && !clinicName) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Clinic name is required for clinic admin registration'
       });
     }
 
@@ -92,8 +103,24 @@ export const register = async (req: Request, res: Response) => {
       email: email.toLowerCase(),
       password,
       userType,
-      isVerified: userType === 'pet-owner' // Pet owners are auto-verified, vets need license verification
+      isVerified: userType !== 'veterinarian' // Pet owners and clinic admins are auto-verified
     });
+
+    // Auto-create Clinic and main branch for clinic-admin
+    if (userType === 'clinic-admin') {
+      const clinic = await Clinic.create({
+        name: clinicName,
+        adminId: newUser._id,
+        email: email.toLowerCase()
+      });
+
+      await ClinicBranch.create({
+        clinicId: clinic._id,
+        name: 'Main Branch',
+        address: 'To be updated',
+        isMain: true
+      });
+    }
 
     // Generate token
     const token = generateToken(newUser);
