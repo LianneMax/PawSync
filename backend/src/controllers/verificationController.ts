@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import VetVerification from '../models/VetVerification';
+import VetApplication from '../models/VetApplication';
+import AssignedVet from '../models/AssignedVet';
 import Clinic from '../models/Clinic';
+import ClinicBranch from '../models/ClinicBranch';
 import User from '../models/User';
 
 /**
@@ -141,6 +144,40 @@ export const approveVerification = async (req: Request, res: Response) => {
 
     // Also mark the vet user as verified
     await User.findByIdAndUpdate(verification.vetId, { isVerified: true });
+
+    // Auto-approve the vet's pending application for this clinic and create AssignedVet
+    const pendingApplication = await VetApplication.findOne({
+      vetId: verification.vetId,
+      clinicId: clinic._id,
+      status: 'pending'
+    });
+
+    if (pendingApplication) {
+      pendingApplication.status = 'approved';
+      pendingApplication.reviewedBy = req.user.userId as any;
+      pendingApplication.reviewedAt = new Date();
+      pendingApplication.verificationId = verification._id as any;
+      await pendingApplication.save();
+
+      // Create AssignedVet record for the branch
+      const branch = await ClinicBranch.findById(pendingApplication.branchId);
+      const existingAssignment = await AssignedVet.findOne({
+        vetId: verification.vetId,
+        clinicBranchId: pendingApplication.branchId,
+        petId: null
+      });
+
+      if (!existingAssignment) {
+        await AssignedVet.create({
+          vetId: verification.vetId,
+          clinicId: clinic._id,
+          clinicBranchId: pendingApplication.branchId,
+          clinicName: clinic.name,
+          clinicAddress: branch?.address || null,
+          assignedAt: new Date()
+        });
+      }
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',

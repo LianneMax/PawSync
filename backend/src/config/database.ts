@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
+import AssignedVet from '../models/AssignedVet';
 
 let gridfsBucket: GridFSBucket;
 
@@ -31,6 +32,9 @@ export const connectDatabase = async (): Promise<void> => {
     });
 
     console.log('✅ GridFS Bucket initialized');
+
+    // Sync indexes for models with updated index definitions
+    await AssignedVet.syncIndexes();
 
   } catch (error) {
     console.error('❌ Error connecting to MongoDB:', error);

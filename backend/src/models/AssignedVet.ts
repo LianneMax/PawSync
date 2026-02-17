@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAssignedVet extends Document {
   vetId: mongoose.Types.ObjectId;
-  petId: mongoose.Types.ObjectId;
+  petId: mongoose.Types.ObjectId | null;
   clinicId: mongoose.Types.ObjectId | null;
   clinicBranchId: mongoose.Types.ObjectId | null;
   clinicName: string;
@@ -26,7 +26,7 @@ const AssignedVetSchema = new Schema(
     petId: {
       type: Schema.Types.ObjectId,
       ref: 'Pet',
-      required: [true, 'Pet is required'],
+      default: null,
       index: true
     },
     clinicId: {
@@ -71,7 +71,16 @@ const AssignedVetSchema = new Schema(
   }
 );
 
-// Prevent duplicate vet-pet assignments
-AssignedVetSchema.index({ vetId: 1, petId: 1 }, { unique: true });
+// Prevent duplicate vet-pet assignments (only when petId is an ObjectId, not null)
+AssignedVetSchema.index(
+  { vetId: 1, petId: 1 },
+  { unique: true, partialFilterExpression: { petId: { $type: 'objectId' } } }
+);
+
+// Prevent duplicate vet-branch assignments (clinic-level, where petId is null)
+AssignedVetSchema.index(
+  { vetId: 1, clinicBranchId: 1 },
+  { unique: true, partialFilterExpression: { clinicBranchId: { $type: 'objectId' } } }
+);
 
 export default mongoose.model<IAssignedVet>('AssignedVet', AssignedVetSchema);
