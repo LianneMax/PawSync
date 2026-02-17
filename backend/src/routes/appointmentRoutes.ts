@@ -6,9 +6,13 @@ import {
   getVetAppointments,
   cancelAppointment,
   updateAppointmentStatus,
-  getVetsForBranch
+  getVetsForBranch,
+  searchPetOwners,
+  getPetsForOwner,
+  createClinicAppointment,
+  getClinicAppointments
 } from '../controllers/appointmentController';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -53,5 +57,31 @@ router.patch('/:id/cancel', authMiddleware, cancelAppointment);
  * Update appointment status (confirm/complete)
  */
 router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
+
+// ==================== CLINIC ADMIN ROUTES ====================
+
+/**
+ * GET /api/appointments/clinic/search-owners?q=...
+ * Search pet owners by name (clinic admin)
+ */
+router.get('/clinic/search-owners', authMiddleware, clinicAdminOnly, searchPetOwners);
+
+/**
+ * GET /api/appointments/clinic/owner-pets?ownerId=...
+ * Get pets for a specific owner (clinic admin)
+ */
+router.get('/clinic/owner-pets', authMiddleware, clinicAdminOnly, getPetsForOwner);
+
+/**
+ * POST /api/appointments/clinic
+ * Create appointment on behalf of a pet owner (clinic admin)
+ */
+router.post('/clinic', authMiddleware, clinicAdminOnly, createClinicAppointment);
+
+/**
+ * GET /api/appointments/clinic?date=...&branchId=...&filter=upcoming|previous
+ * Get all appointments for the clinic (clinic admin)
+ */
+router.get('/clinic', authMiddleware, clinicAdminOnly, getClinicAppointments);
 
 export default router;

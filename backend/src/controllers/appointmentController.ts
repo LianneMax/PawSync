@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import Appointment from '../models/Appointment';
 import Pet from '../models/Pet';
+import User from '../models/User';
+import Clinic from '../models/Clinic';
 import VetApplication from '../models/VetApplication';
 import ClinicBranch from '../models/ClinicBranch';
 
@@ -340,5 +342,201 @@ export const getVetsForBranch = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get vets for branch error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
+  }
+};
+
+// ==================== CLINIC ADMIN ENDPOINTS ====================
+
+/**
+ * Search pet owners by name (clinic admin)
+ */
+export const searchPetOwners = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { q } = req.query;
+    if (!q || (q as string).trim().length < 2) {
+      return res.status(200).json({ status: 'SUCCESS', data: { owners: [] } });
+    }
+
+    const searchRegex = new RegExp((q as string).trim(), 'i');
+    const owners = await User.find({
+      userType: 'pet-owner',
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex }
+      ]
+    })
+      .select('firstName lastName email')
+      .limit(20)
+      .sort({ firstName: 1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { owners }
+    });
+  } catch (error) {
+    console.error('Search pet owners error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while searching pet owners' });
+  }
+};
+
+/**
+ * Get pets for a specific owner (clinic admin)
+ */
+export const getPetsForOwner = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId } = req.query;
+    if (!ownerId) {
+      return res.status(400).json({ status: 'ERROR', message: 'ownerId is required' });
+    }
+
+    const pets = await Pet.find({ ownerId: ownerId as string })
+      .select('name species breed photo')
+      .sort({ name: 1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { pets }
+    });
+  } catch (error) {
+    console.error('Get pets for owner error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching pets' });
+  }
+};
+
+/**
+ * Create an appointment on behalf of a pet owner (clinic admin)
+ */
+export const createClinicAppointment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes } = req.body;
+
+    if (!ownerId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Owner is required' });
+    }
+
+    // Verify the pet belongs to the specified owner
+    const pet = await Pet.findById(petId);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+    if (pet.ownerId.toString() !== ownerId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Pet does not belong to the selected owner' });
+    }
+
+    // Validate types based on mode
+    if (mode === 'online') {
+      if (types.length !== 1 || types[0] !== 'consultation') {
+        return res.status(400).json({ status: 'ERROR', message: 'Online appointments can only be for consultation' });
+      }
+    }
+
+    // Check if the slot is already taken
+    const existing = await Appointment.findOne({
+      vetId,
+      date: new Date(date),
+      startTime,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (existing) {
+      return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+    }
+
+    const appointment = await Appointment.create({
+      petId,
+      ownerId,
+      vetId,
+      clinicId,
+      clinicBranchId,
+      mode,
+      types,
+      date: new Date(date),
+      startTime,
+      endTime,
+      notes: notes || null,
+      status: 'confirmed' // Clinic admin appointments are auto-confirmed
+    });
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Appointment booked successfully',
+      data: { appointment }
+    });
+  } catch (error: any) {
+    console.error('Create clinic appointment error:', error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
+    }
+    if (error.code === 11000) {
+      return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while booking the appointment' });
+  }
+};
+
+/**
+ * Get all appointments for the clinic admin's clinic (for calendar view)
+ */
+export const getClinicAppointments = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { date, branchId, filter } = req.query;
+    const query: any = { clinicId: clinic._id };
+
+    if (branchId) {
+      query.clinicBranchId = branchId;
+    }
+
+    if (date) {
+      query.date = new Date(date as string);
+    }
+
+    const now = new Date();
+    if (filter === 'upcoming') {
+      query.status = { $in: ['pending', 'confirmed'] };
+      query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
+    } else if (filter === 'previous') {
+      query.$or = [
+        { date: { $lt: new Date(now.toISOString().split('T')[0]) } },
+        { status: { $in: ['completed', 'cancelled'] } }
+      ];
+    }
+
+    const appointments = await Appointment.find(query)
+      .populate('petId', 'name species breed photo')
+      .populate('ownerId', 'firstName lastName email')
+      .populate('vetId', 'firstName lastName email')
+      .populate('clinicBranchId', 'name address')
+      .sort({ date: 1, startTime: 1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { appointments }
+    });
+  } catch (error) {
+    console.error('Get clinic appointments error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching appointments' });
   }
 };
