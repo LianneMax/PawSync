@@ -9,6 +9,13 @@ import { getPetById, updatePet, type Pet as APIPet } from '@/lib/pets'
 import AvatarUpload from '@/components/avatar-upload'
 import { ArrowLeft, PawPrint, Pencil, Check, X, Camera } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 function calculateAge(dateOfBirth: string): string {
   const birth = new Date(dateOfBirth)
@@ -39,6 +46,8 @@ export default function PetProfilePage() {
   const [saving, setSaving] = useState(false)
   const [showPhotoUpload, setShowPhotoUpload] = useState(false)
   const [activeTab, setActiveTab] = useState<'basic' | 'nfc'>('basic')
+  const [showNfcModal, setShowNfcModal] = useState(false)
+  const [nfcReason, setNfcReason] = useState('')
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -476,11 +485,72 @@ export default function PetProfilePage() {
                   <DetailField label="NFC Tag ID" value={pet.nfcTagId || 'Not registered'} />
                   <DetailField label="Lost Status" value={pet.isLost ? 'Marked as Lost' : 'Safe'} highlight={pet.isLost} />
                 </div>
+
+                {/* Request NFC Tag Button */}
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={() => setShowNfcModal(true)}
+                    className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors"
+                  >
+                    Request for NFC Tag
+                  </button>
+                </div>
               </>
             )}
           </div>
         </div>
       </div>
+
+      {/* NFC Request Modal */}
+      <Dialog open={showNfcModal} onOpenChange={setShowNfcModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Request NFC Tag for {pet?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="reason" className="text-sm font-semibold text-gray-600">
+                Reason for Request <span className="text-gray-400 text-xs">(Optional)</span>
+              </label>
+              <select
+                id="reason"
+                value={nfcReason}
+                onChange={(e) => setNfcReason(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              >
+                <option value="">Select a reason (optional)</option>
+                <option value="lost_replacement">Lost/Damaged Tag Replacement</option>
+                <option value="upgrade">Upgrade to New Tag</option>
+                <option value="additional">Additional Tag</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <button
+              onClick={() => {
+                setShowNfcModal(false)
+                setNfcReason('')
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                toast('NFC Tag Request', {
+                  description: `Your request for an NFC tag${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
+                })
+                setShowNfcModal(false)
+                setNfcReason('')
+              }}
+              className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors"
+            >
+              Submit Request
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
