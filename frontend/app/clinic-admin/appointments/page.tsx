@@ -390,6 +390,16 @@ function CalendarGridView({
                                 {appt.status}
                               </span>
                             </div>
+                            <div className="flex flex-wrap items-center gap-1 mt-1">
+                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
+                                {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
+                              </span>
+                              {appt.types.map((t) => (
+                                <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
+                                  {t.replace('-', ' ')}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )
                       })}
