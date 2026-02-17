@@ -115,7 +115,7 @@ export default function ClinicManagementPage() {
 
   // Edit branch form
   const [editForm, setEditForm] = useState({
-    name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: '',
+    name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] as string[],
   })
 
   // Add branch form
@@ -205,15 +205,16 @@ export default function ClinicManagementPage() {
       email: branch.email,
       openingTime: branch.openingTime,
       closingTime: branch.closingTime,
-      operatingDays: branch.operatingDays,
+      operatingDays: branch.operatingDays ? branch.operatingDays.split(', ').filter(Boolean) : [],
     })
     setEditBranchOpen(true)
   }
 
   const handleSaveBranch = () => {
     if (!selectedBranch) return
+    const daysStr = editForm.operatingDays.join(', ')
     setBranches(prev => prev.map(b =>
-      b.id === selectedBranch.id ? { ...b, ...editForm, hours: `${editForm.operatingDays}: ${editForm.openingTime} - ${editForm.closingTime}` } : b
+      b.id === selectedBranch.id ? { ...b, ...editForm, operatingDays: daysStr, hours: editForm.openingTime && editForm.closingTime ? `${editForm.openingTime} - ${editForm.closingTime}` : '-' } : b
     ))
     setEditBranchOpen(false)
   }
@@ -664,17 +665,33 @@ export default function ClinicManagementPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Operating Days <span className="text-red-500">*</span></label>
-              <select
-                value={editForm.operatingDays}
-                onChange={(e) => setEditForm({...editForm, operatingDays: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm bg-white"
-              >
-                <option value="Mon-Fri">Monday - Friday</option>
-                <option value="Mon-Sat">Monday - Saturday</option>
-                <option value="Mon-Sun">Monday - Sunday</option>
-                <option value="Custom Schedule">Custom Schedule</option>
-              </select>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-red-500">*</span></label>
+              <div className="flex flex-wrap gap-2">
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
+                  const isSelected = editForm.operatingDays.includes(day)
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        setEditForm(prev => ({
+                          ...prev,
+                          operatingDays: isSelected
+                            ? prev.operatingDays.filter(d => d !== day)
+                            : [...prev.operatingDays, day],
+                        }))
+                      }}
+                      className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        isSelected
+                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                          : 'bg-white text-[#4F4F4F] border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
