@@ -38,6 +38,7 @@ export default function PetProfilePage() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showPhotoUpload, setShowPhotoUpload] = useState(false)
+  const [activeTab, setActiveTab] = useState<'basic' | 'nfc'>('basic')
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -310,11 +311,40 @@ export default function PetProfilePage() {
             </div>
           )}
 
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <div className="flex gap-8 px-6 lg:px-8">
+              <button
+                onClick={() => setActiveTab('basic')}
+                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                  activeTab === 'basic'
+                    ? 'border-[#7FA5A3] text-[#476B6B]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Basic Pet Information
+              </button>
+              <button
+                onClick={() => setActiveTab('nfc')}
+                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                  activeTab === 'nfc'
+                    ? 'border-[#7FA5A3] text-[#476B6B]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Manage NFC
+              </button>
+            </div>
+          </div>
+
           {/* Details */}
           <div className="p-6 lg:p-8">
-            {/* Basic Info Section */}
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Basic Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            {/* Basic Information Tab */}
+            {activeTab === 'basic' && (
+              <>
+                {/* Basic Info Section */}
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Basic Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               {/* Species - read only */}
               <DetailField label="Species" value={pet.species.charAt(0).toUpperCase() + pet.species.slice(1)} />
 
@@ -419,13 +449,6 @@ export default function PetProfilePage() {
               )}
             </div>
 
-            {/* NFC & ID Section */}
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Identification</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <DetailField label="NFC Tag ID" value={pet.nfcTagId || 'Not registered'} />
-              <DetailField label="Lost Status" value={pet.isLost ? 'Marked as Lost' : 'Safe'} highlight={pet.isLost} />
-            </div>
-
             {/* Notes - editable */}
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Notes</h3>
             {editing ? (
@@ -440,6 +463,20 @@ export default function PetProfilePage() {
               <div className="bg-[#F8F6F2] rounded-xl p-4">
                 <p className="text-sm text-[#4F4F4F]">{pet.notes || 'No notes added.'}</p>
               </div>
+            )}
+              </>
+            )}
+
+            {/* Manage NFC Tab */}
+            {activeTab === 'nfc' && (
+              <>
+                {/* NFC & ID Section */}
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Identification</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                  <DetailField label="NFC Tag ID" value={pet.nfcTagId || 'Not registered'} />
+                  <DetailField label="Lost Status" value={pet.isLost ? 'Marked as Lost' : 'Safe'} highlight={pet.isLost} />
+                </div>
+              </>
             )}
           </div>
         </div>
