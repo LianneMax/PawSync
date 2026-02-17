@@ -48,7 +48,8 @@ export default function PetProfilePage() {
   const [activeTab, setActiveTab] = useState<'basic' | 'nfc'>('basic')
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
-  const [isMarkingAsLost, setIsMarkingAsLost] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -160,7 +161,7 @@ export default function PetProfilePage() {
 
   const handleMarkAsLost = async () => {
     if (!pet || !token) return
-    setIsMarkingAsLost(true)
+    setIsSubmittingRequest(true)
     try {
       const response = await updatePet(petId, { isLost: true } as Partial<APIPet>, token)
       if (response.status === 'SUCCESS') {
@@ -172,7 +173,25 @@ export default function PetProfilePage() {
     } catch {
       toast('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
-      setIsMarkingAsLost(false)
+      setIsSubmittingRequest(false)
+    }
+  }
+
+  const handleSubmitPetTagRequest = async () => {
+    if (!pet || !token) return
+    setIsSubmittingRequest(true)
+    try {
+      // TODO: Replace with actual API call to submit pet tag replacement request
+      toast('Pet Tag Replacement Request', {
+        description: `Your request for a pet tag replacement${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
+      })
+      setShowNfcModal(false)
+      setShowConfirmation(false)
+      setNfcReason('')
+    } catch {
+      toast('Error', { description: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsSubmittingRequest(false)
     }
   }
 
@@ -508,7 +527,7 @@ export default function PetProfilePage() {
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
                   <button
-                    onClick={() => setShowNfcModal(true)}
+                    onClick={() => setShowConfirmation(true)}
                     disabled={!pet.nfcTagId}
                     className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -516,10 +535,10 @@ export default function PetProfilePage() {
                   </button>
                   <button
                     onClick={handleMarkAsLost}
-                    disabled={pet.isLost || isMarkingAsLost}
+                    disabled={pet.isLost || isSubmittingRequest}
                     className="px-6 py-2.5 bg-[#900B09] text-white font-semibold rounded-lg hover:bg-[#7A0907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isMarkingAsLost ? 'Marking...' : 'Mark as Lost'}
+                    {isSubmittingRequest ? 'Marking...' : 'Mark as Lost'}
                   </button>
                 </div>
               </>
@@ -528,11 +547,42 @@ export default function PetProfilePage() {
         </div>
       </div>
 
-      {/* Pet Tag Replacement Request Modal */}
+      {/* Confirmation Modal */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Request Pet Tag Replacement</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to request a pet tag replacement for <strong>{pet?.name}</strong>? Please provide a reason for the request in the next step.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowConfirmation(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowConfirmation(false)
+                setShowNfcModal(true)
+              }}
+              className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors"
+            >
+              Continue
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pet Tag Replacement Request Reason Modal */}
       <Dialog open={showNfcModal} onOpenChange={setShowNfcModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Request Pet Tag Replacement for {pet?.name}</DialogTitle>
+            <DialogTitle>Request Details for {pet?.name}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
@@ -564,16 +614,11 @@ export default function PetProfilePage() {
               Cancel
             </button>
             <button
-              onClick={() => {
-                toast('Pet Tag Replacement Request', {
-                  description: `Your request for a pet tag replacement${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
-                })
-                setShowNfcModal(false)
-                setNfcReason('')
-              }}
-              className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors"
+              onClick={handleSubmitPetTagRequest}
+              disabled={isSubmittingRequest}
+              className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Request
+              {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
             </button>
           </DialogFooter>
         </DialogContent>
