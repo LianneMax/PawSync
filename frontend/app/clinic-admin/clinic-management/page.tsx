@@ -240,11 +240,23 @@ export default function ClinicManagementPage() {
     setSelectedVet(null)
   }
 
-  const handleRemoveBranch = () => {
-    if (!branchToRemove) return
-    setBranches(prev => prev.filter(b => b.id !== branchToRemove.id))
-    setRemoveBranchOpen(false)
-    setBranchToRemove(null)
+  const handleRemoveBranch = async () => {
+    if (!branchToRemove || !clinicId || !token) return
+    try {
+      const res = await authenticatedFetch(`/clinics/${clinicId}/branches/${branchToRemove.id}`, {
+        method: 'DELETE',
+      }, token)
+      if (res.status === 'SUCCESS') {
+        setBranches(prev => prev.filter(b => b.id !== branchToRemove.id))
+      } else {
+        console.error('Failed to delete branch:', res.message)
+      }
+    } catch (err) {
+      console.error('Failed to delete branch:', err)
+    } finally {
+      setRemoveBranchOpen(false)
+      setBranchToRemove(null)
+    }
   }
 
   const resetAddForm = () => {
