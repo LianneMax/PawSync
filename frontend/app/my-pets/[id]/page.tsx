@@ -48,6 +48,7 @@ export default function PetProfilePage() {
   const [activeTab, setActiveTab] = useState<'basic' | 'nfc'>('basic')
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
+  const [isMarkingAsLost, setIsMarkingAsLost] = useState(false)
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -154,6 +155,24 @@ export default function PetProfilePage() {
       toast('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleMarkAsLost = async () => {
+    if (!pet || !token) return
+    setIsMarkingAsLost(true)
+    try {
+      const response = await updatePet(petId, { isLost: true } as Partial<APIPet>, token)
+      if (response.status === 'SUCCESS') {
+        toast('Pet Marked as Lost', { description: `${pet.name} has been marked as lost. Vets will be notified.` })
+        await fetchPet()
+      } else {
+        toast('Error', { description: response.message || 'Failed to mark pet as lost.' })
+      }
+    } catch {
+      toast('Error', { description: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsMarkingAsLost(false)
     }
   }
 
@@ -486,13 +505,21 @@ export default function PetProfilePage() {
                   <DetailField label="Lost Status" value={pet.isLost ? 'Marked as Lost' : 'Safe'} highlight={pet.isLost} />
                 </div>
 
-                {/* Request NFC Tag Button */}
-                <div className="flex justify-center mt-8">
+                {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
                   <button
                     onClick={() => setShowNfcModal(true)}
-                    className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors"
+                    disabled={!pet.nfcTagId}
+                    className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Request for NFC Tag
+                    Request for Pet Tag Replacement
+                  </button>
+                  <button
+                    onClick={handleMarkAsLost}
+                    disabled={pet.isLost || isMarkingAsLost}
+                    className="px-6 py-2.5 bg-[#900B09] text-white font-semibold rounded-lg hover:bg-[#7A0907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isMarkingAsLost ? 'Marking...' : 'Mark as Lost'}
                   </button>
                 </div>
               </>
@@ -501,11 +528,11 @@ export default function PetProfilePage() {
         </div>
       </div>
 
-      {/* NFC Request Modal */}
+      {/* Pet Tag Replacement Request Modal */}
       <Dialog open={showNfcModal} onOpenChange={setShowNfcModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Request NFC Tag for {pet?.name}</DialogTitle>
+            <DialogTitle>Request Pet Tag Replacement for {pet?.name}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
@@ -538,8 +565,8 @@ export default function PetProfilePage() {
             </button>
             <button
               onClick={() => {
-                toast('NFC Tag Request', {
-                  description: `Your request for an NFC tag${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
+                toast('Pet Tag Replacement Request', {
+                  description: `Your request for a pet tag replacement${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
                 })
                 setShowNfcModal(false)
                 setNfcReason('')

@@ -171,17 +171,23 @@ export default function MyPetsPage() {
                     <PawPrint className="w-3.5 h-3.5" />
                     View Profile
                   </button>
-                  <button
-                    onClick={() => router.push(`/my-pets/${pet._id}/nfc`)}
-                    className={`text-sm font-semibold py-2.5 rounded-xl border transition-colors flex items-center justify-center gap-1.5 ${
-                      !pet.nfcTagId
-                        ? 'border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#F8F6F2]'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Nfc className="w-3.5 h-3.5" />
-                    {!pet.nfcTagId ? 'Register NFC' : 'Manage NFC'}
-                  </button>
+                  {!pet.nfcTagId ? (
+                    <button
+                      onClick={() => router.push(`/my-pets/${pet._id}`)}
+                      className="text-sm font-semibold py-2.5 rounded-xl border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Nfc className="w-3.5 h-3.5" />
+                      Request Pet Tag
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => router.push(`/my-pets/${pet._id}`)}
+                      className="text-sm font-semibold py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Nfc className="w-3.5 h-3.5" />
+                      <span>Registered</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
