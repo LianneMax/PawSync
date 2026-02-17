@@ -273,9 +273,12 @@ function CalendarGridView({
     year: 'numeric',
   })
 
-  // Map appointments by vetId and startTime for quick lookup
+  // Only show confirmed appointments in the calendar view
+  const confirmedAppointments = appointments.filter((a) => a.status === 'confirmed')
+
+  // Map appointments by vetId for quick lookup
   const apptMap: Record<string, Appointment[]> = {}
-  appointments.forEach((appt) => {
+  confirmedAppointments.forEach((appt) => {
     const vetKey = appt.vetId?._id || 'unknown'
     if (!apptMap[vetKey]) apptMap[vetKey] = []
     apptMap[vetKey].push(appt)
@@ -284,7 +287,7 @@ function CalendarGridView({
   const displayVets = vets.length > 0
     ? vets
     : Object.keys(apptMap).map((id) => {
-        const appt = appointments.find((a) => a.vetId?._id === id)
+        const appt = confirmedAppointments.find((a) => a.vetId?._id === id)
         return {
           _id: id,
           firstName: appt?.vetId?.firstName || 'Unknown',
@@ -397,18 +400,6 @@ function CalendarGridView({
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-green-500" />
           <span className="text-[10px] text-gray-500">Confirmed</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-amber-500" />
-          <span className="text-[10px] text-gray-500">Pending</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-blue-500" />
-          <span className="text-[10px] text-gray-500">Completed</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-red-500" />
-          <span className="text-[10px] text-gray-500">Cancelled</span>
         </div>
       </div>
     </div>
