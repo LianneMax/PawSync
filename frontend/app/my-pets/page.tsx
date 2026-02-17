@@ -7,6 +7,14 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet as APIPet } from '@/lib/pets'
 import { Plus, PawPrint, Search, AlertTriangle, Nfc } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { toast } from 'sonner'
 
 function calculateAge(dateOfBirth: string): string {
   const birth = new Date(dateOfBirth)
@@ -26,6 +34,9 @@ export default function MyPetsPage() {
   const [pets, setPets] = useState<APIPet[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchPets = useCallback(async () => {
     if (!token) {
@@ -173,7 +184,10 @@ export default function MyPetsPage() {
                   </button>
                   {!pet.nfcTagId ? (
                     <button
-                      onClick={() => router.push(`/my-pets/${pet._id}`)}
+                      onClick={() => {
+                        setSelectedPetId(pet._id)
+                        setShowConfirmation(true)
+                      }}
                       className="text-sm font-semibold py-2.5 rounded-xl border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Nfc className="w-3.5 h-3.5" />
@@ -229,6 +243,43 @@ export default function MyPetsPage() {
           </div>
         )}
       </div>
+
+      {/* Pet Tag Request Confirmation Modal */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Request Pet Tag</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to request a pet tag for <strong>{selectedPetId && pets.find(p => p._id === selectedPetId)?.name}</strong>?
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowConfirmation(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (selectedPetId) {
+                  toast('Pet Tag Request Submitted', {
+                    description: `Your request for a pet tag has been submitted.`
+                  })
+                  setShowConfirmation(false)
+                  setSelectedPetId(null)
+                }
+              }}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

@@ -48,7 +48,6 @@ export default function PetProfilePage() {
   const [activeTab, setActiveTab] = useState<'basic' | 'nfc'>('basic')
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
-  const [showConfirmation, setShowConfirmation] = useState(false)
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
 
   // Editable fields
@@ -186,7 +185,6 @@ export default function PetProfilePage() {
         description: `Your request for a pet tag replacement${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
       })
       setShowNfcModal(false)
-      setShowConfirmation(false)
       setNfcReason('')
     } catch {
       toast('Error', { description: 'Something went wrong. Please try again.' })
@@ -527,7 +525,7 @@ export default function PetProfilePage() {
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
                   <button
-                    onClick={() => setShowConfirmation(true)}
+                    onClick={() => setShowNfcModal(true)}
                     disabled={!pet.nfcTagId}
                     className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -546,37 +544,6 @@ export default function PetProfilePage() {
           </div>
         </div>
       </div>
-
-      {/* Confirmation Modal */}
-      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Request Pet Tag Replacement</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-gray-600">
-              Are you sure you want to request a pet tag replacement for <strong>{pet?.name}</strong>? Please provide a reason for the request in the next step.
-            </p>
-          </div>
-          <DialogFooter className="flex gap-2 justify-end">
-            <button
-              onClick={() => setShowConfirmation(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                setShowConfirmation(false)
-                setShowNfcModal(true)
-              }}
-              className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors"
-            >
-              Continue
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Pet Tag Replacement Request Reason Modal */}
       <Dialog open={showNfcModal} onOpenChange={setShowNfcModal}>
