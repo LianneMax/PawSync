@@ -143,7 +143,7 @@ export default function Navbar({
       ref={navRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 flex flex-col ${
+      className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 flex flex-col overflow-hidden ${
         isExpanded ? 'w-72' : 'w-20'
       }`}
     >
