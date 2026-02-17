@@ -110,10 +110,17 @@ export default function ClinicManagementPage() {
   const [selectedMainBranchId, setSelectedMainBranchId] = useState<string>('')
   const [removeBranchOpen, setRemoveBranchOpen] = useState(false)
   const [branchToRemove, setBranchToRemove] = useState<Branch | null>(null)
+  const [addBranchOpen, setAddBranchOpen] = useState(false)
+  const [addingBranch, setAddingBranch] = useState(false)
 
   // Edit branch form
   const [editForm, setEditForm] = useState({
     name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: '',
+  })
+
+  // Add branch form
+  const [addForm, setAddForm] = useState({
+    name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] as string[],
   })
 
   // Fetch real clinic data
@@ -237,6 +244,63 @@ export default function ClinicManagementPage() {
     setBranches(prev => prev.filter(b => b.id !== branchToRemove.id))
     setRemoveBranchOpen(false)
     setBranchToRemove(null)
+  }
+
+  const resetAddForm = () => {
+    setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] })
+  }
+
+  const handleAddBranch = async () => {
+    if (!clinicId || !token) return
+    if (!addForm.name.trim()) return
+    if (!addForm.address.trim()) return
+
+    setAddingBranch(true)
+    try {
+      const res = await authenticatedFetch(`/clinics/${clinicId}/branches`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: addForm.name,
+          address: addForm.address,
+          city: addForm.city || null,
+          province: addForm.province || null,
+          phone: addForm.phone || null,
+          email: addForm.email || null,
+          openingTime: addForm.openingTime || null,
+          closingTime: addForm.closingTime || null,
+          operatingDays: addForm.operatingDays,
+          isMain: false,
+        }),
+      }, token)
+
+      if (res.status === 'SUCCESS' && res.data?.branch) {
+        const b = res.data.branch
+        setBranches(prev => [...prev, {
+          id: b._id,
+          name: b.name,
+          address: b.address || '',
+          isMain: b.isMain,
+          vets: 0,
+          patients: 0,
+          today: 0,
+          phone: b.phone || '',
+          hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
+          email: b.email || '',
+          isOpen: true,
+          city: b.city || '',
+          province: b.province || '',
+          openingTime: b.openingTime || '',
+          closingTime: b.closingTime || '',
+          operatingDays: (b.operatingDays || []).join(', '),
+        }])
+        setAddBranchOpen(false)
+        resetAddForm()
+      }
+    } catch (err) {
+      console.error('Failed to add branch:', err)
+    } finally {
+      setAddingBranch(false)
+    }
   }
 
   return (
@@ -394,7 +458,10 @@ export default function ClinicManagementPage() {
                 <h2 className="text-2xl font-bold text-[#4F4F4F]">Branches</h2>
                 <p className="text-gray-500 text-sm">Manage your clinic locations</p>
               </div>
-              <button className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium">
+              <button
+                onClick={() => { resetAddForm(); setAddBranchOpen(true) }}
+                className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium"
+              >
                 <Plus className="w-4 h-4" />
                 Add Branch
               </button>
@@ -482,7 +549,10 @@ export default function ClinicManagementPage() {
               ))}
 
               {/* Add New Branch Card */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-dashed border-gray-200 flex flex-col items-center justify-center min-h-[300px] cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2]/50 transition-colors">
+              <div
+                onClick={() => { resetAddForm(); setAddBranchOpen(true) }}
+                className="bg-white rounded-2xl p-6 shadow-sm border-2 border-dashed border-gray-200 flex flex-col items-center justify-center min-h-[300px] cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2]/50 transition-colors"
+              >
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                   <Plus className="w-6 h-6 text-gray-400" />
                 </div>
@@ -679,6 +749,147 @@ export default function ClinicManagementPage() {
             </button>
             <button onClick={handleSetMainBranch} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors">
               Set as Main Branch
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== ADD BRANCH MODAL ==================== */}
+      <Dialog open={addBranchOpen} onOpenChange={(v) => { if (!v) { setAddBranchOpen(false); resetAddForm() } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Add New Branch</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={addForm.name}
+                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                placeholder="e.g. PawSync Makati Branch"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={addForm.address}
+                onChange={(e) => setAddForm({ ...addForm, address: e.target.value })}
+                placeholder="e.g. 123 Main St, Brgy. San Antonio"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City</label>
+                <input
+                  type="text"
+                  value={addForm.city}
+                  onChange={(e) => setAddForm({ ...addForm, city: e.target.value })}
+                  placeholder="e.g. Makati"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region</label>
+                <input
+                  type="text"
+                  value={addForm.province}
+                  onChange={(e) => setAddForm({ ...addForm, province: e.target.value })}
+                  placeholder="e.g. Metro Manila"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={addForm.phone}
+                  onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                  placeholder="e.g. 0917-123-4567"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={addForm.email}
+                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                  placeholder="e.g. branch@clinic.com"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time</label>
+                <input
+                  type="time"
+                  value={addForm.openingTime}
+                  onChange={(e) => setAddForm({ ...addForm, openingTime: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time</label>
+                <input
+                  type="time"
+                  value={addForm.closingTime}
+                  onChange={(e) => setAddForm({ ...addForm, closingTime: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days</label>
+              <div className="flex flex-wrap gap-2">
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
+                  const isSelected = addForm.operatingDays.includes(day)
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        setAddForm(prev => ({
+                          ...prev,
+                          operatingDays: isSelected
+                            ? prev.operatingDays.filter(d => d !== day)
+                            : [...prev.operatingDays, day],
+                        }))
+                      }}
+                      className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        isSelected
+                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                          : 'bg-white text-[#4F4F4F] border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => { setAddBranchOpen(false); resetAddForm() }}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddBranch}
+              disabled={addingBranch || !addForm.name.trim() || !addForm.address.trim()}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+            >
+              {addingBranch ? 'Adding...' : 'Add Branch'}
             </button>
           </div>
         </DialogContent>
