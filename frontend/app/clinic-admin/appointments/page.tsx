@@ -694,7 +694,16 @@ export default function ClinicAdminAppointmentsPage() {
       <ClinicScheduleModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onBooked={() => { setModalOpen(false); loadAppointments() }}
+        onBooked={(bookedDate) => {
+          setModalOpen(false)
+          // Navigate calendar to the booked appointment's date
+          if (bookedDate) {
+            setCalendarDate(bookedDate)
+            setActiveTab('upcoming')
+            setViewMode('calendar')
+          }
+          loadAppointments()
+        }}
         clinic={clinic}
         branches={branches}
       />
@@ -713,7 +722,7 @@ function ClinicScheduleModal({
 }: {
   open: boolean
   onClose: () => void
-  onBooked: () => void
+  onBooked: (bookedDate?: string) => void
   clinic: ClinicInfo | null
   branches: ClinicBranchItem[]
 }) {
@@ -869,7 +878,7 @@ function ClinicScheduleModal({
 
       if (res.status === 'SUCCESS') {
         toast.success('Appointment booked successfully!')
-        onBooked()
+        onBooked(selectedDate)
       } else {
         toast.error(res.message || 'Failed to book appointment')
       }

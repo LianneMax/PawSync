@@ -510,13 +510,20 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     }
 
     if (date) {
-      query.date = new Date(date as string);
+      // Use date range to avoid timezone exact-match issues
+      const dayStart = new Date(date as string);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(date as string);
+      dayEnd.setUTCHours(23, 59, 59, 999);
+      query.date = { $gte: dayStart, $lte: dayEnd };
     }
 
     const now = new Date();
     if (filter === 'upcoming') {
       query.status = { $in: ['pending', 'confirmed'] };
-      query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
+      if (!date) {
+        query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
+      }
     } else if (filter === 'previous') {
       query.$or = [
         { date: { $lt: new Date(now.toISOString().split('T')[0]) } },
