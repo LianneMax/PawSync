@@ -10,6 +10,8 @@ import {
   searchPetOwners,
   getPetsForOwner,
   cancelAppointment,
+  updateAppointmentStatus,
+  rescheduleAppointment,
   type Appointment,
   type TimeSlot,
   type PetOwner,
@@ -427,11 +429,15 @@ interface ClinicInfo {
 
 export default function ClinicAdminAppointmentsPage() {
   const { token } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'pending' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [pendingAppointments, setPendingAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+
+  // Reschedule modal
+  const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
 
   // Clinic data
   const [clinic, setClinic] = useState<ClinicInfo | null>(null)
@@ -483,31 +489,35 @@ export default function ClinicAdminAppointmentsPage() {
   const loadAppointments = useCallback(async () => {
     setLoading(true)
     try {
-      const params: any = {}
-      // Calendar mode: fetch ALL upcoming so we can navigate dates freely
-      // List mode: fetch based on the active tab filter
-      if (viewMode === 'calendar') {
-        params.filter = 'upcoming'
-      } else {
-        params.filter = activeTab
-      }
-      if (selectedBranchFilter) {
-        params.branchId = selectedBranchFilter
-      }
-      const res = await getClinicAppointments(params, token || undefined)
-      if (res.status === 'SUCCESS' && res.data) {
-        setAppointments(res.data.appointments)
+      const branchParam = selectedBranchFilter ? { branchId: selectedBranchFilter } : {}
 
-        // On initial calendar load, auto-navigate to the first confirmed appointment's date
-        if (viewMode === 'calendar' && res.data.appointments.length > 0) {
-          const firstConfirmed = res.data.appointments.find((a) => a.status === 'confirmed')
-          if (firstConfirmed) {
-            const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
-            setCalendarDate((prev) => {
-              // Only auto-navigate if still on today's date (initial load)
-              const today = new Date().toISOString().split('T')[0]
-              return prev === today ? apptDate : prev
-            })
+      if (activeTab === 'pending') {
+        // Fetch all upcoming (includes pending) for pending tab
+        const res = await getClinicAppointments({ filter: 'upcoming', ...branchParam }, token || undefined)
+        if (res.status === 'SUCCESS' && res.data) {
+          setPendingAppointments(res.data.appointments.filter((a) => a.status === 'pending'))
+        }
+      } else {
+        const params: any = { ...branchParam }
+        if (viewMode === 'calendar') {
+          params.filter = 'upcoming'
+        } else {
+          params.filter = activeTab
+        }
+        const res = await getClinicAppointments(params, token || undefined)
+        if (res.status === 'SUCCESS' && res.data) {
+          setAppointments(res.data.appointments)
+
+          // On initial calendar load, auto-navigate to the first confirmed appointment's date
+          if (viewMode === 'calendar' && res.data.appointments.length > 0) {
+            const firstConfirmed = res.data.appointments.find((a) => a.status === 'confirmed')
+            if (firstConfirmed) {
+              const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
+              setCalendarDate((prev) => {
+                const today = new Date().toISOString().split('T')[0]
+                return prev === today ? apptDate : prev
+              })
+            }
           }
         }
       }
@@ -525,6 +535,20 @@ export default function ClinicAdminAppointmentsPage() {
         loadAppointments()
       } else {
         toast.error(res.message || 'Failed to cancel')
+      }
+    } catch {
+      toast.error('An error occurred')
+    }
+  }
+
+  const handleConfirm = async (id: string) => {
+    try {
+      const res = await updateAppointmentStatus(id, 'confirmed', token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success('Appointment confirmed')
+        loadAppointments()
+      } else {
+        toast.error(res.message || 'Failed to confirm')
       }
     } catch {
       toast.error('An error occurred')
@@ -552,6 +576,21 @@ export default function ClinicAdminAppointmentsPage() {
               }`}
             >
               Upcoming appointments
+            </button>
+            <button
+              onClick={() => { setActiveTab('pending'); setViewMode('list') }}
+              className={`relative px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === 'pending'
+                  ? 'bg-[#7FA5A3] text-white'
+                  : 'bg-[#7FA5A3]/15 text-[#5A7C7A] hover:bg-[#7FA5A3]/25'
+              }`}
+            >
+              Pending confirmation
+              {pendingAppointments.length > 0 && activeTab !== 'pending' && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {pendingAppointments.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => { setActiveTab('previous'); setViewMode('list') }}
@@ -614,7 +653,76 @@ export default function ClinicAdminAppointmentsPage() {
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : activeTab === 'pending' ? (
+          /* ---- PENDING CONFIRMATION TAB ---- */
+          pendingAppointments.length > 0 ? (
+            <div className="space-y-4">
+              {pendingAppointments.map((appt) => (
+                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 border-l-4 border-l-amber-400">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {appt.petId?.photo ? (
+                        <img src={appt.petId.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                          <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
+                        <p className="text-xs text-gray-500">
+                          Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
+                          </span>
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {appt.types.map((t) => (
+                            <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t.replace('-', ' ')}</span>
+                          ))}
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500 capitalize">{appt.mode.replace('-', ' ')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleConfirm(appt._id)}
+                        className="px-4 py-2 bg-[#7FA5A3] text-white text-xs font-medium rounded-xl hover:bg-[#6b9391] transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setRescheduleTarget(appt)}
+                        className="px-4 py-2 border border-[#7FA5A3] text-[#5A7C7A] text-xs font-medium rounded-xl hover:bg-[#7FA5A3]/10 transition-colors"
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        onClick={() => handleCancel(appt._id)}
+                        className="px-4 py-2 border border-red-300 text-red-500 text-xs font-medium rounded-xl hover:bg-red-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-6 shadow-sm">
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                <Check className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No pending appointments to confirm</p>
+              </div>
+            </div>
+          )
         ) : viewMode === 'calendar' && activeTab === 'upcoming' ? (
+          /* ---- CALENDAR VIEW ---- */
           <CalendarGridView
             appointments={appointments}
             selectedDate={calendarDate}
@@ -622,6 +730,7 @@ export default function ClinicAdminAppointmentsPage() {
             vets={allVets}
           />
         ) : appointments.length > 0 ? (
+          /* ---- LIST VIEW ---- */
           <div className="space-y-4">
             {appointments.map((appt) => (
               <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
@@ -663,7 +772,7 @@ export default function ClinicAdminAppointmentsPage() {
                   }`}>
                     {appt.status}
                   </span>
-                  {(appt.status === 'pending' || appt.status === 'confirmed') && activeTab === 'upcoming' && (
+                  {appt.status === 'confirmed' && activeTab === 'upcoming' && (
                     <button
                       onClick={() => handleCancel(appt._id)}
                       className="text-xs text-red-500 hover:text-red-700 font-medium"
@@ -676,6 +785,7 @@ export default function ClinicAdminAppointmentsPage() {
             ))}
           </div>
         ) : (
+          /* ---- EMPTY STATE ---- */
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
               {activeTab === 'upcoming' ? (
@@ -717,6 +827,16 @@ export default function ClinicAdminAppointmentsPage() {
         }}
         clinic={clinic}
         branches={branches}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        appointment={rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        onRescheduled={() => {
+          setRescheduleTarget(null)
+          loadAppointments()
+        }}
       />
     </DashboardLayout>
   )
@@ -1157,6 +1277,229 @@ function ClinicScheduleModal({
           >
             Cancel
           </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ==================== RESCHEDULE MODAL ====================
+
+function RescheduleModal({
+  appointment,
+  onClose,
+  onRescheduled,
+}: {
+  appointment: Appointment | null
+  onClose: () => void
+  onRescheduled: () => void
+}) {
+  const { token } = useAuthStore()
+  const [selectedDate, setSelectedDate] = useState('')
+  const [slots, setSlots] = useState<TimeSlot[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Reset state when appointment changes
+  useEffect(() => {
+    if (appointment) {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      setSelectedDate(tomorrow.toISOString().split('T')[0])
+      setSelectedSlot(null)
+      setSlots([])
+    }
+  }, [appointment])
+
+  // Load slots when date changes
+  useEffect(() => {
+    const vetId = appointment?.vetId?._id
+    if (!vetId || !selectedDate) { setSlots([]); return }
+    const load = async () => {
+      setLoadingSlots(true)
+      setSelectedSlot(null)
+      try {
+        const res = await getAvailableSlots(vetId, selectedDate, token || undefined)
+        if (res.status === 'SUCCESS' && res.data) {
+          setSlots(res.data.slots)
+        } else {
+          setSlots(generateMockSlots())
+        }
+      } catch { setSlots(generateMockSlots()) }
+      finally { setLoadingSlots(false) }
+    }
+    load()
+  }, [appointment, selectedDate, token])
+
+  const handleReschedule = async () => {
+    if (!appointment || !selectedSlot) return
+    setSubmitting(true)
+    try {
+      const res = await rescheduleAppointment(appointment._id, {
+        date: selectedDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      }, token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success('Appointment rescheduled successfully!')
+        onRescheduled()
+      } else {
+        toast.error(res.message || 'Failed to reschedule')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Group slots by hour
+  const slotsByHour: Record<number, TimeSlot[]> = {}
+  slots.forEach((s) => {
+    const hour = parseInt(s.startTime.split(':')[0])
+    if (!slotsByHour[hour]) slotsByHour[hour] = []
+    slotsByHour[hour].push(s)
+  })
+
+  return (
+    <Dialog open={!!appointment} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-[520px] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-[#2C3E2D]">Reschedule Appointment</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 pt-2 space-y-5">
+          {/* Current appointment info */}
+          {appointment && (
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <p className="text-xs text-gray-400 uppercase font-medium mb-2">Current Appointment</p>
+              <div className="flex items-center gap-3">
+                {appointment.petId?.photo ? (
+                  <img src={appointment.petId.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                    <PawPrint className="w-5 h-5 text-[#5A7C7A]" />
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-sm text-[#4F4F4F]">{appointment.petId?.name || 'Pet'}</p>
+                  <p className="text-xs text-gray-500">
+                    Dr. {appointment.vetId?.firstName} {appointment.vetId?.lastName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-2.5">
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar className="w-3 h-3" /> {formatDate(appointment.date)}
+                </span>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {formatSlotTime(appointment.startTime)} - {formatSlotTime(appointment.endTime)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* New Date */}
+          <div>
+            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">New Date</p>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => { setSelectedDate(e.target.value); setSelectedSlot(null) }}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors"
+            />
+          </div>
+
+          {/* Time Slots */}
+          <div>
+            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">New Time Slot</p>
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+              {loadingSlots ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <div className="overflow-y-auto max-h-[220px] space-y-0.5 pr-1">
+                  {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
+                    <div key={hour} className="flex gap-2">
+                      <div className="w-10 shrink-0 text-right pt-1">
+                        <span className="text-[10px] font-medium text-gray-400">
+                          {parseInt(hour) > 12 ? parseInt(hour) - 12 : parseInt(hour)}{parseInt(hour) >= 12 ? 'PM' : 'AM'}
+                        </span>
+                      </div>
+                      <div className="flex-1 space-y-0.5">
+                        {hourSlots.map((slot) => {
+                          const isSelected = selectedSlot?.startTime === slot.startTime
+                          const isAvailable = slot.status === 'available'
+                          const isYourBooking = slot.status === 'your-booking'
+                          const isUnavailable = slot.status === 'unavailable'
+
+                          let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
+                          if (isYourBooking) bg = 'bg-gray-300 text-gray-600 cursor-default'
+                          if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
+                          if (isSelected) bg = 'bg-[#476B6B] ring-2 ring-[#476B6B] ring-offset-1 text-white cursor-pointer'
+
+                          return (
+                            <button
+                              key={slot.startTime}
+                              type="button"
+                              onClick={() => { if (isAvailable) setSelectedSlot(slot) }}
+                              disabled={!isAvailable}
+                              className={`w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bg}`}
+                            >
+                              {formatSlotTime(slot.startTime)} – {formatSlotTime(slot.endTime)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-200">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-[#7FA5A3]" />
+                  <span className="text-[10px] text-gray-500">Available</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-gray-300" />
+                  <span className="text-[10px] text-gray-500">Booked</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-[#900B09]" />
+                  <span className="text-[10px] text-gray-500">Unavailable</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={handleReschedule}
+              disabled={submitting || !selectedSlot}
+              className="px-6 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Rescheduling...' : 'Reschedule'}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

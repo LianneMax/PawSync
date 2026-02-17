@@ -6,6 +6,7 @@ import {
   getVetAppointments,
   cancelAppointment,
   updateAppointmentStatus,
+  rescheduleAppointment,
   getVetsForBranch,
   searchPetOwners,
   getPetsForOwner,
@@ -57,6 +58,12 @@ router.patch('/:id/cancel', authMiddleware, cancelAppointment);
  * Update appointment status (confirm/complete)
  */
 router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
+
+/**
+ * PATCH /api/appointments/:id/reschedule
+ * Reschedule an appointment to a new date/time (clinic admin)
+ */
+router.patch('/:id/reschedule', authMiddleware, clinicAdminOnly, rescheduleAppointment);
 
 // ==================== CLINIC ADMIN ROUTES ====================
 

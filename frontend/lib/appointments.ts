@@ -137,3 +137,13 @@ export const updateAppointmentStatus = async (id: string, status: string, token?
     body: JSON.stringify({ status })
   }, token);
 };
+
+/**
+ * Reschedule an appointment to a new date/time (clinic admin)
+ */
+export const rescheduleAppointment = async (id: string, data: { date: string; startTime: string; endTime: string }, token?: string) => {
+  return authenticatedFetch(`/appointments/${id}/reschedule`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }, token);
+};

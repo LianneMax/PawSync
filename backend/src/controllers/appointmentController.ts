@@ -297,6 +297,58 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
 };
 
 /**
+ * Reschedule an appointment to a new date/time (clinic admin)
+ */
+export const rescheduleAppointment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ status: 'ERROR', message: 'Appointment not found' });
+    }
+
+    if (appointment.status !== 'pending' && appointment.status !== 'confirmed') {
+      return res.status(400).json({ status: 'ERROR', message: 'Can only reschedule pending or confirmed appointments' });
+    }
+
+    const { date, startTime, endTime } = req.body;
+    if (!date || !startTime || !endTime) {
+      return res.status(400).json({ status: 'ERROR', message: 'Date, start time, and end time are required' });
+    }
+
+    // Check if the new slot is available
+    const conflict = await Appointment.findOne({
+      _id: { $ne: appointment._id },
+      vetId: appointment.vetId,
+      date: new Date(date),
+      startTime,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (conflict) {
+      return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+    }
+
+    appointment.date = new Date(date);
+    appointment.startTime = startTime;
+    appointment.endTime = endTime;
+    await appointment.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Appointment rescheduled successfully',
+      data: { appointment }
+    });
+  } catch (error) {
+    console.error('Reschedule appointment error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while rescheduling' });
+  }
+};
+
+/**
  * Get approved vets for a specific clinic branch (for appointment booking)
  */
 export const getVetsForBranch = async (req: Request, res: Response) => {
