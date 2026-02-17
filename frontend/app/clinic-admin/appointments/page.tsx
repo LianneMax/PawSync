@@ -273,8 +273,13 @@ function CalendarGridView({
     year: 'numeric',
   })
 
-  // Only show confirmed appointments in the calendar view
-  const confirmedAppointments = appointments.filter((a) => a.status === 'confirmed')
+  // Only show confirmed appointments for the selected date in the calendar view
+  const confirmedAppointments = appointments.filter((a) => {
+    if (a.status !== 'confirmed') return false
+    // Match by date (compare YYYY-MM-DD)
+    const apptDate = new Date(a.date).toISOString().split('T')[0]
+    return apptDate === selectedDate
+  })
 
   // Map appointments by vetId for quick lookup
   const apptMap: Record<string, Appointment[]> = {}
@@ -479,8 +484,10 @@ export default function ClinicAdminAppointmentsPage() {
     setLoading(true)
     try {
       const params: any = {}
+      // Calendar mode: fetch ALL upcoming so we can navigate dates freely
+      // List mode: fetch based on the active tab filter
       if (viewMode === 'calendar') {
-        params.date = calendarDate
+        params.filter = 'upcoming'
       } else {
         params.filter = activeTab
       }
@@ -490,10 +497,23 @@ export default function ClinicAdminAppointmentsPage() {
       const res = await getClinicAppointments(params, token || undefined)
       if (res.status === 'SUCCESS' && res.data) {
         setAppointments(res.data.appointments)
+
+        // On initial calendar load, auto-navigate to the first confirmed appointment's date
+        if (viewMode === 'calendar' && res.data.appointments.length > 0) {
+          const firstConfirmed = res.data.appointments.find((a) => a.status === 'confirmed')
+          if (firstConfirmed) {
+            const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
+            setCalendarDate((prev) => {
+              // Only auto-navigate if still on today's date (initial load)
+              const today = new Date().toISOString().split('T')[0]
+              return prev === today ? apptDate : prev
+            })
+          }
+        }
       }
     } catch { /* silent */ }
     finally { setLoading(false) }
-  }, [activeTab, viewMode, calendarDate, selectedBranchFilter, token])
+  }, [activeTab, viewMode, selectedBranchFilter, token])
 
   useEffect(() => { loadAppointments() }, [loadAppointments])
 
