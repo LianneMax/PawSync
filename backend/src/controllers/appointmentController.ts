@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import Appointment from '../models/Appointment';
 import Pet from '../models/Pet';
-import AssignedVet from '../models/AssignedVet';
+import VetApplication from '../models/VetApplication';
+import ClinicBranch from '../models/ClinicBranch';
 
 /**
  * Generate 30-minute time slots for a day (default 7AM–5PM)
@@ -290,5 +291,54 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Update appointment status error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * Get approved vets for a specific clinic branch (for appointment booking)
+ */
+export const getVetsForBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { branchId } = req.query;
+
+    if (!branchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'branchId is required' });
+    }
+
+    // Verify branch exists and is active
+    const branch = await ClinicBranch.findOne({ _id: branchId, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    // Find approved vet applications for this branch
+    const approvedApplications = await VetApplication.find({
+      branchId: branchId as string,
+      status: 'approved'
+    }).populate('vetId', 'firstName lastName email');
+
+    const vets = approvedApplications
+      .filter((app) => app.vetId)
+      .map((app) => {
+        const vet = app.vetId as any;
+        return {
+          _id: vet._id,
+          firstName: vet.firstName,
+          lastName: vet.lastName,
+          email: vet.email,
+        };
+      });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { vets }
+    });
+  } catch (error) {
+    console.error('Get vets for branch error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
   }
 };

@@ -5,7 +5,8 @@ import {
   getMyAppointments,
   getVetAppointments,
   cancelAppointment,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getVetsForBranch
 } from '../controllers/appointmentController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -22,6 +23,12 @@ router.post('/', authMiddleware, createAppointment);
  * Get available time slots for a vet on a date
  */
 router.get('/slots', authMiddleware, getAvailableSlots);
+
+/**
+ * GET /api/appointments/branch-vets?branchId=...
+ * Get approved vets for a specific clinic branch
+ */
+router.get('/branch-vets', authMiddleware, getVetsForBranch);
 
 /**
  * GET /api/appointments/mine?filter=upcoming|previous

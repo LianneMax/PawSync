@@ -13,6 +13,12 @@ import {
   type TimeSlot,
 } from '@/lib/appointments'
 import {
+  getAllClinicsWithBranches,
+  getVetsForBranch,
+  type ClinicWithBranches,
+  type BranchVet,
+} from '@/lib/clinics'
+import {
   Calendar,
   Plus,
   Clock,
@@ -28,19 +34,6 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog'
-
-// ---- Mock data for clinics, branches & vets (replace with API later) ----
-const mockBranches = [
-  { _id: 'b1', clinicId: 'c1', clinicName: 'BaiVet Animal Clinic', branchName: 'Parañaque City' },
-  { _id: 'b2', clinicId: 'c1', clinicName: 'BaiVet Animal Clinic', branchName: 'Makati City' },
-  { _id: 'b3', clinicId: 'c2', clinicName: 'Pet Care Plus Veterinary', branchName: 'Quezon City' },
-]
-
-const mockVets = [
-  { _id: 'vet1', firstName: 'Maria', lastName: 'Santos', clinicId: 'c1', clinicBranchId: 'b1' },
-  { _id: 'vet2', firstName: 'Juan', lastName: 'Reyes', clinicId: 'c1', clinicBranchId: 'b2' },
-  { _id: 'vet3', firstName: 'Ana', lastName: 'Cruz', clinicId: 'c2', clinicBranchId: 'b3' },
-]
 
 const appointmentModes = [
   { value: 'online', label: 'Online', icon: Video },
@@ -323,6 +316,9 @@ function ScheduleModal({
 
   // Form state
   const [pets, setPets] = useState<Pet[]>([])
+  const [clinics, setClinics] = useState<ClinicWithBranches[]>([])
+  const [branchVets, setBranchVets] = useState<BranchVet[]>([])
+  const [loadingVets, setLoadingVets] = useState(false)
   const [selectedPetId, setSelectedPetId] = useState('')
   const [selectedBranchId, setSelectedBranchId] = useState('')
   const [selectedVetId, setSelectedVetId] = useState('')
@@ -338,17 +334,45 @@ function ScheduleModal({
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Load pets
+  // Load pets + clinics/branches when modal opens
   useEffect(() => {
     if (!open) return
-    const load = async () => {
+    const loadPets = async () => {
       try {
         const res = await getMyPets(token || undefined)
         if (res.status === 'SUCCESS' && res.data) setPets(res.data.pets)
       } catch { /* silent */ }
     }
-    load()
+    const loadClinics = async () => {
+      try {
+        const res = await getAllClinicsWithBranches()
+        if (res.status === 'SUCCESS' && res.data) setClinics(res.data.clinics)
+      } catch { /* silent */ }
+    }
+    loadPets()
+    loadClinics()
   }, [open, token])
+
+  // Load vets when branch changes
+  useEffect(() => {
+    if (!selectedBranchId) { setBranchVets([]); return }
+    const load = async () => {
+      setLoadingVets(true)
+      try {
+        const res = await getVetsForBranch(selectedBranchId, token || undefined)
+        if (res.status === 'SUCCESS' && res.data) {
+          setBranchVets(res.data.vets)
+        } else {
+          setBranchVets([])
+        }
+      } catch {
+        setBranchVets([])
+      } finally {
+        setLoadingVets(false)
+      }
+    }
+    load()
+  }, [selectedBranchId, token])
 
   // Load slots when vet + date change
   useEffect(() => {
@@ -397,11 +421,20 @@ function ScheduleModal({
       setSelectedTypes([])
       setSelectedSlot(null)
       setSlots([])
+      setBranchVets([])
     }
   }, [open])
 
-  const selectedBranch = mockBranches.find((b) => b._id === selectedBranchId)
-  const vetsForBranch = mockVets.filter((v) => v.clinicBranchId === selectedBranchId)
+  // Build flat list of branches with clinic name for the dropdown
+  const branchOptions = clinics.flatMap((clinic) =>
+    clinic.branches.map((branch) => ({
+      value: branch._id,
+      label: `${clinic.name} — ${branch.name}`,
+      clinicId: clinic._id,
+    }))
+  )
+
+  const selectedBranchOption = branchOptions.find((b) => b.value === selectedBranchId)
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) =>
@@ -422,7 +455,7 @@ function ScheduleModal({
       const res = await createAppointment({
         petId: selectedPetId,
         vetId: selectedVetId,
-        clinicId: selectedBranch?.clinicId || '',
+        clinicId: selectedBranchOption?.clinicId || '',
         clinicBranchId: selectedBranchId,
         mode: mode as 'online' | 'face-to-face',
         types: selectedTypes,
@@ -484,7 +517,7 @@ function ScheduleModal({
                 label="Vet Clinic Branch"
                 value={selectedBranchId}
                 placeholder="Menu Label"
-                options={mockBranches.map((b) => ({ value: b._id, label: `${b.clinicName} — ${b.branchName}` }))}
+                options={branchOptions}
                 onSelect={setSelectedBranchId}
               />
             </div>
@@ -505,12 +538,27 @@ function ScheduleModal({
                     Select a clinic branch first
                   </div>
                 </div>
+              ) : loadingVets ? (
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
+                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                    <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                    Loading vets...
+                  </div>
+                </div>
+              ) : branchVets.length === 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
+                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                    No vets available at this branch
+                  </div>
+                </div>
               ) : (
                 <Dropdown
                   label="Chosen Veterinarian"
                   value={selectedVetId}
                   placeholder="Menu Label"
-                  options={vetsForBranch.map((v) => ({ value: v._id, label: `Dr. ${v.firstName} ${v.lastName}` }))}
+                  options={branchVets.map((v) => ({ value: v._id, label: `Dr. ${v.firstName} ${v.lastName}` }))}
                   onSelect={setSelectedVetId}
                 />
               )}
