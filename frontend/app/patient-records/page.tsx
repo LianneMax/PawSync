@@ -692,6 +692,25 @@ function CreateRecordModal({
 
 // ==================== VIEW RECORD MODAL ====================
 
+function formatFullDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function calculateAge(dob: string) {
+  const birth = new Date(dob)
+  const now = new Date()
+  let years = now.getFullYear() - birth.getFullYear()
+  let months = now.getMonth() - birth.getMonth()
+  if (months < 0) { years--; months += 12 }
+  if (years > 0) return `${years} yr${years !== 1 ? 's' : ''}${months > 0 ? ` ${months} mo` : ''}`
+  return `${months} mo`
+}
+
 function ViewRecordModal({
   record,
   loading,
@@ -701,120 +720,230 @@ function ViewRecordModal({
   loading: boolean
   onClose: () => void
 }) {
+  const pet = record?.petId
+  const vet = record?.vetId
+  const clinic = record?.clinicId
+  const branch = record?.clinicBranchId
+
   return (
     <Dialog open={!!record || loading} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-[#4F4F4F] flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[#5A7C7A]" />
-            Medical Record Details
-          </DialogTitle>
-        </DialogHeader>
-
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : record ? (
-          <div className="space-y-6 mt-2">
-            {/* Meta */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <div className="flex items-center justify-between">
+          <div className="bg-white">
+            {/* ===== DOCUMENT HEADER ===== */}
+            <div className="bg-[#476B6B] text-white px-8 py-6">
+              <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-[#4F4F4F]">
-                    {record.petId?.name || 'Pet'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {record.petId?.species} &middot; {record.petId?.breed}
+                  <h1 className="text-xl font-bold tracking-wide">VETERINARY MEDICAL RECORD</h1>
+                  <p className="text-white/70 text-sm mt-1">
+                    {clinic?.name || 'Clinic'}
+                    {branch?.name ? ` — ${branch.name}` : ''}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-gray-400">
-                    {formatDate(record.createdAt)}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Dr. {record.vetId?.firstName} {record.vetId?.lastName}
-                  </p>
+                  <p className="text-xs text-white/60">Record ID</p>
+                  <p className="text-sm font-mono text-white/90">{record._id.slice(-8).toUpperCase()}</p>
                 </div>
               </div>
-              {record.clinicId?.name && (
-                <p className="text-[10px] text-gray-400 mt-2">
-                  {record.clinicId.name}
-                  {record.clinicBranchId?.name ? ` - ${record.clinicBranchId.name}` : ''}
+              {(clinic?.address || branch?.address) && (
+                <p className="text-xs text-white/50 mt-2">
+                  {branch?.address || clinic?.address}
+                  {clinic?.phone ? ` | ${clinic.phone}` : ''}
+                  {clinic?.email ? ` | ${clinic.email}` : ''}
                 </p>
               )}
             </div>
 
-            {/* Vitals */}
-            <div>
-              <h3 className="text-sm font-semibold text-[#2C3E2D] mb-3">Vitals</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {(Object.keys(vitalLabels) as (keyof Vitals)[]).map((key) => {
-                  const { label, unit } = vitalLabels[key]
-                  const entry = record.vitals?.[key]
-                  if (!entry?.value && entry?.value !== 0) return null
-                  return (
-                    <div key={key} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-                      <p className="text-[10px] text-gray-400 uppercase font-medium">{label}</p>
-                      <p className="text-lg font-bold text-[#4F4F4F]">
-                        {entry.value} <span className="text-xs font-normal text-gray-400">{unit}</span>
-                      </p>
-                      {entry.notes && (
-                        <p className="text-[10px] text-gray-500 mt-1">{entry.notes}</p>
+            <div className="px-8 py-6 space-y-6">
+              {/* ===== PATIENT & VISIT INFO ===== */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Patient Information */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Patient Information</h2>
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <div className="flex items-center gap-3">
+                      {pet?.photo ? (
+                        <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-[#7FA5A3]/20" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                          <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
+                        </div>
                       )}
+                      <div>
+                        <p className="font-bold text-[#4F4F4F] text-lg">{pet?.name || 'Unknown'}</p>
+                      </div>
                     </div>
-                  )
-                })}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-1">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Species</p>
+                        <p className="text-sm text-[#4F4F4F] capitalize">{pet?.species || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Breed</p>
+                        <p className="text-sm text-[#4F4F4F] capitalize">{pet?.breed || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Sex</p>
+                        <p className="text-sm text-[#4F4F4F] capitalize">{pet?.sex || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Age</p>
+                        <p className="text-sm text-[#4F4F4F]">{pet?.dateOfBirth ? calculateAge(pet.dateOfBirth) : '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visit Information */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Visit Information</h2>
+                  </div>
+                  <div className="px-4 py-3 space-y-2.5">
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase">Date of Examination</p>
+                      <p className="text-sm font-medium text-[#4F4F4F]">{formatFullDate(record.createdAt)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase">Attending Veterinarian</p>
+                      <p className="text-sm font-medium text-[#4F4F4F]">
+                        Dr. {vet?.firstName} {vet?.lastName}
+                      </p>
+                      {vet?.email && <p className="text-xs text-gray-400">{vet.email}</p>}
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase">Clinic / Branch</p>
+                      <p className="text-sm text-[#4F4F4F]">
+                        {clinic?.name || '—'}
+                        {branch?.name ? ` — ${branch.name}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== PHYSICAL EXAMINATION / VITALS ===== */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Physical Examination</h2>
+                </div>
+                <div className="p-4">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 w-[35%]">Parameter</th>
+                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 w-[25%]">Value</th>
+                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Object.keys(vitalLabels) as (keyof Vitals)[]).map((key) => {
+                        const { label, unit } = vitalLabels[key]
+                        const entry = record.vitals?.[key]
+                        return (
+                          <tr key={key} className="border-b border-gray-50 last:border-0">
+                            <td className="py-2 text-sm text-[#4F4F4F] font-medium">{label}</td>
+                            <td className="py-2">
+                              {entry?.value || entry?.value === 0 ? (
+                                <span className="text-sm font-semibold text-[#2C3E2D]">
+                                  {entry.value}
+                                  {unit && <span className="text-xs font-normal text-gray-400 ml-1">{unit}</span>}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 text-xs text-gray-500">{entry?.notes || '—'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ===== CLINICAL ASSESSMENT / OBSERVATION ===== */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Clinical Assessment &amp; Observation</h2>
+                </div>
+                <div className="p-4">
+                  {record.overallObservation ? (
+                    <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.overallObservation}</p>
+                  ) : (
+                    <p className="text-sm text-gray-300 italic">No observation recorded.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ===== DIAGNOSTIC IMAGES ===== */}
+              {record.images && record.images.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">
+                      Diagnostic Images ({record.images.length})
+                    </h2>
+                  </div>
+                  <div className="p-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {record.images.map((img, idx) => (
+                        <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
+                          {img.data ? (
+                            <img
+                              src={`data:${img.contentType};base64,${img.data}`}
+                              alt={img.description || `Image ${idx + 1}`}
+                              className="w-full h-36 object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                              <ImageIcon className="w-8 h-8 text-gray-300" />
+                            </div>
+                          )}
+                          {img.description && (
+                            <p className="text-[10px] text-gray-500 px-2 py-1.5 bg-gray-50 border-t border-gray-100 truncate">{img.description}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== FOOTER / SIGNATURE LINE ===== */}
+              <div className="border-t-2 border-gray-200 pt-5 mt-6">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="w-48 border-b border-gray-300 mb-1" />
+                    <p className="text-xs text-gray-500">
+                      Dr. {vet?.firstName} {vet?.lastName}
+                    </p>
+                    <p className="text-[10px] text-gray-400">Attending Veterinarian</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">{formatFullDate(record.createdAt)}</p>
+                    <p className="text-[10px] text-gray-400">Date of Record</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Overall Observation */}
-            {record.overallObservation && (
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Overall Observation</h3>
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap">{record.overallObservation}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Images */}
-            {record.images && record.images.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Images</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {record.images.map((img, idx) => (
-                    <div key={img._id || idx} className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                      {img.data ? (
-                        <img
-                          src={`data:${img.contentType};base64,${img.data}`}
-                          alt={img.description || `Image ${idx + 1}`}
-                          className="w-full h-32 object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
-                          <ImageIcon className="w-8 h-8 text-gray-300" />
-                        </div>
-                      )}
-                      {img.description && (
-                        <p className="text-[10px] text-gray-500 px-2 py-1.5 truncate">{img.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* ===== CLOSE BUTTON ===== */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-8 py-4 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-6 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         ) : null}
-
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            Close
-          </button>
-        </div>
       </DialogContent>
     </Dialog>
   )

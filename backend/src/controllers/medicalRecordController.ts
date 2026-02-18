@@ -66,18 +66,24 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Pet owner can view their own pet's records; vet can view if assigned
+    // Pet owner can view their own pet's records; vet can view if assigned or is attending vet
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    let isAssignedVet = false;
+    let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {
       const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
-      isAssignedVet = !!assignment;
+      if (assignment) {
+        isAuthorizedVet = true;
+      } else {
+        // Also allow if the vet has created records for this pet (attending vet)
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
     }
 
     const isClinicAdmin = req.user.userType === 'clinic-admin';
 
-    if (!isOwner && !isAssignedVet && !isClinicAdmin) {
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these records' });
     }
 
