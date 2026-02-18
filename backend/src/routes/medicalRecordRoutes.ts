@@ -5,6 +5,7 @@ import {
   getRecordById,
   updateRecord,
   deleteRecord,
+  toggleShareRecord,
   getRecordImage
 } from '../controllers/medicalRecordController';
 import { authMiddleware } from '../middleware/auth';
@@ -40,6 +41,12 @@ router.put('/:id', authMiddleware, updateRecord);
  * Delete a medical record
  */
 router.delete('/:id', authMiddleware, deleteRecord);
+
+/**
+ * PATCH /api/medical-records/:id/share
+ * Toggle sharing a record with the pet owner
+ */
+router.patch('/:id/share', authMiddleware, toggleShareRecord);
 
 /**
  * GET /api/medical-records/:id/images/:imageId

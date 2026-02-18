@@ -8,7 +8,9 @@ import {
   createMedicalRecord,
   getRecordsByPet,
   getRecordById,
+  updateMedicalRecord,
   deleteMedicalRecord,
+  toggleShareRecord,
   type MedicalRecord,
   type Vitals,
   type VitalEntry,
@@ -27,6 +29,9 @@ import {
   FileText,
   Image as ImageIcon,
   Stethoscope,
+  Pencil,
+  Share2,
+  Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -107,6 +112,10 @@ export default function PatientRecordsPage() {
 
   // Create modal
   const [createOpen, setCreateOpen] = useState(false)
+
+  // Edit modal
+  const [editRecord, setEditRecord] = useState<MedicalRecord | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
 
   // View modal
   const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
@@ -196,6 +205,40 @@ export default function PatientRecordsPage() {
       toast.error('An error occurred')
     } finally {
       setViewLoading(false)
+    }
+  }
+
+  // Edit record - load full record data then open edit modal
+  const handleEditRecord = async (recordId: string) => {
+    if (!token) return
+    setEditLoading(true)
+    try {
+      const res = await getRecordById(recordId, token)
+      if (res.status === 'SUCCESS' && res.data?.record) {
+        setEditRecord(res.data.record)
+      } else {
+        toast.error('Failed to load record for editing')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  // Toggle share with owner
+  const handleToggleShare = async (recordId: string, currentlyShared: boolean) => {
+    if (!token) return
+    try {
+      const res = await toggleShareRecord(recordId, !currentlyShared, token)
+      if (res.status === 'SUCCESS') {
+        toast.success(res.data?.sharedWithOwner ? 'Record shared with pet owner' : 'Record unshared')
+        if (selectedPatient) loadRecords(selectedPatient._id)
+      } else {
+        toast.error(res.message || 'Failed to update sharing')
+      }
+    } catch {
+      toast.error('An error occurred')
     }
   }
 
@@ -389,77 +432,96 @@ export default function PatientRecordsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {records.map((record) => {
-                    const colors = { bg: 'bg-[#7FA5A3]/5', border: 'border-l-[#7FA5A3]' }
-                    return (
-                      <div key={record._id} className={`bg-white rounded-xl p-5 shadow-sm border-l-[3px] ${colors.border}`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />
-                              <p className="text-sm font-semibold text-[#4F4F4F]">
-                                Medical Record
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {formatDate(record.createdAt)}
+                  {records.map((record) => (
+                    <div key={record._id} className="bg-white rounded-xl p-5 shadow-sm border-l-[3px] border-l-[#7FA5A3]">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
+                            <p className="text-sm font-semibold text-[#4F4F4F]">Medical Record</p>
+                            {record.sharedWithOwner && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-600 font-medium">
+                                <Check className="w-3 h-3" />
+                                Shared
                               </span>
-                              <span>
-                                Dr. {record.vetId?.firstName} {record.vetId?.lastName}
-                              </span>
-                            </div>
-                            {record.overallObservation && (
-                              <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{record.overallObservation}</p>
                             )}
-
-                            {/* Quick vitals preview */}
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {record.vitals?.weight?.value && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-blue-600">
-                                  Weight: {record.vitals.weight.value} kg
-                                </span>
-                              )}
-                              {record.vitals?.temperature?.value && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600">
-                                  Temp: {record.vitals.temperature.value}&deg;C
-                                </span>
-                              )}
-                              {record.vitals?.pulseRate?.value && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-red-600">
-                                  Pulse: {record.vitals.pulseRate.value} bpm
-                                </span>
-                              )}
-                              {record.images && record.images.length > 0 && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-50 text-purple-600 flex items-center gap-0.5">
-                                  <ImageIcon className="w-3 h-3" />
-                                  {record.images.length} image{record.images.length !== 1 ? 's' : ''}
-                                </span>
-                              )}
-                            </div>
                           </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(record.createdAt)}
+                            </span>
+                            <span>
+                              Dr. {record.vetId?.firstName} {record.vetId?.lastName}
+                            </span>
+                          </div>
+                          {record.overallObservation && (
+                            <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{record.overallObservation}</p>
+                          )}
 
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleViewRecord(record._id)}
-                              className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
-                              title="View record"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteRecord(record._id)}
-                              className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                              title="Delete record"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          {/* Quick vitals preview */}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {record.vitals?.weight?.value && (
+                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-blue-600">
+                                Weight: {record.vitals.weight.value} kg
+                              </span>
+                            )}
+                            {record.vitals?.temperature?.value && (
+                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600">
+                                Temp: {record.vitals.temperature.value}&deg;C
+                              </span>
+                            )}
+                            {record.vitals?.pulseRate?.value && (
+                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-red-600">
+                                Pulse: {record.vitals.pulseRate.value} bpm
+                              </span>
+                            )}
+                            {record.images && record.images.length > 0 && (
+                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-50 text-purple-600 flex items-center gap-0.5">
+                                <ImageIcon className="w-3 h-3" />
+                                {record.images.length} image{record.images.length !== 1 ? 's' : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                          <button
+                            onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              record.sharedWithOwner
+                                ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                : 'text-gray-400 hover:bg-gray-100 hover:text-[#5A7C7A]'
+                            }`}
+                            title={record.sharedWithOwner ? 'Unshare from owner' : 'Share with owner'}
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleViewRecord(record._id)}
+                            className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
+                            title="View record"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditRecord(record._id)}
+                            className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                            title="Edit record"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord(record._id)}
+                            className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                            title="Delete record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -480,11 +542,28 @@ export default function PatientRecordsPage() {
         />
       )}
 
+      {/* Edit Record Modal */}
+      {selectedPatient && (
+        <EditRecordModal
+          record={editRecord}
+          loading={editLoading}
+          onClose={() => setEditRecord(null)}
+          onUpdated={() => {
+            setEditRecord(null)
+            loadRecords(selectedPatient._id)
+          }}
+        />
+      )}
+
       {/* View Record Modal */}
       <ViewRecordModal
         record={viewRecord}
         loading={viewLoading}
         onClose={() => setViewRecord(null)}
+        onToggleShare={(id, shared) => {
+          handleToggleShare(id, shared)
+          setViewRecord(null)
+        }}
       />
     </DashboardLayout>
   )
@@ -690,6 +769,145 @@ function CreateRecordModal({
   )
 }
 
+// ==================== EDIT RECORD MODAL ====================
+
+function EditRecordModal({
+  record,
+  loading,
+  onClose,
+  onUpdated,
+}: {
+  record: MedicalRecord | null
+  loading: boolean
+  onClose: () => void
+  onUpdated: () => void
+}) {
+  const { token } = useAuthStore()
+  const [vitals, setVitals] = useState<Vitals>(emptyVitals())
+  const [overallObservation, setOverallObservation] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Populate form when record loads
+  useEffect(() => {
+    if (record) {
+      setVitals(record.vitals || emptyVitals())
+      setOverallObservation(record.overallObservation || '')
+    }
+  }, [record])
+
+  const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
+    setVitals((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: val },
+    }))
+  }
+
+  const handleSave = async () => {
+    if (!token || !record) return
+    setSubmitting(true)
+    try {
+      const res = await updateMedicalRecord(
+        record._id,
+        { vitals, overallObservation },
+        token
+      )
+      if (res.status === 'SUCCESS') {
+        toast.success('Medical record updated successfully!')
+        onUpdated()
+      } else {
+        toast.error(res.message || 'Failed to update record')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={!!record || loading} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : record ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-[#4F4F4F] flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-500" />
+                Edit Medical Record
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 mt-2">
+              {/* Vitals Section */}
+              <div>
+                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-3">Vitals</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(Object.keys(vitalLabels) as (keyof Vitals)[]).map((key) => {
+                    const { label, unit, placeholder } = vitalLabels[key]
+                    return (
+                      <div key={key} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <label className="block text-xs font-medium text-[#4F4F4F] mb-1">
+                          {label} {unit && <span className="text-gray-400">({unit})</span>}
+                        </label>
+                        <input
+                          type="text"
+                          value={vitals[key].value}
+                          onChange={(e) => updateVital(key, 'value', e.target.value)}
+                          placeholder={placeholder}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
+                        />
+                        <input
+                          type="text"
+                          value={vitals[key].notes}
+                          onChange={(e) => updateVital(key, 'notes', e.target.value)}
+                          placeholder="Notes (optional)"
+                          className="w-full px-3 py-1.5 mt-1.5 border border-gray-100 rounded-lg text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Overall Observation */}
+              <div>
+                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Overall Observation</h3>
+                <textarea
+                  value={overallObservation}
+                  onChange={(e) => setOverallObservation(e.target.value)}
+                  placeholder="Write your general observations, notes, and recommendations..."
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+              >
+                {submitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ==================== VIEW RECORD MODAL ====================
 
 function formatFullDate(dateStr: string) {
@@ -715,10 +933,12 @@ function ViewRecordModal({
   record,
   loading,
   onClose,
+  onToggleShare,
 }: {
   record: MedicalRecord | null
   loading: boolean
   onClose: () => void
+  onToggleShare: (id: string, currentlyShared: boolean) => void
 }) {
   const pet = record?.petId
   const vet = record?.vetId
@@ -933,8 +1153,19 @@ function ViewRecordModal({
               </div>
             </div>
 
-            {/* ===== CLOSE BUTTON ===== */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-8 py-4 flex justify-end">
+            {/* ===== ACTION BAR ===== */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between">
+              <button
+                onClick={() => onToggleShare(record._id, !!record.sharedWithOwner)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  record.sharedWithOwner
+                    ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                    : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <Share2 className="w-4 h-4" />
+                {record.sharedWithOwner ? 'Shared with Owner' : 'Share with Owner'}
+              </button>
               <button
                 onClick={onClose}
                 className="px-6 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors"

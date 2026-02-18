@@ -28,6 +28,7 @@ export interface IMedicalRecord extends Document {
     description: string;
   }[];
   overallObservation: string;
+  sharedWithOwner: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +106,10 @@ const MedicalRecordSchema = new Schema(
     overallObservation: {
       type: String,
       default: ''
+    },
+    sharedWithOwner: {
+      type: Boolean,
+      default: false
     }
   },
   {

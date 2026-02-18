@@ -38,6 +38,7 @@ export interface MedicalRecord {
   vitals: Vitals;
   images: ImageFragment[];
   overallObservation: string;
+  sharedWithOwner: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,4 +105,14 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
  */
 export const deleteMedicalRecord = async (id: string, token?: string): Promise<{ status: string; message: string }> => {
   return authenticatedFetch(`/medical-records/${id}`, { method: 'DELETE' }, token);
+};
+
+/**
+ * Toggle sharing a record with the pet owner
+ */
+export const toggleShareRecord = async (id: string, shared: boolean, token?: string): Promise<{ status: string; message?: string; data?: { sharedWithOwner: boolean } }> => {
+  return authenticatedFetch(`/medical-records/${id}/share`, {
+    method: 'PATCH',
+    body: JSON.stringify({ shared })
+  }, token);
 };

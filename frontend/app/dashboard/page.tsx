@@ -165,12 +165,14 @@ function PetDetailModal({
   onClose,
   onReportLost,
   onRemovePet,
+  onNavigateToMedicalRecords,
 }: {
   pet: Pet | null
   open: boolean
   onClose: () => void
   onReportLost: (pet: Pet) => void
   onRemovePet: (pet: Pet) => void
+  onNavigateToMedicalRecords: () => void
 }) {
   if (!pet) return null
 
@@ -319,7 +321,7 @@ function PetDetailModal({
             </button>
             <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-              onClick={() => {/* navigate to medical records */}}
+              onClick={onNavigateToMedicalRecords}
             >
               <div>
                 <p className="font-semibold text-[#4F4F4F] text-sm">View Medical Records</p>
@@ -1003,6 +1005,7 @@ export default function DashboardPage() {
         onClose={() => setPetModalOpen(false)}
         onReportLost={handleReportLost}
         onRemovePet={handleRemovePet}
+        onNavigateToMedicalRecords={() => router.push('/dashboard/medical-records')}
       />
 
       {/* Report Lost Pet Modal */}

@@ -87,7 +87,13 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these records' });
     }
 
-    const records = await MedicalRecord.find({ petId: req.params.petId })
+    // Pet owners only see records shared with them
+    const query: any = { petId: req.params.petId };
+    if (isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      query.sharedWithOwner = true;
+    }
+
+    const records = await MedicalRecord.find(query)
       .select('-images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
@@ -132,6 +138,11 @@ export const getRecordById = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
     }
 
+    // Pet owners can only view records that have been shared with them
+    if (isOwner && !isRecordVet && !isClinicAdmin && !record.sharedWithOwner) {
+      return res.status(403).json({ status: 'ERROR', message: 'This record has not been shared with you' });
+    }
+
     // Convert image buffers to base64 for frontend
     const recordObj = record.toObject();
     recordObj.images = recordObj.images.map((img: any) => ({
@@ -169,10 +180,11 @@ export const updateRecord = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet can update this record' });
     }
 
-    const { vitals, images, overallObservation } = req.body;
+    const { vitals, images, overallObservation, sharedWithOwner } = req.body;
 
     if (vitals) record.vitals = vitals;
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
+    if (sharedWithOwner !== undefined) record.sharedWithOwner = sharedWithOwner;
 
     if (images) {
       record.images = images.map((img: { data: string; contentType: string; description?: string }) => ({
@@ -227,6 +239,39 @@ export const deleteRecord = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Delete record error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the record' });
+  }
+};
+
+/**
+ * Toggle sharing a medical record with the pet owner
+ */
+export const toggleShareRecord = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const record = await MedicalRecord.findById(req.params.id);
+    if (!record) {
+      return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
+    }
+
+    if (record.vetId.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet can share this record' });
+    }
+
+    const { shared } = req.body;
+    record.sharedWithOwner = typeof shared === 'boolean' ? shared : !record.sharedWithOwner;
+    await record.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: record.sharedWithOwner ? 'Record shared with pet owner' : 'Record unshared',
+      data: { sharedWithOwner: record.sharedWithOwner }
+    });
+  } catch (error) {
+    console.error('Toggle share error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };
 
