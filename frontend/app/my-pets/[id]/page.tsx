@@ -6,8 +6,9 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, type Pet as APIPet } from '@/lib/pets'
+import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -45,10 +46,14 @@ export default function PetProfilePage() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showPhotoUpload, setShowPhotoUpload] = useState(false)
-  const [activeTab, setActiveTab] = useState<'basic' | 'nfc'>('basic')
+  const [activeTab, setActiveTab] = useState<'basic' | 'medical-records' | 'nfc'>('basic')
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
+  const [recordsLoading, setRecordsLoading] = useState(false)
+  const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -73,6 +78,48 @@ export default function PetProfilePage() {
       setLoading(false)
     }
   }, [token, petId])
+
+  const fetchMedicalRecords = useCallback(async () => {
+    if (!token || !petId) return
+    setRecordsLoading(true)
+    try {
+      const res = await getRecordsByPet(petId, token)
+      if (res.status === 'SUCCESS' && res.data?.records) {
+        setMedicalRecords(res.data.records)
+      } else {
+        setMedicalRecords([])
+      }
+    } catch (err) {
+      console.error('Failed to load medical records:', err)
+      setMedicalRecords([])
+    } finally {
+      setRecordsLoading(false)
+    }
+  }, [token, petId])
+
+  const handleViewRecord = async (recordId: string) => {
+    if (!token) return
+    setViewLoading(true)
+    try {
+      const res = await getRecordById(recordId, token)
+      if (res.status === 'SUCCESS' && res.data?.record) {
+        setViewRecord(res.data.record)
+      } else {
+        toast.error('Failed to load record')
+      }
+    } catch (err) {
+      console.error('Failed to load record:', err)
+      toast.error('An error occurred')
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'medical-records' && medicalRecords.length === 0 && !recordsLoading) {
+      fetchMedicalRecords()
+    }
+  }, [activeTab, medicalRecords, recordsLoading, fetchMedicalRecords])
 
   useEffect(() => {
     fetchPet()
@@ -370,6 +417,16 @@ export default function PetProfilePage() {
                 Basic Pet Information
               </button>
               <button
+                onClick={() => setActiveTab('medical-records')}
+                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                  activeTab === 'medical-records'
+                    ? 'border-[#7FA5A3] text-[#476B6B]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Medical Records
+              </button>
+              <button
                 onClick={() => setActiveTab('nfc')}
                 className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
                   activeTab === 'nfc'
@@ -512,6 +569,64 @@ export default function PetProfilePage() {
               </>
             )}
 
+            {/* Medical Records Tab */}
+            {activeTab === 'medical-records' && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Medical Records</h3>
+                {recordsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
+                  </div>
+                ) : medicalRecords.length === 0 ? (
+                  <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-gray-500 mb-1">No medical records</h4>
+                    <p className="text-sm text-gray-400">
+                      Medical records shared by your veterinarian will appear here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {medicalRecords.map((record) => (
+                      <button
+                        key={record._id}
+                        onClick={() => handleViewRecord(record._id)}
+                        className="w-full bg-white border border-gray-200 rounded-xl p-4 hover:border-[#7FA5A3] hover:shadow-lg transition-all text-left"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="w-4 h-4 text-[#7FA5A3] flex-shrink-0" />
+                              <h4 className="font-semibold text-[#4F4F4F]">Medical Record</h4>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                                <span>{new Date(record.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-400 uppercase tracking-wide">Veterinarian</p>
+                                <p className="text-sm text-[#4F4F4F]">
+                                  Dr. {record.vetId?.firstName} {record.vetId?.lastName}
+                                </p>
+                              </div>
+                            </div>
+                            {record.clinicId && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                {record.clinicId?.name}
+                                {record.clinicBranchId?.name && ` — ${record.clinicBranchId.name}`}
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Manage NFC Tab */}
             {activeTab === 'nfc' && (
               <>
@@ -588,6 +703,123 @@ export default function PetProfilePage() {
               {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Medical Record Modal */}
+      <Dialog open={!!viewRecord || viewLoading} onOpenChange={(v) => { if (!v) setViewRecord(null) }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {viewLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
+            </div>
+          ) : viewRecord ? (
+            <div>
+              <DialogHeader className="border-b pb-4">
+                <DialogTitle className="text-xl">Medical Record</DialogTitle>
+              </DialogHeader>
+              
+              <div className="mt-6 space-y-6">
+                {/* Record Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Date of Examination</p>
+                    <p className="text-sm font-medium text-[#4F4F4F] mt-1">
+                      {new Date(viewRecord.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Attending Veterinarian</p>
+                    <p className="text-sm font-medium text-[#4F4F4F] mt-1">
+                      Dr. {viewRecord.vetId?.firstName} {viewRecord.vetId?.lastName}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Clinic Info */}
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Clinic</p>
+                  <p className="text-sm font-medium text-[#4F4F4F] mt-1">
+                    {viewRecord.clinicId?.name}
+                    {viewRecord.clinicBranchId?.name && ` — ${viewRecord.clinicBranchId.name}`}
+                  </p>
+                  {viewRecord.clinicBranchId?.address && (
+                    <p className="text-xs text-gray-500 mt-1">{viewRecord.clinicBranchId.address}</p>
+                  )}
+                </div>
+
+                {/* Vitals */}
+                <div>
+                  <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Physical Examination</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, any]) => (
+                      <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p className="text-xs text-gray-500 uppercase font-semibold capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                        <p className="text-sm font-medium text-[#4F4F4F] mt-1">
+                          {vital.value || vital.value === 0 ? vital.value : '—'}
+                        </p>
+                        {vital.notes && <p className="text-xs text-gray-500 mt-1">{vital.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Overall Observation */}
+                {viewRecord.overallObservation && (
+                  <div>
+                    <p className="text-sm font-semibold text-[#4F4F4F] mb-2">Clinical Assessment</p>
+                    <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-4 border border-gray-100 whitespace-pre-wrap">
+                      {viewRecord.overallObservation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Images */}
+                {viewRecord.images && viewRecord.images.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Diagnostic Images</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {viewRecord.images.map((img, idx) => (
+                        <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
+                          {img.data ? (
+                            <img
+                              src={`data:${img.contentType};base64,${img.data}`}
+                              alt={img.description || `Image ${idx + 1}`}
+                              className="w-full h-40 object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
+                              <FileText className="w-8 h-8 text-gray-300" />
+                            </div>
+                          )}
+                          {img.description && (
+                            <p className="text-xs text-gray-500 px-3 py-2 bg-gray-50 border-t border-gray-100">
+                              {img.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-8 border-t pt-4">
+                <button
+                  onClick={() => router.push(`/dashboard/medical-records/${viewRecord._id}`)}
+                  className="px-6 py-2 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b8f8d] transition-colors"
+                >
+                  View Full Report
+                </button>
+                <button
+                  onClick={() => setViewRecord(null)}
+                  className="px-6 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
