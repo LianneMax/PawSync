@@ -4,6 +4,8 @@ import ClinicBranch from '../models/ClinicBranch';
 import AssignedVet from '../models/AssignedVet';
 import VetApplication from '../models/VetApplication';
 import User from '../models/User';
+import MedicalRecord from '../models/MedicalRecord';
+import Pet from '../models/Pet';
 
 // ==================== CLINIC ====================
 
@@ -426,5 +428,80 @@ export const getClinicVets = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get clinic vets error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
+  }
+};
+
+/**
+ * Get all patients (pets) for a clinic
+ */
+export const getClinicPatients = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    // Only clinic admins can access this
+    if (req.user.userType !== 'clinic-admin') {
+      return res.status(403).json({ status: 'ERROR', message: 'Only clinic admins can access this' });
+    }
+
+    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    // Get all medical records for this clinic
+    const medicalRecords = await MedicalRecord.find({ clinicId: clinic._id })
+      .populate('petId')
+      .populate('vetId', 'firstName lastName')
+      .sort({ createdAt: -1 });
+
+    // Extract unique pets with their owners
+    const petMap = new Map();
+    
+    for (const record of medicalRecords) {
+      const pet = record.petId as any;
+      if (pet && !petMap.has(pet._id.toString())) {
+        petMap.set(pet._id.toString(), pet);
+      }
+    }
+
+    // Populate owner details for all pets
+    const pets = Array.from(petMap.values());
+    const petsWithOwners = await Promise.all(
+      pets.map(async (pet: any) => {
+        const owner = await User.findById(pet.ownerId).select('firstName lastName contactNumber email');
+        return {
+          _id: pet._id,
+          name: pet.name,
+          species: pet.species,
+          breed: pet.breed,
+          sex: pet.sex,
+          dateOfBirth: pet.dateOfBirth,
+          weight: pet.weight,
+          photo: pet.photo,
+          microchipNumber: pet.microchipNumber,
+          bloodType: pet.bloodType,
+          owner: {
+            _id: owner?._id,
+            firstName: owner?.firstName,
+            lastName: owner?.lastName,
+            contactNumber: owner?.contactNumber,
+            email: owner?.email
+          },
+          recordCount: medicalRecords.filter((r: any) => r.petId._id.toString() === pet._id.toString()).length,
+          lastVisit: medicalRecords.find((r: any) => r.petId._id.toString() === pet._id.toString())?.createdAt
+        };
+      })
+    );
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { patients: petsWithOwners }
+    });
+  } catch (error) {
+    console.error('Get clinic patients error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching clinic patients' });
   }
 };

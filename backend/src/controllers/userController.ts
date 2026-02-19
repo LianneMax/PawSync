@@ -51,10 +51,11 @@ export const updateProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'User not found' });
     }
 
-    const { firstName, lastName } = req.body;
+    const { firstName, lastName, contactNumber } = req.body;
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
+    if (contactNumber) user.contactNumber = contactNumber;
 
     await user.save({ validateBeforeSave: false });
 
@@ -67,6 +68,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
+          contactNumber: user.contactNumber,
           userType: user.userType,
           isVerified: user.isVerified
         }

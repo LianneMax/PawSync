@@ -6,6 +6,7 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, type Pet as APIPet } from '@/lib/pets'
+import { updateProfile } from '@/lib/users'
 import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
 import AvatarUpload from '@/components/avatar-upload'
 import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight } from 'lucide-react'
@@ -63,6 +64,7 @@ export default function PetProfilePage() {
   const [editNotes, setEditNotes] = useState('')
   const [editAllergies, setEditAllergies] = useState('')
   const [editPhoto, setEditPhoto] = useState<string | null>(null)
+  const [editOwnerContact, setEditOwnerContact] = useState('')
 
   const fetchPet = useCallback(async () => {
     if (!token || !petId) return
@@ -134,6 +136,7 @@ export default function PetProfilePage() {
     setEditNotes(pet.notes || '')
     setEditAllergies(pet.allergies.join(', '))
     setEditPhoto(null)
+    setEditOwnerContact(typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '' : '')
     setEditing(true)
   }
 
@@ -164,21 +167,43 @@ export default function PetProfilePage() {
         updates.allergies = newAllergies
       }
 
-      if (Object.keys(updates).length === 0) {
+      // Check if owner contact number changed
+      const currentOwnerContact = typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber : ''
+      const contactNumberChanged = editOwnerContact.trim() !== (currentOwnerContact || '')
+
+      if (Object.keys(updates).length === 0 && !contactNumberChanged) {
         setEditing(false)
         setShowPhotoUpload(false)
         return
       }
 
-      const response = await updatePet(petId, updates as Partial<APIPet>, token)
-      if (response.status === 'SUCCESS') {
-        toast('Pet Updated', { description: `${pet.name}'s profile has been updated.` })
-        await fetchPet()
-        setEditing(false)
-        setShowPhotoUpload(false)
-      } else {
-        toast('Error', { description: response.message || 'Failed to update pet.' })
+      // Update pet information if there are pet-related changes
+      if (Object.keys(updates).length > 0) {
+        const response = await updatePet(petId, updates as Partial<APIPet>, token)
+        if (response.status !== 'SUCCESS') {
+          toast('Error', { description: response.message || 'Failed to update pet.' })
+          setSaving(false)
+          return
+        }
       }
+
+      // Update user contact number if it changed
+      if (contactNumberChanged) {
+        const profileResponse = await updateProfile(
+          { contactNumber: editOwnerContact.trim() },
+          token
+        )
+        if (profileResponse.status !== 'SUCCESS') {
+          toast('Error', { description: profileResponse.message || 'Failed to update contact number.' })
+          setSaving(false)
+          return
+        }
+      }
+
+      toast('Pet Updated', { description: `${pet.name}'s profile has been updated.` })
+      await fetchPet()
+      setEditing(false)
+      setShowPhotoUpload(false)
     } catch {
       toast('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
@@ -516,11 +541,24 @@ export default function PetProfilePage() {
                 <DetailField label="Microchip Number" value={pet.microchipNumber || '-'} />
               )}
 
-              {/* Owner Contact Number - read only */}
-              <DetailField 
-                label="Owner Contact" 
-                value={typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '-' : '-'} 
-              />
+              {/* Owner Contact Number - editable */}
+              {editing ? (
+                <div className="bg-[#F8F6F2] rounded-xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Owner Contact</p>
+                  <input
+                    type="tel"
+                    value={editOwnerContact}
+                    onChange={(e) => setEditOwnerContact(e.target.value)}
+                    placeholder="Enter contact number"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+              ) : (
+                <DetailField 
+                  label="Owner Contact" 
+                  value={typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '-' : '-'} 
+                />
+              )}
             </div>
 
             {/* Health Section */}

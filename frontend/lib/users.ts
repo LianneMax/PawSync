@@ -19,7 +19,7 @@ export const getProfile = async (token?: string): Promise<ProfileResponse> => {
  * Update user profile
  */
 export const updateProfile = async (
-  data: { firstName?: string; lastName?: string },
+  data: { firstName?: string; lastName?: string; contactNumber?: string },
   token?: string
 ): Promise<ProfileResponse> => {
   return authenticatedFetch('/users/profile', {

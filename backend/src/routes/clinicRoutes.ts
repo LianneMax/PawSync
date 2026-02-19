@@ -9,7 +9,8 @@ import {
   assignVetToBranch,
   removeVetFromBranch,
   getClinicDashboardStats,
-  getClinicVets
+  getClinicVets,
+  getClinicPatients
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
 
@@ -74,5 +75,11 @@ router.post('/:clinicId/vets', authMiddleware, clinicAdminOnly, assignVetToBranc
  * Remove a vet from a clinic branch
  */
 router.delete('/:clinicId/vets/:assignmentId', authMiddleware, clinicAdminOnly, removeVetFromBranch);
+
+/**
+ * GET /api/clinics/:clinicId/patients
+ * Get all patients (pets) for a clinic
+ */
+router.get('/:clinicId/patients', authMiddleware, clinicAdminOnly, getClinicPatients);
 
 export default router;

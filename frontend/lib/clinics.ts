@@ -37,3 +37,43 @@ export const getAllClinicsWithBranches = async (): Promise<{ status: string; dat
 export const getVetsForBranch = async (branchId: string, token?: string): Promise<{ status: string; data?: { vets: BranchVet[] } }> => {
   return authenticatedFetch(`/appointments/branch-vets?branchId=${branchId}`, { method: 'GET' }, token);
 };
+
+export interface ClinicPatient {
+  _id: string;
+  name: string;
+  species: 'dog' | 'cat';
+  breed: string;
+  sex: 'male' | 'female';
+  dateOfBirth: string;
+  weight: number;
+  photo: string | null;
+  microchipNumber: string | null;
+  bloodType: string | null;
+  owner: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    contactNumber: string;
+    email: string;
+  };
+  recordCount: number;
+  lastVisit: string;
+}
+
+export interface ClinicPatientsResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: {
+    patients: ClinicPatient[];
+  };
+}
+
+/**
+ * Get all patients for a clinic
+ */
+export const getClinicPatients = async (
+  clinicId: string,
+  token?: string
+): Promise<ClinicPatientsResponse> => {
+  return authenticatedFetch(`/clinics/${clinicId}/patients`, { method: 'GET' }, token);
+};
