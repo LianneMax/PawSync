@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { DatePicker } from '@/components/ui/date-picker'
 import { toast } from 'sonner'
 
 function calculateAge(dateOfBirth: string): string {
@@ -37,6 +38,16 @@ export default function MyPetsPage() {
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedClinic, setSelectedClinic] = useState('')
+  const [selectedPickupDate, setSelectedPickupDate] = useState('')
+  
+  // Mock clinics data - replace with API call if needed
+  const clinics = [
+    { id: '1', name: 'PawCare Clinic Downtown', address: '123 Main St, City' },
+    { id: '2', name: 'Veterinary Health Center', address: '456 Oak Ave, City' },
+    { id: '3', name: 'Pet Wellness Clinic', address: '789 Elm St, City' },
+    { id: '4', name: 'Modern Animal Hospital', address: '321 Pine Rd, City' },
+  ]
 
   const fetchPets = useCallback(async () => {
     if (!token) {
@@ -244,38 +255,89 @@ export default function MyPetsPage() {
         )}
       </div>
 
-      {/* Pet Tag Request Confirmation Modal */}
+      {/* Pet Tag Request Modal */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Request Pet Tag</DialogTitle>
+            <DialogTitle>Request Pet Tag for {selectedPetId && pets.find(p => p._id === selectedPetId)?.name}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-gray-600">
-              Are you sure you want to request a pet tag for <strong>{selectedPetId && pets.find(p => p._id === selectedPetId)?.name}</strong>?
-            </p>
+          <div className="space-y-4 py-4">
+            {/* Clinic Selection */}
+            <div className="space-y-2">
+              <label htmlFor="clinic" className="text-sm font-semibold text-gray-700">
+                Select Pickup Clinic
+              </label>
+              <select
+                id="clinic"
+                value={selectedClinic}
+                onChange={(e) => setSelectedClinic(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent"
+              >
+                <option value="">-- Select a clinic --</option>
+                {clinics.map((clinic) => (
+                  <option key={clinic.id} value={clinic.id}>
+                    {clinic.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Selection */}
+            <div className="space-y-2">
+              <label htmlFor="pickup-date" className="text-sm font-semibold text-gray-700">
+                Select Pickup Date
+              </label>
+              <DatePicker
+                value={selectedPickupDate}
+                onChange={setSelectedPickupDate}
+                placeholder="MM/DD/YYYY"
+              />
+            </div>
+
+            {/* Selected clinic details */}
+            {selectedClinic && (
+              <div className="bg-[#F8F6F2] rounded-lg p-3 text-sm">
+                <p className="text-gray-700">
+                  <strong>Clinic:</strong> {clinics.find(c => c.id === selectedClinic)?.name}
+                </p>
+                <p className="text-gray-600 text-xs mt-1">
+                  {clinics.find(c => c.id === selectedClinic)?.address}
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter className="flex gap-2 justify-end">
             <button
-              onClick={() => setShowConfirmation(false)}
+              onClick={() => {
+                setShowConfirmation(false)
+                setSelectedClinic('')
+                setSelectedPickupDate('')
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => {
-                if (selectedPetId) {
+                if (selectedPetId && selectedClinic && selectedPickupDate) {
+                  const clinicName = clinics.find(c => c.id === selectedClinic)?.name
                   toast('Pet Tag Request Submitted', {
-                    description: `Your request for a pet tag has been submitted.`
+                    description: `Your request has been submitted. Pickup at ${clinicName} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
                   })
                   setShowConfirmation(false)
+                  setSelectedClinic('')
+                  setSelectedPickupDate('')
                   setSelectedPetId(null)
+                } else {
+                  toast('Please fill in all fields', {
+                    description: 'Select a clinic and pickup date to continue.'
+                  })
                 }
               }}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !selectedClinic || !selectedPickupDate}
               className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+              {isSubmitting ? 'Submitting...' : 'Request Tag'}
             </button>
           </DialogFooter>
         </DialogContent>
