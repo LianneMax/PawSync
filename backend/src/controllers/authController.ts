@@ -44,7 +44,7 @@ const generateToken = (user: IUser): string => {
  */
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, confirmPassword, userType } = req.body;
+    const { email, password, confirmPassword, userType, mobileNumber } = req.body;
     let { firstName, lastName } = req.body;
 
     // Validation
@@ -64,6 +64,14 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Please provide first name and last name'
+      });
+    }
+
+    // Validate mobile number for non-clinic-admin users
+    if (userType !== 'clinic-admin' && !mobileNumber) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Please provide a mobile number'
       });
     }
 
@@ -113,6 +121,7 @@ export const register = async (req: Request, res: Response) => {
       firstName,
       lastName,
       email: email.toLowerCase(),
+      contactNumber: mobileNumber || null,
       password,
       userType,
       isVerified: userType !== 'veterinarian' // Pet owners and clinic admins are auto-verified

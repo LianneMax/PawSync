@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Mail, Lock, User, Heart, Stethoscope, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, User, Heart, Stethoscope, Eye, EyeOff, Phone } from 'lucide-react'
 import { register } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 
@@ -27,6 +27,7 @@ export default function SignUpPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [mobileNumber, setMobileNumber] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -60,6 +61,7 @@ export default function SignUpPage() {
     if (!firstName.trim()) newFieldErrors.firstName = 'This field is required'
     if (!lastName.trim()) newFieldErrors.lastName = 'This field is required'
     if (!email.trim()) newFieldErrors.email = 'This field is required'
+    if (!mobileNumber.trim()) newFieldErrors.mobileNumber = 'This field is required'
     if (!password) newFieldErrors.password = 'This field is required'
     if (!confirmPassword) newFieldErrors.confirmPassword = 'This field is required'
 
@@ -83,7 +85,7 @@ export default function SignUpPage() {
     setLoading(true)
 
     try {
-      const response = await register(firstName, lastName, email, password, confirmPassword, userType!)
+      const response = await register(firstName, lastName, email, mobileNumber, password, confirmPassword, userType!)
 
       if (response.status === 'ERROR') {
         setError(response.message)
@@ -101,7 +103,8 @@ export default function SignUpPage() {
           userType,
           firstName,
           lastName,
-          email
+          email,
+          mobileNumber
         }))
 
         if (userType === 'pet-owner') {
@@ -242,6 +245,23 @@ export default function SignUpPage() {
                   />
                 </div>
                 {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
+              </div>
+
+              {/* Mobile Number Input */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="tel"
+                    name="mobileNumber"
+                    autoComplete="tel"
+                    placeholder="Mobile Number"
+                    value={mobileNumber}
+                    onChange={(e) => { setMobileNumber(e.target.value); setFieldErrors(prev => ({ ...prev, mobileNumber: '' })) }}
+                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.mobileNumber ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                  />
+                </div>
+                {fieldErrors.mobileNumber && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.mobileNumber}</p>}
               </div>
 
               {/* Password Input */}

@@ -45,7 +45,7 @@ const UserSchema = new Schema(
     },
     contactNumber: {
       type: String,
-      required: [true, 'Please provide a contact number'],
+      default: null
       //match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid contact number']
     },
     userType: {
