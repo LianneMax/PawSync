@@ -14,9 +14,10 @@ interface DatePickerProps {
   required?: boolean;
   error?: boolean;
   className?: string;
+  allowFutureDates?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [textValue, setTextValue] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -35,14 +36,14 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
 
   const date = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
 
-  // Disable future dates
-  const disabledMatcher = (date: Date) => {
+  // Disable future dates only if allowFutureDates is false
+  const disabledMatcher = allowFutureDates ? undefined : (date: Date) => {
     return date > new Date();
   };
 
   const handleSelect = (selected: Date | undefined) => {
-    // Prevent future dates from being selected
-    if (selected && selected > new Date()) {
+    // Prevent future dates from being selected only if allowFutureDates is false
+    if (!allowFutureDates && selected && selected > new Date()) {
       return;
     }
     onChange(selected ? format(selected, 'yyyy-MM-dd') : '');
@@ -130,7 +131,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={date} onSelect={handleSelect} disabled={disabledMatcher} autoFocus />
+            <Calendar mode="single" selected={date} onSelect={handleSelect} {...(disabledMatcher && { disabled: disabledMatcher })} autoFocus />
           </PopoverContent>
         </Popover>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Check, ArrowLeft, ArrowRight, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { DatePicker } from '@/components/ui/date-picker'
 import ProgressUpload from '@/components/progress-upload'
@@ -106,6 +107,19 @@ export default function VetOnboardingPage() {
     if (!prcNumber.trim()) newErrors.prcNumber = true
     if (!registrationDate) newErrors.registrationDate = true
     if (!expirationDate) newErrors.expirationDate = true
+    if (!prcIdPhotoBase64) newErrors.prcIdPhoto = true
+
+    // Check if expiration date is in the past (license expired)
+    if (expirationDate) {
+      const expDate = new Date(expirationDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      expDate.setHours(0, 0, 0, 0)
+      if (expDate < today) {
+        newErrors.expirationDateExpired = true
+        toast.error('Your PRC license has already expired')
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -422,7 +436,14 @@ export default function VetOnboardingPage() {
                   <div>
                     <DatePicker
                       value={registrationDate}
-                      onChange={(v) => { setRegistrationDate(v); setErrors(prev => ({ ...prev, registrationDate: false })) }}
+                      onChange={(v) => {
+                        // Prevent future dates for registration date
+                        if (v && new Date(v) > new Date()) {
+                          return
+                        }
+                        setRegistrationDate(v)
+                        setErrors(prev => ({ ...prev, registrationDate: false }))
+                      }}
                       placeholder="Date of Registration"
                       error={errors.registrationDate}
                     />
@@ -435,11 +456,14 @@ export default function VetOnboardingPage() {
                   <div>
                     <DatePicker
                       value={expirationDate}
-                      onChange={(v) => { setExpirationDate(v); setErrors(prev => ({ ...prev, expirationDate: false })) }}
+                      onChange={(v) => { setExpirationDate(v); setErrors(prev => ({ ...prev, expirationDate: false, expirationDateExpired: false })) }}
                       placeholder="Expiration Date"
-                      error={errors.expirationDate}
+                      error={errors.expirationDate || errors.expirationDateExpired}
+                      allowFutureDates={true}
                     />
-                    {!errors.expirationDate && (
+                    {errors.expirationDateExpired ? (
+                      <p className="text-xs text-red-500 mt-1 ml-1">Your license has already expired</p>
+                    ) : !errors.expirationDate && (
                       <p className="text-xs text-gray-500 mt-1 ml-1">
                         When your current license expires
                       </p>
@@ -451,7 +475,7 @@ export default function VetOnboardingPage() {
               {/* PRC ID Photo Section */}
               <div className="mb-8">
                 <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">
-                  PRC ID Photo
+                  PRC ID Photo*
                 </h3>
 
                 <ProgressUpload
@@ -471,6 +495,7 @@ export default function VetOnboardingPage() {
                       const reader = new FileReader()
                       reader.onloadend = () => {
                         setPrcIdPhotoBase64(reader.result as string)
+                        setErrors(prev => ({ ...prev, prcIdPhoto: false }))
                       }
                       reader.readAsDataURL(files[0].file)
                     } else {
@@ -479,6 +504,7 @@ export default function VetOnboardingPage() {
                     }
                   }}
                 />
+                {errors.prcIdPhoto && <p className="text-xs text-red-500 mt-1 ml-1">PRC ID Photo is required</p>}
               </div>
 
               {/* Action Buttons */}

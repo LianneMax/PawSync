@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Edit } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 interface SubmissionData {
@@ -18,6 +18,7 @@ export default function VerificationPendingPage() {
   const router = useRouter()
   const { user } = useAuthStore()
   const [submissionData, setSubmissionData] = useState<SubmissionData | null>(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
 
   useEffect(() => {
     // Get data from sessionStorage
@@ -51,6 +52,11 @@ export default function VerificationPendingPage() {
 
   const handleEditSubmission = () => {
     router.push('/onboarding/vet')
+  }
+
+  const handleConfirmSubmission = () => {
+    // Navigate to success page after confirmation
+    router.push('/onboarding/vet/verification-success')
   }
 
   return (
@@ -134,14 +140,48 @@ export default function VerificationPendingPage() {
           once your license is verified.
         </p>
 
-        {/* Edit Submission Button */}
+        {/* Confirm Submission Button */}
         <button
-          onClick={handleEditSubmission}
-          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-gray-200 rounded-xl font-semibold text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+          onClick={() => setShowConfirmation(true)}
+          className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
         >
-          <Edit className="w-5 h-5" />
-          Edit Submission
+          Confirm Submission
         </button>
+
+        {/* Confirmation Dialog */}
+        {showConfirmation && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl p-8 max-w-sm shadow-2xl">
+              <h2 className="text-2xl font-bold text-[#4F4F4F] mb-4">
+                Confirm Submission?
+              </h2>
+              <p className="text-gray-600 mb-2">
+                Are you sure you want to submit your PRC license for verification?
+              </p>
+              <p className="text-sm text-red-600 font-medium mb-6 bg-red-50 p-3 rounded-lg">
+                ⚠️ You will no longer be able to edit your response after submitting.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmation(false)}
+                  className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-semibold text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirmation(false)
+                    handleConfirmSubmission()
+                  }}
+                  className="flex-1 py-3 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
