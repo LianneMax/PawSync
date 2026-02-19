@@ -497,6 +497,9 @@ export default function PetProfilePage() {
               {/* Sterilization - read only */}
               <DetailField label="Sterilization" value={sterilizationLabel} />
 
+              {/* Blood Type - read only */}
+              <DetailField label="Blood Type" value={pet.bloodType || '-'} />
+
               {/* Microchip - editable */}
               {editing ? (
                 <div className="bg-[#F8F6F2] rounded-xl p-4">
