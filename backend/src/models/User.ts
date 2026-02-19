@@ -45,7 +45,8 @@ const UserSchema = new Schema(
     },
     contactNumber: {
       type: String,
-      default: null
+      default: null,
+      sparse: true // Allow null for clinic-admins, but require for others
       //match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid contact number']
     },
     userType: {

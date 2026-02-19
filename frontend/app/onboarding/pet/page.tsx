@@ -4,8 +4,10 @@ import { Suspense, useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Dog, Cat, Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { createPet, getMyPets } from '@/lib/pets'
+import { getAllClinicsWithBranches } from '@/lib/clinics'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
@@ -73,16 +75,32 @@ function PetOnboardingContent() {
   const [clinicSearch, setClinicSearch] = useState('')
   const [selectedClinic, setSelectedClinic] = useState<{ id: string; name: string; address: string } | null>(null)
   const [showClinicResults, setShowClinicResults] = useState(false)
+  const [clinics, setClinics] = useState<Array<{ id: string; name: string; address: string }>>([]);
+  const [clinicsLoading, setClinicsLoading] = useState(true);
 
-  const mockClinics = [
-    { id: '1', name: 'PawCare Veterinary Clinic', address: '123 Main St, Manila' },
-    { id: '2', name: 'Happy Pets Animal Hospital', address: '456 Oak Ave, Quezon City' },
-    { id: '3', name: 'VetCare Plus', address: '789 Pine Rd, Makati' },
-    { id: '4', name: 'Animal Wellness Center', address: '321 Elm St, Pasig' },
-    { id: '5', name: 'Pet Health Clinic', address: '654 Cedar Blvd, Taguig' },
-  ]
+  // Fetch clinics from database
+  useEffect(() => {
+    const fetchClinics = async () => {
+      try {
+        const response = await getAllClinicsWithBranches();
+        if (response.status === 'SUCCESS' && response.data?.clinics) {
+          const clinicsList = response.data.clinics.map(clinic => ({
+            id: clinic._id,
+            name: clinic.name,
+            address: clinic.address || (clinic.branches?.[0]?.address ?? 'Address not available')
+          }));
+          setClinics(clinicsList);
+        }
+      } catch (error) {
+        console.error('Error fetching clinics:', error);
+      } finally {
+        setClinicsLoading(false);
+      }
+    };
+    fetchClinics();
+  }, []);
 
-  const filteredClinics = mockClinics.filter(clinic =>
+  const filteredClinics = clinics.filter(clinic =>
     clinic.name.toLowerCase().includes(clinicSearch.toLowerCase()) ||
     clinic.address.toLowerCase().includes(clinicSearch.toLowerCase())
   )
@@ -442,7 +460,11 @@ function PetOnboardingContent() {
 
                   {showClinicResults && !selectedClinic && (
                     <div className="absolute z-10 w-full mt-2 bg-white rounded-xl border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
-                      {filteredClinics.length > 0 ? (
+                      {clinicsLoading ? (
+                        <div className="px-4 py-3 text-gray-500 text-center">
+                          Loading clinics...
+                        </div>
+                      ) : filteredClinics.length > 0 ? (
                         filteredClinics.map((clinic) => (
                           <button
                             key={clinic.id}
@@ -489,15 +511,32 @@ function PetOnboardingContent() {
                   <BreedCombobox
                     species={species}
                     value={breed}
-                    onChange={(v) => { setBreed(v); setErrors(prev => ({ ...prev, breed: false })) }}
+                    onChange={(v) => {
+                      setBreed(v)
+                      setErrors(prev => ({ ...prev, breed: false }))
+                      // Clear secondary breed if it matches the primary breed
+                      if (secondaryBreed.toLowerCase() === v.toLowerCase()) {
+                        setSecondaryBreed('')
+                        toast.error('Primary and secondary breeds cannot be the same')
+                      }
+                    }}
                     placeholder="Primary Breed*"
                     error={errors.breed}
                   />
                   <BreedCombobox
                     species={species}
                     value={secondaryBreed}
-                    onChange={setSecondaryBreed}
+                    onChange={(v) => {
+                      // Prevent selecting the same breed as primary
+                      if (v.toLowerCase() === breed.toLowerCase()) {
+                        toast.error('Primary and secondary breeds cannot be the same')
+                      } else {
+                        setSecondaryBreed(v)
+                      }
+                      setErrors(prev => ({ ...prev, secondaryBreed: false }))
+                    }}
                     placeholder="Secondary Breed (optional)"
+                    error={errors.secondaryBreed}
                   />
                 </div>
 

@@ -35,7 +35,16 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
 
   const date = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
 
+  // Disable future dates
+  const disabledMatcher = (date: Date) => {
+    return date > new Date();
+  };
+
   const handleSelect = (selected: Date | undefined) => {
+    // Prevent future dates from being selected
+    if (selected && selected > new Date()) {
+      return;
+    }
     onChange(selected ? format(selected, 'yyyy-MM-dd') : '');
     setOpen(false);
   };
@@ -52,8 +61,11 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
       const yyyy = digits.slice(4, 8);
       const parsed = parse(`${yyyy}-${mm}-${dd}`, 'yyyy-MM-dd', new Date());
       if (isValid(parsed)) {
-        onChange(format(parsed, 'yyyy-MM-dd'));
-        setTextValue(`${mm}/${dd}/${yyyy}`);
+        // Prevent future dates
+        if (parsed <= new Date()) {
+          onChange(format(parsed, 'yyyy-MM-dd'));
+          setTextValue(`${mm}/${dd}/${yyyy}`);
+        }
       }
     } else if (raw === '') {
       onChange('');
@@ -71,6 +83,17 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
     for (const fmt of formats) {
       const parsed = parse(textValue, fmt, new Date());
       if (isValid(parsed) && parsed.getFullYear() > 1900) {
+        // Check if date is in the future
+        if (parsed > new Date()) {
+          // If future date, revert to the current value
+          if (value) {
+            const d = parse(value, 'yyyy-MM-dd', new Date());
+            setTextValue(isValid(d) ? format(d, 'MM/dd/yyyy') : '');
+          } else {
+            setTextValue('');
+          }
+          return;
+        }
         onChange(format(parsed, 'yyyy-MM-dd'));
         return;
       }
@@ -107,7 +130,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={date} onSelect={handleSelect} autoFocus />
+            <Calendar mode="single" selected={date} onSelect={handleSelect} disabled={disabledMatcher} autoFocus />
           </PopoverContent>
         </Popover>
 
