@@ -80,14 +80,14 @@ export const getPetById = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const pet = await Pet.findById(req.params.id);
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'firstName lastName contactNumber email');
 
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
     // Only the owner or an assigned vet can view the pet
-    const isOwner = pet.ownerId.toString() === req.user.userId;
+    const isOwner = pet.ownerId._id.toString() === req.user.userId;
     let isAssignedVet = false;
 
     if (req.user.userType === 'veterinarian') {

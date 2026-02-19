@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password: string;
   firstName: string;
   lastName: string;
+  contactNumber: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   isVerified: boolean;
   loginAttempts: number;
@@ -41,6 +42,11 @@ const UserSchema = new Schema(
     lastName: {
       type: String,
       required: [true, 'Please provide a last name']
+    },
+    contactNumber: {
+      type: String,
+      required: [true, 'Please provide a contact number'],
+      //match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid contact number']
     },
     userType: {
       type: String,

@@ -515,6 +515,12 @@ export default function PetProfilePage() {
               ) : (
                 <DetailField label="Microchip Number" value={pet.microchipNumber || '-'} />
               )}
+
+              {/* Owner Contact Number - read only */}
+              <DetailField 
+                label="Owner Contact" 
+                value={typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '-' : '-'} 
+              />
             </div>
 
             {/* Health Section */}
