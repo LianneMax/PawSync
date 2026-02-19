@@ -139,7 +139,7 @@ export default function PatientManagementPage() {
             </div>
             <button className="flex items-center gap-2 bg-[#7FA5A3] hover:bg-[#6B8E8C] text-white px-4 py-2 rounded-lg text-sm transition-colors">
               <Smartphone className="w-4 h-4" />
-              Tap NFC Tag
+              Scan Pet Tag
             </button>
           </div>
 
