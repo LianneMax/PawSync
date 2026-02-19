@@ -144,6 +144,11 @@
   }
 }
 
+::placeholder {
+  color: gray; /* This will make the placeholder text gray */
+  opacity: 1; /* Ensures full opacity across all browsers, including Firefox */
+}
+
 /** Custom Scrollbar **/
 @layer base {
   ::-webkit-scrollbar {
