@@ -406,7 +406,7 @@ export default function MedicalRecordsPage() {
                   }}
                   className="px-6 py-2 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b8f8d] transition-colors"
                 >
-                  View Full Report
+                  View Full Record
                 </button>
                 <button
                   onClick={() => setViewRecord(null)}
