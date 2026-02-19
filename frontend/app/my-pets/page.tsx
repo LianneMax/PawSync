@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { DatePicker } from '@/components/ui/date-picker'
+import { getAllClinicsWithBranches, type ClinicBranch } from '@/lib/clinics'
 import { toast } from 'sonner'
 
 function calculateAge(dateOfBirth: string): string {
@@ -40,14 +41,8 @@ export default function MyPetsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedClinic, setSelectedClinic] = useState('')
   const [selectedPickupDate, setSelectedPickupDate] = useState('')
-  
-  // Mock clinics data - replace with API call if needed
-  const clinics = [
-    { id: '1', name: 'PawCare Clinic Downtown', address: '123 Main St, City' },
-    { id: '2', name: 'Veterinary Health Center', address: '456 Oak Ave, City' },
-    { id: '3', name: 'Pet Wellness Clinic', address: '789 Elm St, City' },
-    { id: '4', name: 'Modern Animal Hospital', address: '321 Pine Rd, City' },
-  ]
+  const [clinicBranches, setClinicBranches] = useState<ClinicBranch[]>([])
+  const [loadingClinics, setLoadingClinics] = useState(false)
 
   const fetchPets = useCallback(async () => {
     if (!token) {
@@ -70,6 +65,32 @@ export default function MyPetsPage() {
   useEffect(() => {
     fetchPets()
   }, [fetchPets])
+
+  // Fetch clinic branches for pet tag pickup selection
+  useEffect(() => {
+    const fetchClinicBranches = async () => {
+      setLoadingClinics(true)
+      try {
+        const response = await getAllClinicsWithBranches()
+        if (response.status === 'SUCCESS' && response.data?.clinics) {
+          // Flatten all branches from all clinics
+          const allBranches = response.data.clinics.flatMap((clinic) =>
+            clinic.branches.map((branch) => ({
+              ...branch,
+              clinicName: clinic.name,
+            }))
+          )
+          setClinicBranches(allBranches)
+        }
+      } catch (error) {
+        console.error('Failed to fetch clinic branches:', error)
+      } finally {
+        setLoadingClinics(false)
+      }
+    }
+
+    fetchClinicBranches()
+  }, [])
 
   const filteredPets = pets.filter((pet) =>
     pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -271,12 +292,13 @@ export default function MyPetsPage() {
                 id="clinic"
                 value={selectedClinic}
                 onChange={(e) => setSelectedClinic(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent"
+                disabled={loadingClinics}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
               >
-                <option value="">-- Select a clinic --</option>
-                {clinics.map((clinic) => (
-                  <option key={clinic.id} value={clinic.id}>
-                    {clinic.name}
+                <option value="">{loadingClinics ? '-- Loading clinics --' : '-- Select a clinic branch --'}</option>
+                {clinicBranches.map((branch) => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name}
                   </option>
                 ))}
               </select>
@@ -298,10 +320,10 @@ export default function MyPetsPage() {
             {selectedClinic && (
               <div className="bg-[#F8F6F2] rounded-lg p-3 text-sm">
                 <p className="text-gray-700">
-                  <strong>Clinic:</strong> {clinics.find(c => c.id === selectedClinic)?.name}
+                  <strong>Branch:</strong> {clinicBranches.find(c => c._id === selectedClinic)?.name}
                 </p>
                 <p className="text-gray-600 text-xs mt-1">
-                  {clinics.find(c => c.id === selectedClinic)?.address}
+                  {clinicBranches.find(c => c._id === selectedClinic)?.address}
                 </p>
               </div>
             )}
@@ -320,9 +342,9 @@ export default function MyPetsPage() {
             <button
               onClick={() => {
                 if (selectedPetId && selectedClinic && selectedPickupDate) {
-                  const clinicName = clinics.find(c => c.id === selectedClinic)?.name
+                  const selectedBranch = clinicBranches.find(c => c._id === selectedClinic)
                   toast('Pet Tag Request Submitted', {
-                    description: `Your request has been submitted. Pickup at ${clinicName} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
+                    description: `Your request has been submitted. Pickup at ${selectedBranch?.name} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
                   })
                   setShowConfirmation(false)
                   setSelectedClinic('')
@@ -330,7 +352,7 @@ export default function MyPetsPage() {
                   setSelectedPetId(null)
                 } else {
                   toast('Please fill in all fields', {
-                    description: 'Select a clinic and pickup date to continue.'
+                    description: 'Select a clinic branch and pickup date to continue.'
                   })
                 }
               }}
