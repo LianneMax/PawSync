@@ -6,7 +6,7 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
+  userType: 'pet-owner' | 'veterinarian';
   isVerified: boolean;
 }
 

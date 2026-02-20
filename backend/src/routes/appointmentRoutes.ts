@@ -13,7 +13,7 @@ import {
   createClinicAppointment,
   getClinicAppointments
 } from '../controllers/appointmentController';
-import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
+import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 

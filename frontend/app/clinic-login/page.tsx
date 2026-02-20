@@ -214,12 +214,6 @@ export default function ClinicLoginPage() {
 
               {/* Links */}
               <div className="text-center space-y-3">
-                <p className="text-[#4F4F4F] text-sm">
-                  Don&apos;t have a clinic account?{' '}
-                  <Link href="/clinic-signup" className="text-[#476B6B] hover:underline font-medium">
-                    Register your clinic
-                  </Link>
-                </p>
                 <p className="text-gray-400 text-sm">
                   Are you a pet owner or veterinarian?{' '}
                   <Link href="/login" className="text-[#7FA5A3] hover:underline">

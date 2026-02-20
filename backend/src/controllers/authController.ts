@@ -55,20 +55,16 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    // For clinic-admin, derive name from clinic name if not provided
-    const { clinicName, branchDetails, clinicLogo } = req.body;
-    if (userType === 'clinic-admin') {
-      if (!firstName) firstName = clinicName || 'Clinic';
-      if (!lastName) lastName = 'Admin';
-    } else if (!firstName || !lastName) {
+    // Validate first name and last name
+    if (!firstName || !lastName) {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Please provide first name and last name'
       });
     }
 
-    // Validate mobile number for non-clinic-admin users
-    if (userType !== 'clinic-admin' && !mobileNumber) {
+    // Validate mobile number
+    if (!mobileNumber) {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Please provide a mobile number'
@@ -101,18 +97,10 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Validate user type
-    if (!['pet-owner', 'veterinarian', 'clinic-admin'].includes(userType)) {
+    if (!['pet-owner', 'veterinarian'].includes(userType)) {
       return res.status(400).json({
         status: 'ERROR',
-        message: 'Invalid user type. Must be "pet-owner", "veterinarian", or "clinic-admin"'
-      });
-    }
-
-    // Clinic admin requires clinicName
-    if (userType === 'clinic-admin' && !clinicName) {
-      return res.status(400).json({
-        status: 'ERROR',
-        message: 'Clinic name is required for clinic admin registration'
+        message: 'Invalid user type. Must be "pet-owner" or "veterinarian"'
       });
     }
 
@@ -124,39 +112,8 @@ export const register = async (req: Request, res: Response) => {
       contactNumber: mobileNumber || null,
       password,
       userType,
-      isVerified: userType !== 'veterinarian' // Pet owners and clinic admins are auto-verified
+      isVerified: userType !== 'veterinarian' // Pet owners are auto-verified
     });
-
-    // Auto-create Clinic and main branch for clinic-admin
-    if (userType === 'clinic-admin') {
-      const clinicDoc = new Clinic({
-        name: clinicName,
-        adminId: newUser._id,
-        email: email.toLowerCase(),
-        ...(clinicLogo && { logo: clinicLogo })
-      });
-      const clinic = await clinicDoc.save();
-
-      const mainBranch = await ClinicBranch.create({
-        clinicId: clinic._id,
-        name: branchDetails?.name || `${clinicName} - Main Branch`,
-        address: branchDetails?.address || 'To be updated',
-        city: branchDetails?.city || null,
-        province: branchDetails?.province || null,
-        phone: branchDetails?.phone || null,
-        email: branchDetails?.email || email.toLowerCase(),
-        openingTime: branchDetails?.openingTime || null,
-        closingTime: branchDetails?.closingTime || null,
-        operatingDays: branchDetails?.operatingDays || [],
-        isMain: true
-      });
-
-      // Store the main branch reference and copy branch details to clinic
-      clinic.mainBranchId = mainBranch._id as any;
-      clinic.address = branchDetails?.address || null;
-      clinic.phone = branchDetails?.phone || null;
-      await clinic.save();
-    }
 
     // Generate token
     const token = generateToken(newUser);
