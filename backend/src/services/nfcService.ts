@@ -22,10 +22,25 @@ class NfcService extends EventEmitter {
     if (this.initialized) return;
     this.initialized = true;
 
-    const workerPath = path.join(__dirname, 'nfcWorker.js');
+    const workerPath = path.join(__dirname, 'nfcWorker.ts');
 
     try {
-      this.worker = fork(workerPath, [], { silent: true });
+      console.log('[NFC] Starting NFC worker process...');
+      this.worker = fork(workerPath, [], { 
+        silent: true,
+        execArgv: ['--require', 'ts-node/register']
+      });
+      
+      if (this.worker.stdout) {
+        this.worker.stdout.on('data', (data: any) => {
+          console.log(data.toString().trim());
+        });
+      }
+      if (this.worker.stderr) {
+        this.worker.stderr.on('data', (data: any) => {
+          console.error(data.toString().trim());
+        });
+      }
     } catch {
       console.log('[NFC] Could not start NFC worker — NFC features disabled');
       return;
@@ -33,19 +48,19 @@ class NfcService extends EventEmitter {
 
     const initTimeout = setTimeout(() => {
       if (this.worker) {
+        console.log('[NFC] Initialization timeout — NFC worker may not have hardware support');
         this.worker.kill();
         this.worker = null;
-        console.log('[NFC] No NFC hardware detected — NFC features disabled');
       }
-    }, 5000);
+    }, 15000);
 
     this.worker.on('message', (msg: any) => {
       switch (msg.type) {
         case 'ready':
-          clearTimeout(initTimeout);
-          console.log('[NFC] Service initialized — waiting for readers...');
+          console.log('[NFC] Service initialized — scanning for readers...');
           break;
         case 'reader:connect':
+          clearTimeout(initTimeout);
           console.log(`[NFC] Reader connected: ${msg.data.name}`);
           this.readers.set(msg.data.name, true);
           this.emit('reader:connect', msg.data);
@@ -57,6 +72,10 @@ class NfcService extends EventEmitter {
           break;
         case 'card':
           console.log(`[NFC] Card detected on ${msg.data.reader}: ${msg.data.uid}`);
+          console.log(`[NFC] Card Details:`);
+          console.log(`  - UID: ${msg.data.uid}`);
+          console.log(`  - ATR: ${msg.data.atr}`);
+          console.log(`  - Reader: ${msg.data.reader}`);
           this.emit('card', msg.data);
           break;
         case 'card:remove':
@@ -69,6 +88,7 @@ class NfcService extends EventEmitter {
         case 'init-failed':
           clearTimeout(initTimeout);
           console.log('[NFC] No NFC hardware detected — NFC features disabled');
+          console.log('[NFC] Error details:', msg.data);
           this.worker?.kill();
           this.worker = null;
           break;
@@ -77,12 +97,14 @@ class NfcService extends EventEmitter {
 
     this.worker.on('exit', () => {
       clearTimeout(initTimeout);
+      console.log('[NFC] Worker process exited');
       this.worker = null;
     });
 
-    this.worker.on('error', () => {
+    this.worker.on('error', (err) => {
       clearTimeout(initTimeout);
       console.log('[NFC] Could not start NFC worker — NFC features disabled');
+      console.log('[NFC] Error:', err.message);
       this.worker = null;
     });
   }

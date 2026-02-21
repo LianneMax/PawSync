@@ -24,6 +24,7 @@ import {
 import { Html5Qrcode } from 'html5-qrcode'
 import MouseEffectBackground from '@/components/kokonutui/mouse-effect-background'
 import SmoothTab from '@/components/kokonutui/smooth-tab'
+import { NFCLinkModal } from '@/components/NFCLinkModal'
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
 
@@ -140,6 +141,8 @@ export default function Home() {
   const [showScanModal, setShowScanModal] = useState(false)
   const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'unsupported' | 'error'>('idle')
   const [qrStatus, setQrStatus] = useState<'idle' | 'scanning' | 'error'>('idle')
+  const [isNFCModalOpen, setIsNFCModalOpen] = useState(false)
+  const [nfcUrl, setNfcUrl] = useState<string | null>(null)
   const content = roleContent[activeTab]
 
   const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -206,7 +209,11 @@ export default function Home() {
           if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
           ws.close()
           nfcWsRef.current = null
-          window.location.href = `/pet/${msg.data.uid}`
+          
+          // Show NFC modal with the link from the card
+          setNfcUrl(msg.data.url || null)
+          setIsNFCModalOpen(true)
+          setNfcStatus('idle')
         }
       }
 
@@ -709,6 +716,16 @@ export default function Home() {
           </div>
         </div>
       )}
+      
+      <NFCLinkModal 
+        isOpen={isNFCModalOpen} 
+        url={nfcUrl} 
+        onClose={() => {
+          setIsNFCModalOpen(false)
+          setNfcUrl(null)
+          setNfcStatus('idle')
+        }} 
+      />
     </div>
   )
 }
