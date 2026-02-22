@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import bcryptjs from 'bcryptjs';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 import AssignedVet from '../models/AssignedVet';
@@ -6,6 +7,18 @@ import VetApplication from '../models/VetApplication';
 import User from '../models/User';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
+
+/**
+ * Helper: get clinic for the authenticated admin using clinicId from JWT.
+ * Falls back to legacy adminId lookup for backwards compatibility.
+ */
+async function getClinicForAdmin(req: Request) {
+  if (req.user?.clinicId) {
+    return Clinic.findOne({ _id: req.user.clinicId, isActive: true });
+  }
+  // Legacy fallback: look up by adminId
+  return Clinic.findOne({ adminId: req.user?.userId, isActive: true });
+}
 
 // ==================== CLINIC ====================
 
@@ -18,11 +31,15 @@ export const getMyClinics = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinics = await Clinic.find({ adminId: req.user.userId, isActive: true }).sort({ createdAt: -1 });
+    const clinic = await getClinicForAdmin(req);
+
+    if (!clinic) {
+      return res.status(200).json({ status: 'SUCCESS', data: { clinics: [] } });
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { clinics }
+      data: { clinics: [clinic] }
     });
   } catch (error) {
     console.error('Get clinics error:', error);
@@ -76,13 +93,19 @@ export const getBranches = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const branches = await ClinicBranch.find({ clinicId: clinic._id })
+    // Non-main branch admins only see their own branch
+    const branchQuery: any = { clinicId: clinic._id };
+    if (req.user.clinicBranchId && !req.user.isMainBranch) {
+      branchQuery._id = req.user.clinicBranchId;
+    }
+
+    const branches = await ClinicBranch.find(branchQuery)
       .sort({ isMain: -1, createdAt: -1 });
 
     return res.status(200).json({
@@ -104,7 +127,7 @@ export const addBranch = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -163,7 +186,7 @@ export const updateBranch = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -223,7 +246,7 @@ export const deleteBranch = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -247,6 +270,79 @@ export const deleteBranch = async (req: Request, res: Response) => {
   }
 };
 
+// ==================== BRANCH ADMIN ====================
+
+/**
+ * Create a new branch admin account for the same clinic
+ */
+export const createBranchAdmin = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { email, password, firstName, lastName, branchId } = req.body;
+
+    if (!email || !password || !firstName || !lastName || !branchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide email, password, firstName, lastName, and branchId' });
+    }
+
+    // Verify the branch belongs to this clinic
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({ status: 'ERROR', message: 'Email is already registered' });
+    }
+
+    // Create the branch admin user
+    // Set isMainBranch based on whether this branch is the main branch
+    const newAdmin = await User.create({
+      email: email.toLowerCase(),
+      password,
+      firstName,
+      lastName,
+      userType: 'branch-admin',
+      clinicId: clinic._id,
+      branchId: branchId,
+      isMainBranch: branch.isMain,
+      isVerified: true
+    });
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Branch admin created successfully',
+      data: {
+        admin: {
+          id: newAdmin._id,
+          firstName: newAdmin.firstName,
+          lastName: newAdmin.lastName,
+          email: newAdmin.email,
+          branchId: branchId,
+          branchName: branch.name
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Create branch admin error:', error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the branch admin' });
+  }
+};
+
 // ==================== VET ASSIGNMENT ====================
 
 /**
@@ -258,7 +354,7 @@ export const assignVetToBranch = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -308,7 +404,7 @@ export const removeVetFromBranch = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -340,7 +436,7 @@ export const removeVetFromBranch = async (req: Request, res: Response) => {
 // ==================== DASHBOARD ====================
 
 /**
- * Get dashboard stats for the clinic admin
+ * Get dashboard stats for the clinic admin (filtered by branch)
  */
 export const getClinicDashboardStats = async (req: Request, res: Response) => {
   try {
@@ -348,17 +444,35 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
+    const branchId = req.user.clinicBranchId;
+
+    // Build branch-filtered query
+    const branchFilter = branchId ? { branchId } : {};
+    const vetAppFilter: any = { clinicId: clinic._id };
+    if (branchId) {
+      vetAppFilter.branchId = branchId;
+    }
+
     const [branchCount, approvedVetCount, pendingApplicationCount] = await Promise.all([
-      ClinicBranch.countDocuments({ clinicId: clinic._id, isActive: true }),
-      VetApplication.countDocuments({ clinicId: clinic._id, status: 'approved' }),
-      VetApplication.countDocuments({ clinicId: clinic._id, status: 'pending' }),
+      branchId
+        ? ClinicBranch.countDocuments({ _id: branchId, clinicId: clinic._id, isActive: true })
+        : ClinicBranch.countDocuments({ clinicId: clinic._id, isActive: true }),
+      VetApplication.countDocuments({ ...vetAppFilter, status: 'approved' }),
+      VetApplication.countDocuments({ ...vetAppFilter, status: 'pending' }),
     ]);
+
+    // Get branch name if branch-specific
+    let branchName = null;
+    if (branchId) {
+      const branch = await ClinicBranch.findById(branchId).select('name');
+      branchName = branch?.name || null;
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -367,6 +481,7 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
           _id: clinic._id,
           name: clinic.name,
         },
+        branch: branchId ? { _id: branchId, name: branchName } : null,
         stats: {
           totalVeterinarians: approvedVetCount,
           activeBranches: branchCount,
@@ -381,7 +496,7 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
 };
 
 /**
- * Get approved vets for a clinic (with their details)
+ * Get approved vets for a clinic (filtered by branch)
  */
 export const getClinicVets = async (req: Request, res: Response) => {
   try {
@@ -389,16 +504,18 @@ export const getClinicVets = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const approvedApplications = await VetApplication.find({
-      clinicId: clinic._id,
-      status: 'approved'
-    })
+    const vetAppFilter: any = { clinicId: clinic._id, status: 'approved' };
+    if (req.user.clinicBranchId) {
+      vetAppFilter.branchId = req.user.clinicBranchId;
+    }
+
+    const approvedApplications = await VetApplication.find(vetAppFilter)
       .populate('vetId', 'firstName lastName email')
       .populate('branchId', 'name')
       .populate('verificationId', 'prcLicenseNumber')
@@ -432,7 +549,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
 };
 
 /**
- * Get all patients (pets) for a clinic
+ * Get all patients (pets) for a clinic (filtered by branch)
  */
 export const getClinicPatients = async (req: Request, res: Response) => {
   try {
@@ -445,21 +562,27 @@ export const getClinicPatients = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Only clinic admins can access this' });
     }
 
-    const clinic = await Clinic.findOne({ _id: req.params.clinicId, adminId: req.user.userId });
+    const clinic = await getClinicForAdmin(req);
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    // Get all medical records for this clinic
-    const medicalRecords = await MedicalRecord.find({ clinicId: clinic._id })
+    // Filter medical records by branch if branch admin
+    const recordFilter: any = { clinicId: clinic._id };
+    if (req.user.clinicBranchId) {
+      recordFilter.clinicBranchId = req.user.clinicBranchId;
+    }
+
+    // Get all medical records for this clinic/branch
+    const medicalRecords = await MedicalRecord.find(recordFilter)
       .populate('petId')
       .populate('vetId', 'firstName lastName')
       .sort({ createdAt: -1 });
 
     // Extract unique pets with their owners
     const petMap = new Map();
-    
+
     for (const record of medicalRecords) {
       const pet = record.petId as any;
       if (pet && !petMap.has(pet._id.toString())) {

@@ -27,16 +27,30 @@ const getResend = (): Resend => {
 /**
  * Generate JWT token
  */
-const generateToken = (user: IUser): string => {
-  return jwt.sign(
-    {
-      userId: user._id,
-      email: user.email,
-      userType: user.userType
-    },
-    getJwtSecret(),
-    { expiresIn: getJwtExpire() } as any
-  );
+const generateToken = (user: IUser, isMainBranch?: boolean): string => {
+  const payload: any = {
+    userId: user._id,
+    email: user.email,
+    userType: user.userType
+  };
+
+  // Include clinic and branch info for clinic-admin users
+  if (user.userType === 'clinic-admin') {
+    if (user.clinicId) {
+      payload.clinicId = user.clinicId;
+      payload.clinicBranchId = user.clinicBranchId;
+    }
+    payload.isMainBranch = !!isMainBranch;
+  }
+
+  // Include clinic and branch info for branch-admin users
+  if (user.userType === 'branch-admin' && user.clinicId && user.branchId) {
+    payload.clinicId = user.clinicId;
+    payload.branchId = user.branchId;
+    payload.isMainBranch = !!isMainBranch;
+  }
+
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: getJwtExpire() } as any);
 };
 
 /**
@@ -217,21 +231,57 @@ export const login = async (req: Request, res: Response) => {
       await user.save({ validateBeforeSave: false });
     }
 
+    // Check if this clinic-admin or branch-admin is on the main branch
+    let isMainBranch = false;
+    if (user.userType === 'clinic-admin' && user.clinicBranchId) {
+      const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain');
+      isMainBranch = !!branch?.isMain;
+    } else if (user.userType === 'clinic-admin' && user.clinicId && !user.clinicBranchId) {
+      // Legacy admin without clinicBranchId — treat as main
+      isMainBranch = true;
+    } else if (user.userType === 'clinic-admin' && !user.clinicId && !user.clinicBranchId) {
+      // Clinic admin with no clinic/branch link — treat as main branch admin
+      isMainBranch = true;
+    } else if (user.userType === 'branch-admin' && user.branchId) {
+      // For branch admins, get isMainBranch from the branch
+      const branch = await ClinicBranch.findById(user.branchId).select('isMain');
+      isMainBranch = !!branch?.isMain;
+    }
+
     // Generate token
-    const token = generateToken(user);
+    const token = generateToken(user, isMainBranch);
+
+    // Build user response
+    const userData: any = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      userType: user.userType,
+      isVerified: user.isVerified
+    };
+
+    // Include clinic/branch info for clinic-admin users
+    if (user.userType === 'clinic-admin') {
+      if (user.clinicId) {
+        userData.clinicId = user.clinicId;
+        userData.clinicBranchId = user.clinicBranchId;
+      }
+      userData.isMainBranch = isMainBranch;
+    }
+
+    // Include clinic/branch info for branch-admin users
+    if (user.userType === 'branch-admin' && user.clinicId && user.branchId) {
+      userData.clinicId = user.clinicId;
+      userData.branchId = user.branchId;
+      userData.isMainBranch = isMainBranch;
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
       message: 'Login successful',
       data: {
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          userType: user.userType,
-          isVerified: user.isVerified
-        },
+        user: userData,
         token
       }
     });
@@ -265,18 +315,30 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       });
     }
 
+    const userData: any = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      userType: user.userType,
+      isVerified: user.isVerified
+    };
+
+    if (user.userType === 'clinic-admin' && user.clinicId) {
+      userData.clinicId = user.clinicId;
+      userData.clinicBranchId = user.clinicBranchId;
+      // Check if main branch
+      if (user.clinicBranchId) {
+        const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain');
+        userData.isMainBranch = !!branch?.isMain;
+      } else {
+        userData.isMainBranch = true; // Legacy admin without branch
+      }
+    }
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: {
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          userType: user.userType,
-          isVerified: user.isVerified
-        }
-      }
+      data: { user: userData }
     });
   } catch (error) {
     console.error('Get current user error:', error);

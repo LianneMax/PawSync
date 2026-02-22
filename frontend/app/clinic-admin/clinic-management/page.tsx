@@ -92,6 +92,8 @@ function StatusBadge({ status }: { status: Veterinarian['status'] }) {
 
 export default function ClinicManagementPage() {
   const token = useAuthStore((state) => state.token)
+  const user = useAuthStore((state) => state.user)
+  const isMainBranch = user?.isMainBranch ?? false
 
   const [activeTab, setActiveTab] = useState<'vets' | 'branches'>('vets')
   const [vets, setVets] = useState(emptyVets)
@@ -121,6 +123,7 @@ export default function ClinicManagementPage() {
   // Add branch form
   const [addForm, setAddForm] = useState({
     name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] as string[],
+    adminFirstName: '', adminLastName: '', adminPassword: '',
   })
 
   // Fetch real clinic data
@@ -260,16 +263,21 @@ export default function ClinicManagementPage() {
   }
 
   const resetAddForm = () => {
-    setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] })
+    setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [], adminFirstName: '', adminLastName: '', adminPassword: '' })
   }
 
   const handleAddBranch = async () => {
     if (!clinicId || !token) return
     if (!addForm.name.trim()) return
     if (!addForm.address.trim()) return
+    if (!addForm.email.trim()) return
+    if (!addForm.adminFirstName.trim()) return
+    if (!addForm.adminLastName.trim()) return
+    if (!addForm.adminPassword.trim()) return
 
     setAddingBranch(true)
     try {
+      // Step 1: Create the branch
       const res = await authenticatedFetch(`/clinics/${clinicId}/branches`, {
         method: 'POST',
         body: JSON.stringify({
@@ -288,26 +296,46 @@ export default function ClinicManagementPage() {
 
       if (res.status === 'SUCCESS' && res.data?.branch) {
         const b = res.data.branch
-        setBranches(prev => [...prev, {
-          id: b._id,
-          name: b.name,
-          address: b.address || '',
-          isMain: b.isMain,
-          vets: 0,
-          patients: 0,
-          today: 0,
-          phone: b.phone || '',
-          hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
-          email: b.email || '',
-          isOpen: true,
-          city: b.city || '',
-          province: b.province || '',
-          openingTime: b.openingTime || '',
-          closingTime: b.closingTime || '',
-          operatingDays: (b.operatingDays || []).join(', '),
-        }])
-        setAddBranchOpen(false)
-        resetAddForm()
+        
+        // Step 2: Create the branch admin user for this new branch
+        const adminRes = await authenticatedFetch('/clinics/branch-admin', {
+          method: 'POST',
+          body: JSON.stringify({
+            firstName: addForm.adminFirstName,
+            lastName: addForm.adminLastName,
+            email: addForm.email,
+            password: addForm.adminPassword,
+            branchId: b._id,
+          }),
+        }, token)
+
+        if (adminRes.status === 'SUCCESS') {
+          // Branch and admin created successfully
+          setBranches(prev => [...prev, {
+            id: b._id,
+            name: b.name,
+            address: b.address || '',
+            isMain: b.isMain,
+            vets: 0,
+            patients: 0,
+            today: 0,
+            phone: b.phone || '',
+            hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
+            email: b.email || '',
+            isOpen: true,
+            city: b.city || '',
+            province: b.province || '',
+            openingTime: b.openingTime || '',
+            closingTime: b.closingTime || '',
+            operatingDays: (b.operatingDays || []).join(', '),
+          }])
+          setAddBranchOpen(false)
+          resetAddForm()
+        } else {
+          // Branch created but admin creation failed
+          console.error('Failed to create branch admin:', adminRes.message)
+          alert(`Branch created but failed to create admin user: ${adminRes.message}`)
+        }
       }
     } catch (err) {
       console.error('Failed to add branch:', err)
@@ -355,22 +383,24 @@ export default function ClinicManagementPage() {
               {vets.length}
             </span>
           </button>
-          <button
-            onClick={() => setActiveTab('branches')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
-              activeTab === 'branches'
-                ? 'bg-[#476B6B] text-white shadow-sm'
-                : 'text-[#4F4F4F] hover:bg-gray-50'
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            Branches
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-              activeTab === 'branches' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
-            }`}>
-              {branches.length}
-            </span>
-          </button>
+          {isMainBranch && (
+            <button
+              onClick={() => setActiveTab('branches')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'branches'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              Branches
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                activeTab === 'branches' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {branches.length}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* ==================== VETERINARIANS TAB ==================== */}
@@ -855,6 +885,44 @@ export default function ClinicManagementPage() {
                 />
               </div>
             </div>
+
+            {/* Branch Admin Details Section */}
+            <div className="bg-gray-50 p-4 rounded-xl mt-4">
+              <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Branch Admin Credentials</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin First Name</label>
+                  <input
+                    type="text"
+                    value={addForm.adminFirstName}
+                    onChange={(e) => setAddForm({ ...addForm, adminFirstName: e.target.value })}
+                    placeholder="e.g. John"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Last Name</label>
+                  <input
+                    type="text"
+                    value={addForm.adminLastName}
+                    onChange={(e) => setAddForm({ ...addForm, adminLastName: e.target.value })}
+                    placeholder="e.g. Doe"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Password</label>
+                <input
+                  type="password"
+                  value={addForm.adminPassword}
+                  onChange={(e) => setAddForm({ ...addForm, adminPassword: e.target.value })}
+                  placeholder="Enter a secure password"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time</label>
@@ -915,7 +983,7 @@ export default function ClinicManagementPage() {
             </button>
             <button
               onClick={handleAddBranch}
-              disabled={addingBranch || !addForm.name.trim() || !addForm.address.trim()}
+              disabled={addingBranch || !addForm.name.trim() || !addForm.address.trim() || !addForm.email.trim() || !addForm.adminFirstName.trim() || !addForm.adminLastName.trim() || !addForm.adminPassword.trim()}
               className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
             >
               {addingBranch ? 'Adding...' : 'Add Branch'}

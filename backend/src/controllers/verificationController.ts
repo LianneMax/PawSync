@@ -77,7 +77,7 @@ export const submitVerification = async (req: Request, res: Response) => {
 };
 
 /**
- * Get verification requests for a clinic (clinic admin)
+ * Get verification requests for a clinic or branch (clinic admin or branch admin)
  */
 export const getClinicVerifications = async (req: Request, res: Response) => {
   try {
@@ -86,13 +86,21 @@ export const getClinicVerifications = async (req: Request, res: Response) => {
     }
 
     const { status } = req.query;
-    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
-
-    if (!clinic) {
-      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    const filter: any = {};
+    
+    if (req.user.userType === 'clinic-admin') {
+      const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+      if (!clinic) {
+        return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+      }
+      filter.clinicId = clinic._id;
+    } else if (req.user.userType === 'branch-admin') {
+      // Branch admin only sees verifications for their branch
+      filter.branchId = req.user.branchId;
+    } else {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized' });
     }
 
-    const filter: any = { clinicId: clinic._id };
     if (status && ['pending', 'verified', 'rejected'].includes(status as string)) {
       filter.status = status;
     }
@@ -113,7 +121,7 @@ export const getClinicVerifications = async (req: Request, res: Response) => {
 };
 
 /**
- * Approve (verify) a PRC verification request (clinic admin)
+ * Approve (verify) a PRC verification request (clinic admin or branch admin)
  */
 export const approveVerification = async (req: Request, res: Response) => {
   try {
@@ -127,11 +135,19 @@ export const approveVerification = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const verification = await VetVerification.findOne({
+    // Build verification query based on user type
+    let query: any = {
       _id: req.params.verificationId,
       clinicId: clinic._id,
       status: 'pending'
-    });
+    };
+
+    // Branch admin can only verify verifications for their branch
+    if (req.user.userType === 'branch-admin') {
+      query.branchId = req.user.branchId;
+    }
+
+    const verification = await VetVerification.findOne(query);
 
     if (!verification) {
       return res.status(404).json({ status: 'ERROR', message: 'Verification request not found' });
@@ -191,7 +207,7 @@ export const approveVerification = async (req: Request, res: Response) => {
 };
 
 /**
- * Reject a PRC verification request (clinic admin)
+ * Reject a PRC verification request (clinic admin or branch admin)
  */
 export const rejectVerification = async (req: Request, res: Response) => {
   try {
@@ -206,11 +222,19 @@ export const rejectVerification = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const verification = await VetVerification.findOne({
+    // Build verification query based on user type
+    let query: any = {
       _id: req.params.verificationId,
       clinicId: clinic._id,
       status: 'pending'
-    });
+    };
+
+    // Branch admin can only reject verifications for their branch
+    if (req.user.userType === 'branch-admin') {
+      query.branchId = req.user.branchId;
+    }
+
+    const verification = await VetVerification.findOne(query);
 
     if (!verification) {
       return res.status(404).json({ status: 'ERROR', message: 'Verification request not found' });

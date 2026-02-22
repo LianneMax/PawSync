@@ -6,8 +6,12 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  userType: 'pet-owner' | 'veterinarian';
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
   isVerified: boolean;
+  clinicId?: string;
+  clinicBranchId?: string;
+  branchId?: string;
+  isMainBranch?: boolean;
 }
 
 interface AuthState {

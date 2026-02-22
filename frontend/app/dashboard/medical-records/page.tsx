@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -53,6 +53,7 @@ function formatDate(dateStr: string): string {
 
 export default function MedicalRecordsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { token } = useAuthStore()
   const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,6 +72,14 @@ export default function MedicalRecordsPage() {
       const res = await getMyPets(token)
       if (res.status === 'SUCCESS' && res.data?.pets) {
         setPets(res.data.pets)
+        // Auto-select pet from query param
+        const petId = searchParams.get('petId')
+        if (petId) {
+          const match = res.data.pets.find((p: APIPet) => p._id === petId)
+          if (match) {
+            setSelectedPet(match)
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load pets:', err)
@@ -78,7 +87,7 @@ export default function MedicalRecordsPage() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, searchParams])
 
   useEffect(() => {
     loadPets()
@@ -107,9 +116,15 @@ export default function MedicalRecordsPage() {
     [token]
   )
 
+  // Auto-load records when pet is selected (including from query param)
+  useEffect(() => {
+    if (selectedPet) {
+      loadRecords(selectedPet._id)
+    }
+  }, [selectedPet, loadRecords])
+
   const handleSelectPet = (pet: Pet) => {
     setSelectedPet(pet)
-    loadRecords(pet._id)
   }
 
   const handleBack = () => {

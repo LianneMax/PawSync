@@ -75,8 +75,8 @@ export default function ClinicLoginPage() {
       }
 
       if (response.data) {
-        // Verify this is a clinic admin account
-        if (response.data.user.userType !== 'clinic-admin') {
+        // Verify this is a clinic or branch admin account
+        if (response.data.user.userType !== 'clinic-admin' && response.data.user.userType !== 'branch-admin') {
           setError('This portal is for clinic administrators only. Please use the regular login page.')
           setLoading(false)
           return

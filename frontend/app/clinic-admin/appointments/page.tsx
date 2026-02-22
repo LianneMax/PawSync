@@ -439,6 +439,9 @@ interface ClinicInfo {
 
 export default function ClinicAdminAppointmentsPage() {
   const { token } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
+  const isBranchAdmin = user?.userType === 'branch-admin'
+  
   const [activeTab, setActiveTab] = useState<'upcoming' | 'pending' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -452,13 +455,12 @@ export default function ClinicAdminAppointmentsPage() {
   // Clinic data
   const [clinic, setClinic] = useState<ClinicInfo | null>(null)
   const [branches, setBranches] = useState<ClinicBranchItem[]>([])
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState('')
   const [allVets, setAllVets] = useState<BranchVet[]>([])
 
   // Calendar date
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
 
-  // Load clinic + branches
+  // Load clinic + branches (only for clinic admins, branch admins only manage their branch)
   useEffect(() => {
     const load = async () => {
       try {
@@ -467,15 +469,18 @@ export default function ClinicAdminAppointmentsPage() {
           const c = clinicRes.data.clinics[0]
           setClinic({ _id: c._id, name: c.name })
 
-          const branchRes = await authenticatedFetch(`/clinics/${c._id}/branches`, {}, token || undefined)
-          if (branchRes.status === 'SUCCESS' && branchRes.data?.branches) {
-            setBranches(branchRes.data.branches)
+          // Only fetch branches for clinic admins
+          if (!isBranchAdmin) {
+            const branchRes = await authenticatedFetch(`/clinics/${c._id}/branches`, {}, token || undefined)
+            if (branchRes.status === 'SUCCESS' && branchRes.data?.branches) {
+              setBranches(branchRes.data.branches)
+            }
           }
         }
       } catch { /* silent */ }
     }
     if (token) load()
-  }, [token])
+  }, [token, isBranchAdmin])
 
   // Load all vets for the clinic (for calendar headers)
   useEffect(() => {
@@ -495,20 +500,17 @@ export default function ClinicAdminAppointmentsPage() {
     if (token) load()
   }, [token])
 
-  // Load appointments
+  // Load appointments (backend auto-filters by branch from JWT)
   const loadAppointments = useCallback(async () => {
     setLoading(true)
     try {
-      const branchParam = selectedBranchFilter ? { branchId: selectedBranchFilter } : {}
-
       if (activeTab === 'pending') {
-        // Fetch all upcoming (includes pending) for pending tab
-        const res = await getClinicAppointments({ filter: 'upcoming', ...branchParam }, token || undefined)
+        const res = await getClinicAppointments({ filter: 'upcoming' }, token || undefined)
         if (res.status === 'SUCCESS' && res.data) {
           setPendingAppointments(res.data.appointments.filter((a) => a.status === 'pending'))
         }
       } else {
-        const params: any = { ...branchParam }
+        const params: any = {}
         if (viewMode === 'calendar') {
           params.filter = 'upcoming'
         } else {
@@ -533,7 +535,7 @@ export default function ClinicAdminAppointmentsPage() {
       }
     } catch { /* silent */ }
     finally { setLoading(false) }
-  }, [activeTab, viewMode, selectedBranchFilter, token])
+  }, [activeTab, viewMode, token])
 
   useEffect(() => { loadAppointments() }, [loadAppointments])
 
@@ -613,18 +615,11 @@ export default function ClinicAdminAppointmentsPage() {
               Previous appointments
             </button>
 
-            {/* Branch filter */}
-            {branches.length > 1 && (
-              <select
-                value={selectedBranchFilter}
-                onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm border border-gray-300 text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]"
-              >
-                <option value="">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b._id} value={b._id}>{b.name}</option>
-                ))}
-              </select>
+            {/* Branch name indicator */}
+            {branches.length > 0 && (
+              <span className="px-3 py-2 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium">
+                {branches[0]?.name || 'My Branch'}
+              </span>
             )}
           </div>
 

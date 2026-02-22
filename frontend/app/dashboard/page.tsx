@@ -1005,7 +1005,7 @@ export default function DashboardPage() {
         onClose={() => setPetModalOpen(false)}
         onReportLost={handleReportLost}
         onRemovePet={handleRemovePet}
-        onNavigateToMedicalRecords={() => router.push('/dashboard/medical-records')}
+        onNavigateToMedicalRecords={() => router.push(`/dashboard/medical-records?petId=${selectedPet?.id}`)}
       />
 
       {/* Report Lost Pet Modal */}

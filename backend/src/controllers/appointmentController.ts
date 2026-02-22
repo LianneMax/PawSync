@@ -549,7 +549,13 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    // Use clinicId from JWT if available, otherwise fallback to adminId lookup
+    let clinic;
+    if (req.user.clinicId) {
+      clinic = await Clinic.findOne({ _id: req.user.clinicId, isActive: true });
+    } else {
+      clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    }
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
@@ -557,7 +563,10 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     const { date, branchId, filter } = req.query;
     const query: any = { clinicId: clinic._id };
 
-    if (branchId) {
+    // Auto-filter by branch from JWT, or allow explicit branchId query param
+    if (req.user.clinicBranchId) {
+      query.clinicBranchId = req.user.clinicBranchId;
+    } else if (branchId) {
       query.clinicBranchId = branchId;
     }
 

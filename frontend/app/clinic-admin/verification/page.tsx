@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useAuthStore } from '@/store/authStore'
+import { authenticatedFetch } from '@/lib/auth'
 
 // ==================== TYPES ====================
 
@@ -88,25 +89,20 @@ export default function VerificationPage() {
   const [viewPhotoOpen, setViewPhotoOpen] = useState(false)
   const [viewPhotoSrc, setViewPhotoSrc] = useState('')
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
-
   const fetchVerifications = useCallback(async () => {
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/verifications/clinic`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
-        setRequests(data.data.verifications)
+      const res = await authenticatedFetch('/verifications/clinic', {}, token)
+      if (res.status === 'SUCCESS') {
+        setRequests(res.data.verifications)
       }
     } catch (err) {
       console.error('Failed to fetch verifications:', err)
     } finally {
       setLoading(false)
     }
-  }, [token, API_URL])
+  }, [token])
 
   useEffect(() => {
     fetchVerifications()
@@ -139,16 +135,11 @@ export default function VerificationPage() {
     if (!selectedRequest || !rejectionReason.trim() || !token) return
     setActionLoading(true)
     try {
-      const res = await fetch(`${API_URL}/verifications/${selectedRequest._id}/reject`, {
+      const res = await authenticatedFetch(`/verifications/${selectedRequest._id}/reject`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ reason: rejectionReason })
-      })
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
+      }, token)
+      if (res.status === 'SUCCESS') {
         await fetchVerifications()
         setRejectOpen(false)
         setRejectionReason('')
@@ -165,15 +156,10 @@ export default function VerificationPage() {
     if (!selectedRequest || !token) return
     setActionLoading(true)
     try {
-      const res = await fetch(`${API_URL}/verifications/${selectedRequest._id}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
+      const res = await authenticatedFetch(`/verifications/${selectedRequest._id}/approve`, {
+        method: 'PUT'
+      }, token)
+      if (res.status === 'SUCCESS') {
         await fetchVerifications()
         setConfirmOpen(false)
         setSelectedRequest(null)

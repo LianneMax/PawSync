@@ -9,6 +9,7 @@ import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import { Smartphone, Search, FileText, Calendar, PawPrint, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import './globals.css'
 
 interface Clinic {
   _id: string;
@@ -28,6 +29,7 @@ export default function PatientManagementPage() {
   const [searching, setSearching] = useState(false)
   const [speciesFilter, setSpeciesFilter] = useState<'all' | 'dog' | 'cat'>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const isBranchAdmin = user?.userType === 'branch-admin'
 
   // Fetch clinics for the admin
   const fetchClinics = useCallback(async () => {
@@ -36,7 +38,10 @@ export default function PatientManagementPage() {
       const response = await authenticatedFetch('/clinics/mine', { method: 'GET' }, token)
       if (response.status === 'SUCCESS' && response.data?.clinics.length > 0) {
         setClinics(response.data.clinics)
-        setSelectedClinicId(response.data.clinics[0]._id)
+        // For branch admins, automatically set the clinic ID without showing dropdown
+        // For clinic admins, default to first clinic
+        const clinicId = response.data.clinics[0]._id
+        setSelectedClinicId(clinicId)
       }
     } catch (error) {
       console.error('Failed to fetch clinics:', error)

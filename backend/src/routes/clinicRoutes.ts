@@ -10,9 +10,10 @@ import {
   removeVetFromBranch,
   getClinicDashboardStats,
   getClinicVets,
-  getClinicPatients
+  getClinicPatients,
+  createBranchAdmin
 } from '../controllers/clinicController';
-import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
+import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ router.get('/:clinicId/branches', authMiddleware, clinicAdminOnly, getBranches);
  * POST /api/clinics/:clinicId/branches
  * Add a branch to a clinic
  */
-router.post('/:clinicId/branches', authMiddleware, clinicAdminOnly, addBranch);
+router.post('/:clinicId/branches', authMiddleware, clinicAdminOnly, mainBranchOnly, addBranch);
 
 /**
  * PUT /api/clinics/:clinicId/branches/:branchId
@@ -62,7 +63,7 @@ router.put('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, upd
  * DELETE /api/clinics/:clinicId/branches/:branchId
  * Delete a branch
  */
-router.delete('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, deleteBranch);
+router.delete('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, mainBranchOnly, deleteBranch);
 
 /**
  * POST /api/clinics/:clinicId/vets
@@ -81,5 +82,11 @@ router.delete('/:clinicId/vets/:assignmentId', authMiddleware, clinicAdminOnly, 
  * Get all patients (pets) for a clinic
  */
 router.get('/:clinicId/patients', authMiddleware, clinicAdminOnly, getClinicPatients);
+
+/**
+ * POST /api/clinics/branch-admin
+ * Create a new branch admin account
+ */
+router.post('/branch-admin', authMiddleware, clinicAdminOnly, mainBranchOnly, createBranchAdmin);
 
 export default router;

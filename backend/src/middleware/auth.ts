@@ -8,7 +8,11 @@ declare global {
       user?: {
         userId: string;
         email: string;
-        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
+        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
+        clinicId?: string;
+        clinicBranchId?: string;
+        branchId?: string;
+        isMainBranch?: boolean;
       };
     }
   }
@@ -37,7 +41,11 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
-      userType: decoded.userType
+      userType: decoded.userType,
+      clinicId: decoded.clinicId || undefined,
+      clinicBranchId: decoded.clinicBranchId || undefined,
+      branchId: decoded.branchId || undefined,
+      isMainBranch: decoded.isMainBranch || false
     };
 
     next();
@@ -106,6 +114,69 @@ export const clinicAdminOnly = (req: Request, res: Response, next: NextFunction)
     return res.status(403).json({
       status: 'ERROR',
       message: 'This endpoint is only available for clinic admins'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to check if user is the main branch admin
+ */
+export const mainBranchOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      status: 'ERROR',
+      message: 'Authentication required'
+    });
+  }
+
+  if (!req.user.isMainBranch) {
+    return res.status(403).json({
+      status: 'ERROR',
+      message: 'Only the main branch admin can perform this action'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to check if user is a branch admin
+ */
+export const branchAdminOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      status: 'ERROR',
+      message: 'Authentication required'
+    });
+  }
+
+  if (req.user.userType !== 'branch-admin') {
+    return res.status(403).json({
+      status: 'ERROR',
+      message: 'This endpoint is only available for branch admins'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to check if user is clinic admin or branch admin
+ */
+export const clinicOrBranchAdminOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      status: 'ERROR',
+      message: 'Authentication required'
+    });
+  }
+
+  if (req.user.userType !== 'clinic-admin' && req.user.userType !== 'branch-admin') {
+    return res.status(403).json({
+      status: 'ERROR',
+      message: 'This endpoint is only available for clinic or branch admins'
     });
   }
 

@@ -7,7 +7,11 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   contactNumber: string;
-  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
+  clinicId: mongoose.Types.ObjectId | null;
+  clinicBranchId: mongoose.Types.ObjectId | null;
+  branchId: mongoose.Types.ObjectId | null;
+  isMainBranch: boolean;
   isVerified: boolean;
   loginAttempts: number;
   lockUntil: Date | null;
@@ -51,8 +55,27 @@ const UserSchema = new Schema(
     },
     userType: {
       type: String,
-      enum: ['pet-owner', 'veterinarian', 'clinic-admin'],
+      enum: ['pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin'],
       required: [true, 'Please specify user type']
+    },
+    clinicId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null
+    },
+    clinicBranchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ClinicBranch',
+      default: null
+    },
+    branchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ClinicBranch',
+      default: null
+    },
+    isMainBranch: {
+      type: Boolean,
+      default: false
     },
     isVerified: {
       type: Boolean,
