@@ -11,7 +11,8 @@ import {
   searchPetOwners,
   getPetsForOwner,
   createClinicAppointment,
-  getClinicAppointments
+  getClinicAppointments,
+  getNextAppointment
 } from '../controllers/appointmentController';
 import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly } from '../middleware/auth';
 
@@ -40,6 +41,12 @@ router.get('/branch-vets', authMiddleware, getVetsForBranch);
  * Get authenticated user's appointments
  */
 router.get('/mine', authMiddleware, getMyAppointments);
+
+/**
+ * GET /api/appointments/pet/:petId/next
+ * Get the next upcoming appointment for a pet
+ */
+router.get('/pet/:petId/next', authMiddleware, getNextAppointment);
 
 /**
  * GET /api/appointments/vet

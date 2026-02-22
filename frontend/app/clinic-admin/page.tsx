@@ -12,8 +12,8 @@ import {
   PawPrint,
   Calendar,
   ArrowRight,
-  ClipboardList,
   UserCog,
+  Nfc,
 } from 'lucide-react'
 
 // ==================== TYPES ====================
@@ -22,14 +22,6 @@ interface DashboardStats {
   totalVeterinarians: number
   activeBranches: number
   pendingApplications: number
-}
-
-interface VetItem {
-  _id: string
-  name: string
-  email: string
-  initials: string
-  branch: string
 }
 
 interface ApplicationItem {
@@ -172,6 +164,13 @@ export default function ClinicAdminDashboard() {
                   <span className="text-sm font-medium text-[#4F4F4F]">Manage Clinic</span>
                 </Link>
                 <Link
+                  href="/clinic-admin/nfc"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-[#F8F6F2] hover:bg-[#F1F0ED] transition-colors"
+                >
+                  <Nfc className="w-5 h-5 text-[#476B6B]" />
+                  <span className="text-sm font-medium text-[#4F4F4F]">NFC Tags</span>
+                </Link>
+                <Link
                   href="/clinic-admin/verification"
                   className="flex items-center gap-3 p-4 rounded-xl bg-[#F8F6F2] hover:bg-[#F1F0ED] transition-colors"
                 >
@@ -184,13 +183,6 @@ export default function ClinicAdminDashboard() {
                 >
                   <PawPrint className="w-5 h-5 text-[#476B6B]" />
                   <span className="text-sm font-medium text-[#4F4F4F]">View Patients</span>
-                </Link>
-                <Link
-                  href="/clinic-admin/medical-records"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-[#F8F6F2] hover:bg-[#F1F0ED] transition-colors"
-                >
-                  <ClipboardList className="w-5 h-5 text-[#476B6B]" />
-                  <span className="text-sm font-medium text-[#4F4F4F]">Medical Records</span>
                 </Link>
               </div>
             </div>

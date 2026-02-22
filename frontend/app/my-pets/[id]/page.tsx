@@ -8,8 +8,9 @@ import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, type Pet as APIPet } from '@/lib/pets'
 import { updateProfile } from '@/lib/users'
 import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
+import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -51,10 +52,16 @@ export default function PetProfilePage() {
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const [nextAppointment, setNextAppointment] = useState<any>(null)
+  const [selectedBranch, setSelectedBranch] = useState('')
+  const [pickupDate, setPickupDate] = useState('')
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false)
+  const [tagRequests, setTagRequests] = useState<any[]>([])
+  const [loadingTagRequests, setLoadingTagRequests] = useState(false)
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -99,6 +106,31 @@ export default function PetProfilePage() {
     }
   }, [token, petId])
 
+  const fetchTagRequests = useCallback(async () => {
+    if (!token || !petId) return
+    setLoadingTagRequests(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const response = await authenticatedFetch(
+        `/nfc/clinic/all-requests`,
+        { method: 'GET' },
+        token
+      )
+      const data = response
+      if (data.status === 'SUCCESS' && data.data?.requests) {
+        const petRequests = data.data.requests.filter((req: any) => req.petId._id === petId)
+        setTagRequests(petRequests)
+      } else {
+        setTagRequests([])
+      }
+    } catch (err) {
+      console.error('Failed to load tag requests:', err)
+      setTagRequests([])
+    } finally {
+      setLoadingTagRequests(false)
+    }
+  }, [token, petId])
+
   const handleViewRecord = async (recordId: string) => {
     if (!token) return
     setViewLoading(true)
@@ -122,6 +154,12 @@ export default function PetProfilePage() {
       fetchMedicalRecords()
     }
   }, [activeTab, medicalRecords, recordsLoading, fetchMedicalRecords])
+
+  useEffect(() => {
+    if (activeTab === 'nfc' && tagRequests.length === 0 && !loadingTagRequests) {
+      fetchTagRequests()
+    }
+  }, [activeTab, tagRequests, loadingTagRequests, fetchTagRequests])
 
   useEffect(() => {
     fetchPet()
@@ -248,17 +286,94 @@ export default function PetProfilePage() {
     }
   }
 
+  const handleRequestNfcTag = async () => {
+    if (!pet || !token) return
+
+    // If pet has no tag, submit request immediately
+    if (!pet.nfcTagId) {
+      setIsSubmittingRequest(true)
+      try {
+        const response = await authenticatedFetch(
+          `/nfc/pet/${pet._id}/request-tag`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: '' }),
+          },
+          token
+        )
+
+        const data = response
+
+        if (data.status === 'SUCCESS') {
+          toast('NFC Tag Request Submitted', {
+            description: 'Your clinic will process your tag request shortly.'
+          })
+        } else {
+          toast('Error', { description: data.message || 'Failed to submit request' })
+        }
+      } catch (error) {
+        console.error('Error submitting NFC request:', error)
+        toast('Error', { description: 'Something went wrong. Please try again.' })
+      } finally {
+        setIsSubmittingRequest(false)
+      }
+    } else {
+      // If pet has a tag, fetch next appointment and show replacement modal
+      await fetchNextAppointment()
+      setShowNfcModal(true)
+    }
+  }
+
+  const fetchNextAppointment = async () => {
+    if (!pet || !token) return
+    try {
+      const response = await authenticatedFetch(
+        `/appointments/pet/${pet._id}/next`,
+        { method: 'GET' },
+        token
+      )
+      const data = response
+
+      if (data.data?.appointment) {
+        setNextAppointment(data.data.appointment)
+        // Auto-fill pickup date from appointment date
+        const appointmentDate = new Date(data.data.appointment.date)
+        setPickupDate(appointmentDate.toISOString().split('T')[0])
+        setSelectedBranch(data.data.appointment.clinicBranchId?._id || '')
+      }
+    } catch (error) {
+      console.error('Error fetching next appointment:', error)
+    }
+  }
+
   const handleSubmitPetTagRequest = async () => {
     if (!pet || !token) return
     setIsSubmittingRequest(true)
     try {
-      // TODO: Replace with actual API call to submit pet tag replacement request
-      toast('Pet Tag Replacement Request', {
-        description: `Your request for a pet tag replacement${nfcReason ? ` (${nfcReason})` : ''} has been submitted.`
-      })
-      setShowNfcModal(false)
-      setNfcReason('')
-    } catch {
+      const response = await authenticatedFetch(
+        `/nfc/pet/${pet._id}/request-tag`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: nfcReason }),
+        },
+        token
+      )
+
+      const data = response
+
+      if (data.status === 'SUCCESS') {
+        toast('Tag Replacement Request Submitted', {
+          description: 'Your clinic will process your replacement request shortly.'
+        })
+        setShowNfcModal(false)
+        setNfcReason('')
+      } else {
+        toast('Error', { description: data.message || 'Failed to submit request' })
+      }
+    } catch (error) {
+      console.error('Error submitting NFC request:', error)
       toast('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
       setIsSubmittingRequest(false)
@@ -341,13 +456,24 @@ export default function PetProfilePage() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={startEditing}
-                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm transition-colors"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit Profile
-                </button>
+                <>
+                  {pet?.qrCode && (
+                    <button
+                      onClick={() => setShowQRCodeModal(true)}
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm transition-colors"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      QR Code
+                    </button>
+                  )}
+                  <button
+                    onClick={startEditing}
+                    className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit Profile
+                  </button>
+                </>
               )}
             </div>
 
@@ -685,13 +811,13 @@ export default function PetProfilePage() {
                 </div>
 
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8 mb-8">
                   <button
-                    onClick={() => setShowNfcModal(true)}
-                    disabled={!pet.nfcTagId}
+                    onClick={handleRequestNfcTag}
+                    disabled={isSubmittingRequest}
                     className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Request for Pet Tag Replacement
+                    {isSubmittingRequest ? 'Submitting...' : (pet.nfcTagId ? 'Request Tag Replacement' : 'Request NFC Tag')}
                   </button>
                   <button
                     onClick={handleMarkAsLost}
@@ -701,22 +827,106 @@ export default function PetProfilePage() {
                     {isSubmittingRequest ? 'Marking...' : 'Mark as Lost'}
                   </button>
                 </div>
+
+                {/* Request History Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Request History</h3>
+                  {loadingTagRequests ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
+                    </div>
+                  ) : tagRequests.length === 0 ? (
+                    <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
+                      <Nfc className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-500 mb-1">No requests yet</h4>
+                      <p className="text-sm text-gray-400">
+                        You haven&apos;t requested any NFC tags for {pet.name} yet
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {tagRequests.map((request) => (
+                        <div key={request._id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-semibold text-[#4F4F4F]">NFC Tag Request</h4>
+                                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                  request.status === 'pending'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : request.status === 'fulfilled'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-1">
+                                Requested: {new Date(request.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </p>
+                              {request.reason && (
+                                <p className="text-xs text-gray-500">
+                                  Reason: {request.reason.replace(/_/g, ' ')}
+                                </p>
+                              )}
+                              {request.status === 'fulfilled' && request.fulfilledAt && (
+                                <p className="text-xs text-green-600 mt-1">
+                                  Fulfilled: {new Date(request.fulfilledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Pet Tag Replacement Request Reason Modal */}
-      <Dialog open={showNfcModal} onOpenChange={setShowNfcModal}>
+      {/* Pet Tag Replacement Request Modal */}
+      <Dialog open={showNfcModal} onOpenChange={(open) => {
+        setShowNfcModal(open)
+        if (!open) {
+          setNfcReason('')
+          setNextAppointment(null)
+          setSelectedBranch('')
+          setPickupDate('')
+        }
+      }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Request Details for {pet?.name}</DialogTitle>
+            <DialogTitle>Request NFC Tag Replacement for {pet?.name}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Pickup Date - Auto-filled from appointment */}
+            {nextAppointment && (
+              <div className="space-y-2">
+                <label htmlFor="pickup-date" className="text-sm font-semibold text-gray-600">
+                  Pickup Date <span className="text-gray-400 text-xs">(Auto-filled from appointment)</span>
+                </label>
+                <input
+                  id="pickup-date"
+                  type="date"
+                  value={pickupDate}
+                  readOnly
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
+                />
+                {nextAppointment.clinicBranchId && (
+                  <p className="text-xs text-gray-500">
+                    Branch: {nextAppointment.clinicBranchId.name}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Reason for Replacement */}
             <div className="space-y-2">
               <label htmlFor="reason" className="text-sm font-semibold text-gray-600">
-                Reason for Request <span className="text-gray-400 text-xs">(Optional)</span>
+                Reason for Replacement <span className="text-gray-400 text-xs">(Optional)</span>
               </label>
               <select
                 id="reason"
@@ -725,7 +935,7 @@ export default function PetProfilePage() {
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
               >
                 <option value="">Select a reason (optional)</option>
-                <option value="lost_replacement">Lost/Damaged Tag Replacement</option>
+                <option value="lost_replacement">Lost/Damaged Tag</option>
                 <option value="upgrade">Upgrade to New Tag</option>
                 <option value="additional">Additional Tag</option>
                 <option value="other">Other</option>
@@ -737,6 +947,9 @@ export default function PetProfilePage() {
               onClick={() => {
                 setShowNfcModal(false)
                 setNfcReason('')
+                setNextAppointment(null)
+                setSelectedBranch('')
+                setPickupDate('')
               }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
@@ -747,7 +960,7 @@ export default function PetProfilePage() {
               disabled={isSubmittingRequest}
               className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
+              {isSubmittingRequest ? 'Submitting...' : 'Submit Replacement Request'}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -867,6 +1080,45 @@ export default function PetProfilePage() {
               </div>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Modal */}
+      <Dialog open={showQRCodeModal} onOpenChange={setShowQRCodeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">{pet?.name}'s Pet Profile QR Code</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center gap-6 py-6">
+            {pet?.qrCode && (
+              <>
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 w-full max-w-xs">
+                  <img
+                    src={pet.qrCode}
+                    alt={`QR code for ${pet.name}`}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="text-center text-sm text-gray-600 w-full">
+                  <p className="font-semibold text-gray-800 mb-2">Scan to view pet profile:</p>
+                  <p className="text-xs text-gray-500 break-all">
+                    {window.location.origin}/pet/{pet._id}
+                  </p>
+                </div>
+
+                <div className="w-full flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowQRCodeModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

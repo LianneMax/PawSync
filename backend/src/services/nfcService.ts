@@ -17,6 +17,7 @@ class NfcService extends EventEmitter {
   private readers: Map<string, boolean> = new Map();
   private initialized = false;
   private worker: ChildProcess | null = null;
+  private writeCallbacks: Map<string, (result: any) => void> = new Map();
 
   init() {
     if (this.initialized) return;
@@ -78,6 +79,19 @@ class NfcService extends EventEmitter {
           console.log(`  - Reader: ${msg.data.reader}`);
           this.emit('card', msg.data);
           break;
+        case 'card:write-complete':
+          console.log(`[NFC] Card write completed: ${msg.data.uid}`);
+          console.log(`[NFC] Write Success: ${msg.data.writeSuccess}`);
+          this.emit('card:write-complete', msg.data);
+          
+          // Call any registered callbacks for this write operation
+          const writeRequestId = 'pending-write';
+          const callback = this.writeCallbacks.get(writeRequestId);
+          if (callback) {
+            callback(msg.data);
+            this.writeCallbacks.delete(writeRequestId);
+          }
+          break;
         case 'card:remove':
           console.log(`[NFC] Card removed from ${msg.data.reader}: ${msg.data.uid}`);
           this.emit('card:remove', msg.data);
@@ -118,6 +132,37 @@ class NfcService extends EventEmitter {
 
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  /**
+   * Request to write a URL to the next NFC tag that is placed
+   * Returns a promise that resolves when the write is complete
+   */
+  async writeURLToTag(url: string, timeoutMs: number = 30000): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.worker) {
+        reject(new Error('NFC service not initialized'));
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        this.writeCallbacks.delete('pending-write');
+        reject(new Error('NFC write timeout - no tag detected'));
+      }, timeoutMs);
+
+      // Register callback
+      this.writeCallbacks.set('pending-write', (result: any) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      });
+
+      // Send write request to worker
+      console.log('[NFC] Sending write request to worker...');
+      this.worker.send({
+        type: 'write-request',
+        data: { url },
+      });
+    });
   }
 }
 

@@ -2,6 +2,26 @@ import { Request, Response } from 'express';
 import Pet from '../models/Pet';
 import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
+import QRCode from 'qrcode';
+
+/**
+ * Generate QR code for a pet profile
+ */
+const generateQRCodeForPet = async (petId: string, baseUrl: string): Promise<string> => {
+  try {
+    const petProfileUrl = `${baseUrl}/pet/${petId}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(petProfileUrl, {
+      errorCorrectionLevel: 'H' as any,
+      type: 'image/png',
+      width: 300,
+      margin: 1,
+    } as any);
+    return qrCodeDataUrl;
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    throw error;
+  }
+};
 
 /**
  * Create a new pet
@@ -34,6 +54,18 @@ export const createPet = async (req: Request, res: Response) => {
       notes: notes || null,
       allergies: allergies || []
     });
+
+    // Generate QR code for the pet profile
+    try {
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const qrCode = await generateQRCodeForPet(pet._id.toString(), baseUrl);
+      pet.qrCode = qrCode;
+      await pet.save();
+      console.log(`[Pet] QR code generated for pet ${pet._id}`);
+    } catch (qrError) {
+      console.error('[Pet] Failed to generate QR code:', qrError);
+      // Continue even if QR code generation fails
+    }
 
     return res.status(201).json({
       status: 'SUCCESS',

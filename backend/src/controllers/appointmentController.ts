@@ -599,3 +599,45 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching appointments' });
   }
 };
+
+/**
+ * Get the next upcoming appointment for a pet
+ */
+export const getNextAppointment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { petId } = req.params;
+
+    // Verify pet exists and belongs to the user
+    const pet = await Pet.findById(petId);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    if (pet.ownerId.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this pet\'s appointments' });
+    }
+
+    // Get the next upcoming appointment (not completed, not cancelled)
+    const now = new Date();
+    const appointment = await Appointment.findOne({
+      petId: petId,
+      date: { $gte: now },
+      status: { $in: ['pending', 'confirmed'] }
+    })
+      .populate('clinicBranchId', 'name address')
+      .populate('vetId', 'firstName lastName')
+      .sort({ date: 1, startTime: 1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { appointment }
+    });
+  } catch (error) {
+    console.error('Get next appointment error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the next appointment' });
+  }
+};

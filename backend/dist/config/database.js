@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.closeDatabase = exports.getGridFSBucket = exports.connectDatabase = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const mongodb_1 = require("mongodb");
+const AssignedVet_1 = __importDefault(require("../models/AssignedVet"));
 let gridfsBucket;
 /**
  * Connect to MongoDB and initialize GridFS bucket
@@ -29,6 +30,8 @@ const connectDatabase = async () => {
             bucketName: 'uploads' // Files stored in 'uploads.files' and 'uploads.chunks'
         });
         console.log('✅ GridFS Bucket initialized');
+        // Sync indexes for models with updated index definitions
+        await AssignedVet_1.default.syncIndexes();
     }
     catch (error) {
         console.error('❌ Error connecting to MongoDB:', error);

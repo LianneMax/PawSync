@@ -12,6 +12,7 @@ export interface IPet extends Document {
   sterilization: 'yes' | 'no' | 'unknown';
   microchipNumber: string | null;
   nfcTagId: string | null;
+  qrCode: string | null;
   photo: string | null;
   notes: string | null;
   bloodType: string | null;
@@ -73,6 +74,10 @@ const PetSchema = new Schema(
       type: String,
       default: null,
       index: true
+    },
+    qrCode: {
+      type: String,
+      default: null
     },
     photo: {
       type: String,
