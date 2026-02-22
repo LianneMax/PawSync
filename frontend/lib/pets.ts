@@ -13,6 +13,7 @@ export interface Pet {
   sterilization: 'yes' | 'no' | 'unknown';
   microchipNumber: string | null;
   nfcTagId: string | null;
+  qrCode: string | null;
   photo: string | null;
   notes: string | null;
   bloodType: string | null;
