@@ -22,6 +22,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+<<<<<<< Updated upstream
+=======
+// CORS configuration - must be first middleware
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+// Explicitly handle preflight requests for all routes
+app.options('*', cors(corsOptions));
+
+>>>>>>> Stashed changes
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: false,
