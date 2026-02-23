@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import helmet from 'helmet';
 import { connectDatabase } from './config/database';
 import authRoutes from './routes/authRoutes';
@@ -21,22 +22,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// CORS configuration based on Render documentation
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://pawsync.onrender.com';
-
-// Set CORS headers to allow requests from the frontend
-app.use((req: Request, res: Response, next) => {
-  res.setHeader('Access-Control-Allow-Origin', FRONTEND_URL);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  
-  next();
-});
+// Simple CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
+  credentials: false
+}));
 
 // Middleware
 app.use(helmet({
