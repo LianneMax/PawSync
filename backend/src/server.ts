@@ -22,8 +22,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-<<<<<<< Updated upstream
-=======
 // CORS configuration - must be first middleware
 const corsOptions = {
   origin: process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
@@ -38,36 +36,10 @@ app.use(cors(corsOptions));
 // Explicitly handle preflight requests for all routes
 app.options('*', cors(corsOptions));
 
->>>>>>> Stashed changes
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
-
-// Manual CORS headers middleware - must be first
-app.use((req: Request, res: Response, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Access-Token, X-API-Key');
-  res.header('Access-Control-Max-Age', '86400');
-  res.header('Access-Control-Allow-Credentials', 'false');
-  
-  // Handle OPTIONS preflight
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// Apply CORS middleware as backup
-const corsOptions = {
-  origin: '*',
-  credentials: false,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
