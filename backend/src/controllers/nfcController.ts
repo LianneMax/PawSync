@@ -3,8 +3,8 @@ import Pet from '../models/Pet';
 import { nfcService } from '../services/nfcService';
 
 /**
- * Get pet details for NFC tag writing
- * Used by clinics to retrieve pet info before writing to NFC tag
+ * Get pet details for NFC tag writing.
+ * Used by clinics to retrieve pet info before writing to NFC tag.
  */
 export const getPetForNFCWriting = async (req: Request, res: Response) => {
   try {
@@ -20,7 +20,6 @@ export const getPetForNFCWriting = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Get the pet profile URL that will be written to the NFC tag
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const petProfileUrl = `${baseUrl}/pet/${petId}`;
 
@@ -48,8 +47,21 @@ export const getPetForNFCWriting = async (req: Request, res: Response) => {
 };
 
 /**
- * Start NFC tag writing process for a pet
- * Initiates write mode and waits for tag placement
+ * Start NFC tag writing process.
+ *
+ * Flow:
+ * 1. Validates pet exists and NFC service is ready
+ * 2. Checks write lock to prevent concurrent writes
+ * 3. Calls nfcService.writeURLToTag() which:
+ *    a. Sends write-request to worker child process
+ *    b. Worker enters write mode, waits for card tap
+ *    c. On card tap, writes NDEF URI record with pet profile URL
+ *    d. Returns result via IPC
+ * 4. On success, saves NFC tag UID to pet document
+ * 5. Returns result to frontend
+ *
+ * The REST endpoint blocks until write completes or times out (60s).
+ * WebSocket clients receive real-time progress events during the wait.
  */
 export const startNFCTagWriting = async (req: Request, res: Response) => {
   try {
@@ -69,7 +81,7 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Check if NFC service is initialized
+    // Check NFC service
     if (!nfcService.isInitialized()) {
       return res.status(503).json({
         status: 'ERROR',
@@ -77,22 +89,28 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
       });
     }
 
-    // Get the pet profile URL
+    // Prevent concurrent writes
+    if (nfcService.isWriting()) {
+      return res.status(409).json({
+        status: 'ERROR',
+        message: 'Another write operation is in progress. Please wait and try again.',
+      });
+    }
+
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const petProfileUrl = `${baseUrl}/pet/${petId}`;
 
-    console.log(`[API] Starting NFC write for pet ${pet.name} (${petId})`);
+    console.log(`[API] Starting NFC write for pet ${pet.name} (${petId}) → ${petProfileUrl}`);
 
-    // Initiate write process - this will wait for a tag and write the URL to it
     try {
-      const writeResult = await nfcService.writeURLToTag(petProfileUrl, 60000); // 60 second timeout
+      const writeResult = await nfcService.writeURLToTag(petProfileUrl, 60000);
 
       if (writeResult.writeSuccess) {
-        // Update pet with NFC tag ID if available
+        // Save NFC tag UID to pet document
         if (writeResult.uid) {
           pet.nfcTagId = writeResult.uid;
           await pet.save();
-          console.log(`[API] Recorded NFC tag ${writeResult.uid} for pet ${petId}`);
+          console.log(`[API] Saved NFC tag UID ${writeResult.uid} to pet ${petId}`);
         }
 
         return res.status(200).json({
@@ -107,7 +125,7 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
       } else {
         return res.status(400).json({
           status: 'ERROR',
-          message: 'Failed to write to NFC tag. Please try again.',
+          message: writeResult.message || 'Failed to write to NFC tag. The tag may be write-protected.',
         });
       }
     } catch (writeError: any) {
@@ -124,8 +142,8 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
 };
 
 /**
- * Record NFC tag ID on a pet after writing
- * Called by clinic after successfully writing an NFC tag
+ * Record NFC tag ID on a pet after writing.
+ * Called by clinic staff after successfully writing an NFC tag.
  */
 export const recordNFCTagWriting = async (req: Request, res: Response) => {
   try {
@@ -142,9 +160,7 @@ export const recordNFCTagWriting = async (req: Request, res: Response) => {
 
     const pet = await Pet.findByIdAndUpdate(
       petId,
-      {
-        nfcTagId: nfcTagId,
-      },
+      { nfcTagId },
       { new: true }
     );
 
@@ -164,7 +180,7 @@ export const recordNFCTagWriting = async (req: Request, res: Response) => {
 };
 
 /**
- * Check if a pet already has an NFC tag written
+ * Check if a pet already has an NFC tag written.
  */
 export const checkNFCTagStatus = async (req: Request, res: Response) => {
   try {
@@ -191,7 +207,7 @@ export const checkNFCTagStatus = async (req: Request, res: Response) => {
 };
 
 /**
- * Get NFC tag writing instructions for clinic
+ * Get NFC tag writing instructions for clinic staff.
  */
 export const getNFCWritingInstructions = async (req: Request, res: Response) => {
   try {
@@ -211,29 +227,22 @@ export const getNFCWritingInstructions = async (req: Request, res: Response) => 
       data: {
         petName: pet.name,
         nfcData: {
-          // Standard NDEF URI record format
           type: 'uri',
           uri: petProfileUrl,
-          tnf: 3, // Absolute URI
-          // Alternative formats for different NFC standards
-          formats: {
-            // URI Record TNF=1 (Well-Known), Type='U'
-            ndefWellKnown: {
-              header: 0xD1, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=1
-              type: 'U',
-              protocolCode: 0x04, // https://
-              uriPart: petProfileUrl.replace('https://', ''),
-            },
-            // Direct URL for simple NFC tags
-            httpURL: petProfileUrl,
+          ndefFormat: {
+            header: '0xD1 (MB=1, ME=1, SR=1, TNF=Well-Known)',
+            type: '0x55 (U = URI)',
+            protocolCode: '0x04 (https://)',
+            uriPart: petProfileUrl.replace('https://', ''),
           },
         },
         instructions: [
-          '1. Place pet NFC tag near NFC reader',
-          '2. Wait for reader to detect the tag',
-          '3. Click "Write" to write pet profile link to tag',
-          `4. Tag will contain link: ${petProfileUrl}`,
-          '5. Once written, the tag can be attached to pet collar',
+          '1. Ensure NFC reader is connected (green status indicator)',
+          '2. Click "Write Tag" button for the pet',
+          '3. Place a blank NTAG213/215 tag on the reader within 60 seconds',
+          '4. Wait for the write confirmation',
+          `5. Tag will contain: ${petProfileUrl}`,
+          '6. Attach the tag to the pet\'s collar',
         ],
       },
     });

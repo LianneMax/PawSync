@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -85,7 +85,55 @@ export default function ClinicNfcManagementPage() {
   const [loadingRequests, setLoadingRequests] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<TagRequest | null>(null)
 
+  const [writeStage, setWriteStage] = useState<string>('idle')
   const writeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+
+  // Connect WebSocket for real-time NFC events
+  useEffect(() => {
+    const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001').replace(/^http/, 'ws').replace(/\/api$/, '')
+    const ws = new WebSocket(`${wsUrl}/ws/nfc`)
+    wsRef.current = ws
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data)
+
+        if (msg.type === 'write:progress') {
+          setWriteStage(msg.data.stage)
+        }
+
+        if (msg.type === 'write:complete') {
+          if (msg.data.writeSuccess) {
+            setWriteStage('success')
+          } else {
+            setWriteStage('failed')
+          }
+        }
+
+        if (msg.type === 'reader:connect') {
+          setReaderAvailable(true)
+          setReaderStatus(`Reader connected: ${msg.data.name}`)
+        }
+
+        if (msg.type === 'reader:disconnect') {
+          setReaderAvailable(false)
+          setReaderStatus('NFC reader disconnected')
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    ws.onclose = () => {
+      console.log('[WS] Disconnected from NFC WebSocket')
+    }
+
+    return () => {
+      ws.close()
+      wsRef.current = null
+    }
+  }, [])
 
   // Check if user has access
   useEffect(() => {
@@ -210,6 +258,7 @@ export default function ClinicNfcManagementPage() {
       return
     }
 
+    setWriteStage('waiting')
     setCurrentWrite({
       petId: request.petId._id,
       petName: request.petId.name,
@@ -317,6 +366,7 @@ export default function ClinicNfcManagementPage() {
       return
     }
 
+    setWriteStage('waiting')
     setCurrentWrite({
       petId: pet._id,
       petName: pet.name,
@@ -574,20 +624,63 @@ export default function ClinicNfcManagementPage() {
                     </div>
                   </div>
                   <h3 className="text-xl font-bold text-center text-[#476B6B] mb-2">
-                    Writing NFC Tag
+                    {writeStage === 'waiting' || writeStage === 'idle' ? 'Waiting for NFC Tag' :
+                     writeStage === 'card-detected' ? 'Tag Detected!' :
+                     writeStage === 'writing' ? 'Writing Data...' :
+                     writeStage === 'verifying' ? 'Verifying Write...' :
+                     'Writing NFC Tag'}
                   </h3>
                   <p className="text-center text-gray-600 mb-6">
-                    Place a blank NFC tag on your reader for <span className="font-semibold">{currentWrite.petName}</span>
+                    {writeStage === 'waiting' || writeStage === 'idle' ? (
+                      <>Place a blank NFC tag on your reader for <span className="font-semibold">{currentWrite.petName}</span></>
+                    ) : writeStage === 'card-detected' ? (
+                      'Tag detected, starting write...'
+                    ) : writeStage === 'writing' ? (
+                      'Writing NDEF data to tag pages...'
+                    ) : writeStage === 'verifying' ? (
+                      'Reading back data to verify write...'
+                    ) : (
+                      <>Place a blank NFC tag on your reader for <span className="font-semibold">{currentWrite.petName}</span></>
+                    )}
                   </p>
-                  <div className="text-center text-sm text-gray-500">
-                    Waiting for tag... (60 seconds)
+
+                  {/* Progress Steps */}
+                  <div className="space-y-2 mb-6">
+                    {['waiting', 'card-detected', 'writing', 'verifying'].map((step, idx) => {
+                      const stages = ['waiting', 'card-detected', 'writing', 'verifying']
+                      const currentIdx = stages.indexOf(writeStage)
+                      const isCompleted = idx < currentIdx
+                      const isCurrent = idx === currentIdx
+                      const labels = ['Waiting for tag...', 'Tag detected', 'Writing NDEF data', 'Verifying']
+
+                      return (
+                        <div key={step} className="flex items-center gap-3 text-sm">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isCompleted ? 'bg-[#4CAF50]' :
+                            isCurrent ? 'bg-[#7FA5A3] animate-pulse' :
+                            'bg-gray-200'
+                          }`}>
+                            {isCompleted ? (
+                              <Check className="w-3 h-3 text-white" />
+                            ) : isCurrent ? (
+                              <Loader className="w-3 h-3 text-white animate-spin" />
+                            ) : null}
+                          </div>
+                          <span className={isCompleted || isCurrent ? 'text-gray-800 font-medium' : 'text-gray-400'}>
+                            {labels[idx]}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
+
                   <button
                     onClick={() => {
                       if (writeTimeoutRef.current) clearTimeout(writeTimeoutRef.current)
                       setCurrentWrite(null)
+                      setWriteStage('idle')
                     }}
-                    className="w-full mt-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+                    className="w-full py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
