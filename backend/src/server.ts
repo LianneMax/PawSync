@@ -27,25 +27,30 @@ app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
-// Custom CORS middleware
+// CORS configuration - following SuperTokens best practices
+const corsOptions = {
+  origin: '*',
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Explicitly handle preflight OPTIONS requests for all routes
+app.options('*', cors(corsOptions));
+
+// Additional explicit headers middleware
 app.use((req: Request, res: Response, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
+  res.header('Access-Control-Max-Age', '86400');
   next();
 });
 
-app.use(cors({
-  origin: '*',
-  credentials: false,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
