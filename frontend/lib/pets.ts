@@ -101,6 +101,20 @@ export const removePet = async (id: string, reason: string, details?: string, to
 };
 
 /**
+ * Request a pet tag for a pet
+ */
+export const requestPetTag = async (petId: string, clinicBranchId: string, pickupDate: string, reason?: string, token?: string): Promise<{ status: string; message: string; data?: any }> => {
+  return authenticatedFetch(`/nfc/pet/${petId}/request-tag`, {
+    method: 'POST',
+    body: JSON.stringify({
+      clinicBranchId,
+      pickupDate,
+      reason: reason || ''
+    })
+  }, token);
+};
+
+/**
  * Transfer pet ownership to another pet-owner
  */
 export const transferPet = async (id: string, newOwnerEmail: string, token?: string): Promise<{ status: string; message: string }> => {

@@ -18,9 +18,9 @@ export const requestPetTag = async (req: Request, res: Response) => {
     }
 
     const { petId } = req.params;
-    const { reason } = req.body;
+    const { reason, clinicBranchId, pickupDate } = req.body;
 
-    console.log(`[NFC Request] Pet ID: ${petId}, Reason: ${reason}`);
+    console.log(`[NFC Request] Pet ID: ${petId}, Reason: ${reason}, Clinic Branch: ${clinicBranchId}, Pickup Date: ${pickupDate}`);
 
     if (!petId) {
       console.log('[NFC Request] No pet ID provided');
@@ -60,24 +60,31 @@ export const requestPetTag = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'No active clinic found to process requests' });
     }
 
-    // Fetch the next upcoming appointment for the pet to get pickup date
-    let pickupDate: Date | null = null;
-    let clinicBranchId: any = null;
-    const now = new Date();
-    const nextAppointment = await Appointment.findOne({
-      petId: petId,
-      date: { $gte: now },
-      status: { $in: ['pending', 'confirmed'] }
-    })
-      .populate('clinicBranchId')
-      .sort({ date: 1, startTime: 1 });
+    // Create tag request with provided clinicBranchId and pickupDate, or fetch from next appointment
+    let finalPickupDate: Date | null = pickupDate ? new Date(pickupDate) : null;
+    let finalClinicBranchId = clinicBranchId || null;
 
-    if (nextAppointment) {
-      pickupDate = nextAppointment.date;
-      clinicBranchId = nextAppointment.clinicBranchId?._id || null;
-      console.log(`[NFC Request] Found next appointment on ${pickupDate} at branch ${clinicBranchId}`);
+    // If clinicBranchId and pickupDate provided by user, use those
+    if (clinicBranchId && pickupDate) {
+      console.log(`[NFC Request] Using user-provided clinic branch ${clinicBranchId} and pickup date ${pickupDate}`);
     } else {
-      console.log(`[NFC Request] No upcoming appointment found for pet ${petId}`);
+      // Otherwise fall back to next appointment
+      const now = new Date();
+      const nextAppointment = await Appointment.findOne({
+        petId: petId,
+        date: { $gte: now },
+        status: { $in: ['pending', 'confirmed'] }
+      })
+        .populate('clinicBranchId')
+        .sort({ date: 1, startTime: 1 });
+
+      if (nextAppointment) {
+        finalPickupDate = nextAppointment.date;
+        finalClinicBranchId = nextAppointment.clinicBranchId?._id || null;
+        console.log(`[NFC Request] Found next appointment on ${finalPickupDate} at branch ${finalClinicBranchId}`);
+      } else {
+        console.log(`[NFC Request] No upcoming appointment found for pet ${petId}`);
+      }
     }
 
     // Create tag request
@@ -88,11 +95,11 @@ export const requestPetTag = async (req: Request, res: Response) => {
       reason: reason || ''
     };
 
-    if (pickupDate) {
-      createData.pickupDate = pickupDate;
+    if (finalPickupDate) {
+      createData.pickupDate = finalPickupDate;
     }
-    if (clinicBranchId) {
-      createData.clinicBranchId = clinicBranchId;
+    if (finalClinicBranchId) {
+      createData.clinicBranchId = finalClinicBranchId;
     }
 
     const tagRequest = await PetTagRequest.create(createData);
