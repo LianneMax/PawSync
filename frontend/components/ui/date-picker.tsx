@@ -15,9 +15,10 @@ interface DatePickerProps {
   error?: boolean;
   className?: string;
   allowFutureDates?: boolean;
+  minDate?: Date; // Minimum allowed date
 }
 
-export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [textValue, setTextValue] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -36,15 +37,26 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
 
   const date = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
 
-  // Disable future dates only if allowFutureDates is false
-  const disabledMatcher = allowFutureDates ? undefined : (date: Date) => {
-    return date > new Date();
+  // Disable dates based on allowFutureDates and minDate
+  const disabledMatcher = (d: Date) => {
+    if (minDate && d < minDate) {
+      return true;
+    }
+    if (!allowFutureDates && d > new Date()) {
+      return true;
+    }
+    return false;
   };
 
   const handleSelect = (selected: Date | undefined) => {
-    // Prevent future dates from being selected only if allowFutureDates is false
-    if (!allowFutureDates && selected && selected > new Date()) {
-      return;
+    if (selected) {
+      // Check if selected date is within valid range
+      if (minDate && selected < minDate) {
+        return;
+      }
+      if (!allowFutureDates && selected > new Date()) {
+        return;
+      }
     }
     onChange(selected ? format(selected, 'yyyy-MM-dd') : '');
     setOpen(false);
@@ -61,9 +73,11 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
       const dd = digits.slice(2, 4);
       const yyyy = digits.slice(4, 8);
       const parsed = parse(`${yyyy}-${mm}-${dd}`, 'yyyy-MM-dd', new Date());
-      if (isValid(parsed)) {
-        // Prevent future dates
-        if (parsed <= new Date()) {
+      if (isValid(parsed) && parsed.getFullYear() > 1900) {
+        // Check date constraints
+        const isAfterMin = !minDate || parsed >= minDate;
+        const isNotFuture = allowFutureDates || parsed <= new Date();
+        if (isAfterMin && isNotFuture) {
           onChange(format(parsed, 'yyyy-MM-dd'));
           setTextValue(`${mm}/${dd}/${yyyy}`);
         }
@@ -84,9 +98,14 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
     for (const fmt of formats) {
       const parsed = parse(textValue, fmt, new Date());
       if (isValid(parsed) && parsed.getFullYear() > 1900) {
-        // Check if date is in the future
-        if (parsed > new Date()) {
-          // If future date, revert to the current value
+        // Check date constraints
+        const isAfterMin = !minDate || parsed >= minDate;
+        const isNotFuture = allowFutureDates || parsed <= new Date();
+        if (isAfterMin && isNotFuture) {
+          onChange(format(parsed, 'yyyy-MM-dd'));
+          return;
+        } else {
+          // Date out of range, revert
           if (value) {
             const d = parse(value, 'yyyy-MM-dd', new Date());
             setTextValue(isValid(d) ? format(d, 'MM/dd/yyyy') : '');
@@ -95,8 +114,6 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
           }
           return;
         }
-        onChange(format(parsed, 'yyyy-MM-dd'));
-        return;
       }
     }
     // If nothing parsed, revert to the current value
@@ -131,7 +148,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={date} onSelect={handleSelect} {...(disabledMatcher && { disabled: disabledMatcher })} autoFocus />
+            <Calendar mode="single" selected={date} onSelect={handleSelect} disabled={disabledMatcher} autoFocus />
           </PopoverContent>
         </Popover>
 

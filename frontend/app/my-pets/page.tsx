@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, type Pet as APIPet } from '@/lib/pets'
+import { getMyPets, requestPetTag, type Pet as APIPet } from '@/lib/pets'
 import { Plus, PawPrint, Search, AlertTriangle, Nfc } from 'lucide-react'
 import {
   Dialog,
@@ -96,6 +96,11 @@ export default function MyPetsPage() {
     pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pet.breed.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Calculate minimum pickup date (tomorrow)
+  const minPickupDate = new Date()
+  minPickupDate.setDate(minPickupDate.getDate() + 1)
+  minPickupDate.setHours(0, 0, 0, 0)
 
   return (
     <DashboardLayout>
@@ -313,7 +318,10 @@ export default function MyPetsPage() {
                 value={selectedPickupDate}
                 onChange={setSelectedPickupDate}
                 placeholder="MM/DD/YYYY"
+                allowFutureDates={true}
+                minDate={minPickupDate}
               />
+              <p className="text-xs text-gray-500">Select a date from tomorrow onwards</p>
             </div>
 
             {/* Selected clinic details */}
@@ -340,20 +348,38 @@ export default function MyPetsPage() {
               Cancel
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (selectedPetId && selectedClinic && selectedPickupDate) {
-                  const selectedBranch = clinicBranches.find(c => c._id === selectedClinic)
-                  toast('Pet Tag Request Submitted', {
-                    description: `Your request has been submitted. Pickup at ${selectedBranch?.name} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
-                  })
-                  setShowConfirmation(false)
-                  setSelectedClinic('')
-                  setSelectedPickupDate('')
-                  setSelectedPetId(null)
+                  setIsSubmitting(true);
+                  try {
+                    const selectedBranch = clinicBranches.find(c => c._id === selectedClinic);
+                    const response = await requestPetTag(selectedPetId, selectedClinic, selectedPickupDate, undefined, token);
+                    
+                    if (response.status === 'SUCCESS') {
+                      toast.success('Pet Tag Request Submitted', {
+                        description: `Your request has been submitted. Pickup at ${selectedBranch?.name} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
+                      });
+                      setShowConfirmation(false);
+                      setSelectedClinic('');
+                      setSelectedPickupDate('');
+                      setSelectedPetId(null);
+                    } else {
+                      toast.error('Error', { 
+                        description: response.message || 'Failed to submit request' 
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Error submitting pet tag request:', error);
+                    toast.error('Error', { 
+                      description: 'Something went wrong. Please try again.' 
+                    });
+                  } finally {
+                    setIsSubmitting(false);
+                  }
                 } else {
-                  toast('Please fill in all fields', {
+                  toast.error('Please fill in all fields', {
                     description: 'Select a clinic branch and pickup date to continue.'
-                  })
+                  });
                 }
               }}
               disabled={isSubmitting || !selectedClinic || !selectedPickupDate}
