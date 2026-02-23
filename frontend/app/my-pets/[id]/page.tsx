@@ -858,10 +858,10 @@ export default function PetProfilePage() {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8 mb-8">
                   <button
                     onClick={handleRequestNfcTag}
-                    disabled={isSubmittingRequest}
+                    disabled={isSubmittingRequest || !pet.nfcTagId}
                     className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmittingRequest ? 'Submitting...' : (pet.nfcTagId ? 'Request Replacement Pet Tag' : 'Request NFC Tag')}
+                    {isSubmittingRequest ? 'Submitting...' : 'Request Replacement Pet Tag'}
                   </button>
                   <button
                     onClick={handleMarkAsLost}
