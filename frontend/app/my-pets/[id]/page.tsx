@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, type Pet as APIPet } from '@/lib/pets'
 import { updateProfile } from '@/lib/users'
 import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
+import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
 import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc } from 'lucide-react'
@@ -55,6 +56,8 @@ export default function PetProfilePage() {
   const [nextAppointment, setNextAppointment] = useState<any>(null)
   const [selectedBranch, setSelectedBranch] = useState('')
   const [pickupDate, setPickupDate] = useState('')
+  const [clinicBranches, setClinicBranches] = useState<ClinicWithBranches[]>([])
+  const [loadingClinics, setLoadingClinics] = useState(false)
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
@@ -160,6 +163,23 @@ export default function PetProfilePage() {
       fetchTagRequests()
     }
   }, [activeTab, tagRequests, loadingTagRequests, fetchTagRequests])
+
+  useEffect(() => {
+    const fetchClinics = async () => {
+      setLoadingClinics(true)
+      try {
+        const response = await getAllClinicsWithBranches()
+        if (response.status === 'SUCCESS' && response.data?.clinics) {
+          setClinicBranches(response.data.clinics)
+        }
+      } catch (error) {
+        console.error('Failed to fetch clinics:', error)
+      } finally {
+        setLoadingClinics(false)
+      }
+    }
+    fetchClinics()
+  }, [])
 
   useEffect(() => {
     fetchPet()
@@ -319,8 +339,7 @@ export default function PetProfilePage() {
         setIsSubmittingRequest(false)
       }
     } else {
-      // If pet has a tag, fetch next appointment and show replacement modal
-      await fetchNextAppointment()
+      // If pet has a tag, show replacement modal for user to select clinic and date
       setShowNfcModal(true)
     }
   }
@@ -348,15 +367,37 @@ export default function PetProfilePage() {
   }
 
   const handleSubmitPetTagRequest = async () => {
-    if (!pet || !token) return
+    if (!pet || !token || !selectedBranch || !pickupDate) return
     setIsSubmittingRequest(true)
     try {
+      // Find the clinic and branch details
+      let clinicName = ''
+      let branchName = ''
+      for (const clinic of clinicBranches) {
+        const branch = clinic.branches.find((b) => b._id === selectedBranch)
+        if (branch) {
+          clinicName = clinic.name
+          branchName = branch.name
+          break
+        }
+      }
+
       const response = await authenticatedFetch(
-        `/nfc/pet/${pet._id}/request-tag`,
+        `/pet-tag-requests`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: nfcReason }),
+          body: JSON.stringify({
+            petId: pet._id,
+            petName: pet.name,
+            ownerId: pet.ownerId,
+            ownerName: (pet.ownerId as any)?.firstName || '',
+            clinicBranchId: selectedBranch,
+            clinicBranchName: branchName,
+            reason: nfcReason,
+            pickupDate: pickupDate,
+            status: 'pending'
+          }),
         },
         token
       )
@@ -364,16 +405,19 @@ export default function PetProfilePage() {
       const data = response
 
       if (data.status === 'SUCCESS') {
-        toast('Tag Replacement Request Submitted', {
+        toast('Replacement Request Submitted', {
           description: 'Your clinic will process your replacement request shortly.'
         })
         setShowNfcModal(false)
         setNfcReason('')
+        setSelectedBranch('')
+        setPickupDate('')
+        await fetchTagRequests() // Refresh the request history
       } else {
         toast('Error', { description: data.message || 'Failed to submit request' })
       }
     } catch (error) {
-      console.error('Error submitting NFC request:', error)
+      console.error('Error submitting pet tag request:', error)
       toast('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
       setIsSubmittingRequest(false)
@@ -817,7 +861,7 @@ export default function PetProfilePage() {
                     disabled={isSubmittingRequest}
                     className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmittingRequest ? 'Submitting...' : (pet.nfcTagId ? 'Request Tag Replacement' : 'Request NFC Tag')}
+                    {isSubmittingRequest ? 'Submitting...' : (pet.nfcTagId ? 'Request Replacement Pet Tag' : 'Request NFC Tag')}
                   </button>
                   <button
                     onClick={handleMarkAsLost}
@@ -899,29 +943,63 @@ export default function PetProfilePage() {
       }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Request NFC Tag Replacement for {pet?.name}</DialogTitle>
+            <DialogTitle>Request Replacement Pet Tag for {pet?.name}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Pickup Date - Auto-filled from appointment */}
-            {nextAppointment && (
-              <div className="space-y-2">
-                <label htmlFor="pickup-date" className="text-sm font-semibold text-gray-600">
-                  Pickup Date <span className="text-gray-400 text-xs">(Auto-filled from appointment)</span>
-                </label>
-                <input
-                  id="pickup-date"
-                  type="date"
-                  value={pickupDate}
-                  readOnly
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
-                />
-                {nextAppointment.clinicBranchId && (
-                  <p className="text-xs text-gray-500">
-                    Branch: {nextAppointment.clinicBranchId.name}
-                  </p>
+            {/* Clinic Branch Selection */}
+            <div className="space-y-2">
+              <label htmlFor="clinic-branch" className="text-sm font-semibold text-gray-600">
+                Select Pickup Location <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="clinic-branch"
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              >
+                <option value="">Select a clinic branch...</option>
+                {clinicBranches.map((clinic) =>
+                  clinic.branches.map((branch) => (
+                    <option key={branch._id} value={branch._id}>
+                      {clinic.name} - {branch.name}
+                    </option>
+                  ))
                 )}
-              </div>
-            )}
+              </select>
+              {selectedBranch && (
+                <div className="mt-2 p-3 bg-[#F8F6F2] rounded-lg">
+                  {(() => {
+                    for (const clinic of clinicBranches) {
+                      const branch = clinic.branches.find((b) => b._id === selectedBranch)
+                      if (branch) {
+                        return (
+                          <div className="text-sm">
+                            <p className="font-semibold text-[#4F4F4F]">{clinic.name}</p>
+                            <p className="text-xs text-gray-600">{branch.address}</p>
+                          </div>
+                        )
+                      }
+                    }
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Pickup Date */}
+            <div className="space-y-2">
+              <label htmlFor="pickup-date" className="text-sm font-semibold text-gray-600">
+                Pickup Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="pickup-date"
+                type="date"
+                value={pickupDate}
+                onChange={(e) => setPickupDate(e.target.value)}
+                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              />
+              <p className="text-xs text-gray-500">Select a date from tomorrow onwards</p>
+            </div>
 
             {/* Reason for Replacement */}
             <div className="space-y-2">
@@ -957,10 +1035,10 @@ export default function PetProfilePage() {
             </button>
             <button
               onClick={handleSubmitPetTagRequest}
-              disabled={isSubmittingRequest}
+              disabled={isSubmittingRequest || !selectedBranch || !pickupDate}
               className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmittingRequest ? 'Submitting...' : 'Submit Replacement Request'}
+              {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
             </button>
           </DialogFooter>
         </DialogContent>
