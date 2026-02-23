@@ -18,10 +18,8 @@ export default function VerificationPendingPage() {
   const router = useRouter()
   const { user } = useAuthStore()
   const [submissionData, setSubmissionData] = useState<SubmissionData | null>(null)
-  const [showConfirmation, setShowConfirmation] = useState(false)
 
   useEffect(() => {
-    // Get data from sessionStorage
     const prcData = sessionStorage.getItem('prcLicenseData')
 
     if (prcData) {
@@ -50,15 +48,6 @@ export default function VerificationPendingPage() {
     })
   }
 
-  const handleEditSubmission = () => {
-    router.push('/onboarding/vet')
-  }
-
-  const handleConfirmSubmission = () => {
-    // Navigate to success page after confirmation
-    router.push('/onboarding/vet/verification-success')
-  }
-
   return (
     <div className="min-h-screen bg-[#F8F6F2] flex items-center justify-center p-4">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-lg p-10">
@@ -70,13 +59,13 @@ export default function VerificationPendingPage() {
         </div>
 
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-[#4F4F4F] mb-3">
-            Verification In Progress
+            Verification Pending
           </h1>
           <p className="text-gray-600">
-            Your PRC license has been submitted for review. Our team is
-            verifying your credentials. This usually takes 1-2 business days.
+            Your PRC license details have been submitted for review.
+            Our team will verify your credentials within 1–2 business days.
           </p>
         </div>
 
@@ -90,35 +79,28 @@ export default function VerificationPendingPage() {
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Full Name</span>
               <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.fullName || 'Maria Cruz Santos, DVM'}
+                {submissionData?.fullName || '—'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">PRC License No.</span>
               <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.prcNumber || '0045678'}
+                {submissionData?.prcNumber || '—'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Date of Registration</span>
               <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.registrationDate || 'June 15, 2020'}
+                {submissionData?.registrationDate || '—'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-gray-200">
               <span className="text-gray-600">Expiration Date</span>
               <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.expirationDate || 'December 31, 2026'}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-              <span className="text-gray-600">Submitted</span>
-              <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.submittedDate || 'January 20, 2026'}
+                {submissionData?.expirationDate || '—'}
               </span>
             </div>
 
@@ -135,53 +117,18 @@ export default function VerificationPendingPage() {
         <p className="text-sm text-gray-500 text-center mb-6">
           You&apos;ll receive an email at{' '}
           <span className="text-[#7FA5A3] font-medium">
-            {submissionData?.email || 'maria.santos@email.com'}
+            {submissionData?.email || 'your email address'}
           </span>{' '}
           once your license is verified.
         </p>
 
-        {/* Confirm Submission Button */}
+        {/* Continue Button */}
         <button
-          onClick={() => setShowConfirmation(true)}
-          className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+          onClick={() => router.push('/vet-dashboard')}
+          className="w-full py-4 bg-[#5A7C7A] text-white rounded-xl font-semibold hover:bg-[#4A6C6A] transition-colors"
         >
-          Confirm Submission
+          Continue to Dashboard
         </button>
-
-        {/* Confirmation Dialog */}
-        {showConfirmation && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-3xl p-8 max-w-sm shadow-2xl">
-              <h2 className="text-2xl font-bold text-[#4F4F4F] mb-4">
-                Confirm Submission?
-              </h2>
-              <p className="text-gray-600 mb-2">
-                Are you sure you want to submit your PRC license for verification?
-              </p>
-              <p className="text-sm text-red-600 font-medium mb-6 bg-red-50 p-3 rounded-lg">
-                ⚠️ You will no longer be able to edit your response after submitting.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowConfirmation(false)}
-                  className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-semibold text-[#4F4F4F] hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowConfirmation(false)
-                    handleConfirmSubmission()
-                  }}
-                  className="flex-1 py-3 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

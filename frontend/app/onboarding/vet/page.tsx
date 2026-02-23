@@ -26,7 +26,7 @@ interface ApiClinic {
 
 export default function VetOnboardingPage() {
   const router = useRouter()
-  const { user, token } = useAuthStore()
+  const { token } = useAuthStore()
 
   // Step state: 2 = PRC License, 3 = Select Clinic
   const [currentStep, setCurrentStep] = useState(2)
@@ -58,8 +58,9 @@ export default function VetOnboardingPage() {
   const [selectedClinic, setSelectedClinic] = useState<string | null>(null)
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
   const [expandedClinic, setExpandedClinic] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -105,6 +106,7 @@ export default function VetOnboardingPage() {
     if (!lastName.trim()) newErrors.lastName = true
     if (!middleName.trim()) newErrors.middleName = true
     if (!prcNumber.trim()) newErrors.prcNumber = true
+    else if (!/^\d{7}$/.test(prcNumber.trim())) newErrors.prcNumberFormat = true
     if (!registrationDate) newErrors.registrationDate = true
     if (!expirationDate) newErrors.expirationDate = true
     if (!prcIdPhotoBase64) newErrors.prcIdPhoto = true
@@ -166,94 +168,84 @@ export default function VetOnboardingPage() {
     setSelectedBranch(branchId)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!selectedClinic || !selectedBranch) {
-      alert('Please select a clinic and branch')
+      setSubmitError('Please select a clinic and branch')
       return
     }
+    setSubmitError('')
+    setShowConfirmDialog(true)
+  }
 
+  const handleConfirmAndSubmit = async () => {
     if (!token) {
-      alert('You must be logged in to submit')
+      setSubmitError('You must be logged in to submit')
+      setShowConfirmDialog(false)
       return
     }
 
     setSubmitting(true)
-    setSubmitError('')
 
     try {
-      // Submit PRC verification
       const verificationRes = await fetch(`${API_URL}/verifications`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          firstName,
-          lastName,
+          firstName, lastName,
           middleName: middleName || null,
           suffix: suffix || null,
           prcLicenseNumber: prcNumber,
           profession: 'Veterinary Medicine',
-          registrationDate,
-          expirationDate,
+          registrationDate, expirationDate,
           prcIdPhoto: prcIdPhotoBase64 || null,
           clinicId: selectedClinic,
           branchId: selectedBranch
         })
       })
-
       const verificationData = await verificationRes.json()
 
       if (verificationData.status !== 'SUCCESS') {
         setSubmitError(verificationData.message || 'Failed to submit verification')
+        setShowConfirmDialog(false)
         setSubmitting(false)
         return
       }
 
-      // Submit vet application to the clinic
       const applicationRes = await fetch(`${API_URL}/vet-applications`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           clinicId: selectedClinic,
           branchId: selectedBranch,
           verificationId: verificationData.data.verification._id
         })
       })
-
       const applicationData = await applicationRes.json()
 
       if (applicationData.status !== 'SUCCESS') {
         setSubmitError(applicationData.message || 'Failed to submit application')
+        setShowConfirmDialog(false)
         setSubmitting(false)
         return
       }
 
-      // Store data in sessionStorage for the verification-pending page to display
-      const prcLicenseData = {
-        firstName, lastName, middleName, suffix,
-        prcNumber, registrationDate, expirationDate, fileName
-      }
-      sessionStorage.setItem('prcLicenseData', JSON.stringify(prcLicenseData))
-
       const selectedClinicObj = clinics.find(c => c._id === selectedClinic)
       const selectedBranchObj = selectedClinicObj?.branches.find(b => b._id === selectedBranch)
-      const clinicData = {
-        clinicId: selectedClinic,
-        branchId: selectedBranch,
-        clinicName: selectedClinicObj?.name,
-        branchName: selectedBranchObj?.name
-      }
-      sessionStorage.setItem('clinicData', JSON.stringify(clinicData))
+
+      sessionStorage.setItem('prcLicenseData', JSON.stringify({
+        firstName, lastName, middleName, suffix,
+        prcNumber, registrationDate, expirationDate, fileName
+      }))
+      sessionStorage.setItem('clinicData', JSON.stringify({
+        clinicId: selectedClinic, branchId: selectedBranch,
+        clinicName: selectedClinicObj?.name, branchName: selectedBranchObj?.name
+      }))
 
       router.push('/onboarding/vet/verification-pending')
     } catch (err) {
       console.error('Submission error:', err)
       setSubmitError('An error occurred. Please try again.')
+      setShowConfirmDialog(false)
     } finally {
       setSubmitting(false)
     }
@@ -279,6 +271,7 @@ export default function VetOnboardingPage() {
   const shouldAnimate = slidePhase === 'exit' || slidePhase === 'idle'
 
   return (
+    <>
     <div className="min-h-screen bg-[#F8F6F2] p-4 pb-12 overflow-hidden">
       {/* Header with user info */}
       <div className="max-w-7xl mx-auto mb-8">
@@ -423,11 +416,18 @@ export default function VetOnboardingPage() {
                     type="text"
                     placeholder="PRC Registration Number #"
                     value={prcNumber}
-                    onChange={(e) => { setPrcNumber(e.target.value); setErrors(prev => ({ ...prev, prcNumber: false })) }}
-                    className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.prcNumber ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                    maxLength={7}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 7)
+                      setPrcNumber(val)
+                      setErrors(prev => ({ ...prev, prcNumber: false, prcNumberFormat: false }))
+                    }}
+                    className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.prcNumber || errors.prcNumberFormat ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
                   {errors.prcNumber
                     ? <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>
+                    : errors.prcNumberFormat
+                    ? <p className="text-xs text-red-500 mt-1 ml-1">PRC license number must be exactly 7 digits</p>
                     : <p className="text-xs text-gray-500 mt-1 ml-1">Enter your 7-digit PRC license number for Veterinary Medicine</p>
                   }
                 </div>
@@ -693,16 +693,53 @@ export default function VetOnboardingPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting}
-                className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
               >
-                {submitting ? 'Submitting...' : 'Submit for Verification'}
-                {!submitting && <ArrowRight className="w-5 h-5" />}
+                Continue to Review
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>
         )}
       </div>
     </div>
+
+    {/* Confirmation Dialog */}
+    {showConfirmDialog && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+          <h2 className="text-2xl font-bold text-[#4F4F4F] mb-3">
+            Are you sure?
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Please make sure all your details are correct. You will no longer be able to edit your information after submitting.
+          </p>
+
+          {submitError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-400 rounded-xl">
+              <p className="text-sm text-red-600">{submitError}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={submitting}
+              className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-semibold text-[#4F4F4F] hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmAndSubmit}
+              disabled={submitting}
+              className="flex-1 py-3 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Submitting...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

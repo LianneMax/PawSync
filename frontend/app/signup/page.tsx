@@ -247,6 +247,23 @@ export default function SignUpPage() {
                 {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
               </div>
 
+              {/* Mobile Number Input */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="tel"
+                    name="mobileNumber"
+                    autoComplete="tel"
+                    placeholder="Mobile Number"
+                    value={mobileNumber}
+                    onChange={(e) => { setMobileNumber(e.target.value); setFieldErrors(prev => ({ ...prev, mobileNumber: '' })) }}
+                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.mobileNumber ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                  />
+                </div>
+                {fieldErrors.mobileNumber && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.mobileNumber}</p>}
+              </div>
+
               {/* Password Input */}
               <div className="mb-4">
                 <div className="relative">

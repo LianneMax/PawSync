@@ -178,7 +178,33 @@ export default function LoginPage() {
             router.push('/onboarding/pet')
           }
         } else if (response.data.user.userType === 'veterinarian') {
-          router.push('/vet-dashboard')
+          if (response.data.user.isVerified) {
+            router.push('/vet-dashboard')
+          } else {
+            // Unverified vet — check what stage they're at
+            try {
+              const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+              const verRes = await fetch(`${API_URL}/verifications/mine`, {
+                headers: { 'Authorization': `Bearer ${response.data.token}` }
+              })
+              const verData = await verRes.json()
+              const verifications = verData?.data?.verifications
+              if (verifications && verifications.length > 0) {
+                const latest = verifications[0]
+                if (latest.status === 'rejected') {
+                  router.push('/onboarding/vet/verification-failed')
+                } else {
+                  // pending — send to vet dashboard which shows their pending status
+                  router.push('/vet-dashboard')
+                }
+              } else {
+                // No verification submitted yet — continue onboarding
+                router.push('/onboarding/vet')
+              }
+            } catch {
+              router.push('/vet-dashboard')
+            }
+          }
         } else if (response.data.user.userType === 'clinic-admin') {
           router.push('/clinic-admin')
         } else {
