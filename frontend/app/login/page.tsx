@@ -178,8 +178,15 @@ export default function LoginPage() {
             router.push('/onboarding/pet')
           }
         } else if (response.data.user.userType === 'veterinarian') {
+          const userId = response.data.user._id || response.data.user.id
           if (response.data.user.isVerified) {
-            router.push('/vet-dashboard')
+            const notifiedKey = `vet_verified_notified_${userId}`
+            if (!localStorage.getItem(notifiedKey)) {
+              localStorage.setItem(notifiedKey, 'true')
+              router.push('/onboarding/vet/verification-success')
+            } else {
+              router.push('/vet-dashboard')
+            }
           } else {
             // Unverified vet — check what stage they're at
             try {

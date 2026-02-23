@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { FileText } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -15,7 +14,6 @@ interface SubmissionData {
 }
 
 export default function VerificationPendingPage() {
-  const router = useRouter()
   const { user } = useAuthStore()
   const [submissionData, setSubmissionData] = useState<SubmissionData | null>(null)
 
@@ -114,21 +112,13 @@ export default function VerificationPendingPage() {
         </div>
 
         {/* Email Notice */}
-        <p className="text-sm text-gray-500 text-center mb-6">
+        <p className="text-sm text-gray-500 text-center">
           You&apos;ll receive an email at{' '}
           <span className="text-[#7FA5A3] font-medium">
             {submissionData?.email || 'your email address'}
           </span>{' '}
           once your license is verified.
         </p>
-
-        {/* Continue Button */}
-        <button
-          onClick={() => router.push('/vet-dashboard')}
-          className="w-full py-4 bg-[#5A7C7A] text-white rounded-xl font-semibold hover:bg-[#4A6C6A] transition-colors"
-        >
-          Continue to Dashboard
-        </button>
       </div>
     </div>
   )
