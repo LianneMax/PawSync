@@ -29,7 +29,7 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   preflightContinue: false,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -109,4 +109,4 @@ const startServer = async () => {
   }
 };
 
-startServer();
+startServer()
