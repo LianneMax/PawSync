@@ -20,6 +20,7 @@ import {
   X,
   Smartphone,
   Camera,
+  LogIn,
 } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import MouseEffectBackground from '@/components/kokonutui/mouse-effect-background'
@@ -210,10 +211,14 @@ export default function Home() {
           ws.close()
           nfcWsRef.current = null
           
-          // Show NFC modal with the link from the card
-          setNfcUrl(msg.data.url || null)
-          setIsNFCModalOpen(true)
-          setNfcStatus('idle')
+          // Auto-redirect to pet profile when scanned from index
+          const url = msg.data.url || null
+          if (url) {
+            setNfcStatus('idle')
+            window.location.href = url.startsWith('http') ? url : `/pet/${url}`
+          } else {
+            setNfcStatus('error')
+          }
         }
       }
 
@@ -301,14 +306,15 @@ export default function Home() {
           <span className="text-xl font-semibold text-[#476B6B]">PawSync</span>
         </Link>
         <div className="flex items-center gap-4">
-          <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 transition-colors">
+          <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[#8B2E2E] text-white rounded-lg hover:bg-[#7A2828] transition-colors">
             <ScanLine className="w-4 h-4" />
-            Scan Pet Tag
+            Did you find a lost pet?
           </button>
           <Link
             href="/login"
-            className="px-6 py-2 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors"
+            className="flex items-center gap-2 px-6 py-2 bg-[#5A7C7A] text-white rounded-lg hover:bg-[#4a6a68] transition-colors"
           >
+            <LogIn className="w-4 h-4" />
             Sign In
           </Link>
         </div>
@@ -343,9 +349,9 @@ export default function Home() {
             >
               Get Started <ArrowRight className="w-5 h-5" />
             </Link>
-            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 bg-white border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 hover:scale-105 hover:shadow-lg transition-all duration-200 text-lg">
+            <button onClick={() => setShowScanModal(true)} className="flex items-center gap-2 px-8 py-3 bg-[#8B2E2E] text-white rounded-lg hover:bg-[#7A2828] hover:scale-105 hover:shadow-lg transition-all duration-200 text-lg">
               <ScanLine className="w-5 h-5" />
-              Scan Pet Tag
+              Did you find a lost pet?
             </button>
           </div>
         </div>
@@ -680,7 +686,7 @@ export default function Home() {
                 </div>
 
                 <h3 className="text-2xl text-[#476B6B] mb-2" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
-                  Scan Pet Tag
+                  Did you find a lost pet?
                 </h3>
                 <p className="text-gray-500 text-sm mb-8">
                   Access pet information instantly by scanning their NFC tag or QR code

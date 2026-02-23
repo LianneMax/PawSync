@@ -190,9 +190,9 @@ export default function PetProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F3EF] pb-28">
+    <div className="min-h-screen bg-white pb-28">
       {/* Hero Section */}
-      <div className="bg-gradient-to-b from-[#4A6B5A] to-[#5A7C6A] h-64 flex items-center justify-center relative">
+      <div className="bg-gradient-to-b from-[#7FA5A3] to-[#6b9391] h-64 flex items-center justify-center relative">
         {pet.photo ? (
           <Image
             src={pet.photo}
@@ -212,7 +212,7 @@ export default function PetProfilePage() {
       <div className="max-w-lg mx-auto px-5 pt-6 space-y-6">
         {/* Name + Report Missing */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">{pet.name}</h1>
+          <h1 className="text-3xl font-bold text-[#4F4F4F]">{pet.name}</h1>
           <button
             onClick={handleReportMissing}
             disabled={isReporting || pet.isLost}
@@ -227,7 +227,7 @@ export default function PetProfilePage() {
         {token && (
           <button
             onClick={() => setShowNfcRequestModal(true)}
-            className="w-full bg-[#5A7C7A] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#4A6B69] transition-colors"
+            className="w-full bg-[#7FA5A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#6b9391] transition-colors"
           >
             <Nfc className="w-5 h-5" />
             Request NFC Tag
@@ -236,43 +236,43 @@ export default function PetProfilePage() {
 
         {/* Info Chips */}
         <div className="flex gap-3">
-          <div className="bg-[#E8E4D9] rounded-xl px-5 py-3 flex-1">
-            <p className="text-xs font-semibold text-[#7A8A6E] mb-0.5">Species</p>
-            <p className="text-base font-bold text-gray-800 capitalize">{pet.species}</p>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Species</p>
+            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.species}</p>
           </div>
-          <div className="bg-[#E8E4D9] rounded-xl px-5 py-3 flex-1">
-            <p className="text-xs font-semibold text-[#7A8A6E] mb-0.5">Gender</p>
-            <p className="text-base font-bold text-gray-800 capitalize">{pet.sex}</p>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Gender</p>
+            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.sex}</p>
           </div>
-          <div className="bg-[#E8E4D9] rounded-xl px-5 py-3 flex-1">
-            <p className="text-xs font-semibold text-[#7A8A6E] mb-0.5">Age</p>
-            <p className="text-base font-bold text-gray-800">{calculateAge(pet.dateOfBirth)}</p>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Age</p>
+            <p className="text-base font-bold text-[#4F4F4F]">{calculateAge(pet.dateOfBirth)}</p>
           </div>
         </div>
 
         {/* Vitals Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-xl px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 mb-1">WEIGHT</p>
-            <p className="text-lg font-bold text-gray-800">
-              {vitals?.weight?.value ?? pet.weight} <span className="text-sm font-semibold text-gray-500">KG</span>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Weight</p>
+            <p className="text-lg font-bold text-[#4F4F4F]">
+              {vitals?.weight?.value ?? pet.weight} <span className="text-sm font-semibold text-gray-500">kg</span>
             </p>
           </div>
-          <div className="bg-white rounded-xl px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 mb-1">TEMPERATURE</p>
-            <p className="text-lg font-bold text-gray-800">
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Temperature</p>
+            <p className="text-lg font-bold text-[#4F4F4F]">
               {vitals?.temperature?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">&deg;C</span>
             </p>
           </div>
-          <div className="bg-white rounded-xl px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 mb-1">PULSE RATE</p>
-            <p className="text-lg font-bold text-gray-800">
-              {vitals?.pulseRate?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">BPM</span>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Pulse Rate</p>
+            <p className="text-lg font-bold text-[#4F4F4F]">
+              {vitals?.pulseRate?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">bpm</span>
             </p>
           </div>
-          <div className="bg-white rounded-xl px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 mb-1">SPO2</p>
-            <p className="text-lg font-bold text-gray-800">
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">SpO2</p>
+            <p className="text-lg font-bold text-[#4F4F4F]">
               {vitals?.spo2?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">%</span>
             </p>
           </div>
@@ -280,13 +280,13 @@ export default function PetProfilePage() {
 
         {/* Known Allergies */}
         {pet.allergies && pet.allergies.length > 0 && (
-          <div>
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Known Allergies</h3>
-            <div className="flex gap-2 flex-wrap">
+          <div className="bg-[#F8F6F2] rounded-xl p-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Allergies</p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {pet.allergies.map((allergy, idx) => (
                 <span
                   key={idx}
-                  className="bg-[#5A7C7A] text-white px-5 py-2 rounded-full text-sm font-semibold"
+                  className="bg-[#476B6B] text-white text-xs px-2.5 py-1 rounded-full"
                 >
                   {allergy}
                 </span>
@@ -298,7 +298,7 @@ export default function PetProfilePage() {
         {/* Vaccination Records */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-800">Vaccination Records</h3>
+            <h3 className="text-lg font-bold text-[#4F4F4F]">Vaccination Records</h3>
             {vaccinationStatus === 'up_to_date' && (
               <span className="text-xs font-semibold text-green-700 bg-green-100 border border-green-200 px-3 py-1 rounded-full">
                 Up to Date
@@ -315,10 +315,10 @@ export default function PetProfilePage() {
               {vaccinations.map((vax, idx) => (
                 <div
                   key={idx}
-                  className="bg-white rounded-xl px-5 py-4 shadow-sm flex items-center justify-between"
+                  className="bg-[#F8F6F2] rounded-xl px-5 py-4 flex items-center justify-between"
                 >
                   <div>
-                    <p className="font-semibold text-gray-800">{vax.vaccineName}</p>
+                    <p className="font-semibold text-[#4F4F4F]">{vax.vaccineName}</p>
                     <p className="text-sm text-gray-500">
                       {new Date(vax.dateAdministered).toLocaleDateString('en-US', {
                         month: '2-digit',
@@ -334,7 +334,7 @@ export default function PetProfilePage() {
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-xl px-5 py-6 shadow-sm text-center">
+            <div className="bg-[#F8F6F2] rounded-xl px-5 py-6 text-center">
               <p className="text-gray-400 text-sm">No vaccination records yet</p>
             </div>
           )}
@@ -353,8 +353,8 @@ export default function PetProfilePage() {
             </button>
 
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-[#5A7C7A]/10 rounded-full flex items-center justify-center">
-                <Nfc className="w-5 h-5 text-[#5A7C7A]" />
+              <div className="w-10 h-10 bg-[#7FA5A3]/10 rounded-full flex items-center justify-center">
+                <Nfc className="w-5 h-5 text-[#7FA5A3]" />
               </div>
               <h3 className="text-lg font-bold text-gray-800">Request NFC Tag</h3>
             </div>
@@ -371,7 +371,7 @@ export default function PetProfilePage() {
                 id="nfc-reason"
                 value={nfcReason}
                 onChange={(e) => setNfcReason(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#5A7C7A]"
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
               >
                 <option value="">Select a reason (optional)</option>
                 <option value="lost_replacement">Lost/Damaged Tag Replacement</option>
@@ -391,7 +391,7 @@ export default function PetProfilePage() {
               <button
                 onClick={handleSubmitNfcRequest}
                 disabled={isSubmittingNfcRequest}
-                className="flex-1 py-2.5 bg-[#5A7C7A] text-white rounded-lg text-sm font-semibold hover:bg-[#4A6B69] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6b9391] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSubmittingNfcRequest ? (
                   <>

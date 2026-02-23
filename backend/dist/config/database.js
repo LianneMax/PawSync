@@ -31,7 +31,12 @@ const connectDatabase = async () => {
         });
         console.log('✅ GridFS Bucket initialized');
         // Sync indexes for models with updated index definitions
-        await AssignedVet_1.default.syncIndexes();
+        try {
+            await AssignedVet_1.default.syncIndexes();
+        }
+        catch (indexError) {
+            console.warn('⚠️ Could not sync indexes (non-fatal):', indexError);
+        }
     }
     catch (error) {
         console.error('❌ Error connecting to MongoDB:', error);
