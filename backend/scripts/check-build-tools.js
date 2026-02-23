@@ -8,11 +8,13 @@ if (os.platform() !== 'win32') {
   try {
     execSync('which make', { stdio: 'ignore' });
     execSync('which g++ || which clang++', { stdio: 'ignore', shell: true });
+    console.log('[setup] Build tools found. Optional native modules will be compiled.');
   } catch {
-    console.error('\n  Missing C++ build tools.');
-    console.error('  On macOS:  xcode-select --install');
-    console.error('  On Linux:  sudo apt install build-essential\n');
-    process.exit(1);
+    console.warn('\n  ⚠ Missing C++ build tools.');
+    console.warn('  Optional native module (nfc-pcsc) will be skipped.');
+    console.warn('  On macOS:  xcode-select --install');
+    console.warn('  On Linux:  sudo apt install build-essential\n');
+    // Allow installation to proceed - nfc-pcsc is optional
   }
   process.exit(0);
 }
@@ -45,21 +47,10 @@ if (hasVS) {
   process.exit(0);
 }
 
-console.log('\n  Visual Studio C++ Build Tools not found.');
-console.log('  These are required to compile the nfc-pcsc native module.\n');
-console.log('  Installing via winget...\n');
+console.warn('\n  ⚠ Visual Studio C++ Build Tools not found.');
+console.warn('  Optional native module (nfc-pcsc) will be skipped.');
+console.warn('  If you need NFC functionality, install C++ build tools manually:');
+console.warn('  https://visualstudio.microsoft.com/visual-cpp-build-tools/\n');
 
-try {
-  execSync(
-    'winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" --accept-source-agreements --accept-package-agreements',
-    { stdio: 'inherit' }
-  );
-  console.log('\n  Build Tools installed successfully.');
-  console.log('  NOTE: You may need to RESTART your terminal (or PC) then re-run npm install.\n');
-} catch {
-  console.error('\n  Auto-install failed. Please install manually:');
-  console.error('  1. Download: https://visualstudio.microsoft.com/visual-cpp-build-tools/');
-  console.error('  2. Select "Desktop development with C++" workload');
-  console.error('  3. Restart your terminal and re-run npm install\n');
-  process.exit(1);
-}
+// Allow installation to proceed - nfc-pcsc is optional
+process.exit(0);
