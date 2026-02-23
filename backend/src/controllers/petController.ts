@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import Pet from '../models/Pet';
 import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
+import MedicalRecord from '../models/MedicalRecord';
+import Vaccination from '../models/Vaccination';
 import QRCode from 'qrcode';
 
 /**
@@ -287,6 +289,98 @@ export const transferPet = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get public pet profile (no auth - for QR/NFC scanning)
+ */
+export const getPublicPetProfile = async (req: Request, res: Response) => {
+  try {
+    const pet = await Pet.findById(req.params.id)
+      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost ownerId')
+      .populate('ownerId', 'firstName lastName contactNumber');
+
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    // Get latest medical record for vitals
+    const latestRecord = await MedicalRecord.findOne({ petId: pet._id })
+      .sort({ createdAt: -1 })
+      .select('vitals.weight vitals.temperature vitals.pulseRate vitals.spo2 createdAt');
+
+    // Get vaccination records
+    const vaccinations = await Vaccination.find({ petId: pet._id })
+      .sort({ dateAdministered: -1 })
+      .select('vaccineName dateAdministered nextDueDate isUpToDate');
+
+    const allUpToDate = vaccinations.length > 0 && vaccinations.every(v => v.isUpToDate);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        pet: {
+          _id: pet._id,
+          name: pet.name,
+          species: pet.species,
+          breed: pet.breed,
+          secondaryBreed: pet.secondaryBreed,
+          sex: pet.sex,
+          dateOfBirth: pet.dateOfBirth,
+          weight: pet.weight,
+          photo: pet.photo,
+          allergies: pet.allergies,
+          isLost: pet.isLost,
+        },
+        owner: pet.ownerId,
+        vitals: latestRecord ? {
+          weight: latestRecord.vitals.weight,
+          temperature: latestRecord.vitals.temperature,
+          pulseRate: latestRecord.vitals.pulseRate,
+          spo2: latestRecord.vitals.spo2,
+          recordedAt: latestRecord.createdAt,
+        } : null,
+        vaccinations: vaccinations.map(v => ({
+          vaccineName: v.vaccineName,
+          dateAdministered: v.dateAdministered,
+          nextDueDate: v.nextDueDate,
+          isUpToDate: v.isUpToDate,
+        })),
+        vaccinationStatus: vaccinations.length === 0 ? 'none' : allUpToDate ? 'up_to_date' : 'overdue',
+      }
+    });
+  } catch (error) {
+    console.error('Get public pet profile error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * Report a pet as missing (public - for scanners)
+ */
+export const reportPetMissing = async (req: Request, res: Response) => {
+  try {
+    const pet = await Pet.findById(req.params.id);
+
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    if (pet.isLost) {
+      return res.status(200).json({ status: 'SUCCESS', message: 'This pet is already reported as missing' });
+    }
+
+    pet.isLost = true;
+    await pet.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Pet has been reported as missing. The owner will be notified.'
+    });
+  } catch (error) {
+    console.error('Report pet missing error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
  * Get pet by NFC tag ID (public - for scanning)
  */
 export const getPetByNfc = async (req: Request, res: Response) => {
@@ -299,19 +393,13 @@ export const getPetByNfc = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'No pet found with this NFC tag' });
     }
 
-    // Return limited info for public scanning
+    // Return pet ID so frontend can redirect to public profile
     return res.status(200).json({
       status: 'SUCCESS',
       data: {
-        pet: {
-          name: pet.name,
-          species: pet.species,
-          breed: pet.breed,
-          sex: pet.sex,
-          photo: pet.photo,
-          isLost: pet.isLost,
-          owner: pet.ownerId
-        }
+        petId: pet._id,
+        name: pet.name,
+        isLost: pet.isLost,
       }
     });
   } catch (error) {

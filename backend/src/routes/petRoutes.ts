@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc } from '../controllers/petController';
+import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing } from '../controllers/petController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -21,6 +21,18 @@ router.post('/', authMiddleware, createPet);
  * Get pet by NFC tag (public endpoint for scanning)
  */
 router.get('/nfc/:nfcTagId', getPetByNfc);
+
+/**
+ * GET /api/pets/:id/public
+ * Get public pet profile (no auth - for QR/NFC scanning)
+ */
+router.get('/:id/public', getPublicPetProfile);
+
+/**
+ * POST /api/pets/:id/report-missing
+ * Report a pet as missing (public - for scanners)
+ */
+router.post('/:id/report-missing', reportPetMissing);
 
 /**
  * GET /api/pets/:id
