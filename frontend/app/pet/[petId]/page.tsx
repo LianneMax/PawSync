@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import { AlertCircle, Phone, MessageCircle, User, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/store/authStore'
+import { authenticatedFetch } from '@/lib/auth'
 
 interface PetData {
   _id: string
@@ -65,6 +67,10 @@ export default function PetProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isReporting, setIsReporting] = useState(false)
+  const [showNfcRequestModal, setShowNfcRequestModal] = useState(false)
+  const [nfcReason, setNfcReason] = useState('')
+  const [isSubmittingNfcRequest, setIsSubmittingNfcRequest] = useState(false)
+  const token = useAuthStore((state) => state.token)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -125,6 +131,41 @@ export default function PetProfilePage() {
     }
   }
 
+  const handleSubmitNfcRequest = async () => {
+    if (!pet || !token) {
+      toast.error('Please sign in to request an NFC tag')
+      return
+    }
+
+    setIsSubmittingNfcRequest(true)
+    try {
+      const data = await authenticatedFetch(
+        `/nfc/pet/${pet._id}/request-tag`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: nfcReason || undefined }),
+        },
+        token
+      )
+
+      if (data.status === 'SUCCESS') {
+        toast.success('NFC Tag Request Submitted', {
+          description: 'Your clinic will process your request and write the tag soon.'
+        })
+        setShowNfcRequestModal(false)
+        setNfcReason('')
+      } else {
+        toast.error('Error', { description: data.message || 'Failed to submit request' })
+      }
+    } catch (error) {
+      console.error('Error submitting NFC request:', error)
+      toast.error('Error', { description: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsSubmittingNfcRequest(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -181,6 +222,17 @@ export default function PetProfilePage() {
             {pet.isLost ? 'Reported Missing' : 'Report Missing'}
           </button>
         </div>
+
+        {/* Request NFC Tag (only for logged-in users) */}
+        {token && (
+          <button
+            onClick={() => setShowNfcRequestModal(true)}
+            className="w-full bg-[#5A7C7A] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#4A6B69] transition-colors"
+          >
+            <Nfc className="w-5 h-5" />
+            Request NFC Tag
+          </button>
+        )}
 
         {/* Info Chips */}
         <div className="flex gap-3">
@@ -288,6 +340,72 @@ export default function PetProfilePage() {
           )}
         </div>
       </div>
+
+      {/* NFC Tag Request Modal */}
+      {showNfcRequestModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 relative">
+            <button
+              onClick={() => { setShowNfcRequestModal(false); setNfcReason(''); }}
+              className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-lg"
+            >
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-[#5A7C7A]/10 rounded-full flex items-center justify-center">
+                <Nfc className="w-5 h-5 text-[#5A7C7A]" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800">Request NFC Tag</h3>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Request an NFC tag for <span className="font-semibold">{pet?.name}</span>. Your clinic will process the request.
+            </p>
+
+            <div className="mb-5">
+              <label htmlFor="nfc-reason" className="text-sm font-semibold text-gray-600 block mb-1.5">
+                Reason <span className="text-gray-400 text-xs">(Optional)</span>
+              </label>
+              <select
+                id="nfc-reason"
+                value={nfcReason}
+                onChange={(e) => setNfcReason(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#5A7C7A]"
+              >
+                <option value="">Select a reason (optional)</option>
+                <option value="lost_replacement">Lost/Damaged Tag Replacement</option>
+                <option value="upgrade">Upgrade to New Tag</option>
+                <option value="additional">Additional Tag</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowNfcRequestModal(false); setNfcReason(''); }}
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitNfcRequest}
+                disabled={isSubmittingNfcRequest}
+                className="flex-1 py-2.5 bg-[#5A7C7A] text-white rounded-lg text-sm font-semibold hover:bg-[#4A6B69] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmittingNfcRequest ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Request'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sticky Bottom Bar - Owner Info */}
       {owner && (
