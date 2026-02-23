@@ -27,6 +27,8 @@ export interface IMedicalRecord extends Document {
     contentType: string;
     description: string;
   }[];
+  visitSummary: string;
+  vetNotes: string;
   overallObservation: string;
   sharedWithOwner: boolean;
   createdAt: Date;
@@ -103,6 +105,14 @@ const MedicalRecordSchema = new Schema(
       vaccinated: { type: VitalEntrySchema, required: true }
     },
     images: [ImageFragmentSchema],
+    visitSummary: {
+      type: String,
+      default: ''
+    },
+    vetNotes: {
+      type: String,
+      default: ''
+    },
     overallObservation: {
       type: String,
       default: ''

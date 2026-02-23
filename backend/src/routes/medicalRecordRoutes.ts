@@ -2,6 +2,7 @@ import express from 'express';
 import {
   createMedicalRecord,
   getRecordsByPet,
+  getVaccinationsByPet,
   getRecordById,
   updateRecord,
   deleteRecord,
@@ -17,6 +18,12 @@ const router = express.Router();
  * Create a new medical record
  */
 router.post('/', authMiddleware, createMedicalRecord);
+
+/**
+ * GET /api/medical-records/pet/:petId/vaccinations
+ * Get all vaccinations for a pet
+ */
+router.get('/pet/:petId/vaccinations', authMiddleware, getVaccinationsByPet);
 
 /**
  * GET /api/medical-records/pet/:petId

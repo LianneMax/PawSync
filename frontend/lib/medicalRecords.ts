@@ -37,10 +37,34 @@ export interface MedicalRecord {
   clinicBranchId: any;
   vitals: Vitals;
   images: ImageFragment[];
+  visitSummary: string;
+  vetNotes?: string;
   overallObservation: string;
   sharedWithOwner: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Vaccination {
+  _id: string;
+  petId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  vetId: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  clinicId: any;
+  clinicBranchId: string | null;
+  vaccineName: string;
+  dateAdministered: string;
+  nextDueDate: string | null;
+  isUpToDate: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VaccinationsResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: { vaccinations: Vaccination[] };
 }
 
 export interface MedicalRecordResponse {
@@ -115,4 +139,11 @@ export const toggleShareRecord = async (id: string, shared: boolean, token?: str
     method: 'PATCH',
     body: JSON.stringify({ shared })
   }, token);
+};
+
+/**
+ * Get all vaccinations for a pet
+ */
+export const getVaccinationsByPet = async (petId: string, token?: string): Promise<VaccinationsResponse> => {
+  return authenticatedFetch(`/medical-records/pet/${petId}/vaccinations`, { method: 'GET' }, token);
 };

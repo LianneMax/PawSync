@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import AssignedVet from '../models/AssignedVet';
+import Vaccination from '../models/Vaccination';
 
 /**
  * Create a new medical record
@@ -12,7 +13,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { petId, clinicId, clinicBranchId, vitals, images, overallObservation } = req.body;
+    const { petId, clinicId, clinicBranchId, vitals, images, overallObservation, visitSummary, vetNotes } = req.body;
 
     // Verify the pet exists
     const pet = await Pet.findById(petId);
@@ -34,6 +35,8 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       clinicBranchId,
       vitals,
       images: parsedImages,
+      visitSummary: visitSummary || '',
+      vetNotes: vetNotes || '',
       overallObservation: overallObservation || ''
     });
 
@@ -81,7 +84,7 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       }
     }
 
-    const isClinicAdmin = req.user.userType === 'clinic-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
 
     if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these records' });
@@ -93,8 +96,12 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       query.sharedWithOwner = true;
     }
 
+    // Pet owners cannot see vetNotes
+    const excludeVetNotes = isOwner && !isAuthorizedVet && !isClinicAdmin;
+    const selectFields = excludeVetNotes ? '-images.data -vetNotes' : '-images.data';
+
     const records = await MedicalRecord.find(query)
-      .select('-images.data')
+      .select(selectFields)
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
@@ -132,7 +139,7 @@ export const getRecordById = async (req: Request, res: Response) => {
     const pet = record.petId as any;
     const isOwner = pet.ownerId?.toString() === req.user.userId;
     const isRecordVet = record.vetId && (record.vetId as any)._id?.toString() === req.user.userId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
 
     if (!isOwner && !isRecordVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
@@ -144,13 +151,18 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     // Convert image buffers to base64 for frontend
-    const recordObj = record.toObject();
+    const recordObj = record.toObject() as any;
     recordObj.images = recordObj.images.map((img: any) => ({
       _id: img._id,
       data: img.data ? img.data.toString('base64') : null,
       contentType: img.contentType,
       description: img.description
     }));
+
+    // Pet owners cannot see vetNotes
+    if (isOwner && !isRecordVet && !isClinicAdmin) {
+      delete recordObj.vetNotes;
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -180,10 +192,12 @@ export const updateRecord = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet can update this record' });
     }
 
-    const { vitals, images, overallObservation, sharedWithOwner } = req.body;
+    const { vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes } = req.body;
 
     if (vitals) record.vitals = vitals;
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
+    if (visitSummary !== undefined) record.visitSummary = visitSummary;
+    if (vetNotes !== undefined) record.vetNotes = vetNotes;
     if (sharedWithOwner !== undefined) record.sharedWithOwner = sharedWithOwner;
 
     if (images) {
@@ -272,6 +286,53 @@ export const toggleShareRecord = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Toggle share error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * Get all vaccinations for a pet (accessible by owner, vet, clinic admin)
+ */
+export const getVaccinationsByPet = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.petId);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      if (assignment) {
+        isAuthorizedVet = true;
+      } else {
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
+    }
+
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these vaccinations' });
+    }
+
+    const vaccinations = await Vaccination.find({ petId: req.params.petId })
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .sort({ dateAdministered: -1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { vaccinations }
+    });
+  } catch (error) {
+    console.error('Get vaccinations error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vaccinations' });
   }
 };
 
