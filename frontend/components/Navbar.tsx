@@ -21,6 +21,7 @@ import {
   MoreVertical,
   LogOut,
   User,
+  Briefcase,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -58,12 +59,14 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'My Pets', href: '/my-pets', icon: <PawPrint className="w-5 h-5" /> },
     { label: 'Appointments', href: '/my-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Vaccine Cards', href: '/vaccine-cards', icon: <Syringe className="w-5 h-5" /> },
+    { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Billing and Invoicing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
   'veterinarian': [
     { label: 'Dashboard', href: '/vet-dashboard', icon: <Home className="w-5 h-5" /> },
     { label: 'Appointments', href: '/vet-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
+    { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
     { label: 'My Schedule', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
   ],
@@ -72,6 +75,7 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Patients', href: '/clinic-admin/patients', icon: <PawPrint className="w-5 h-5" />, badge: '1,247' },
     { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" />, badge: '12' },
     { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
+    { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
     { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" />, badge: '2' },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
