@@ -9,7 +9,6 @@ import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import { Smartphone, Search, FileText, Calendar, PawPrint, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
-import './globals.css'
 
 interface Clinic {
   _id: string;
