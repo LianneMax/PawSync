@@ -27,29 +27,30 @@ app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
-// CORS configuration - following SuperTokens best practices
+// Manual CORS headers middleware - must be first
+app.use((req: Request, res: Response, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Access-Token, X-API-Key');
+  res.header('Access-Control-Max-Age', '86400');
+  res.header('Access-Control-Allow-Credentials', 'false');
+  
+  // Handle OPTIONS preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// Apply CORS middleware as backup
 const corsOptions = {
   origin: '*',
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  maxAge: 86400
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
-
-// Explicitly handle preflight OPTIONS requests for all routes
-app.options('*', cors(corsOptions));
-
-// Additional explicit headers middleware
-app.use((req: Request, res: Response, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Max-Age', '86400');
-  next();
-});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
