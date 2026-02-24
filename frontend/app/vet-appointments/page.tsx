@@ -16,7 +16,6 @@ import {
   ChevronRight,
   PawPrint,
   Video,
-  Users,
   MapPin,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -79,9 +78,9 @@ export default function VetAppointmentsPage() {
     return apptDate === calendarDate
   })
 
-  // Upcoming = confirmed + pending, sorted by date asc
+  // Upcoming = confirmed, sorted by date asc
   const upcomingAppointments = appointments
-    .filter((a) => a.status === 'confirmed' || a.status === 'pending')
+    .filter((a) => a.status === 'confirmed')
     .sort((a, b) => {
       const dateA = new Date(a.date + 'T' + a.startTime)
       const dateB = new Date(b.date + 'T' + b.startTime)
@@ -102,21 +101,6 @@ export default function VetAppointmentsPage() {
   const todayAppts = appointments.filter((a) => new Date(a.date).toISOString().split('T')[0] === today)
   const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
-  const todayPending = todayAppts.filter((a) => a.status === 'pending').length
-
-  const handleConfirm = async (id: string) => {
-    try {
-      const res = await updateAppointmentStatus(id, 'confirmed', token || undefined)
-      if (res.status === 'SUCCESS') {
-        toast.success('Appointment confirmed')
-        loadAppointments()
-      } else {
-        toast.error(res.message || 'Failed to confirm')
-      }
-    } catch {
-      toast.error('An error occurred')
-    }
-  }
 
   const handleComplete = async (id: string) => {
     try {
@@ -174,7 +158,7 @@ export default function VetAppointmentsPage() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -183,17 +167,6 @@ export default function VetAppointmentsPage() {
               <div>
                 <p className="text-2xl font-bold text-green-600">{todayConfirmed}</p>
                 <p className="text-xs text-gray-500">Confirmed Today</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-amber-600">{todayPending}</p>
-                <p className="text-xs text-gray-500">Pending Today</p>
               </div>
             </div>
           </div>
@@ -425,14 +398,6 @@ export default function VetAppointmentsPage() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {appt.status === 'pending' && (
-                              <button
-                                onClick={() => handleConfirm(appt._id)}
-                                className="px-3 py-1 text-[10px] font-medium rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
-                              >
-                                Confirm
-                              </button>
-                            )}
                             {appt.status === 'confirmed' && (
                               <button
                                 onClick={() => handleComplete(appt._id)}

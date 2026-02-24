@@ -69,7 +69,8 @@ export const createAppointment = async (req: Request, res: Response) => {
       date: new Date(date),
       startTime,
       endTime,
-      notes: notes || null
+      notes: notes || null,
+      status: 'confirmed'
     });
 
     return res.status(201).json({
@@ -274,7 +275,6 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
 
     const { status } = req.body;
     const validTransitions: Record<string, string[]> = {
-      'pending': ['confirmed', 'cancelled'],
       'confirmed': ['completed', 'cancelled']
     };
 

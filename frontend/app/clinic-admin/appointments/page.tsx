@@ -10,7 +10,6 @@ import {
   searchPetOwners,
   getPetsForOwner,
   cancelAppointment,
-  updateAppointmentStatus,
   rescheduleAppointment,
   type Appointment,
   type TimeSlot,
@@ -442,10 +441,9 @@ export default function ClinicAdminAppointmentsPage() {
   const user = useAuthStore((state) => state.user)
   const isBranchAdmin = user?.userType === 'branch-admin'
   
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'pending' | 'previous'>('upcoming')
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [pendingAppointments, setPendingAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -504,32 +502,25 @@ export default function ClinicAdminAppointmentsPage() {
   const loadAppointments = useCallback(async () => {
     setLoading(true)
     try {
-      if (activeTab === 'pending') {
-        const res = await getClinicAppointments({ filter: 'upcoming' }, token || undefined)
-        if (res.status === 'SUCCESS' && res.data) {
-          setPendingAppointments(res.data.appointments.filter((a) => a.status === 'pending'))
-        }
+      const params: any = {}
+      if (viewMode === 'calendar') {
+        params.filter = 'upcoming'
       } else {
-        const params: any = {}
-        if (viewMode === 'calendar') {
-          params.filter = 'upcoming'
-        } else {
-          params.filter = activeTab
-        }
-        const res = await getClinicAppointments(params, token || undefined)
-        if (res.status === 'SUCCESS' && res.data) {
-          setAppointments(res.data.appointments)
+        params.filter = activeTab
+      }
+      const res = await getClinicAppointments(params, token || undefined)
+      if (res.status === 'SUCCESS' && res.data) {
+        setAppointments(res.data.appointments)
 
-          // On initial calendar load, auto-navigate to the first confirmed appointment's date
-          if (viewMode === 'calendar' && res.data.appointments.length > 0) {
-            const firstConfirmed = res.data.appointments.find((a) => a.status === 'confirmed')
-            if (firstConfirmed) {
-              const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
-              setCalendarDate((prev) => {
-                const today = new Date().toISOString().split('T')[0]
-                return prev === today ? apptDate : prev
-              })
-            }
+        // On initial calendar load, auto-navigate to the first confirmed appointment's date
+        if (viewMode === 'calendar' && res.data.appointments.length > 0) {
+          const firstConfirmed = res.data.appointments.find((a) => a.status === 'confirmed')
+          if (firstConfirmed) {
+            const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
+            setCalendarDate((prev) => {
+              const today = new Date().toISOString().split('T')[0]
+              return prev === today ? apptDate : prev
+            })
           }
         }
       }
@@ -547,20 +538,6 @@ export default function ClinicAdminAppointmentsPage() {
         loadAppointments()
       } else {
         toast.error(res.message || 'Failed to cancel')
-      }
-    } catch {
-      toast.error('An error occurred')
-    }
-  }
-
-  const handleConfirm = async (id: string) => {
-    try {
-      const res = await updateAppointmentStatus(id, 'confirmed', token || undefined)
-      if (res.status === 'SUCCESS') {
-        toast.success('Appointment confirmed')
-        loadAppointments()
-      } else {
-        toast.error(res.message || 'Failed to confirm')
       }
     } catch {
       toast.error('An error occurred')
@@ -588,21 +565,6 @@ export default function ClinicAdminAppointmentsPage() {
               }`}
             >
               Upcoming appointments
-            </button>
-            <button
-              onClick={() => { setActiveTab('pending'); setViewMode('list') }}
-              className={`relative px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === 'pending'
-                  ? 'bg-[#7FA5A3] text-white'
-                  : 'bg-[#7FA5A3]/15 text-[#5A7C7A] hover:bg-[#7FA5A3]/25'
-              }`}
-            >
-              Pending confirmation
-              {pendingAppointments.length > 0 && activeTab !== 'pending' && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {pendingAppointments.length}
-                </span>
-              )}
             </button>
             <button
               onClick={() => { setActiveTab('previous'); setViewMode('list') }}
@@ -658,74 +620,6 @@ export default function ClinicAdminAppointmentsPage() {
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : activeTab === 'pending' ? (
-          /* ---- PENDING CONFIRMATION TAB ---- */
-          pendingAppointments.length > 0 ? (
-            <div className="space-y-4">
-              {pendingAppointments.map((appt) => (
-                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 border-l-4 border-l-amber-400">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {appt.petId?.photo ? (
-                        <img src={appt.petId.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
-                          <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                        <p className="text-xs text-gray-500">
-                          Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
-                          </span>
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {appt.types.map((t) => (
-                            <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t.replace('-', ' ')}</span>
-                          ))}
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500 capitalize">{appt.mode.replace('-', ' ')}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleConfirm(appt._id)}
-                        className="px-4 py-2 bg-[#7FA5A3] text-white text-xs font-medium rounded-xl hover:bg-[#6b9391] transition-colors"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setRescheduleTarget(appt)}
-                        className="px-4 py-2 border border-[#7FA5A3] text-[#5A7C7A] text-xs font-medium rounded-xl hover:bg-[#7FA5A3]/10 transition-colors"
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        onClick={() => handleCancel(appt._id)}
-                        className="px-4 py-2 border border-red-300 text-red-500 text-xs font-medium rounded-xl hover:bg-red-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-                <Check className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No pending appointments to confirm</p>
-              </div>
-            </div>
-          )
         ) : viewMode === 'calendar' && activeTab === 'upcoming' ? (
           /* ---- CALENDAR VIEW ---- */
           <CalendarGridView
