@@ -6,6 +6,7 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, togglePetLost, removePet, transferPet, type Pet as APIPet } from '@/lib/pets'
+import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
 import {
   Calendar,
   PawPrint,
@@ -115,6 +116,51 @@ const mockAppointments = [
     status: 'PENDING' as const,
   },
 ]
+
+interface DashboardAppointment {
+  id: string
+  title: string
+  date: Date
+  time: string
+  clinic: string
+  petName: string
+  petBreed: string
+  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED'
+}
+
+function formatSlotTime(time: string): string {
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const display = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+  return `${display}:${m}${ampm}`
+}
+
+function apiAppointmentToDashboard(appt: APIAppointment): DashboardAppointment {
+  const appointmentDate = new Date(appt.date)
+  const startTimeFormatted = formatSlotTime(appt.startTime)
+  const endTimeFormatted = formatSlotTime(appt.endTime)
+  const clinicName = appt.clinicBranchId?.name || appt.clinicId?.name || 'Unknown Clinic'
+  const petName = appt.petId?.name || 'Pet'
+  const petBreed = appt.petId?.breed || 'Unknown Breed'
+  const statusMap: { [key: string]: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED' } = {
+    confirmed: 'CONFIRMED',
+    pending: 'PENDING',
+    cancelled: 'CANCELLED',
+    completed: 'COMPLETED',
+  }
+
+  return {
+    id: appt._id,
+    title: appt.types.length > 0 ? appt.types.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Appointment',
+    date: appointmentDate,
+    time: `${startTimeFormatted} - ${endTimeFormatted}`,
+    clinic: clinicName,
+    petName,
+    petBreed,
+    status: statusMap[appt.status] || 'PENDING',
+  }
+}
 
 const quickActions = [
   {
@@ -380,14 +426,14 @@ function ReportLostPetModal({
   onClose: () => void
   onMarkedLost?: () => void
 }) {
+  if (!pet && (!pets || pets.length === 0)) return null
+
   const [contactName, setContactName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [message, setMessage] = useState('')
   const [selectedPet, setSelectedPet] = useState<Pet | null>(pet)
 
   const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
-
-  if (!pet && (!pets || pets.length === 0)) return null
 
   // Update selectedPet when pet prop changes
   useEffect(() => {
@@ -405,7 +451,7 @@ function ReportLostPetModal({
             Report Lost Pet
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Report {pet.name} as lost
+            Report {pet?.name} as lost
           </DialogDescription>
         </DialogHeader>
 
@@ -745,6 +791,8 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState('User')
   const [pets, setPets] = useState<Pet[]>([])
   const [petsLoading, setPetsLoading] = useState(true)
+  const [appointments, setAppointments] = useState<DashboardAppointment[]>([])
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true)
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [petModalOpen, setPetModalOpen] = useState(false)
   const [reportLostOpen, setReportLostOpen] = useState(false)
@@ -786,6 +834,32 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchPets()
   }, [fetchPets])
+
+  // Fetch appointments from API
+  const fetchAppointments = useCallback(async () => {
+    if (!token) {
+      setAppointmentsLoading(false)
+      return
+    }
+    try {
+      setAppointmentsLoading(true)
+      const response = await getMyAppointments('upcoming', token)
+      if (response.status === 'SUCCESS' && response.data?.appointments) {
+        const dashboardAppointments = response.data.appointments
+          .map(apiAppointmentToDashboard)
+          .slice(0, 5) // Show only first 5
+        setAppointments(dashboardAppointments)
+      }
+    } catch (error) {
+      console.error('Failed to fetch appointments:', error)
+    } finally {
+      setAppointmentsLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    fetchAppointments()
+  }, [fetchAppointments])
 
   // Show login toast notifications on first load
   useEffect(() => {
@@ -977,50 +1051,62 @@ export default function DashboardPage() {
             </button>
           </div>
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
-            {mockAppointments.map((appt) => (
-              <div
-                key={appt.id}
-                className="bg-[#F8F6F2] rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <div className="flex flex-col items-center justify-center bg-[#7FA5A3]/20 rounded-xl w-14 h-14 shrink-0">
-                  <span className="text-lg font-bold text-[#476B6B] leading-tight">
-                    {appt.date.getDate()}
-                  </span>
-                  <span className="text-[10px] text-[#476B6B] font-medium">
-                    {monthNames[appt.date.getMonth()]}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#4F4F4F]">{appt.title}</p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {appt.time}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {appt.clinic}
-                    </span>
-                  </div>
-                </div>
-                <div className="hidden sm:flex items-center gap-2 bg-white rounded-lg px-3 py-2">
-                  <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
-                    <PawPrint className="w-3 h-3 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#4F4F4F]">{appt.petName}</p>
-                    <p className="text-[10px] text-gray-400">{appt.petBreed}</p>
-                  </div>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${getStatusColor(
-                    appt.status
-                  )}`}
+            {appointments.length > 0 ? (
+              appointments.map((appt) => (
+                <div
+                  key={appt.id}
+                  className="bg-[#F8F6F2] rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
                 >
-                  {appt.status}
-                </span>
-              </div>
-            ))}
+                  <div className="flex flex-col items-center justify-center bg-[#7FA5A3]/20 rounded-xl w-14 h-14 shrink-0">
+                    <span className="text-lg font-bold text-[#476B6B] leading-tight">
+                      {appt.date.getDate()}
+                    </span>
+                    <span className="text-[10px] text-[#476B6B] font-medium">
+                      {monthNames[appt.date.getMonth()]}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#4F4F4F]">{appt.title}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {appt.time}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {appt.clinic}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2 bg-white rounded-lg px-3 py-2">
+                    <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
+                      <PawPrint className="w-3 h-3 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-[#4F4F4F]">{appt.petName}</p>
+                      <p className="text-[10px] text-gray-400">{appt.petBreed}</p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                      appt.status === 'CONFIRMED'
+                        ? 'bg-green-100 text-green-700'
+                        : appt.status === 'PENDING'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : appt.status === 'CANCELLED'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {appt.status}
+                  </span>
+                </div>
+              ))
+            ) : appointmentsLoading ? (
+              <div className="text-center py-8 text-gray-500">Loading appointments...</div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No upcoming appointments</div>
+            )}
           </div>
         </section>
       </div>
