@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, requestPetTag, type Pet as APIPet } from '@/lib/pets'
-import { Plus, PawPrint, Search, AlertTriangle, Nfc } from 'lucide-react'
+import { getMyPets, requestPetTag, togglePetLost, type Pet as APIPet } from '@/lib/pets'
+import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { DatePicker } from '@/components/ui/date-picker'
 import { getAllClinicsWithBranches, type ClinicBranch } from '@/lib/clinics'
 import { toast } from 'sonner'
@@ -43,6 +49,7 @@ export default function MyPetsPage() {
   const [selectedPickupDate, setSelectedPickupDate] = useState('')
   const [clinicBranches, setClinicBranches] = useState<ClinicBranch[]>([])
   const [loadingClinics, setLoadingClinics] = useState(false)
+  const [togglingLostPetId, setTogglingLostPetId] = useState<string | null>(null)
 
   const fetchPets = useCallback(async () => {
     if (!token) {
@@ -91,6 +98,23 @@ export default function MyPetsPage() {
 
     fetchClinicBranches()
   }, [])
+
+  const handleMarkFound = async (pet: APIPet) => {
+    setTogglingLostPetId(pet._id)
+    try {
+      const response = await togglePetLost(pet._id, false, token ?? undefined)
+      if (response.status === 'SUCCESS') {
+        toast.success(`${pet.name} has been marked as found!`)
+        fetchPets()
+      } else {
+        toast.error('Failed to update pet status')
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setTogglingLostPetId(null)
+    }
+  }
 
   const filteredPets = pets.filter((pet) =>
     pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -152,15 +176,15 @@ export default function MyPetsPage() {
             {filteredPets.map((pet) => (
               <div
                 key={pet._id}
-                className={`bg-white rounded-2xl p-6 relative ${
+                className={`bg-white rounded-2xl p-6 relative transition-all duration-300 ease-out hover:scale-103 hover:shadow-md ${
                   pet.isLost
-                    ? 'border-2 border-[#E8A838] shadow-[0_0_0_1px_rgba(232,168,56,0.2)]'
-                    : 'border border-gray-200'
+                    ? 'border-2 border-[#900B09] shadow-[0_0_0_1px_rgba(144,11,9,0.15)]'
+                    : 'border border-gray-200 shadow-sm'
                 }`}
               >
                 {/* Lost badge */}
                 {pet.isLost && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FFF3E0] border border-[#E8A838] text-[#B7791F] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FEE2E2] border border-[#900B09] text-[#900B09] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
                     <AlertTriangle className="w-3 h-3" />
                     Marked as Lost
                   </div>
@@ -210,11 +234,7 @@ export default function MyPetsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => router.push(`/my-pets/${pet._id}`)}
-                    className={`text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 ${
-                      pet.isLost
-                        ? 'bg-[#E8A838] text-white hover:bg-[#D4962F]'
-                        : 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]'
-                    }`}
+                    className="text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 bg-[#7FA5A3] text-white hover:bg-[#6b9391]"
                   >
                     <PawPrint className="w-3.5 h-3.5" />
                     View Profile
@@ -240,6 +260,27 @@ export default function MyPetsPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Found Button — only visible when pet is marked as lost */}
+                {pet.isLost && (
+                  <button
+                    onClick={() => handleMarkFound(pet)}
+                    disabled={togglingLostPetId === pet._id}
+                    className="mt-3 w-full py-2.5 bg-[#35785C] text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 hover:bg-[#2D6B52] transition-colors disabled:opacity-50"
+                  >
+                    {togglingLostPetId === pet._id ? (
+                      <>
+                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Found {pet.name}!
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             ))}
 
@@ -290,23 +331,42 @@ export default function MyPetsPage() {
           <div className="space-y-4 py-4">
             {/* Clinic Selection */}
             <div className="space-y-2">
-              <label htmlFor="clinic" className="text-sm font-semibold text-gray-700">
+              <label className="text-sm font-semibold text-gray-700">
                 Select Pickup Clinic
               </label>
-              <select
-                id="clinic"
-                value={selectedClinic}
-                onChange={(e) => setSelectedClinic(e.target.value)}
-                disabled={loadingClinics}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-              >
-                <option value="">{loadingClinics ? '-- Loading clinics --' : '-- Select a clinic branch --'}</option>
-                {clinicBranches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    disabled={loadingClinics}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400 transition-colors hover:border-[#7FA5A3]"
+                  >
+                    <span className={selectedClinic ? 'text-gray-700' : 'text-gray-400'}>
+                      {loadingClinics
+                        ? 'Loading clinics...'
+                        : selectedClinic
+                          ? clinicBranches.find(b => b._id === selectedClinic)?.name
+                          : 'Select a clinic branch'}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
+                  className="max-h-52 overflow-y-auto"
+                >
+                  {clinicBranches.map((branch) => (
+                    <DropdownMenuItem
+                      key={branch._id}
+                      className={`cursor-pointer text-sm gap-2 focus:bg-[#F8F6F2] ${selectedClinic === branch._id ? 'text-[#7FA5A3] font-semibold' : 'text-gray-700'}`}
+                      onClick={() => setSelectedClinic(branch._id)}
+                    >
+                      {selectedClinic === branch._id && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                      {branch.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Date Selection */}
