@@ -389,7 +389,7 @@ function ReportLostPetModal({
       <DialogContent className="max-w-lg w-[95vw] p-6">
         <DialogHeader className="mb-0">
           <DialogTitle
-            className="text-2xl text-[#900B09]"
+            className="text-2xl font-normal text-[#900B09]"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
             Report Lost Pet

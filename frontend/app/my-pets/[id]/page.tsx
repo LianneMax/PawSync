@@ -5,19 +5,20 @@ import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getPetById, updatePet, type Pet as APIPet } from '@/lib/pets'
+import { getPetById, updatePet, togglePetLost, type Pet as APIPet } from '@/lib/pets'
 import { updateProfile } from '@/lib/users'
 import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 
@@ -66,6 +67,11 @@ export default function PetProfilePage() {
   const [tagRequests, setTagRequests] = useState<any[]>([])
   const [loadingTagRequests, setLoadingTagRequests] = useState(false)
   const [showClinicDropdown, setShowClinicDropdown] = useState(false)
+  const [showLostModal, setShowLostModal] = useState(false)
+  const [lostNameShown, setLostNameShown] = useState('')
+  const [lostContact, setLostContact] = useState('')
+  const [lostMessage, setLostMessage] = useState('')
+  const [isMarkingLost, setIsMarkingLost] = useState(false)
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -304,6 +310,33 @@ export default function PetProfilePage() {
       toast('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
       setIsSubmittingRequest(false)
+    }
+  }
+
+  const openLostModal = () => {
+    if (!pet) return
+    setLostNameShown(pet.name)
+    setLostContact(typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '' : '')
+    setLostMessage('')
+    setShowLostModal(true)
+  }
+
+  const handleReportLost = async () => {
+    if (!pet || !token) return
+    setIsMarkingLost(true)
+    try {
+      const response = await togglePetLost(pet._id, true, token)
+      if (response.status === 'SUCCESS') {
+        toast('Pet Marked as Lost', { description: `${pet.name} has been marked as lost. Vets will be notified.` })
+        setShowLostModal(false)
+        await fetchPet()
+      } else {
+        toast('Error', { description: response.message || 'Failed to mark pet as lost.' })
+      }
+    } catch {
+      toast('Error', { description: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsMarkingLost(false)
     }
   }
 
@@ -861,11 +894,11 @@ export default function PetProfilePage() {
                     {isSubmittingRequest ? 'Submitting...' : 'Request Replacement Pet Tag'}
                   </button>
                   <button
-                    onClick={handleMarkAsLost}
-                    disabled={pet.isLost || isSubmittingRequest}
+                    onClick={openLostModal}
+                    disabled={pet.isLost}
                     className="px-6 py-2.5 bg-[#900B09] text-white font-semibold rounded-lg hover:bg-[#7A0907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmittingRequest ? 'Marking...' : 'Mark as Lost'}
+                    Mark as Lost
                   </button>
                 </div>
 
@@ -1215,6 +1248,109 @@ export default function PetProfilePage() {
               </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Report Lost Pet Modal */}
+      <Dialog open={showLostModal} onOpenChange={(open) => {
+        setShowLostModal(open)
+        if (!open) {
+          setLostNameShown('')
+          setLostContact('')
+          setLostMessage('')
+        }
+      }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-normal text-[#900B09] flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6" />
+              Report Lost Pet
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              This will mark {pet?.name} as lost and notify vets and nearby users.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Pet display */}
+            <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
+              <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {pet?.photo ? (
+                  <img src={pet.photo} alt={pet?.name} className="w-full h-full object-cover" />
+                ) : (
+                  <PawPrint className="w-5 h-5 text-[#7FA5A3]" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-[#4F4F4F] text-sm">{pet?.name}</p>
+                <p className="text-xs text-gray-500">{pet?.breed}{pet?.secondaryBreed ? ` × ${pet.secondaryBreed}` : ''}</p>
+              </div>
+            </div>
+
+            {/* Name Shown */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-600">Name Shown on Tag</label>
+              <input
+                type="text"
+                value={lostNameShown}
+                onChange={(e) => setLostNameShown(e.target.value)}
+                placeholder="Name to display on lost pet alert"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30"
+              />
+            </div>
+
+            {/* Contact Number */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> Contact Number
+              </label>
+              <input
+                type="tel"
+                value={lostContact}
+                onChange={(e) => setLostContact(e.target.value)}
+                placeholder="Your contact number"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30"
+              />
+            </div>
+
+            {/* Additional Message */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5" /> Additional Message <span className="text-gray-400 text-xs font-normal">(Optional)</span>
+              </label>
+              <textarea
+                value={lostMessage}
+                onChange={(e) => setLostMessage(e.target.value)}
+                placeholder="Any details that may help identify your pet..."
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30 resize-none"
+              />
+            </div>
+
+            {/* Warning info */}
+            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-[#900B09] flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-[#900B09]">
+                Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <button
+              onClick={() => setShowLostModal(false)}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReportLost}
+              disabled={isMarkingLost}
+              className="flex-1 px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {isMarkingLost ? 'Marking...' : 'Mark as Lost & Update NFC Tag'}
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

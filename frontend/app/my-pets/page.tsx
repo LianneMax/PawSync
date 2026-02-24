@@ -450,6 +450,7 @@ export default function MyPetsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </DashboardLayout>
   )
 }
