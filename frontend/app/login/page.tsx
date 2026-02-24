@@ -201,8 +201,8 @@ export default function LoginPage() {
                 if (latest.status === 'rejected') {
                   router.push('/onboarding/vet/verification-failed')
                 } else {
-                  // pending — send to vet dashboard which shows their pending status
-                  router.push('/vet-dashboard')
+                  // pending — show verification pending page
+                  router.push('/onboarding/vet/verification-pending')
                 }
               } else {
                 // No verification submitted yet — continue onboarding

@@ -2,129 +2,143 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, AlertTriangle, RotateCcw } from 'lucide-react'
+import { X, XCircle, RotateCcw } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 interface SubmissionData {
   fullName: string
   prcNumber: string
+  registrationDate: string
+  expirationDate: string
+  branch: string
   submittedDate: string
+  rejectionReason: string
 }
 
 export default function VerificationFailedPage() {
   const router = useRouter()
+  const { token } = useAuthStore()
   const [submissionData, setSubmissionData] = useState<SubmissionData | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // This would typically come from the backend
-  const rejectionReason = "The uploaded PRC ID photo is blurry and the license number is not clearly visible. Please upload a clear, high-resolution photo of your PRC ID where all text and numbers are legible."
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
   useEffect(() => {
-    // Get data from sessionStorage
-    const prcData = sessionStorage.getItem('prcLicenseData')
-
-    if (prcData) {
-      const prc = JSON.parse(prcData)
-
-      const fullName = `${prc.firstName} ${prc.middleName ? prc.middleName + ' ' : ''}${prc.lastName}${prc.suffix ? ', ' + prc.suffix : ''}`
-
-      setSubmissionData({
-        fullName,
-        prcNumber: prc.prcNumber,
-        submittedDate: formatDate(new Date().toISOString().split('T')[0])
-      })
+    const fetchVerification = async () => {
+      if (!token) return
+      try {
+        const res = await fetch(`${API_URL}/verifications/mine`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+        const verifications = data?.data?.verifications
+        if (verifications && verifications.length > 0) {
+          const latest = verifications[0]
+          const fullName = `${latest.firstName} ${latest.middleName ? latest.middleName + ' ' : ''}${latest.lastName}${latest.suffix ? ', ' + latest.suffix : ''}`
+          setSubmissionData({
+            fullName,
+            prcNumber: latest.prcLicenseNumber,
+            registrationDate: formatDate(latest.registrationDate),
+            expirationDate: formatDate(latest.expirationDate),
+            branch: latest.branchId?.name || '—',
+            submittedDate: formatDate(latest.createdAt),
+            rejectionReason: latest.rejectionReason || 'No reason provided.'
+          })
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [])
+    fetchVerification()
+  }, [token])
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return ''
+    if (!dateString) return '—'
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
-
-  const handleResubmit = () => {
-    router.push('/onboarding/vet')
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
   return (
     <div className="min-h-screen bg-[#F8F6F2] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-lg p-10">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-lg p-6 relative">
         {/* Icon */}
-        <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-[#DC2626] rounded-full flex items-center justify-center animate-bounce-slow">
-            <X className="w-12 h-12 text-white stroke-3" />
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 bg-[#DC2626] rounded-full flex items-center justify-center animate-bounce-slow">
+            <X className="w-8 h-8 text-white" strokeWidth={3} />
           </div>
         </div>
 
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#4F4F4F] mb-3">
+        <div className="text-center mb-5">
+          <h1 className="text-2xl font-bold text-[#4F4F4F] mb-1.5">
             Verification Unsuccessful
           </h1>
-          <p className="text-gray-600">
-            Unfortunately, we were unable to verify your PRC license. Please
-            review the reason below and resubmit with the correct information.
+          <p className="text-sm text-gray-600">
+            Unfortunately, we are unable to verify your PRC license.
+            Please review the reason below and resubmit with the correct information.
           </p>
         </div>
 
-        {/* Submission Details Card */}
-        <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-          <h3 className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide mb-4">
-            Submission Details
-          </h3>
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-              <span className="text-gray-600">Full Name</span>
-              <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.fullName || 'Maria Cruz Santos'}
-              </span>
+        {!loading && (
+          <>
+            {/* Submission Details Card */}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+              <h3 className="text-xs font-bold text-[#4F4F4F] uppercase tracking-wide mb-3">
+                Submission Details
+              </h3>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">Full Name</span>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{submissionData?.fullName || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">PRC License No.</span>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{submissionData?.prcNumber || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">Date of Registration</span>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{submissionData?.registrationDate || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">Expiration Date</span>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{submissionData?.expirationDate || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">Branch</span>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{submissionData?.branch || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5 border-b border-gray-200">
+                  <span className="text-sm text-gray-500">Submitted on</span>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{submissionData?.submittedDate || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1.5">
+                  <span className="text-sm text-gray-500">Status</span>
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#F4D3D2] text-[#CC6462] text-xs font-medium rounded-full">
+                    <XCircle className="w-3.5 h-3.5" />
+                    Not Verified
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-              <span className="text-gray-600">PRC License No.</span>
-              <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.prcNumber || '0045678'}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-              <span className="text-gray-600">Submitted</span>
-              <span className="font-semibold text-[#4F4F4F]">
-                {submissionData?.submittedDate || 'January 20, 2026'}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center py-2">
-              <span className="text-gray-600">Status</span>
-              <span className="px-3 py-1 bg-[#FEE2E2] text-[#DC2626] text-sm font-medium rounded-full">
-                Not Verified
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Rejection Reason */}
-        <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-2xl p-5 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-[#DC2626] shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-semibold text-[#DC2626] mb-1">Reason for Rejection:</h4>
+            {/* Rejection Reason */}
+            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-2xl p-4 mb-4">
+              <p className="text-sm font-semibold text-[#CC6462] mb-1">Reason for Rejection:</p>
               <p className="text-sm text-[#4F4F4F]">
-                {rejectionReason}
+                {submissionData?.rejectionReason || '—'}
               </p>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
-        {/* Action Button */}
+        {/* Resubmit Button */}
         <button
-          onClick={handleResubmit}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-[#5A7C7A] text-white rounded-xl font-semibold hover:bg-[#4A6C6A] transition-colors"
+          onClick={() => router.push('/onboarding/vet')}
+          className="w-full flex items-center justify-center gap-2 py-3 border border-gray-300 text-[#4F4F4F] rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm"
         >
-          <RotateCcw className="w-5 h-5" />
+          <RotateCcw className="w-4 h-4" />
           Resubmit
         </button>
       </div>

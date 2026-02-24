@@ -674,8 +674,8 @@ export default function VetOnboardingPage() {
 
             {/* Submit Error */}
             {submitError && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-600">{submitError}</p>
+              <div className="mb-4 p-4 bg-[#F4D3D2] border border-[#CC6462] rounded-xl">
+                <p className="text-sm text-[#CC6462]">{submitError}</p>
               </div>
             )}
 
@@ -716,8 +716,8 @@ export default function VetOnboardingPage() {
           </p>
 
           {submitError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-400 rounded-xl">
-              <p className="text-sm text-red-600">{submitError}</p>
+            <div className="mb-4 p-3 bg-[#F4D3D2] border border-[#CC6462] rounded-xl">
+              <p className="text-sm text-[#CC6462]">{submitError}</p>
             </div>
           )}
 
