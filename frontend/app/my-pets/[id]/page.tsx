@@ -1261,7 +1261,10 @@ export default function PetProfilePage() {
       }}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-normal text-[#900B09] flex items-center gap-2">
+            <DialogTitle 
+              className="text-2xl font-normal text-[#900B09] flex items-center gap-2"
+              style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+            >
               <AlertTriangle className="w-6 h-6" />
               Report Lost Pet
             </DialogTitle>

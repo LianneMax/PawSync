@@ -8,7 +8,12 @@ export default function VaccineCardsPage() {
     <DashboardLayout notificationCount={12}>
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-[#4F4F4F]">Vaccine Cards</h1>
+          <h1
+            className="text-[32px] text-[#476B6B]"
+            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+          >
+            Vaccine Cards
+          </h1>
           <button className="flex items-center gap-2 bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors">
             <Plus className="w-5 h-5" />
             Upload Vaccine Card

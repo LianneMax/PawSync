@@ -369,11 +369,13 @@ function PetDetailModal({
 // --- Report Lost Pet Modal ---
 function ReportLostPetModal({
   pet,
+  pets,
   open,
   onClose,
   onMarkedLost,
 }: {
   pet: Pet | null
+  pets?: Pet[]
   open: boolean
   onClose: () => void
   onMarkedLost?: () => void
@@ -381,8 +383,16 @@ function ReportLostPetModal({
   const [contactName, setContactName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [message, setMessage] = useState('')
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(pet)
 
-  if (!pet) return null
+  const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
+
+  if (!pet && (!pets || pets.length === 0)) return null
+
+  // Update selectedPet when pet prop changes
+  useEffect(() => {
+    setSelectedPet(pet)
+  }, [pet])
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -417,9 +427,26 @@ function ReportLostPetModal({
         <div className="space-y-4">
           <div>
             <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
-            <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F]">
-              {pet.name} - {pet.breed}
-            </div>
+            {displayPets.length > 1 ? (
+              <select
+                value={selectedPet?.id || ''}
+                onChange={(e) => {
+                  const selected = displayPets.find((p) => p.id === e.target.value)
+                  if (selected) setSelectedPet(selected)
+                }}
+                className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              >
+                {displayPets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} - {p.breed}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F]">
+                {selectedPet?.name} - {selectedPet?.breed}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -462,11 +489,11 @@ function ReportLostPetModal({
           onClick={async () => {
             try {
               const token = useAuthStore.getState().token
-              if (token) {
-                await togglePetLost(pet.id, true, token)
+              if (token && selectedPet) {
+                await togglePetLost(selectedPet.id, true, token)
               }
               toast('Pet Reported as Lost', {
-                description: `${pet.name} has been marked as lost. NFC tag updated.`,
+                description: `${selectedPet?.name} has been marked as lost. NFC tag updated.`,
                 icon: <AlertTriangle className="w-4 h-4 text-[#900B09]" />,
               })
               onMarkedLost?.()
@@ -1011,6 +1038,7 @@ export default function DashboardPage() {
       {/* Report Lost Pet Modal */}
       <ReportLostPetModal
         pet={reportLostPet}
+        pets={pets}
         open={reportLostOpen}
         onClose={() => setReportLostOpen(false)}
         onMarkedLost={fetchPets}

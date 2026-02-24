@@ -116,7 +116,12 @@ function PetOwnerBilling() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-[#4F4F4F] mb-2">My Invoices</h1>
+      <h1
+        className="text-[32px] text-[#476B6B] mb-2"
+        style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+      >
+        My Invoices
+      </h1>
       <p className="text-gray-500 mb-8">View and manage your billing history</p>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">

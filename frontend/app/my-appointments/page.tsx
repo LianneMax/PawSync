@@ -34,6 +34,7 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog'
+import { DatePicker } from '@/components/ui/date-picker'
 
 const appointmentModes = [
   { value: 'online', label: 'Online', icon: Video },
@@ -172,7 +173,12 @@ export default function MyAppointmentsPage() {
       <div className="p-8">
         {/* Header */}
         <div className="mb-2">
-          <h1 className="text-2xl font-bold text-[#4F4F4F]">Appointments</h1>
+          <h1
+            className="text-[32px] text-[#476B6B]"
+            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+          >
+            Appointments
+          </h1>
           <p className="text-sm text-gray-500 mt-1">Schedule and Manage your pet&apos;s appointments</p>
         </div>
 
@@ -278,7 +284,7 @@ export default function MyAppointmentsPage() {
                     className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    Schedule One Now
+                    Set an Appointment
                   </button>
                 </>
               ) : (
@@ -607,12 +613,12 @@ function ScheduleModal({
             {/* Date Picker */}
             <div>
               <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
-              <input
-                type="date"
+              <DatePicker
                 value={selectedDate}
-                onChange={(e) => { setSelectedDate(e.target.value); setSelectedSlot(null) }}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors"
+                onChange={(date) => { setSelectedDate(date); setSelectedSlot(null) }}
+                placeholder="Select a date"
+                allowFutureDates={true}
+                minDate={new Date(new Date().setHours(0, 0, 0, 0))}
               />
             </div>
           </div>
