@@ -11,7 +11,7 @@ import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medica
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -673,6 +673,23 @@ export default function PetProfilePage() {
             {/* Basic Information Tab */}
             {activeTab === 'basic' && (
               <>
+                {/* eHealth Card Quick-Access */}
+                <button
+                  onClick={() => router.push(`/my-pets/${petId}/vaccine-card`)}
+                  className="w-full flex items-center justify-between bg-gradient-to-br from-[#476B6B] to-[#5A8A8A] text-white rounded-2xl px-5 py-4 mb-6 hover:opacity-90 transition-opacity shadow-md"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-sm">Vaccine Card</p>
+                      <p className="text-white/80 text-xs">View vaccination card</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-white/70" />
+                </button>
+
                 {/* Basic Info Section */}
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Basic Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
