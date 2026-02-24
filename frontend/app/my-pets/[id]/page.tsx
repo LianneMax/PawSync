@@ -11,7 +11,7 @@ import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medica
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -65,6 +65,7 @@ export default function PetProfilePage() {
   const [showQRCodeModal, setShowQRCodeModal] = useState(false)
   const [tagRequests, setTagRequests] = useState<any[]>([])
   const [loadingTagRequests, setLoadingTagRequests] = useState(false)
+  const [showClinicDropdown, setShowClinicDropdown] = useState(false)
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -790,11 +791,7 @@ export default function PetProfilePage() {
             {activeTab === 'medical-records' && (
               <>
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Medical Records</h3>
-                {recordsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
-                  </div>
-                ) : medicalRecords.length === 0 ? (
+                {medicalRecords.length === 0 ? (
                   <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
                     <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <h4 className="text-lg font-semibold text-gray-500 mb-1">No medical records</h4>
@@ -875,12 +872,8 @@ export default function PetProfilePage() {
                 {/* Request History Section */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Request History</h3>
-                  {loadingTagRequests ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
-                    </div>
-                  ) : tagRequests.length === 0 ? (
-                    <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
+                  {tagRequests.length === 0 ? (
+                    <div className="bg-[#F8F6F2] rounded-xl border-2 border-dashed border-gray-200 p-8 text-center">
                       <Nfc className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                       <h4 className="text-lg font-semibold text-gray-500 mb-1">No requests yet</h4>
                       <p className="text-sm text-gray-400">
@@ -939,6 +932,7 @@ export default function PetProfilePage() {
           setNextAppointment(null)
           setSelectedBranch('')
           setPickupDate('')
+          setShowClinicDropdown(false)
         }
       }}>
         <DialogContent className="sm:max-w-[425px]">
@@ -948,24 +942,48 @@ export default function PetProfilePage() {
           <div className="grid gap-4 py-4">
             {/* Clinic Branch Selection */}
             <div className="space-y-2">
-              <label htmlFor="clinic-branch" className="text-sm font-semibold text-gray-600">
+              <label className="text-sm font-semibold text-gray-600">
                 Select Pickup Location <span className="text-red-500">*</span>
               </label>
-              <select
-                id="clinic-branch"
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                <option value="">Select a clinic branch...</option>
-                {clinicBranches.map((clinic) =>
-                  clinic.branches.map((branch) => (
-                    <option key={branch._id} value={branch._id}>
-                      {clinic.name} - {branch.name}
-                    </option>
-                  ))
+              <div className="relative">
+                <button
+                  onClick={() => setShowClinicDropdown(!showClinicDropdown)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <span className={selectedBranch ? 'text-[#4F4F4F]' : 'text-gray-400'}>
+                    {selectedBranch 
+                      ? clinicBranches.flatMap(c => c.branches).find(b => b._id === selectedBranch)
+                        ? `${clinicBranches.find(c => c.branches.find(b => b._id === selectedBranch))?.name} - ${clinicBranches.find(c => c.branches.find(b => b._id === selectedBranch))?.branches.find(b => b._id === selectedBranch)?.name}`
+                        : 'Select a clinic branch...'
+                      : 'Select a clinic branch...'}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showClinicDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showClinicDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                    <div className="max-h-60 overflow-y-auto">
+                      {clinicBranches.map((clinic) =>
+                        clinic.branches.map((branch) => (
+                          <button
+                            key={branch._id}
+                            onClick={() => {
+                              setSelectedBranch(branch._id)
+                              setShowClinicDropdown(false)
+                            }}
+                            className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#F8F6F2] transition-colors border-b border-gray-100 last:border-b-0 ${
+                              selectedBranch === branch._id ? 'bg-[#E8F4F3] text-[#35785C] font-semibold' : 'text-[#4F4F4F]'
+                            }`}
+                          >
+                            <div className="font-semibold">{clinic.name}</div>
+                            <div className="text-xs text-gray-500">{branch.name}</div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
-              </select>
+              </div>
               {selectedBranch && (
                 <div className="mt-2 p-3 bg-[#F8F6F2] rounded-lg">
                   {(() => {

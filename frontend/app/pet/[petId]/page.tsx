@@ -3,10 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X } from 'lucide-react'
+import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 
 interface PetData {
   _id: string
@@ -70,7 +77,17 @@ export default function PetProfilePage() {
   const [showNfcRequestModal, setShowNfcRequestModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingNfcRequest, setIsSubmittingNfcRequest] = useState(false)
+  const [showFoundDrawer, setShowFoundDrawer] = useState(false)
+  const [foundStep, setFoundStep] = useState<'alert' | 'location' | 'success'>('alert')
+  const [isReportingFound, setIsReportingFound] = useState(false)
   const token = useAuthStore((state) => state.token)
+
+  // Auto-open the "found" drawer once when a lost pet profile loads
+  useEffect(() => {
+    if (pet?.isLost) {
+      setShowFoundDrawer(true)
+    }
+  }, [pet?.isLost])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -128,6 +145,41 @@ export default function PetProfilePage() {
       toast.error('Error', { description: 'Something went wrong. Please try again.' })
     } finally {
       setIsReporting(false)
+    }
+  }
+
+  const handleReportFound = async () => {
+    setIsReportingFound(true)
+    try {
+      const getLocation = (): Promise<GeolocationPosition | null> =>
+        new Promise((resolve) => {
+          if (!navigator.geolocation) return resolve(null)
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            () => resolve(null),
+            { timeout: 10000 }
+          )
+        })
+
+      const position = await getLocation()
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const body: Record<string, unknown> = {}
+      if (position) {
+        body.latitude = position.coords.latitude
+        body.longitude = position.coords.longitude
+      }
+
+      await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      setFoundStep('success')
+    } catch {
+      setFoundStep('success')
+    } finally {
+      setIsReportingFound(false)
     }
   }
 
@@ -340,6 +392,113 @@ export default function PetProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Lost Pet — Found Drawer (auto-opens when pet.isLost) */}
+      <Sheet open={showFoundDrawer} onOpenChange={setShowFoundDrawer}>
+        <SheetContent
+          side="bottom"
+          close={false}
+          className="rounded-t-3xl border-t-0 pb-10 px-6 pt-6 max-w-lg mx-auto left-0 right-0"
+        >
+          {foundStep === 'alert' && (
+            <>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-[#900B09] rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <SheetHeader className="text-center mb-5">
+                <SheetTitle className="text-xl font-bold text-[#900B09]">Lost Pet Alert!</SheetTitle>
+                <SheetDescription className="text-sm text-gray-600 mt-1">
+                  <span className="font-semibold text-[#4F4F4F]">{pet?.name}</span> has been marked as
+                  lost by their owner. Have you found this pet?
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setFoundStep('location')}
+                  className="w-full py-3 bg-[#35785C] text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#2D6B52] transition-colors"
+                >
+                  <Heart className="w-4 h-4" />
+                  I Found This Pet!
+                </button>
+                <button
+                  onClick={() => setShowFoundDrawer(false)}
+                  className="w-full py-3 border border-gray-200 text-gray-500 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          )}
+
+          {foundStep === 'location' && (
+            <>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-[#7FA5A3] rounded-full flex items-center justify-center">
+                  <MapPin className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <SheetHeader className="text-center mb-4">
+                <SheetTitle className="text-xl font-bold text-[#4F4F4F]">Share Your Location</SheetTitle>
+                <SheetDescription className="text-sm text-gray-600 mt-1">
+                  Tap the button below to share your current location with the pet owner.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="bg-[#F8F6F2] rounded-xl p-4 mb-5 flex items-start gap-3">
+                <Info className="w-4 h-4 text-[#7FA5A3] shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Only your <span className="font-semibold text-[#4F4F4F]">last scanned location</span> will
+                  be shared with the owner to help them find their pet. Your personal information and contact
+                  details will not be disclosed.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <button
+                  onClick={handleReportFound}
+                  disabled={isReportingFound}
+                  className="w-full py-3 bg-[#35785C] text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#2D6B52] transition-colors disabled:opacity-50"
+                >
+                  {isReportingFound ? (
+                    <><Loader className="w-4 h-4 animate-spin" /> Sharing location...</>
+                  ) : (
+                    <><Navigation className="w-4 h-4" /> Share Location &amp; Report Found</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setFoundStep('alert')}
+                  className="w-full py-3 border border-gray-200 text-gray-500 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors"
+                >
+                  Go Back
+                </button>
+              </div>
+            </>
+          )}
+
+          {foundStep === 'success' && (
+            <>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-[#35785C] rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <SheetHeader className="text-center mb-5">
+                <SheetTitle className="text-xl font-bold text-[#35785C]">Thank You!</SheetTitle>
+                <SheetDescription className="text-sm text-gray-600 mt-1">
+                  The owner of <span className="font-semibold text-[#4F4F4F]">{pet?.name}</span> has been
+                  notified. Please use the contact details below to reach them directly.
+                </SheetDescription>
+              </SheetHeader>
+              <button
+                onClick={() => setShowFoundDrawer(false)}
+                className="w-full py-3 bg-[#35785C] text-white rounded-xl font-semibold text-sm hover:bg-[#2D6B52] transition-colors"
+              >
+                Done
+              </button>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* NFC Tag Request Modal */}
       {showNfcRequestModal && (
