@@ -827,7 +827,7 @@ function ClinicScheduleModal({
     const load = async () => {
       setLoadingSlots(true)
       try {
-        const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined)
+        const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
         if (res.status === 'SUCCESS' && res.data) {
           setSlots(res.data.slots)
         } else {
@@ -837,7 +837,7 @@ function ClinicScheduleModal({
       finally { setLoadingSlots(false) }
     }
     load()
-  }, [selectedVetId, selectedDate, token])
+  }, [selectedVetId, selectedDate, selectedBranchId, token])
 
   // Reset types when mode changes
   useEffect(() => {
@@ -1225,7 +1225,8 @@ function RescheduleModal({
       setLoadingSlots(true)
       setSelectedSlot(null)
       try {
-        const res = await getAvailableSlots(vetId, selectedDate, token || undefined)
+        const branchId = appointment?.clinicBranchId?._id || appointment?.clinicBranchId
+        const res = await getAvailableSlots(vetId, selectedDate, token || undefined, branchId || undefined)
         if (res.status === 'SUCCESS' && res.data) {
           setSlots(res.data.slots)
         } else {

@@ -5,16 +5,29 @@ import User from '../models/User';
 import Clinic from '../models/Clinic';
 import VetApplication from '../models/VetApplication';
 import ClinicBranch from '../models/ClinicBranch';
+import VetSchedule from '../models/VetSchedule';
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /**
- * Generate 30-minute time slots for a day (default 7AM–5PM)
+ * Generate 30-minute time slots between two "HH:MM" time strings
  */
-function generateTimeSlots(startHour = 7, endHour = 17): { startTime: string; endTime: string }[] {
+function generateTimeSlots(startTime = '07:00', endTime = '17:00'): { startTime: string; endTime: string }[] {
   const slots: { startTime: string; endTime: string }[] = [];
-  for (let h = startHour; h < endHour; h++) {
+  let [h, m] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+
+  while (h < endH || (h === endH && m < endM)) {
     const hStr = h.toString().padStart(2, '0');
-    slots.push({ startTime: `${hStr}:00`, endTime: `${hStr}:30` });
-    slots.push({ startTime: `${hStr}:30`, endTime: `${(h + 1).toString().padStart(2, '0')}:00` });
+    const mStr = m.toString().padStart(2, '0');
+    let nextH = h;
+    let nextM = m + 30;
+    if (nextM >= 60) { nextH++; nextM -= 60; }
+    const nextHStr = nextH.toString().padStart(2, '0');
+    const nextMStr = nextM.toString().padStart(2, '0');
+    slots.push({ startTime: `${hStr}:${mStr}`, endTime: `${nextHStr}:${nextMStr}` });
+    h = nextH;
+    m = nextM;
   }
   return slots;
 }
@@ -93,6 +106,7 @@ export const createAppointment = async (req: Request, res: Response) => {
 
 /**
  * Get available time slots for a vet on a given date
+ * Uses VetSchedule if set, falls back to branch hours, then hardcoded 7AM–5PM
  */
 export const getAvailableSlots = async (req: Request, res: Response) => {
   try {
@@ -100,15 +114,56 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { vetId, date } = req.query;
+    const { vetId, date, branchId } = req.query;
 
     if (!vetId || !date) {
       return res.status(400).json({ status: 'ERROR', message: 'vetId and date are required' });
     }
 
+    // Determine the day-of-week for the requested date (parse locally to avoid timezone issues)
+    const [yr, mo, dy] = (date as string).split('-').map(Number);
+    const dayName = DAY_NAMES[new Date(yr, mo - 1, dy).getDay()];
+
+    // Resolve working hours: vet schedule → branch hours → default 7–17
+    let slotStart = '07:00';
+    let slotEnd = '17:00';
+    let isClosed = false;
+
+    if (branchId) {
+      const vetSchedule = await VetSchedule.findOne({
+        vetId: vetId as string,
+        branchId: branchId as string
+      });
+
+      if (vetSchedule) {
+        // Use vet's own schedule
+        if (!vetSchedule.workingDays.includes(dayName)) {
+          isClosed = true;
+        } else {
+          slotStart = vetSchedule.startTime;
+          slotEnd = vetSchedule.endTime;
+        }
+      } else {
+        // Fall back to branch operating hours
+        const branch = await ClinicBranch.findById(branchId as string);
+        if (branch) {
+          if (branch.operatingDays.length > 0 && !branch.operatingDays.includes(dayName)) {
+            isClosed = true;
+          } else {
+            if (branch.openingTime) slotStart = branch.openingTime;
+            if (branch.closingTime) slotEnd = branch.closingTime;
+          }
+        }
+      }
+    }
+
+    if (isClosed) {
+      return res.status(200).json({ status: 'SUCCESS', data: { slots: [], isClosed: true } });
+    }
+
     const queryDate = new Date(date as string);
 
-    // Get all booked/pending slots for that vet on that date
+    // Get all booked/confirmed slots for that vet on that date
     const booked = await Appointment.find({
       vetId: vetId as string,
       date: queryDate,
@@ -120,7 +175,7 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       (a) => a.ownerId.toString() === req.user!.userId
     );
 
-    const allSlots = generateTimeSlots();
+    const allSlots = generateTimeSlots(slotStart, slotEnd);
 
     const slots = allSlots.map((slot) => {
       const bookedSlot = booked.find((b) => b.startTime === slot.startTime);
@@ -138,7 +193,7 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { slots }
+      data: { slots, isClosed: false }
     });
   } catch (error) {
     console.error('Get available slots error:', error);

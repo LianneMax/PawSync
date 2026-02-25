@@ -47,9 +47,16 @@ export const createAppointment = async (data: {
 
 /**
  * Get available time slots for a vet on a date
+ * Pass branchId to respect vet's working hours / branch operating hours
  */
-export const getAvailableSlots = async (vetId: string, date: string, token?: string): Promise<{ status: string; data?: { slots: TimeSlot[] } }> => {
-  return authenticatedFetch(`/appointments/slots?vetId=${vetId}&date=${date}`, { method: 'GET' }, token);
+export const getAvailableSlots = async (
+  vetId: string,
+  date: string,
+  token?: string,
+  branchId?: string
+): Promise<{ status: string; data?: { slots: TimeSlot[]; isClosed?: boolean } }> => {
+  const qs = branchId ? `&branchId=${branchId}` : '';
+  return authenticatedFetch(`/appointments/slots?vetId=${vetId}&date=${date}${qs}`, { method: 'GET' }, token);
 };
 
 /**
