@@ -21,6 +21,12 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
+    // Mark any existing current records for this pet as historical
+    await MedicalRecord.updateMany(
+      { petId, isCurrent: true },
+      { isCurrent: false }
+    );
+
     // Parse base64 images into Buffers
     const parsedImages = (images || []).map((img: { data: string; contentType: string; description?: string }) => ({
       data: Buffer.from(img.data, 'base64'),
@@ -37,7 +43,8 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       images: parsedImages,
       visitSummary: visitSummary || '',
       vetNotes: vetNotes || '',
-      overallObservation: overallObservation || ''
+      overallObservation: overallObservation || '',
+      isCurrent: true
     });
 
     return res.status(201).json({
@@ -56,7 +63,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Get all medical records for a pet
+ * Get all medical records for a pet (supports filtering by current/historical)
  */
 export const getRecordsByPet = async (req: Request, res: Response) => {
   try {
@@ -96,12 +103,134 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       query.sharedWithOwner = true;
     }
 
-    // Pet owners cannot see vetNotes
-    const excludeVetNotes = isOwner && !isAuthorizedVet && !isClinicAdmin;
-    const selectFields = excludeVetNotes ? '-images.data -vetNotes' : '-images.data';
+    // Get current record
+    const currentRecord = await MedicalRecord.findOne({ ...query, isCurrent: true })
+      .select('-images.data -vetNotes')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name address');
+
+    // Get all historical records
+    const historicalRecords = await MedicalRecord.find({ ...query, isCurrent: false })
+      .select('-images.data')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name address')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { 
+        currentRecord: currentRecord,
+        historicalRecords: historicalRecords
+      }
+    });
+  } catch (error) {
+    console.error('Get records error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching records' });
+  }
+};
+
+/**
+ * Get current medical record for a pet
+ */
+export const getCurrentRecord = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.petId);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    // Pet owner can view their own pet's records; vet can view if assigned or is attending vet
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      if (assignment) {
+        isAuthorizedVet = true;
+      } else {
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
+    }
+
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
+    }
+
+    const query: any = { petId: req.params.petId, isCurrent: true };
+    if (isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      query.sharedWithOwner = true;
+    }
+
+    const record = await MedicalRecord.findOne(query)
+      .select('-images.data')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name address');
+
+    if (!record) {
+      return res.status(404).json({ status: 'SUCCESS', message: 'No current medical record', data: { record: null } });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { record }
+    });
+  } catch (error) {
+    console.error('Get current record error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the record' });
+  }
+};
+
+/**
+ * Get historical medical records for a pet (all non-current records)
+ */
+export const getHistoricalRecords = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.petId);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    // Pet owner can view their own pet's records; vet can view if assigned or is attending vet
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      if (assignment) {
+        isAuthorizedVet = true;
+      } else {
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
+    }
+
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these records' });
+    }
+
+    const query: any = { petId: req.params.petId, isCurrent: false };
+    if (isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      query.sharedWithOwner = true;
+    }
 
     const records = await MedicalRecord.find(query)
-      .select(selectFields)
+      .select('-images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
@@ -112,7 +241,7 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       data: { records }
     });
   } catch (error) {
-    console.error('Get records error:', error);
+    console.error('Get historical records error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching records' });
   }
 };

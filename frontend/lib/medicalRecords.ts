@@ -41,6 +41,7 @@ export interface MedicalRecord {
   vetNotes?: string;
   overallObservation: string;
   sharedWithOwner: boolean;
+  isCurrent: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,6 +80,15 @@ export interface MedicalRecordsResponse {
   data?: { records: MedicalRecord[] };
 }
 
+export interface CurrentAndHistoricalRecordsResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: { 
+    currentRecord: MedicalRecord | null;
+    historicalRecords: MedicalRecord[];
+  };
+}
+
 /**
  * Create a new medical record
  */
@@ -97,10 +107,24 @@ export const createMedicalRecord = async (recordData: {
 };
 
 /**
- * Get all medical records for a pet
+ * Get all medical records for a pet (current + historical)
  */
-export const getRecordsByPet = async (petId: string, token?: string): Promise<MedicalRecordsResponse> => {
+export const getRecordsByPet = async (petId: string, token?: string): Promise<CurrentAndHistoricalRecordsResponse> => {
   return authenticatedFetch(`/medical-records/pet/${petId}`, { method: 'GET' }, token);
+};
+
+/**
+ * Get the current medical record for a pet
+ */
+export const getCurrentRecord = async (petId: string, token?: string): Promise<MedicalRecordResponse> => {
+  return authenticatedFetch(`/medical-records/pet/${petId}/current`, { method: 'GET' }, token);
+};
+
+/**
+ * Get all historical medical records for a pet (non-current records)
+ */
+export const getHistoricalRecords = async (petId: string, token?: string): Promise<MedicalRecordsResponse> => {
+  return authenticatedFetch(`/medical-records/pet/${petId}/historical`, { method: 'GET' }, token);
 };
 
 /**

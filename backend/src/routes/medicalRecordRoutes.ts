@@ -2,6 +2,8 @@ import express from 'express';
 import {
   createMedicalRecord,
   getRecordsByPet,
+  getCurrentRecord,
+  getHistoricalRecords,
   getVaccinationsByPet,
   getRecordById,
   updateRecord,
@@ -26,8 +28,20 @@ router.post('/', authMiddleware, createMedicalRecord);
 router.get('/pet/:petId/vaccinations', authMiddleware, getVaccinationsByPet);
 
 /**
+ * GET /api/medical-records/pet/:petId/current
+ * Get the current medical record for a pet
+ */
+router.get('/pet/:petId/current', authMiddleware, getCurrentRecord);
+
+/**
+ * GET /api/medical-records/pet/:petId/historical
+ * Get all historical (non-current) medical records for a pet
+ */
+router.get('/pet/:petId/historical', authMiddleware, getHistoricalRecords);
+
+/**
  * GET /api/medical-records/pet/:petId
- * Get all medical records for a pet
+ * Get all medical records for a pet (current + historical)
  */
 router.get('/pet/:petId', authMiddleware, getRecordsByPet);
 

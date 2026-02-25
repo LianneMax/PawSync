@@ -7,6 +7,8 @@ import { authenticatedFetch } from '@/lib/auth'
 import {
   createMedicalRecord,
   getRecordsByPet,
+  getCurrentRecord,
+  getHistoricalRecords,
   getRecordById,
   updateMedicalRecord,
   deleteMedicalRecord,
@@ -108,7 +110,8 @@ export default function PatientRecordsPage() {
 
   // Selected patient
   const [selectedPatient, setSelectedPatient] = useState<PatientPet | null>(null)
-  const [records, setRecords] = useState<MedicalRecord[]>([])
+  const [currentRecord, setCurrentRecord] = useState<MedicalRecord | null>(null)
+  const [historicalRecords, setHistoricalRecords] = useState<MedicalRecord[]>([])
   const [loadingRecords, setLoadingRecords] = useState(false)
 
   // Create modal
@@ -169,13 +172,16 @@ export default function PatientRecordsPage() {
     setLoadingRecords(true)
     try {
       const res = await getRecordsByPet(petId, token)
-      if (res.status === 'SUCCESS' && res.data?.records) {
-        setRecords(res.data.records)
+      if (res.status === 'SUCCESS' && res.data) {
+        setCurrentRecord(res.data.currentRecord || null)
+        setHistoricalRecords(res.data.historicalRecords || [])
       } else {
-        setRecords([])
+        setCurrentRecord(null)
+        setHistoricalRecords([])
       }
     } catch {
-      setRecords([])
+      setCurrentRecord(null)
+      setHistoricalRecords([])
     } finally {
       setLoadingRecords(false)
     }
@@ -188,7 +194,8 @@ export default function PatientRecordsPage() {
 
   const handleBack = () => {
     setSelectedPatient(null)
-    setRecords([])
+    setCurrentRecord(null)
+    setHistoricalRecords([])
   }
 
   // View full record
@@ -271,7 +278,7 @@ export default function PatientRecordsPage() {
   })
 
   const totalPatients = patients.length
-  const totalRecords = records.length
+  const totalRecords = (currentRecord ? 1 : 0) + historicalRecords.length
 
   return (
     <DashboardLayout userType="veterinarian">
@@ -410,119 +417,255 @@ export default function PatientRecordsPage() {
               </div>
             </div>
 
-            {/* Records List */}
-            <div>
-              <h2 className="text-lg font-semibold text-[#4F4F4F] mb-4">Medical Records ({totalRecords})</h2>
+            {/* Medical Records */}
+            <div className="space-y-6">
+              {/* Current Record Section */}
+              <div>
+                <h2 className="text-lg font-semibold text-[#4F4F4F] mb-4">Current Medical Record</h2>
 
-              {loadingRecords ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : records.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 shadow-sm text-center border-2 border-dashed border-gray-200">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">No medical records yet</h3>
-                  <p className="text-gray-500 text-sm mb-4">Create a new medical record for this patient.</p>
-                  <button
-                    onClick={() => setCreateOpen(true)}
-                    className="inline-flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2.5 rounded-xl hover:bg-[#6b9391] transition-colors text-sm font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Record
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {records.map((record) => (
-                    <div key={record._id} className="bg-white rounded-xl p-5 shadow-sm border-l-[3px] border-l-[#7FA5A3]">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
-                            <p className="text-sm font-semibold text-[#4F4F4F]">Medical Record</p>
-                            {record.sharedWithOwner && (
-                              <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-600 font-medium">
-                                <Check className="w-3 h-3" />
-                                Shared
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(record.createdAt)}
-                            </span>
-                            <span>
-                              Dr. {record.vetId?.firstName} {record.vetId?.lastName}
-                            </span>
-                          </div>
-                          {record.overallObservation && (
-                            <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{record.overallObservation}</p>
+                {loadingRecords ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : currentRecord ? (
+                  <div className="bg-gradient-to-br from-[#7FA5A3]/5 to-[#476B6B]/5 rounded-xl p-6 shadow-md border-2 border-[#7FA5A3]/30">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                          <p className="text-sm font-semibold text-[#2C3E2D]">Active Medical Record</p>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-600 mb-2">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {formatDate(currentRecord.createdAt)}
+                          </span>
+                          <span>
+                            Dr. {currentRecord.vetId?.firstName} {currentRecord.vetId?.lastName}
+                          </span>
+                          <span className="text-gray-400">•</span>
+                          <span>{currentRecord.clinicId?.name}</span>
+                        </div>
+                        {currentRecord.overallObservation && (
+                          <p className="text-sm text-gray-700 mt-2 leading-relaxed">{currentRecord.overallObservation}</p>
+                        )}
+
+                        {/* Vitals Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-3">
+                          {currentRecord.vitals?.weight?.value && (
+                            <div className="bg-white rounded-lg p-2 border border-blue-100">
+                              <p className="text-[10px] text-gray-500 font-medium">Weight</p>
+                              <p className="text-sm font-semibold text-blue-600">{currentRecord.vitals.weight.value} kg</p>
+                            </div>
                           )}
+                          {currentRecord.vitals?.temperature?.value && (
+                            <div className="bg-white rounded-lg p-2 border border-orange-100">
+                              <p className="text-[10px] text-gray-500 font-medium">Temperature</p>
+                              <p className="text-sm font-semibold text-orange-600">{currentRecord.vitals.temperature.value}°C</p>
+                            </div>
+                          )}
+                          {currentRecord.vitals?.pulseRate?.value && (
+                            <div className="bg-white rounded-lg p-2 border border-red-100">
+                              <p className="text-[10px] text-gray-500 font-medium">Pulse</p>
+                              <p className="text-sm font-semibold text-red-600">{currentRecord.vitals.pulseRate.value} bpm</p>
+                            </div>
+                          )}
+                          {currentRecord.vitals?.spo2?.value && (
+                            <div className="bg-white rounded-lg p-2 border border-violet-100">
+                              <p className="text-[10px] text-gray-500 font-medium">SpO2</p>
+                              <p className="text-sm font-semibold text-violet-600">{currentRecord.vitals.spo2.value}%</p>
+                            </div>
+                          )}
+                          {currentRecord.vitals?.bodyConditionScore?.value && (
+                            <div className="bg-white rounded-lg p-2 border border-emerald-100">
+                              <p className="text-[10px] text-gray-500 font-medium">BCS</p>
+                              <p className="text-sm font-semibold text-emerald-600">{currentRecord.vitals.bodyConditionScore.value}/9</p>
+                            </div>
+                          )}
+                        </div>
 
-                          {/* Quick vitals preview */}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {record.vitals?.weight?.value && (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-blue-600">
-                                Weight: {record.vitals.weight.value} kg
-                              </span>
+                        {/* Additional Vitals */}
+                        {(currentRecord.vitals?.dentalScore?.value || 
+                          currentRecord.vitals?.crt?.value || 
+                          currentRecord.vitals?.pregnancy?.value || 
+                          currentRecord.vitals?.xray?.value || 
+                          currentRecord.vitals?.vaccinated?.value) && (
+                          <div className="mt-3 space-y-1">
+                            {currentRecord.vitals?.dentalScore?.value && (
+                              <p className="text-xs text-gray-600">Dental Score: <span className="font-semibold">{currentRecord.vitals.dentalScore.value}/4</span></p>
                             )}
-                            {record.vitals?.temperature?.value && (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600">
-                                Temp: {record.vitals.temperature.value}&deg;C
-                              </span>
+                            {currentRecord.vitals?.crt?.value && (
+                              <p className="text-xs text-gray-600">CRT: <span className="font-semibold">{currentRecord.vitals.crt.value} sec</span></p>
                             )}
-                            {record.vitals?.pulseRate?.value && (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-red-600">
-                                Pulse: {record.vitals.pulseRate.value} bpm
-                              </span>
+                            {currentRecord.vitals?.pregnancy?.value && (
+                              <p className="text-xs text-gray-600">Pregnancy: <span className="font-semibold">{currentRecord.vitals.pregnancy.value}</span></p>
                             )}
-                            {record.images && record.images.length > 0 && (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-50 text-purple-600 flex items-center gap-0.5">
-                                <ImageIcon className="w-3 h-3" />
-                                {record.images.length} image{record.images.length !== 1 ? 's' : ''}
-                              </span>
+                            {currentRecord.vitals?.xray?.value && (
+                              <p className="text-xs text-gray-600">X-Ray: <span className="font-semibold">{currentRecord.vitals.xray.value}</span></p>
+                            )}
+                            {currentRecord.vitals?.vaccinated?.value && (
+                              <p className="text-xs text-gray-600">Vaccinated: <span className="font-semibold">{currentRecord.vitals.vaccinated.value}</span></p>
                             )}
                           </div>
-                        </div>
+                        )}
 
-                        <div className="flex items-center gap-1.5 shrink-0 ml-3">
-                          <button
-                            onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              record.sharedWithOwner
-                                ? 'text-green-600 bg-green-50 hover:bg-green-100'
-                                : 'text-gray-400 hover:bg-gray-100 hover:text-[#5A7C7A]'
-                            }`}
-                            title={record.sharedWithOwner ? 'Unshare from owner' : 'Share with owner'}
-                          >
-                            <Share2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleViewRecord(record._id)}
-                            className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
-                            title="View record"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEditRecord(record._id)}
-                            className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
-                            title="Edit record"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteRecord(record._id)}
-                            className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                            title="Delete record"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        {/* Images indicator */}
+                        {currentRecord.images && currentRecord.images.length > 0 && (
+                          <div className="mt-3 flex items-center gap-1 text-xs text-gray-600">
+                            <ImageIcon className="w-3 h-3" />
+                            {currentRecord.images.length} attachment{currentRecord.images.length !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                        <button
+                          onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            currentRecord.sharedWithOwner
+                              ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                              : 'text-gray-400 hover:bg-gray-100 hover:text-[#5A7C7A]'
+                          }`}
+                          title={currentRecord.sharedWithOwner ? 'Unshare from owner' : 'Share with owner'}
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleViewRecord(currentRecord._id)}
+                          className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
+                          title="View full record"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditRecord(currentRecord._id)}
+                          className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                          title="Edit record"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecord(currentRecord._id)}
+                          className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                          title="Delete record"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl p-12 shadow-sm text-center border-2 border-dashed border-gray-200">
+                    <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">No medical records yet</h3>
+                    <p className="text-gray-500 text-sm mb-4">Create a new medical record for this patient.</p>
+                    <button
+                      onClick={() => setCreateOpen(true)}
+                      className="inline-flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2.5 rounded-xl hover:bg-[#6b9391] transition-colors text-sm font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Record
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Historical Records Section */}
+              {historicalRecords.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold text-[#4F4F4F] mb-4">Historical Records ({historicalRecords.length})</h2>
+                  <div className="space-y-3">
+                    {historicalRecords.map((record) => (
+                      <div key={record._id} className="bg-white rounded-xl p-5 shadow-sm border-l-[3px] border-l-gray-300 hover:border-l-[#7FA5A3] transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Stethoscope className="w-4 h-4 text-gray-400 shrink-0" />
+                              <p className="text-sm font-semibold text-[#4F4F4F]">Past Record</p>
+                              {record.sharedWithOwner && (
+                                <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-600 font-medium">
+                                  <Check className="w-3 h-3" />
+                                  Shared
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(record.createdAt)}
+                              </span>
+                              <span>
+                                Dr. {record.vetId?.firstName} {record.vetId?.lastName}
+                              </span>
+                            </div>
+                            {record.overallObservation && (
+                              <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{record.overallObservation}</p>
+                            )}
+
+                            {/* Quick vitals preview */}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {record.vitals?.weight?.value && (
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-blue-600">
+                                  Weight: {record.vitals.weight.value} kg
+                                </span>
+                              )}
+                              {record.vitals?.temperature?.value && (
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600">
+                                  Temp: {record.vitals.temperature.value}&deg;C
+                                </span>
+                              )}
+                              {record.vitals?.pulseRate?.value && (
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-red-600">
+                                  Pulse: {record.vitals.pulseRate.value} bpm
+                                </span>
+                              )}
+                              {record.images && record.images.length > 0 && (
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-50 text-purple-600 flex items-center gap-0.5">
+                                  <ImageIcon className="w-3 h-3" />
+                                  {record.images.length} image{record.images.length !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                            <button
+                              onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                record.sharedWithOwner
+                                  ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                  : 'text-gray-400 hover:bg-gray-100 hover:text-[#5A7C7A]'
+                              }`}
+                              title={record.sharedWithOwner ? 'Unshare from owner' : 'Share with owner'}
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleViewRecord(record._id)}
+                              className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
+                              title="View record"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEditRecord(record._id)}
+                              className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                              title="Edit record"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecord(record._id)}
+                              className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                              title="Delete record"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

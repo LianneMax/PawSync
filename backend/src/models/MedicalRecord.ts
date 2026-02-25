@@ -31,6 +31,7 @@ export interface IMedicalRecord extends Document {
   vetNotes: string;
   overallObservation: string;
   sharedWithOwner: boolean;
+  isCurrent: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,6 +121,11 @@ const MedicalRecordSchema = new Schema(
     sharedWithOwner: {
       type: Boolean,
       default: false
+    },
+    isCurrent: {
+      type: Boolean,
+      default: true,
+      index: true
     }
   },
   {
@@ -127,7 +133,8 @@ const MedicalRecordSchema = new Schema(
   }
 );
 
-// Index for quick lookup by pet + date
+// Index for quick lookup by pet + date + current status
 MedicalRecordSchema.index({ petId: 1, createdAt: -1 });
+MedicalRecordSchema.index({ petId: 1, isCurrent: 1 });
 
 export default mongoose.model<IMedicalRecord>('MedicalRecord', MedicalRecordSchema);
