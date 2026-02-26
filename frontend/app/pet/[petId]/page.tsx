@@ -45,10 +45,18 @@ interface VitalsData {
 }
 
 interface VaccinationData {
+  _id: string
   vaccineName: string
-  dateAdministered: string
+  manufacturer: string
+  batchNumber: string
+  route: string | null
+  dateAdministered: string | null
+  expiryDate: string | null
   nextDueDate: string | null
+  status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined'
   isUpToDate: boolean
+  vet: { firstName: string; lastName: string } | null
+  clinic: { name: string } | null
 }
 
 interface PublicProfileResponse {
@@ -363,31 +371,69 @@ export default function PetProfilePage() {
             )}
           </div>
           {vaccinations.length > 0 ? (
-            <div className="space-y-2">
-              {vaccinations.map((vax, idx) => (
-                <div
-                  key={idx}
-                  className="bg-[#F8F6F2] rounded-xl px-5 py-4 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-semibold text-[#4F4F4F]">{vax.vaccineName}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(vax.dateAdministered).toLocaleDateString('en-US', {
-                        month: '2-digit',
-                        day: '2-digit',
-                        year: 'numeric',
-                      })}
-                    </p>
+            <div className="space-y-3">
+              {vaccinations.map((vax) => {
+                const statusConfig = {
+                  active: { label: 'Active', classes: 'bg-green-100 text-green-700 border-green-200' },
+                  expired: { label: 'Expired', classes: 'bg-red-100 text-red-700 border-red-200' },
+                  overdue: { label: 'Overdue', classes: 'bg-orange-100 text-orange-700 border-orange-200' },
+                  pending: { label: 'Pending', classes: 'bg-blue-100 text-blue-700 border-blue-200' },
+                  declined: { label: 'Declined', classes: 'bg-gray-100 text-gray-500 border-gray-200' },
+                }
+                const cfg = statusConfig[vax.status] ?? statusConfig.pending
+                return (
+                  <div key={vax._id} className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <p className="font-semibold text-[#4F4F4F]">{vax.vaccineName}</p>
+                      <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full shrink-0 ${cfg.classes}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      {vax.dateAdministered && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Given</p>
+                          <p className="text-xs font-semibold text-[#4F4F4F]">
+                            {new Date(vax.dateAdministered).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      )}
+                      {vax.expiryDate && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Expires</p>
+                          <p className={`text-xs font-semibold ${vax.status === 'expired' || vax.status === 'overdue' ? 'text-red-500' : 'text-[#4F4F4F]'}`}>
+                            {new Date(vax.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      )}
+                      {vax.nextDueDate && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Next Due</p>
+                          <p className="text-xs font-semibold text-[#4F4F4F]">
+                            {new Date(vax.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      )}
+                      {vax.manufacturer && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Manufacturer</p>
+                          <p className="text-xs font-semibold text-[#4F4F4F]">{vax.manufacturer}</p>
+                        </div>
+                      )}
+                    </div>
+                    {vax.vet && (
+                      <p className="text-[11px] text-gray-400 mt-2">
+                        Administered by Dr. {vax.vet.firstName} {vax.vet.lastName}
+                        {vax.clinic ? ` · ${vax.clinic.name}` : ''}
+                      </p>
+                    )}
                   </div>
-                  {vax.isUpToDate && (
-                    <CheckCircle2 className="w-6 h-6 text-green-500" />
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="bg-[#F8F6F2] rounded-xl px-5 py-6 text-center">
-              <p className="text-gray-400 text-sm">No vaccination records yet</p>
+              <p className="text-gray-400 text-sm">No vaccination records on file</p>
             </div>
           )}
         </div>

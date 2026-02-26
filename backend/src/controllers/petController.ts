@@ -306,12 +306,22 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .select('vitals.weight vitals.temperature vitals.pulseRate vitals.spo2 createdAt');
 
-    // Get vaccination records
-    const vaccinations = await Vaccination.find({ petId: pet._id })
-      .sort({ dateAdministered: -1 })
-      .select('vaccineName dateAdministered nextDueDate isUpToDate');
+    // Get vaccination records (exclude declined and pending-only drafts)
+    const vaccinations = await Vaccination.find({
+      petId: pet._id,
+      status: { $ne: 'declined' },
+    })
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .sort({ dateAdministered: -1 });
 
-    const allUpToDate = vaccinations.length > 0 && vaccinations.every(v => v.isUpToDate);
+    // Compute overall vaccination status from the new status field
+    const activeVax = vaccinations.filter(v => v.status === 'active');
+    const overdueVax = vaccinations.filter(v => v.status === 'overdue' || v.status === 'expired');
+    let vaccinationStatus: 'none' | 'up_to_date' | 'overdue' = 'none';
+    if (vaccinations.length > 0) {
+      vaccinationStatus = overdueVax.length > 0 ? 'overdue' : 'up_to_date';
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -338,12 +348,20 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           recordedAt: latestRecord.createdAt,
         } : null,
         vaccinations: vaccinations.map(v => ({
+          _id: v._id,
           vaccineName: v.vaccineName,
+          manufacturer: v.manufacturer,
+          batchNumber: v.batchNumber,
+          route: v.route,
           dateAdministered: v.dateAdministered,
+          expiryDate: v.expiryDate,
           nextDueDate: v.nextDueDate,
+          status: v.status,
           isUpToDate: v.isUpToDate,
+          vet: v.vetId,
+          clinic: v.clinicId,
         })),
-        vaccinationStatus: vaccinations.length === 0 ? 'none' : allUpToDate ? 'up_to_date' : 'overdue',
+        vaccinationStatus,
       }
     });
   } catch (error) {

@@ -6,6 +6,7 @@ import Clinic from '../models/Clinic';
 import VetApplication from '../models/VetApplication';
 import ClinicBranch from '../models/ClinicBranch';
 import VetSchedule from '../models/VetSchedule';
+import Vaccination from '../models/Vaccination';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -340,10 +341,30 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     appointment.status = status;
     await appointment.save();
 
+    // Auto-create a pending vaccination draft when appointment is completed
+    let vaccinationId: string | undefined;
+    if (status === 'completed' && appointment.types.includes('vaccination')) {
+      const existingVax = await Vaccination.findOne({ appointmentId: appointment._id });
+      if (!existingVax) {
+        const vax = await Vaccination.create({
+          petId: appointment.petId,
+          vetId: appointment.vetId,
+          clinicId: appointment.clinicId,
+          clinicBranchId: appointment.clinicBranchId,
+          appointmentId: appointment._id,
+          vaccineName: 'Pending — to be filled by vet',
+          status: 'pending',
+        });
+        vaccinationId = vax._id.toString();
+      } else {
+        vaccinationId = existingVax._id.toString();
+      }
+    }
+
     return res.status(200).json({
       status: 'SUCCESS',
       message: `Appointment ${status} successfully`,
-      data: { appointment }
+      data: { appointment, ...(vaccinationId ? { vaccinationId } : {}) }
     });
   } catch (error) {
     console.error('Update appointment status error:', error);

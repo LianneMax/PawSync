@@ -62,7 +62,7 @@ export default function VetOnboardingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
   // Fetch real clinics from API
   useEffect(() => {

@@ -14,8 +14,11 @@ import vetApplicationRoutes from './routes/vetApplicationRoutes';
 import medicalRecordRoutes from './routes/medicalRecordRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import vetScheduleRoutes from './routes/vetScheduleRoutes';
+import vaccinationRoutes from './routes/vaccinationRoutes';
+import vaccineTypeRoutes from './routes/vaccineTypeRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
+import { seedVaccineTypes } from './utils/seedVaccineTypes';
 
 // Load environment variables
 dotenv.config();
@@ -69,6 +72,12 @@ app.use('/api/appointments', appointmentRoutes);
 // Vet schedule routes
 app.use('/api/vet-schedule', vetScheduleRoutes);
 
+// Vaccination routes
+app.use('/api/vaccinations', vaccinationRoutes);
+
+// Vaccine type routes
+app.use('/api/vaccine-types', vaccineTypeRoutes);
+
 // NFC routes
 app.use('/api/nfc', nfcRoutes);
 
@@ -84,6 +93,7 @@ app.use((req: Request, res: Response) => {
 const startServer = async () => {
   try {
     await connectDatabase();
+    await seedVaccineTypes();
 
     const server = http.createServer(app);
 
