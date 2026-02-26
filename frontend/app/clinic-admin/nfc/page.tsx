@@ -99,6 +99,13 @@ export default function ClinicNfcManagementPage() {
       try {
         const msg = JSON.parse(event.data)
 
+        if (msg.type === 'readers') {
+          // Initial reader list sent on WebSocket connection
+          const connected = (msg.data as Array<{ name: string; connected: boolean }>).filter(r => r.connected)
+          setReaderAvailable(connected.length > 0)
+          setReaderStatus(connected.length > 0 ? `Reader connected: ${connected[0].name}` : 'No NFC reader detected')
+        }
+
         if (msg.type === 'write:progress') {
           setWriteStage(msg.data.stage)
         }
@@ -150,12 +157,12 @@ export default function ClinicNfcManagementPage() {
         const response = await fetch(`${apiUrl}/nfc/status`)
         const data = await response.json()
 
-        if (data.success && data.data.initialized) {
+        if (data.success && data.data.readerCount > 0) {
           setReaderAvailable(true)
           setReaderStatus(`${data.data.readerCount} reader(s) connected`)
         } else {
           setReaderAvailable(false)
-          setReaderStatus('No NFC reader detected')
+          setReaderStatus(data.data.initialized ? 'No NFC reader detected' : 'NFC service not running')
         }
       } catch {
         setReaderAvailable(false)
