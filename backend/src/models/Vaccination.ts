@@ -143,13 +143,12 @@ export function computeVaccinationStatus(
 /**
  * Before saving, recompute status and sync isUpToDate for backward compat.
  */
-VaccinationSchema.pre('save', function (next) {
-  const vax = this as unknown as IVaccination;
+VaccinationSchema.pre('save', function (this: IVaccination) {
+  const vax = this as IVaccination;
   if (vax.status !== 'declined') {
     vax.status = computeVaccinationStatus(vax);
   }
   vax.isUpToDate = vax.status === 'active';
-  next();
 });
 
 export default mongoose.model<IVaccination>('Vaccination', VaccinationSchema);

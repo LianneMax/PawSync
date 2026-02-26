@@ -17,8 +17,13 @@ import {
   PawPrint,
   Video,
   MapPin,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog'
 
 // ==================== CONSTANTS ====================
 
@@ -51,6 +56,8 @@ export default function VetAppointmentsPage() {
   const [loading, setLoading] = useState(true)
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
+  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
+  const [cancelSubmitting, setCancelSubmitting] = useState(false)
 
   const loadAppointments = useCallback(async () => {
     if (!token) return
@@ -116,17 +123,41 @@ export default function VetAppointmentsPage() {
     }
   }
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = (id: string) => {
+    setAppointmentToCancel(id)
+  }
+
+  const confirmCancel = async () => {
+    if (!appointmentToCancel) return
+    setCancelSubmitting(true)
     try {
-      const res = await cancelAppointment(id, token || undefined)
+      const res = await cancelAppointment(appointmentToCancel, token || undefined)
       if (res.status === 'SUCCESS') {
-        toast.success('Appointment cancelled')
+        // Get appointment details for toast
+        const appointment = appointments.find(a => a._id === appointmentToCancel)
+        const petName = appointment?.petId?.name || 'the appointment'
+        
+        toast(
+          <div className="flex gap-2">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-4 h-4 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">Appointment Cancelled</p>
+              <p className="text-sm text-gray-600">The appointment for {petName} has been cancelled.</p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        )
         loadAppointments()
+        setAppointmentToCancel(null)
       } else {
         toast.error(res.message || 'Failed to cancel')
       }
     } catch {
       toast.error('An error occurred')
+    } finally {
+      setCancelSubmitting(false)
     }
   }
 
@@ -184,12 +215,12 @@ export default function VetAppointmentsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm mb-6 w-fit">
+        <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm mb-6 w-full">
           {(['upcoming', 'previous'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+              className={`flex-1 px-5 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
                 activeTab === tab
                   ? 'bg-[#476B6B] text-white'
                   : 'text-gray-500 hover:text-[#4F4F4F]'
@@ -205,9 +236,9 @@ export default function VetAppointmentsPage() {
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : activeTab === 'upcoming' ? (
-          <>
-            {/* Calendar View */}
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Left: Calendar View */}
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden">
               {/* Date Navigation */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <button onClick={() => goToDay(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
@@ -342,85 +373,46 @@ export default function VetAppointmentsPage() {
               </div>
             </div>
 
-            {/* Upcoming List (below calendar) */}
-            {upcomingAppointments.length > 0 && (
-              <div className="mt-6">
-                <h2 className="text-lg font-semibold text-[#4F4F4F] mb-4">All Upcoming Appointments</h2>
-                <div className="space-y-3">
-                  {upcomingAppointments.map((appt) => {
-                    const colors = statusColors[appt.status] || statusColors.pending
-                    return (
-                      <div
-                        key={appt._id}
-                        className={`bg-white rounded-xl p-4 shadow-sm border-l-[3px] ${colors.border}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {appt.petId?.photo ? (
-                              <img src={appt.petId.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
-                                <PawPrint className="w-5 h-5 text-[#5A7C7A]" />
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-sm font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                              <p className="text-xs text-gray-500">
-                                Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-[#4F4F4F]">{formatDate(appt.date)}</p>
-                            <p className="text-xs text-gray-500">
-                              {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
-                            </p>
-                          </div>
-                        </div>
+            {/* Right Sidebar */}
+            <div className="lg:col-span-1 space-y-4">
+              {/* Upcoming Header */}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#4F4F4F]" />
+                <h2 className="text-lg font-semibold text-[#4F4F4F]">Upcoming</h2>
+              </div>
 
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-gray-100 text-gray-600 capitalize">
-                              {appt.mode === 'face-to-face' ? (
-                                <><MapPin className="w-3 h-3" /> Face to Face</>
-                              ) : (
-                                <><Video className="w-3 h-3" /> Online</>
-                              )}
-                            </span>
-                            {appt.types.map((t) => (
-                              <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
-                                {t.replace('-', ' ')}
-                              </span>
-                            ))}
-                            <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium capitalize ${colors.bg} ${colors.text}`}>
-                              {appt.status}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {appt.status === 'confirmed' && (
-                              <button
-                                onClick={() => handleComplete(appt._id)}
-                                className="px-3 py-1 text-[10px] font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                              >
-                                Complete
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleCancel(appt._id)}
-                              className="px-3 py-1 text-[10px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
+              {/* Appointments or empty state */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm min-h-[200px] flex items-center justify-center">
+                {upcomingAppointments.length === 0 ? (
+                  <div className="text-center">
+                    <Clock className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">No scheduled appointments</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 w-full">
+                    {upcomingAppointments.slice(0, 3).map((appt) => (
+                      <div key={appt._id} className="border-b pb-3 last:border-b-0">
+                        <p className="text-sm font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
+                        <p className="text-xs text-gray-500">{formatDate(appt.date)} at {formatSlotTime(appt.startTime)}</p>
                       </div>
-                    )
-                  })}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Working Hours */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm">
+                <h3 className="font-semibold text-[#4F4F4F] mb-4">Working Hours</h3>
+                <div className="space-y-4">
+                  <div className="pb-4 border-b border-gray-100">
+                    <p className="text-sm font-medium text-[#2C3E2D] mb-2">Baivet - Main Branch</p>
+                    <p className="text-xs text-gray-500 mb-2">Paranaque</p>
+                    <p className="text-xs text-gray-600">9:00 AM - 6:00 PM • Mon, Wed, Tue, Thu, Fri</p>
+                  </div>
                 </div>
               </div>
-            )}
-          </>
+            </div>
+          </div>
         ) : (
           /* Previous Appointments Tab */
           <div>
@@ -489,6 +481,46 @@ export default function VetAppointmentsPage() {
           </div>
         )}
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      <Dialog open={appointmentToCancel !== null} onOpenChange={(open) => { if (!open) setAppointmentToCancel(null) }}>
+        <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+          <div className="p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 bg-[#FEE2E2] rounded-full flex items-center justify-center">
+                <X className="w-6 h-6 text-[#900B09]" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Cancel Appointment?</h2>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAppointmentToCancel(null)}
+                disabled={cancelSubmitting}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-[#2C3E2D] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm disabled:opacity-50"
+              >
+                Keep It
+              </button>
+              <button
+                onClick={confirmCancel}
+                disabled={cancelSubmitting}
+                className="flex-1 px-4 py-2.5 bg-[#900B09] text-white font-medium rounded-xl hover:bg-[#7A0A08] transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cancelSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Canceling...
+                  </>
+                ) : (
+                  'Cancel Appointment'
+                )}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

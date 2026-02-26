@@ -283,30 +283,30 @@ export default function MySchedulePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-[#4F4F4F]">{monthName}</h2>
-              <div className="flex gap-2">
-                <button onClick={previousMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+          <div className="lg:col-span-2 bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-[#4F4F4F]">{monthName}</h2>
+              <div className="flex gap-1">
+                <button onClick={previousMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                  <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
-                <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
               </div>
             </div>
 
             {/* Day headers */}
-            <div className="grid grid-cols-7 gap-2 mb-4">
+            <div className="grid grid-cols-7 gap-1 mb-2">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-center text-sm font-semibold text-gray-600 py-2">
+                <div key={day} className="text-center text-[10px] font-semibold text-gray-600 py-1">
                   {day}
                 </div>
               ))}
             </div>
 
             {/* Calendar days */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {days.map((day, index) => (
                 <div
                   key={index}
@@ -327,22 +327,22 @@ export default function MySchedulePage() {
           {/* Right panel */}
           <div className="space-y-4">
             {/* Upcoming */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-[#4F4F4F] mb-6 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-[#4F4F4F] mb-4 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
                 Upcoming
               </h2>
-              <div className="space-y-4">
-                <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                  <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No scheduled appointments</p>
+              <div className="space-y-3">
+                <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                  <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-xs">No scheduled appointments</p>
                 </div>
               </div>
             </div>
 
             {/* Working hours / schedule setter */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Working Hours</h3>
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h3 className="text-xs font-semibold text-[#4F4F4F] mb-3">Working Hours</h3>
 
               {loadingSchedules ? (
                 <div className="flex justify-center py-6">
@@ -366,19 +366,19 @@ export default function MySchedulePage() {
         </div>
 
         {/* Daily Schedule */}
-        <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-[#4F4F4F] mb-6">Today&apos;s Schedule</h2>
-          <div className="space-y-3">
+        <div className="mt-4 bg-white rounded-2xl p-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-[#4F4F4F] mb-4">Today&apos;s Schedule</h2>
+          <div className="space-y-2">
             {Array.from({ length: 8 }, (_, i) => {
               const hour = 9 + i
               const period = hour >= 12 ? 'PM' : 'AM'
               const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
               return (
-                <div key={i} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-b-0">
-                  <div className="text-sm font-semibold text-gray-600 w-20">
+                <div key={i} className="flex items-start gap-3 pb-2 border-b border-gray-100 last:border-b-0">
+                  <div className="text-xs font-semibold text-gray-600 w-16">
                     {displayHour}:00 {period}
                   </div>
-                  <div className="flex-1 py-2 px-4 bg-gray-50 rounded-lg text-sm text-gray-500 text-center">
+                  <div className="flex-1 py-1.5 px-3 bg-gray-50 rounded-lg text-xs text-gray-500 text-center">
                     Available
                   </div>
                 </div>

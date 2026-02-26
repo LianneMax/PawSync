@@ -136,6 +136,8 @@ export default function MyAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
+  const [cancelSubmitting, setCancelSubmitting] = useState(false)
 
   // Load appointments
   const loadAppointments = useCallback(async () => {
@@ -154,17 +156,41 @@ export default function MyAppointmentsPage() {
 
   useEffect(() => { loadAppointments() }, [loadAppointments])
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = (id: string) => {
+    setAppointmentToCancel(id)
+  }
+
+  const confirmCancel = async () => {
+    if (!appointmentToCancel) return
+    setCancelSubmitting(true)
     try {
-      const res = await cancelAppointment(id, token || undefined)
+      const res = await cancelAppointment(appointmentToCancel, token || undefined)
       if (res.status === 'SUCCESS') {
-        toast.success('Appointment cancelled')
+        // Get appointment details for toast
+        const appointment = appointments.find(a => a._id === appointmentToCancel)
+        const petName = appointment?.petId?.name || 'the appointment'
+        
+        toast(
+          <div className="flex gap-2">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-4 h-4 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">Appointment Cancelled</p>
+              <p className="text-sm text-gray-600">The appointment for {petName} has been cancelled.</p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        )
         loadAppointments()
+        setAppointmentToCancel(null)
       } else {
         toast.error(res.message || 'Failed to cancel')
       }
     } catch {
       toast.error('An error occurred')
+    } finally {
+      setCancelSubmitting(false)
     }
   }
 
@@ -304,6 +330,46 @@ export default function MyAppointmentsPage() {
         onClose={() => setModalOpen(false)}
         onBooked={() => { setModalOpen(false); loadAppointments() }}
       />
+
+      {/* Cancel Confirmation Modal */}
+      <Dialog open={appointmentToCancel !== null} onOpenChange={(open) => { if (!open) setAppointmentToCancel(null) }}>
+        <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+          <div className="p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 bg-[#FEE2E2] rounded-full flex items-center justify-center">
+                <X className="w-6 h-6 text-[#900B09]" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Cancel Appointment?</h2>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAppointmentToCancel(null)}
+                disabled={cancelSubmitting}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-[#2C3E2D] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm disabled:opacity-50"
+              >
+                Keep It
+              </button>
+              <button
+                onClick={confirmCancel}
+                disabled={cancelSubmitting}
+                className="flex-1 px-4 py-2.5 bg-[#900B09] text-white font-medium rounded-xl hover:bg-[#7A0A08] transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cancelSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Canceling...
+                  </>
+                ) : (
+                  'Cancel Appointment'
+                )}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
@@ -388,7 +454,8 @@ function ScheduleModal({
       try {
         const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
         if (res.status === 'SUCCESS' && res.data) {
-          setSlots(res.data.slots)
+          // Use real slots if available, otherwise fall back to mock
+          setSlots(res.data.slots && res.data.slots.length > 0 ? res.data.slots : generateMockSlots())
         } else {
           setSlots(generateMockSlots())
         }
@@ -471,7 +538,30 @@ function ScheduleModal({
       }, token || undefined)
 
       if (res.status === 'SUCCESS') {
-        toast.success('Appointment booked successfully!')
+        // Get pet name and clinic/branch info for toast
+        const pet = pets.find(p => p._id === selectedPetId)
+        const selectedBranchOption = clinics.flatMap((clinic) =>
+          clinic.branches.map((branch) => ({
+            value: branch._id,
+            label: `${clinic.name} — ${branch.name}`,
+            clinicId: clinic._id,
+          }))
+        ).find(b => b.value === selectedBranchId)
+        
+        const petName = pet?.name || 'Your pet'
+        const branchName = selectedBranchOption?.label || 'the clinic'
+        const appointmentDate = new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        
+        toast(
+          <div className="flex gap-2">
+            <Calendar className="w-4 h-4 text-gray-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium">New Appointment Scheduled</p>
+              <p className="text-sm text-gray-600">A new appointment for {petName} has been scheduled at {branchName} on {appointmentDate}.</p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        )
         onBooked()
       } else {
         toast.error(res.message || 'Failed to book appointment')
@@ -656,7 +746,7 @@ function ScheduleModal({
                             let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
                             if (isYourBooking) bg = 'bg-gray-300 text-gray-600 cursor-default'
                             if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
-                            if (isSelected) bg = 'bg-[#476B6B] ring-2 ring-[#476B6B] ring-offset-1 text-white cursor-pointer'
+                            if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
 
                             return (
                               <button
@@ -678,17 +768,17 @@ function ScheduleModal({
                   </div>
 
                   {/* Legend */}
-                  <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t border-gray-200">
+                  <div className="flex items-center justify-center gap-3 mt-3 pt-2 border-t border-gray-200 flex-wrap">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-sm bg-[#7FA5A3]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#7FA5A3]" />
                       <span className="text-[10px] text-gray-500">Available</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-sm bg-gray-300" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
                       <span className="text-[10px] text-gray-500">Your Booking</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-sm bg-[#900B09]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#900B09]" />
                       <span className="text-[10px] text-gray-500">Unavailable</span>
                     </div>
                   </div>

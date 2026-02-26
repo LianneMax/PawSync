@@ -8,7 +8,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/my-pets': ['pet-owner'],
   '/my-appointments': ['pet-owner'],
   '/vaccine-cards': ['pet-owner'],
-  '/patient-records': ['pet-owner'],
+  '/patient-records': ['pet-owner', 'veterinarian'],
   '/onboarding/pet': ['pet-owner'],
 
   // Veterinarian routes
