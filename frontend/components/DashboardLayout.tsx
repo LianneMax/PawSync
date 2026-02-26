@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode, useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from './Navbar'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -95,10 +96,20 @@ function getNotificationIcon(type: Notification['type']) {
   }
 }
 
+function getDashboardPath(userType: string): string {
+  switch (userType) {
+    case 'veterinarian': return '/vet-dashboard'
+    case 'clinic-admin':
+    case 'branch-admin': return '/clinic-admin'
+    default: return '/dashboard'
+  }
+}
+
 export default function DashboardLayout({
   children,
   userType: userTypeOverride
 }: DashboardLayoutProps) {
+  const router = useRouter()
   const authUser = useAuthStore((state) => state.user)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isNavExpanded, setIsNavExpanded] = useState(false)
@@ -106,37 +117,34 @@ export default function DashboardLayout({
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
 
   useEffect(() => {
-    // Priority: 1) explicit override prop, 2) auth store, 3) sessionStorage, 4) fallback
-    const resolvedUserType: UserType = userTypeOverride || (authUser?.userType as UserType) || 'pet-owner'
+    // If no authenticated user in store, redirect to login
+    if (!authUser) {
+      router.replace('/login')
+      return
+    }
 
-    if (authUser) {
-      setUserData({
-        firstName: authUser.firstName,
-        lastName: authUser.lastName,
-        email: authUser.email,
-        userType: resolvedUserType
-      })
-    } else {
-      const signupData = sessionStorage.getItem('signupData')
-      if (signupData) {
-        const parsed = JSON.parse(signupData)
-        setUserData({
-          firstName: parsed.firstName,
-          lastName: parsed.lastName,
-          email: parsed.email,
-          userType: resolvedUserType,
-          avatar: parsed.avatar
-        })
-      } else {
-        setUserData({
-          firstName: 'Lianne',
-          lastName: 'Balbastro',
-          email: 'lianne_balbastro@dlsu.edu.ph',
-          userType: resolvedUserType
-        })
+    // If a specific userType is required for this page, enforce it
+    if (userTypeOverride && authUser.userType !== userTypeOverride) {
+      // Special case: branch-admin can access clinic-admin pages
+      const isBranchAdminOnClinicPage =
+        authUser.userType === 'branch-admin' && userTypeOverride === 'clinic-admin'
+
+      if (!isBranchAdminOnClinicPage) {
+        router.replace(getDashboardPath(authUser.userType))
+        return
       }
     }
-  }, [userTypeOverride, authUser])
+
+    const resolvedUserType: UserType =
+      userTypeOverride || (authUser.userType as UserType)
+
+    setUserData({
+      firstName: authUser.firstName,
+      lastName: authUser.lastName,
+      email: authUser.email,
+      userType: resolvedUserType,
+    })
+  }, [userTypeOverride, authUser, router])
 
   // Simulate a new system notification arriving after a delay
   useEffect(() => {

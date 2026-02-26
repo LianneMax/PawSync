@@ -158,12 +158,14 @@ export default function LoginPage() {
 
         if (rememberMe) {
           localStorage.setItem('rememberEmail', email)
-          // Set a persistent cookie (30 days) so the session survives browser restarts
+          // Set persistent cookies (30 days) so the session survives browser restarts
           document.cookie = `authToken=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+          document.cookie = `userType=${response.data.user.userType}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
         } else {
           localStorage.removeItem('rememberEmail')
-          // Session cookie — cleared when the browser closes
+          // Session cookies — cleared when the browser closes
           document.cookie = `authToken=${response.data.token}; path=/; SameSite=Lax`
+          document.cookie = `userType=${response.data.user.userType}; path=/; SameSite=Lax`
         }
 
         // Flag so the dashboard can show welcome toast notifications

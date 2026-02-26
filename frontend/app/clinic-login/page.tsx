@@ -88,9 +88,11 @@ export default function ClinicLoginPage() {
         if (rememberMe) {
           localStorage.setItem('rememberEmail', email)
           document.cookie = `authToken=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+          document.cookie = `userType=${response.data.user.userType}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
         } else {
           localStorage.removeItem('rememberEmail')
           document.cookie = `authToken=${response.data.token}; path=/; SameSite=Lax`
+          document.cookie = `userType=${response.data.user.userType}; path=/; SameSite=Lax`
         }
 
         sessionStorage.setItem('justLoggedIn', 'true')

@@ -60,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, token: null });
         localStorage.removeItem('authToken');
         document.cookie = 'authToken=; path=/; max-age=0';
+        document.cookie = 'userType=; path=/; max-age=0';
       },
 
       setUser: (user: User | null) => {
