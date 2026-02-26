@@ -162,6 +162,48 @@ export const resetPassword = async (
   return await response.json();
 };
 
+export interface GoogleAuthResponse {
+  status: 'SUCCESS' | 'ERROR' | 'NEEDS_USER_TYPE';
+  message: string;
+  data?: {
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
+      isVerified: boolean;
+      clinicId?: string;
+      clinicBranchId?: string;
+      branchId?: string;
+      isMainBranch?: boolean;
+    };
+    token: string;
+    isNewUser: boolean;
+    // Returned when status is NEEDS_USER_TYPE
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
+
+/**
+ * Authenticate with Google OAuth access token
+ * @param access_token - Google OAuth access token from @react-oauth/google
+ * @param userType - Required only for new users (from signup page)
+ */
+export const googleAuth = async (
+  access_token: string,
+  userType?: 'pet-owner' | 'veterinarian'
+): Promise<GoogleAuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token, userType })
+  });
+  return await response.json();
+};
+
 /**
  * Make authenticated API request
  */

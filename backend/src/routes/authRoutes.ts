@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword } from '../controllers/authController';
+import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -51,5 +51,12 @@ router.post('/reset-password', resetPassword);
  * Logout user
  */
 router.post('/logout', logout);
+
+/**
+ * POST /api/auth/google
+ * Google OAuth authentication (login or register)
+ * Body: { access_token: string, userType?: 'pet-owner' | 'veterinarian' }
+ */
+router.post('/google', googleAuth);
 
 export default router;

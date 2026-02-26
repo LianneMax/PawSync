@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import axios from 'axios';
 import User, { IUser } from '../models/User';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
@@ -583,6 +584,134 @@ export const logout = async (req: Request, res: Response) => {
     return res.status(500).json({
       status: 'ERROR',
       message: 'An error occurred during logout'
+    });
+  }
+};
+
+/**
+ * Google OAuth authentication
+ * Accepts a Google access_token, verifies it by calling Google's userinfo endpoint,
+ * then creates or finds the user and returns our own JWT.
+ *
+ * POST /api/auth/google
+ * Body: { access_token: string, userType?: 'pet-owner' | 'veterinarian' }
+ */
+export const googleAuth = async (req: Request, res: Response) => {
+  try {
+    const { access_token, userType } = req.body;
+
+    if (!access_token) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Google access token is required'
+      });
+    }
+
+    // Verify the token and fetch user info from Google
+    let googleProfile: { email: string; given_name: string; family_name: string; sub: string };
+    try {
+      const { data } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${access_token}` }
+      });
+      googleProfile = data;
+    } catch {
+      return res.status(401).json({
+        status: 'ERROR',
+        message: 'Invalid or expired Google token. Please try again.'
+      });
+    }
+
+    const { email, given_name, family_name, sub: googleId } = googleProfile;
+
+    if (!email) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Google account must have an email address'
+      });
+    }
+
+    // Look up user by googleId first, then by email (for account linking)
+    let user = await User.findOne({
+      $or: [{ googleId }, { email: email.toLowerCase() }]
+    });
+
+    const isNewUser = !user;
+
+    if (!user) {
+      // Brand-new user — we need a userType to create the account
+      if (!userType || !['pet-owner', 'veterinarian'].includes(userType)) {
+        // Tell the frontend to collect the role first
+        return res.status(200).json({
+          status: 'NEEDS_USER_TYPE',
+          message: 'Please select your account type to continue',
+          data: {
+            email,
+            firstName: given_name || '',
+            lastName: family_name || ''
+          }
+        });
+      }
+
+      // Create the account (no password — Google is the identity provider)
+      user = await User.create({
+        email: email.toLowerCase(),
+        firstName: given_name || email.split('@')[0],
+        lastName: family_name || '',
+        googleId,
+        userType,
+        isVerified: userType !== 'veterinarian' // Pet owners are auto-verified
+      });
+    } else if (!user.googleId) {
+      // Existing email/password account — link the Google ID to it
+      user.googleId = googleId;
+      await user.save({ validateBeforeSave: false });
+    }
+
+    // Determine main-branch status (same logic as regular login)
+    let isMainBranch = false;
+    if (user.userType === 'clinic-admin' && user.clinicBranchId) {
+      const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain');
+      isMainBranch = !!branch?.isMain;
+    } else if (user.userType === 'clinic-admin' && !user.clinicBranchId) {
+      isMainBranch = true;
+    } else if (user.userType === 'branch-admin' && user.branchId) {
+      const branch = await ClinicBranch.findById(user.branchId).select('isMain');
+      isMainBranch = !!branch?.isMain;
+    }
+
+    const token = generateToken(user, isMainBranch);
+
+    const userData: any = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      userType: user.userType,
+      isVerified: user.isVerified
+    };
+
+    if (user.userType === 'clinic-admin' && user.clinicId) {
+      userData.clinicId = user.clinicId;
+      userData.clinicBranchId = user.clinicBranchId;
+      userData.isMainBranch = isMainBranch;
+    }
+
+    if (user.userType === 'branch-admin' && user.clinicId && user.branchId) {
+      userData.clinicId = user.clinicId;
+      userData.branchId = user.branchId;
+      userData.isMainBranch = isMainBranch;
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: isNewUser ? 'Account created successfully' : 'Login successful',
+      data: { user: userData, token, isNewUser }
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    return res.status(500).json({
+      status: 'ERROR',
+      message: 'An error occurred during Google authentication'
     });
   }
 };

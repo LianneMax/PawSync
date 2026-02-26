@@ -3,7 +3,7 @@ import bcryptjs from 'bcryptjs';
 
 export interface IUser extends Document {
   email: string;
-  password: string;
+  password?: string;
   firstName: string;
   lastName: string;
   contactNumber: string;
@@ -13,6 +13,7 @@ export interface IUser extends Document {
   branchId: mongoose.Types.ObjectId | null;
   isMainBranch: boolean;
   isVerified: boolean;
+  googleId?: string;
   loginAttempts: number;
   lockUntil: Date | null;
   resetOtp: string | null;
@@ -35,7 +36,7 @@ const UserSchema = new Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please provide a password'],
+      required: false, // Not required for Google OAuth users
       minlength: 6,
       select: false // Don't return password by default
     },
@@ -81,6 +82,11 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false // For veterinarians, this tracks PRC license verification
     },
+    googleId: {
+      type: String,
+      default: null,
+      sparse: true // Allow multiple null values (only unique when non-null)
+    },
     loginAttempts: {
       type: Number,
       default: 0
@@ -112,6 +118,11 @@ UserSchema.pre('save', async function (this: IUser) {
     return;
   }
 
+  // Skip if no password set (Google OAuth users)
+  if (!this.password) {
+    return;
+  }
+
   try {
     const salt = await bcryptjs.genSalt(10);
     this.password = await bcryptjs.hash(this.password, salt);
@@ -122,6 +133,7 @@ UserSchema.pre('save', async function (this: IUser) {
 
 // Method to compare passwords
 UserSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
+  if (!this.password) return false; // Google-only accounts have no password
   return await bcryptjs.compare(password, this.password);
 };
 
