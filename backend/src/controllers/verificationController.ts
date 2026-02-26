@@ -246,6 +246,21 @@ export const rejectVerification = async (req: Request, res: Response) => {
     verification.reviewedAt = new Date();
     await verification.save();
 
+    // Also reject the vet's pending application for this clinic
+    const pendingApplication = await VetApplication.findOne({
+      vetId: verification.vetId,
+      clinicId: clinic._id,
+      status: 'pending'
+    });
+
+    if (pendingApplication) {
+      pendingApplication.status = 'rejected';
+      pendingApplication.rejectionReason = reason || null;
+      pendingApplication.reviewedBy = req.user.userId as any;
+      pendingApplication.reviewedAt = new Date();
+      await pendingApplication.save();
+    }
+
     return res.status(200).json({
       status: 'SUCCESS',
       message: 'Verification rejected',

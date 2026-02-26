@@ -10,7 +10,6 @@ import {
   Syringe,
   Heart,
   ChevronRight,
-  LogOut,
   PawPrint,
 } from 'lucide-react'
 
@@ -65,7 +64,6 @@ function getGreeting() {
 export default function VetDashboardPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
   const [appointments] = useState(mockAppointments)
 
   const displayName = user ? `Dr. ${user.lastName}` : 'Dr. Bailon'
@@ -88,13 +86,6 @@ export default function VetDashboardPage() {
           <p className="text-white/80 mb-4 relative z-10">
             You have 12 appointments scheduled for today and 5 pending follow-ups.
           </p>
-          <button
-            onClick={() => { logout(); router.push('/login') }}
-            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl transition-colors text-sm relative z-10"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout (Demo)
-          </button>
         </div>
 
         {/* Stat Cards */}
