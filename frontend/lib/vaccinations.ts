@@ -43,6 +43,12 @@ export interface CreateVaccinationInput {
   notes?: string;
   clinicId?: string;
   clinicBranchId?: string;
+  /** Clinic-admin: specify which vet administered the vaccine */
+  vetId?: string;
+  /** Link to a medical record */
+  medicalRecordId?: string;
+  /** Link to an appointment */
+  appointmentId?: string;
 }
 
 function authHeaders(token: string): HeadersInit {

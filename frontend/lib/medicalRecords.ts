@@ -18,6 +18,19 @@ export interface Vitals {
   vaccinated: VitalEntry;
 }
 
+export const emptyVitals = (): Vitals => ({
+  weight: { value: '', notes: '' },
+  temperature: { value: '', notes: '' },
+  pulseRate: { value: '', notes: '' },
+  spo2: { value: '', notes: '' },
+  bodyConditionScore: { value: '', notes: '' },
+  dentalScore: { value: '', notes: '' },
+  crt: { value: '', notes: '' },
+  pregnancy: { value: '', notes: '' },
+  xray: { value: '', notes: '' },
+  vaccinated: { value: '', notes: '' },
+});
+
 export interface ImageFragment {
   _id?: string;
   data?: string; // base64
@@ -35,6 +48,7 @@ export interface MedicalRecord {
   clinicId: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicBranchId: any;
+  appointmentId?: any;
   vitals: Vitals;
   images: ImageFragment[];
   visitSummary: string;
@@ -83,27 +97,63 @@ export interface MedicalRecordsResponse {
 export interface CurrentAndHistoricalRecordsResponse {
   status: 'SUCCESS' | 'ERROR';
   message?: string;
-  data?: { 
+  data?: {
     currentRecord: MedicalRecord | null;
     historicalRecords: MedicalRecord[];
   };
 }
 
+export interface VetMedicalRecordsResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: { records: MedicalRecord[]; total: number };
+}
+
 /**
- * Create a new medical record
+ * Create a new medical record.
+ * Accepts optional appointmentId to pre-fill data from the appointment.
+ * Clinic-admins must supply vetId in the body.
  */
 export const createMedicalRecord = async (recordData: {
-  petId: string;
-  clinicId: string;
-  clinicBranchId: string;
-  vitals: Vitals;
+  petId?: string;
+  clinicId?: string;
+  clinicBranchId?: string;
+  vetId?: string;
+  appointmentId?: string;
+  vitals?: Partial<Vitals>;
   images?: { data: string; contentType: string; description?: string }[];
   overallObservation?: string;
+  visitSummary?: string;
+  vetNotes?: string;
+  sharedWithOwner?: boolean;
 }, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch('/medical-records', {
     method: 'POST',
     body: JSON.stringify(recordData)
   }, token);
+};
+
+/**
+ * Get all medical records created by the current vet,
+ * or all records in the clinic for clinic-admins.
+ */
+export const getVetMedicalRecords = async (
+  params?: { petId?: string; limit?: number; offset?: number },
+  token?: string
+): Promise<VetMedicalRecordsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.petId) query.set('petId', params.petId);
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return authenticatedFetch(`/medical-records/vet/my-records${qs}`, { method: 'GET' }, token);
+};
+
+/**
+ * Get the medical record linked to a specific appointment.
+ */
+export const getRecordByAppointment = async (appointmentId: string, token?: string): Promise<MedicalRecordResponse> => {
+  return authenticatedFetch(`/medical-records/appointment/${appointmentId}`, { method: 'GET' }, token);
 };
 
 /**
@@ -138,9 +188,12 @@ export const getRecordById = async (id: string, token?: string): Promise<Medical
  * Update a medical record
  */
 export const updateMedicalRecord = async (id: string, updates: Partial<{
-  vitals: Vitals;
+  vitals: Partial<Vitals>;
   images: { data: string; contentType: string; description?: string }[];
   overallObservation: string;
+  visitSummary: string;
+  vetNotes: string;
+  sharedWithOwner: boolean;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

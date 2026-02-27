@@ -17,9 +17,12 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/schedule': ['veterinarian'],
   '/onboarding/vet': ['veterinarian'],
   '/vet-dashboard/vaccinations': ['veterinarian'],
+  '/vet-dashboard/medical-records': ['veterinarian'],
+  '/vet-dashboard/appointments': ['veterinarian'],
 
   // Clinic admin / branch admin routes
   '/clinic-admin': ['clinic-admin', 'branch-admin'],
+  '/clinic-admin/vaccinations': ['clinic-admin', 'branch-admin'],
 
   // Any authenticated user
   '/billing': ['pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin'],

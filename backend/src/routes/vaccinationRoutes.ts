@@ -7,10 +7,16 @@ import {
   updateVaccination,
   declineVaccination,
   getVetVaccinations,
+  getClinicVaccinations,
   searchOwners,
   getPetsForOwner,
 } from '../controllers/vaccinationController';
-import { authMiddleware, veterinarianOnly } from '../middleware/auth';
+import {
+  authMiddleware,
+  veterinarianOnly,
+  vetOrClinicAdminOnly,
+  clinicOrBranchAdminOnly,
+} from '../middleware/auth';
 
 const router = express.Router();
 
@@ -18,11 +24,15 @@ const router = express.Router();
 // GET /api/vaccinations/vet/my-records
 router.get('/vet/my-records', authMiddleware, veterinarianOnly, getVetVaccinations);
 
-// Patient search (for vet form)
+// Clinic admin — all vaccinations for their clinic/branch
+// GET /api/vaccinations/clinic/records
+router.get('/clinic/records', authMiddleware, clinicOrBranchAdminOnly, getClinicVaccinations);
+
+// Patient search (for vet / clinic-admin form)
 // GET /api/vaccinations/search/owners?q=
-router.get('/search/owners', authMiddleware, searchOwners);
+router.get('/search/owners', authMiddleware, vetOrClinicAdminOnly, searchOwners);
 // GET /api/vaccinations/search/pets?ownerId=
-router.get('/search/pets', authMiddleware, getPetsForOwner);
+router.get('/search/pets', authMiddleware, vetOrClinicAdminOnly, getPetsForOwner);
 
 // Public — no auth — for NFC profile page
 // GET /api/vaccinations/pet/:petId/public
@@ -36,16 +46,16 @@ router.get('/pet/:petId', authMiddleware, getVaccinationsByPet);
 // GET /api/vaccinations/:id
 router.get('/:id', authMiddleware, getVaccinationById);
 
-// Create vaccination (vet only)
+// Create vaccination (vet or clinic-admin)
 // POST /api/vaccinations
-router.post('/', authMiddleware, veterinarianOnly, createVaccination);
+router.post('/', authMiddleware, vetOrClinicAdminOnly, createVaccination);
 
-// Update vaccination (vet only)
+// Update vaccination (vet or clinic-admin)
 // PUT /api/vaccinations/:id
-router.put('/:id', authMiddleware, veterinarianOnly, updateVaccination);
+router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateVaccination);
 
-// Decline vaccination (vet only)
+// Decline vaccination (vet or clinic-admin)
 // POST /api/vaccinations/:id/decline
-router.post('/:id/decline', authMiddleware, veterinarianOnly, declineVaccination);
+router.post('/:id/decline', authMiddleware, vetOrClinicAdminOnly, declineVaccination);
 
 export default router;

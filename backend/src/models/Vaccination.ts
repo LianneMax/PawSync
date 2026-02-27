@@ -6,6 +6,7 @@ export interface IVaccination extends Document {
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId | null;
   appointmentId: mongoose.Types.ObjectId | null;
+  medicalRecordId: mongoose.Types.ObjectId | null;
   // Vaccine identity
   vaccineTypeId: mongoose.Types.ObjectId | null;
   vaccineName: string;
@@ -55,6 +56,11 @@ const VaccinationSchema = new Schema(
     appointmentId: {
       type: Schema.Types.ObjectId,
       ref: 'Appointment',
+      default: null,
+    },
+    medicalRecordId: {
+      type: Schema.Types.ObjectId,
+      ref: 'MedicalRecord',
       default: null,
     },
     vaccineTypeId: {

@@ -726,3 +726,41 @@ export const getNextAppointment = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the next appointment' });
   }
 };
+
+/**
+ * GET /api/appointments/:id
+ * Get a single appointment by ID (vet or clinic admin).
+ */
+export const getAppointmentById = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('petId', 'name species breed sex dateOfBirth photo ownerId')
+      .populate('ownerId', 'firstName lastName email phone')
+      .populate('vetId', 'firstName lastName email');
+
+    if (!appointment) {
+      return res.status(404).json({ status: 'ERROR', message: 'Appointment not found' });
+    }
+
+    // Access: vet on the appointment, clinic-admin, or the pet owner
+    const isVet = appointment.vetId.toString() === req.user.userId;
+    const isOwner = appointment.ownerId.toString() === req.user.userId;
+    const isAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+
+    if (!isVet && !isOwner && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this appointment' });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { appointment }
+    });
+  } catch (error) {
+    console.error('Get appointment by ID error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the appointment' });
+  }
+};

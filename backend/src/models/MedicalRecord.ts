@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-interface IVitalEntry {
+export interface IVitalEntry {
   value: number | string;
   notes: string;
 }
@@ -10,6 +10,7 @@ export interface IMedicalRecord extends Document {
   vetId: mongoose.Types.ObjectId;
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
+  appointmentId: mongoose.Types.ObjectId | null;
   vitals: {
     weight: IVitalEntry;
     temperature: IVitalEntry;
@@ -36,11 +37,13 @@ export interface IMedicalRecord extends Document {
   updatedAt: Date;
 }
 
+const emptyVital = () => ({ value: '', notes: '' });
+
 const VitalEntrySchema = new Schema(
   {
     value: {
       type: Schema.Types.Mixed,
-      required: [true, 'Value is required']
+      default: ''
     },
     notes: {
       type: String,
@@ -93,17 +96,23 @@ const MedicalRecordSchema = new Schema(
       ref: 'ClinicBranch',
       required: [true, 'Clinic branch is required']
     },
+    appointmentId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Appointment',
+      default: null,
+      index: true
+    },
     vitals: {
-      weight: { type: VitalEntrySchema, required: true },
-      temperature: { type: VitalEntrySchema, required: true },
-      pulseRate: { type: VitalEntrySchema, required: true },
-      spo2: { type: VitalEntrySchema, required: true },
-      bodyConditionScore: { type: VitalEntrySchema, required: true },
-      dentalScore: { type: VitalEntrySchema, required: true },
-      crt: { type: VitalEntrySchema, required: true },
-      pregnancy: { type: VitalEntrySchema, required: true },
-      xray: { type: VitalEntrySchema, required: true },
-      vaccinated: { type: VitalEntrySchema, required: true }
+      weight: { type: VitalEntrySchema, default: emptyVital },
+      temperature: { type: VitalEntrySchema, default: emptyVital },
+      pulseRate: { type: VitalEntrySchema, default: emptyVital },
+      spo2: { type: VitalEntrySchema, default: emptyVital },
+      bodyConditionScore: { type: VitalEntrySchema, default: emptyVital },
+      dentalScore: { type: VitalEntrySchema, default: emptyVital },
+      crt: { type: VitalEntrySchema, default: emptyVital },
+      pregnancy: { type: VitalEntrySchema, default: emptyVital },
+      xray: { type: VitalEntrySchema, default: emptyVital },
+      vaccinated: { type: VitalEntrySchema, default: emptyVital }
     },
     images: [ImageFragmentSchema],
     visitSummary: {

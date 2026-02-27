@@ -41,7 +41,14 @@ async function refreshStatuses(vaccinations: any[]): Promise<any[]> {
 
 /**
  * POST /api/vaccinations
- * Veterinarian only — record a new vaccination.
+ * Veterinarian or clinic-admin — record a new vaccination.
+ *
+ * Business Rules:
+ *  BR-VAX-01: vetId defaults to the logged-in vet; clinic-admins may supply a vetId in the body.
+ *  BR-VAX-02: vaccineTypeId is required; name, expiry date, and next due date are auto-computed.
+ *  BR-VAX-03: dateAdministered cannot be in the future.
+ *  BR-VAX-04: If appointmentId is provided, vaccination is linked to that appointment.
+ *  BR-VAX-05: If medicalRecordId is provided, vaccination is linked to that medical record.
  */
 export const createVaccination = async (req: Request, res: Response) => {
   try {
@@ -59,7 +66,12 @@ export const createVaccination = async (req: Request, res: Response) => {
       notes,
       clinicId,
       clinicBranchId,
+      appointmentId,
+      medicalRecordId,
     } = req.body;
+
+    // BR-VAX-01: resolve vetId
+    const vetId = req.body.vetId || req.user.userId;
 
     // Validate pet
     const pet = await Pet.findById(petId);
@@ -73,7 +85,12 @@ export const createVaccination = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccine type not found' });
     }
 
+    // BR-VAX-03: date cannot be in the future
     const adminDate = dateAdministered ? new Date(dateAdministered) : new Date();
+    if (adminDate > new Date()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Date administered cannot be in the future' });
+    }
+
     const expiryDate = addDays(adminDate, vaccineType.validityDays);
     const nextDueDate =
       vaccineType.requiresBooster && vaccineType.boosterIntervalDays
@@ -82,7 +99,7 @@ export const createVaccination = async (req: Request, res: Response) => {
 
     const vaccination = await Vaccination.create({
       petId,
-      vetId: req.user.userId,
+      vetId,
       clinicId: clinicId || req.user.clinicId,
       clinicBranchId: clinicBranchId || req.user.clinicBranchId || null,
       vaccineTypeId,
@@ -94,6 +111,8 @@ export const createVaccination = async (req: Request, res: Response) => {
       expiryDate,
       nextDueDate,
       notes: notes || '',
+      appointmentId: appointmentId || null,
+      medicalRecordId: medicalRecordId || null,
     });
 
     const populated = await Vaccination.findById(vaccination._id)
@@ -272,7 +291,10 @@ export const getVaccinationById = async (req: Request, res: Response) => {
 
 /**
  * PUT /api/vaccinations/:id
- * Veterinarian only — update a vaccination (not declined).
+ * Veterinarian or clinic-admin — update a vaccination (not declined).
+ *
+ * Business Rule BR-VAX-06: Declined vaccinations cannot be edited.
+ * Business Rule BR-VAX-07: Clinic admins can update any vaccination in their clinic.
  */
 export const updateVaccination = async (req: Request, res: Response) => {
   try {
@@ -296,6 +318,7 @@ export const updateVaccination = async (req: Request, res: Response) => {
       route,
       dateAdministered,
       notes,
+      medicalRecordId,
     } = req.body;
 
     // If vaccine type changed, recompute dates
@@ -331,6 +354,7 @@ export const updateVaccination = async (req: Request, res: Response) => {
     if (batchNumber !== undefined) vaccination.batchNumber = batchNumber;
     if (route !== undefined) vaccination.route = route;
     if (notes !== undefined) vaccination.notes = notes;
+    if (medicalRecordId !== undefined) vaccination.medicalRecordId = medicalRecordId || null;
 
     await vaccination.save();
 
@@ -353,7 +377,12 @@ export const updateVaccination = async (req: Request, res: Response) => {
 
 /**
  * POST /api/vaccinations/:id/decline
- * Veterinarian only — mark a vaccination as declined.
+ * Veterinarian or clinic-admin — mark a vaccination as declined.
+ *
+ * Business Rules:
+ *  BR-VAX-08: A decline reason is required.
+ *  BR-VAX-09: Declined status is permanent and cannot be reversed.
+ *  BR-VAX-10: Declined vaccinations are hidden from the public NFC profile.
  */
 export const declineVaccination = async (req: Request, res: Response) => {
   try {
@@ -480,6 +509,57 @@ export const getVetVaccinations = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get vet vaccinations error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vaccinations' });
+  }
+};
+
+/**
+ * GET /api/vaccinations/clinic/records
+ * Clinic-admin / branch-admin — all vaccinations in their clinic (or branch).
+ *
+ * Query params:
+ *  - status: filter by vaccination status
+ *  - petId: filter by pet
+ *  - branchId: filter by branch (clinic-admin only)
+ */
+export const getClinicVaccinations = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { status, petId, branchId } = req.query;
+    const query: any = {};
+
+    if (req.user.clinicId) {
+      query.clinicId = req.user.clinicId;
+    }
+    // branch-admin is scoped to their branch
+    if (req.user.userType === 'branch-admin' && req.user.clinicBranchId) {
+      query.clinicBranchId = req.user.clinicBranchId;
+    } else if (branchId) {
+      query.clinicBranchId = branchId;
+    }
+
+    if (status && status !== 'all') query.status = status;
+    if (petId) query.petId = petId;
+
+    const vaccinations = await Vaccination.find(query)
+      .populate('petId', 'name species breed photo')
+      .populate('vetId', 'firstName lastName')
+      .populate('vaccineTypeId', 'name species')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name')
+      .sort({ dateAdministered: -1 });
+
+    await refreshStatuses(vaccinations);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { vaccinations },
+    });
+  } catch (error) {
+    console.error('Get clinic vaccinations error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vaccinations' });
   }
 };

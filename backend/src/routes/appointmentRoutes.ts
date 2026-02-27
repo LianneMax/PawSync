@@ -12,7 +12,8 @@ import {
   getPetsForOwner,
   createClinicAppointment,
   getClinicAppointments,
-  getNextAppointment
+  getNextAppointment,
+  getAppointmentById,
 } from '../controllers/appointmentController';
 import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly } from '../middleware/auth';
 
@@ -53,6 +54,12 @@ router.get('/pet/:petId/next', authMiddleware, getNextAppointment);
  * Get appointments for the authenticated vet
  */
 router.get('/vet', authMiddleware, getVetAppointments);
+
+/**
+ * GET /api/appointments/:id
+ * Get a single appointment by ID (vet, owner, clinic admin)
+ */
+router.get('/:id', authMiddleware, getAppointmentById);
 
 /**
  * PATCH /api/appointments/:id/cancel

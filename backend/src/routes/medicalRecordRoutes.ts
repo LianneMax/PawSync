@@ -6,20 +6,34 @@ import {
   getHistoricalRecords,
   getVaccinationsByPet,
   getRecordById,
+  getRecordByAppointment,
+  getVetMedicalRecords,
   updateRecord,
   deleteRecord,
   toggleShareRecord,
   getRecordImage
 } from '../controllers/medicalRecordController';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 
 /**
  * POST /api/medical-records
- * Create a new medical record
+ * Create a new medical record (vet or clinic-admin).
  */
-router.post('/', authMiddleware, createMedicalRecord);
+router.post('/', authMiddleware, vetOrClinicAdminOnly, createMedicalRecord);
+
+/**
+ * GET /api/medical-records/vet/my-records
+ * Get all records created by this vet (or all clinic records for clinic-admin).
+ */
+router.get('/vet/my-records', authMiddleware, vetOrClinicAdminOnly, getVetMedicalRecords);
+
+/**
+ * GET /api/medical-records/appointment/:appointmentId
+ * Get the medical record linked to a specific appointment.
+ */
+router.get('/appointment/:appointmentId', authMiddleware, vetOrClinicAdminOnly, getRecordByAppointment);
 
 /**
  * GET /api/medical-records/pet/:petId/vaccinations
@@ -55,19 +69,19 @@ router.get('/:id', authMiddleware, getRecordById);
  * PUT /api/medical-records/:id
  * Update a medical record
  */
-router.put('/:id', authMiddleware, updateRecord);
+router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateRecord);
 
 /**
  * DELETE /api/medical-records/:id
  * Delete a medical record
  */
-router.delete('/:id', authMiddleware, deleteRecord);
+router.delete('/:id', authMiddleware, vetOrClinicAdminOnly, deleteRecord);
 
 /**
  * PATCH /api/medical-records/:id/share
  * Toggle sharing a record with the pet owner
  */
-router.patch('/:id/share', authMiddleware, toggleShareRecord);
+router.patch('/:id/share', authMiddleware, vetOrClinicAdminOnly, toggleShareRecord);
 
 /**
  * GET /api/medical-records/:id/images/:imageId

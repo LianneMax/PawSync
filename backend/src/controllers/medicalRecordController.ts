@@ -3,9 +3,25 @@ import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import AssignedVet from '../models/AssignedVet';
 import Vaccination from '../models/Vaccination';
+import Appointment from '../models/Appointment';
 
 /**
- * Create a new medical record
+ * Helper — returns true if req.user is a clinic-admin or branch-admin.
+ */
+function isClinicAdminUser(req: Request): boolean {
+  return req.user?.userType === 'clinic-admin' || req.user?.userType === 'branch-admin';
+}
+
+/**
+ * Create a new medical record.
+ * Accessible by: veterinarian, clinic-admin, branch-admin.
+ *
+ * Business Rules:
+ *  BR-MR-01: Only one record can be isCurrent=true per pet; creating a new one marks all previous as historical.
+ *  BR-MR-02: vetId defaults to the logged-in vet's ID; clinic-admins must supply vetId in body.
+ *  BR-MR-03: If appointmentId is provided, petId/clinicId/clinicBranchId/vetId are pre-filled from the appointment.
+ *  BR-MR-04: Vitals are all optional — a record can be created with just a visitSummary/observations.
+ *  BR-MR-05: New records are NOT shared with owner by default; vet or clinic-admin must explicitly share.
  */
 export const createMedicalRecord = async (req: Request, res: Response) => {
   try {
@@ -13,7 +29,37 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { petId, clinicId, clinicBranchId, vitals, images, overallObservation, visitSummary, vetNotes } = req.body;
+    let { petId, clinicId, clinicBranchId, vetId, appointmentId } = req.body;
+    const { vitals, images, overallObservation, visitSummary, vetNotes } = req.body;
+
+    // BR-MR-03: Pre-fill from appointment if provided
+    if (appointmentId) {
+      const appt = await Appointment.findById(appointmentId);
+      if (!appt) {
+        return res.status(404).json({ status: 'ERROR', message: 'Appointment not found' });
+      }
+      // Check for duplicate: if a record already exists for this appointment, return it
+      const existing = await MedicalRecord.findOne({ appointmentId });
+      if (existing) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'A medical record already exists for this appointment',
+          data: { recordId: existing._id }
+        });
+      }
+      petId = petId || appt.petId.toString();
+      clinicId = clinicId || appt.clinicId.toString();
+      clinicBranchId = clinicBranchId || (appt.clinicBranchId ? appt.clinicBranchId.toString() : null);
+      vetId = vetId || appt.vetId.toString();
+    }
+
+    // BR-MR-02: Determine vetId
+    if (req.user.userType === 'veterinarian') {
+      vetId = req.user.userId;
+    } else if (!vetId) {
+      // clinic-admin without explicit vetId — use their own userId (they may not be a vet, but allows record creation)
+      vetId = req.user.userId;
+    }
 
     // Verify the pet exists
     const pet = await Pet.findById(petId);
@@ -21,7 +67,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Mark any existing current records for this pet as historical
+    // BR-MR-01: Mark any existing current records for this pet as historical
     await MedicalRecord.updateMany(
       { petId, isCurrent: true },
       { isCurrent: false }
@@ -36,10 +82,11 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
 
     const record = await MedicalRecord.create({
       petId,
-      vetId: req.user.userId,
+      vetId,
       clinicId,
-      clinicBranchId,
-      vitals,
+      clinicBranchId: clinicBranchId || null,
+      appointmentId: appointmentId || null,
+      vitals: vitals || {},
       images: parsedImages,
       visitSummary: visitSummary || '',
       vetNotes: vetNotes || '',
@@ -47,10 +94,25 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       isCurrent: true
     });
 
+    const populated = await MedicalRecord.findById(record._id)
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name')
+      .populate('petId', 'name species breed');
+
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Medical record created successfully',
-      data: { record: { ...record.toObject(), images: (record.toObject().images || []).map((img: any) => ({ _id: img._id, contentType: img.contentType, description: img.description })) } }
+      data: {
+        record: {
+          ...populated?.toObject(),
+          images: (populated?.toObject().images || []).map((img: any) => ({
+            _id: img._id,
+            contentType: img.contentType,
+            description: img.description
+          }))
+        }
+      }
     });
   } catch (error: any) {
     console.error('Create medical record error:', error);
@@ -76,7 +138,6 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Pet owner can view their own pet's records; vet can view if assigned or is attending vet
     const isOwner = pet.ownerId.toString() === req.user.userId;
     let isAuthorizedVet = false;
 
@@ -85,32 +146,28 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       if (assignment) {
         isAuthorizedVet = true;
       } else {
-        // Also allow if the vet has created records for this pet (attending vet)
         const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
         isAuthorizedVet = !!hasRecords;
       }
     }
 
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = isClinicAdminUser(req);
 
-    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these records' });
     }
 
-    // Pet owners only see records shared with them
     const query: any = { petId: req.params.petId };
-    if (isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (isOwner && !isAuthorizedVet && !isAdmin) {
       query.sharedWithOwner = true;
     }
 
-    // Get current record
     const currentRecord = await MedicalRecord.findOne({ ...query, isCurrent: true })
       .select('-images.data -vetNotes')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address');
 
-    // Get all historical records
     const historicalRecords = await MedicalRecord.find({ ...query, isCurrent: false })
       .select('-images.data')
       .populate('vetId', 'firstName lastName')
@@ -120,9 +177,9 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { 
-        currentRecord: currentRecord,
-        historicalRecords: historicalRecords
+      data: {
+        currentRecord,
+        historicalRecords
       }
     });
   } catch (error) {
@@ -145,7 +202,6 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Pet owner can view their own pet's records; vet can view if assigned or is attending vet
     const isOwner = pet.ownerId.toString() === req.user.userId;
     let isAuthorizedVet = false;
 
@@ -159,14 +215,14 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
       }
     }
 
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = isClinicAdminUser(req);
 
-    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
     }
 
     const query: any = { petId: req.params.petId, isCurrent: true };
-    if (isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (isOwner && !isAuthorizedVet && !isAdmin) {
       query.sharedWithOwner = true;
     }
 
@@ -204,7 +260,6 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Pet owner can view their own pet's records; vet can view if assigned or is attending vet
     const isOwner = pet.ownerId.toString() === req.user.userId;
     let isAuthorizedVet = false;
 
@@ -218,14 +273,14 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       }
     }
 
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = isClinicAdminUser(req);
 
-    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these records' });
     }
 
     const query: any = { petId: req.params.petId, isCurrent: false };
-    if (isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (isOwner && !isAuthorizedVet && !isAdmin) {
       query.sharedWithOwner = true;
     }
 
@@ -259,7 +314,8 @@ export const getRecordById = async (req: Request, res: Response) => {
       .populate('petId', 'name species breed sex dateOfBirth weight photo ownerId')
       .populate('vetId', 'firstName lastName email')
       .populate('clinicId', 'name address phone email adminId')
-      .populate('clinicBranchId', 'name address phone');
+      .populate('clinicBranchId', 'name address phone')
+      .populate('appointmentId', 'date startTime endTime types status');
 
     if (!record) {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
@@ -268,18 +324,16 @@ export const getRecordById = async (req: Request, res: Response) => {
     const pet = record.petId as any;
     const isOwner = pet.ownerId?.toString() === req.user.userId;
     const isRecordVet = record.vetId && (record.vetId as any)._id?.toString() === req.user.userId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = isClinicAdminUser(req);
 
-    if (!isOwner && !isRecordVet && !isClinicAdmin) {
+    if (!isOwner && !isRecordVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
     }
 
-    // Pet owners can only view records that have been shared with them
-    if (isOwner && !isRecordVet && !isClinicAdmin && !record.sharedWithOwner) {
+    if (isOwner && !isRecordVet && !isAdmin && !record.sharedWithOwner) {
       return res.status(403).json({ status: 'ERROR', message: 'This record has not been shared with you' });
     }
 
-    // Convert image buffers to base64 for frontend
     const recordObj = record.toObject() as any;
     recordObj.images = recordObj.images.map((img: any) => ({
       _id: img._id,
@@ -288,8 +342,7 @@ export const getRecordById = async (req: Request, res: Response) => {
       description: img.description
     }));
 
-    // Pet owners cannot see vetNotes
-    if (isOwner && !isRecordVet && !isClinicAdmin) {
+    if (isOwner && !isRecordVet && !isAdmin) {
       delete recordObj.vetNotes;
     }
 
@@ -304,7 +357,91 @@ export const getRecordById = async (req: Request, res: Response) => {
 };
 
 /**
- * Update a medical record (only the vet who created it)
+ * Get a medical record by appointmentId.
+ * Accessible by: veterinarian, clinic-admin.
+ *
+ * Business Rule BR-MR-06: Each appointment may have at most one medical record.
+ */
+export const getRecordByAppointment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const record = await MedicalRecord.findOne({ appointmentId: req.params.appointmentId })
+      .populate('petId', 'name species breed sex dateOfBirth weight photo')
+      .populate('vetId', 'firstName lastName email')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name address');
+
+    if (!record) {
+      return res.status(404).json({ status: 'SUCCESS', message: 'No medical record for this appointment', data: { record: null } });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { record }
+    });
+  } catch (error) {
+    console.error('Get record by appointment error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the record' });
+  }
+};
+
+/**
+ * Get all medical records created by the current vet (or all records in clinic for clinic-admin).
+ * Accessible by: veterinarian, clinic-admin, branch-admin.
+ *
+ * Query params:
+ *  - petId: filter by pet
+ *  - limit: page size (default 50)
+ *  - offset: skip (default 0)
+ */
+export const getVetMedicalRecords = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { petId, limit = '50', offset = '0' } = req.query;
+    const query: any = {};
+
+    if (req.user.userType === 'veterinarian') {
+      query.vetId = req.user.userId;
+    } else if (isClinicAdminUser(req)) {
+      query.clinicId = req.user.clinicId;
+    }
+
+    if (petId) query.petId = petId;
+
+    const records = await MedicalRecord.find(query)
+      .select('-images.data -vetNotes')
+      .populate('petId', 'name species breed photo')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name')
+      .populate('appointmentId', 'date startTime types')
+      .sort({ createdAt: -1 })
+      .skip(Number(offset))
+      .limit(Number(limit));
+
+    const total = await MedicalRecord.countDocuments(query);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { records, total }
+    });
+  } catch (error) {
+    console.error('Get vet medical records error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching records' });
+  }
+};
+
+/**
+ * Update a medical record.
+ * Accessible by: the creating vet OR clinic-admin/branch-admin.
+ *
+ * Business Rule BR-MR-07: Clinic admins can update any record in their clinic.
  */
 export const updateRecord = async (req: Request, res: Response) => {
   try {
@@ -317,8 +454,9 @@ export const updateRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
     }
 
-    if (record.vetId.toString() !== req.user.userId) {
-      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet can update this record' });
+    const isAdmin = isClinicAdminUser(req);
+    if (record.vetId.toString() !== req.user.userId && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet or clinic admin can update this record' });
     }
 
     const { vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes } = req.body;
@@ -342,7 +480,16 @@ export const updateRecord = async (req: Request, res: Response) => {
     return res.status(200).json({
       status: 'SUCCESS',
       message: 'Medical record updated successfully',
-      data: { record: { ...record.toObject(), images: (record.toObject().images || []).map((img: any) => ({ _id: img._id, contentType: img.contentType, description: img.description })) } }
+      data: {
+        record: {
+          ...record.toObject(),
+          images: (record.toObject().images || []).map((img: any) => ({
+            _id: img._id,
+            contentType: img.contentType,
+            description: img.description
+          }))
+        }
+      }
     });
   } catch (error: any) {
     console.error('Update record error:', error);
@@ -355,7 +502,8 @@ export const updateRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Delete a medical record
+ * Delete a medical record.
+ * Accessible by: creating vet OR clinic-admin/branch-admin.
  */
 export const deleteRecord = async (req: Request, res: Response) => {
   try {
@@ -368,8 +516,8 @@ export const deleteRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
     }
 
-    // Only the attending vet or clinic admin can delete
-    if (record.vetId.toString() !== req.user.userId && req.user.userType !== 'clinic-admin') {
+    const isAdmin = isClinicAdminUser(req);
+    if (record.vetId.toString() !== req.user.userId && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to delete this record' });
     }
 
@@ -386,7 +534,10 @@ export const deleteRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Toggle sharing a medical record with the pet owner
+ * Toggle sharing a medical record with the pet owner.
+ * Accessible by: creating vet OR clinic-admin/branch-admin.
+ *
+ * Business Rule BR-MR-05: Records are private by default; must be explicitly shared.
  */
 export const toggleShareRecord = async (req: Request, res: Response) => {
   try {
@@ -399,8 +550,9 @@ export const toggleShareRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
     }
 
-    if (record.vetId.toString() !== req.user.userId) {
-      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet can share this record' });
+    const isAdmin = isClinicAdminUser(req);
+    if (record.vetId.toString() !== req.user.userId && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet or clinic admin can share this record' });
     }
 
     const { shared } = req.body;
@@ -433,7 +585,7 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = isClinicAdminUser(req);
     let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {
@@ -446,7 +598,7 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
       }
     }
 
-    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these vaccinations' });
     }
 

@@ -163,6 +163,28 @@ export const branchAdminOnly = (req: Request, res: Response, next: NextFunction)
 };
 
 /**
+ * Middleware to check if user is a veterinarian OR clinic/branch admin
+ */
+export const vetOrClinicAdminOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      status: 'ERROR',
+      message: 'Authentication required'
+    });
+  }
+
+  const { userType } = req.user;
+  if (userType !== 'veterinarian' && userType !== 'clinic-admin' && userType !== 'branch-admin') {
+    return res.status(403).json({
+      status: 'ERROR',
+      message: 'This endpoint is only available for veterinarians and clinic admins'
+    });
+  }
+
+  next();
+};
+
+/**
  * Middleware to check if user is clinic admin or branch admin
  */
 export const clinicOrBranchAdminOnly = (req: Request, res: Response, next: NextFunction) => {
