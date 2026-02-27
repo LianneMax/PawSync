@@ -36,6 +36,14 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 
 // ==================== HELPERS ====================
 
+function getDisplayStatus(appt: Appointment): string {
+  if (appt.status === 'pending' || appt.status === 'confirmed') {
+    const apptEnd = new Date(appt.date.split('T')[0] + 'T' + appt.endTime)
+    if (apptEnd < new Date()) return 'cancelled'
+  }
+  return appt.status
+}
+
 function formatSlotTime(time: string) {
   const [h, m] = time.split(':')
   const hour = parseInt(h)
@@ -85,18 +93,21 @@ export default function VetAppointmentsPage() {
     return apptDate === calendarDate
   })
 
-  // Upcoming = confirmed, sorted by date asc
+  // Upcoming = confirmed and not yet passed, sorted by date asc
   const upcomingAppointments = appointments
-    .filter((a) => a.status === 'confirmed')
+    .filter((a) => getDisplayStatus(a) === 'confirmed')
     .sort((a, b) => {
       const dateA = new Date(a.date + 'T' + a.startTime)
       const dateB = new Date(b.date + 'T' + b.startTime)
       return dateA.getTime() - dateB.getTime()
     })
 
-  // Previous = completed + cancelled, sorted by date desc
+  // Previous = completed + cancelled + past-pending (displayed as cancelled), sorted by date desc
   const previousAppointments = appointments
-    .filter((a) => a.status === 'completed' || a.status === 'cancelled')
+    .filter((a) => {
+      const ds = getDisplayStatus(a)
+      return ds === 'completed' || ds === 'cancelled'
+    })
     .sort((a, b) => {
       const dateA = new Date(a.date + 'T' + a.startTime)
       const dateB = new Date(b.date + 'T' + b.startTime)
@@ -215,15 +226,15 @@ export default function VetAppointmentsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm mb-6 w-full">
+        <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm mb-6">
           {(['upcoming', 'previous'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 px-5 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all capitalize ${
                 activeTab === tab
-                  ? 'bg-[#476B6B] text-white'
-                  : 'text-gray-500 hover:text-[#4F4F4F]'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
               {tab}
@@ -375,17 +386,15 @@ export default function VetAppointmentsPage() {
 
             {/* Right Sidebar */}
             <div className="lg:col-span-1 space-y-4">
-              {/* Upcoming Header */}
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#4F4F4F]" />
-                <h2 className="text-lg font-semibold text-[#4F4F4F]">Upcoming</h2>
-              </div>
-
-              {/* Appointments or empty state */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm min-h-[200px] flex items-center justify-center">
+              {/* Upcoming Card */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm min-h-50">
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar className="w-5 h-5 text-[#4F4F4F]" />
+                  <h2 className="text-lg font-semibold text-[#4F4F4F]">Upcoming</h2>
+                </div>
                 {upcomingAppointments.length === 0 ? (
-                  <div className="text-center">
-                    <Clock className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Clock className="w-12 h-12 text-gray-300 mb-2" />
                     <p className="text-gray-500 text-sm">No scheduled appointments</p>
                   </div>
                 ) : (
@@ -426,7 +435,8 @@ export default function VetAppointmentsPage() {
             ) : (
               <div className="space-y-3">
                 {previousAppointments.map((appt) => {
-                  const colors = statusColors[appt.status] || statusColors.completed
+                  const displayStatus = getDisplayStatus(appt)
+                  const colors = statusColors[displayStatus] || statusColors.completed
                   return (
                     <div
                       key={appt._id}
@@ -470,7 +480,7 @@ export default function VetAppointmentsPage() {
                           </span>
                         ))}
                         <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium capitalize ${colors.bg} ${colors.text}`}>
-                          {appt.status}
+                          {displayStatus}
                         </span>
                       </div>
                     </div>

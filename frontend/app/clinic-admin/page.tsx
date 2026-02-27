@@ -91,7 +91,7 @@ export default function ClinicAdminDashboard() {
     <DashboardLayout userType="clinic-admin">
       <div className="p-6 lg:p-8">
         {/* Welcome Banner */}
-        <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-8 mb-8 text-white">
+        <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-8 mb-8">
           <h1
             className="text-3xl text-white mb-2"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}

@@ -187,15 +187,15 @@ export default function VerificationPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 bg-[#F1F0ED] rounded-xl p-1 w-fit">
+        <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm mb-8">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === tab.key
-                  ? 'bg-[#476B6B] text-white'
-                  : 'text-[#4F4F4F] hover:bg-white/50'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
               {tab.label}

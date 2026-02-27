@@ -210,23 +210,23 @@ export default function MyAppointmentsPage() {
 
         {/* Tabs + Action */}
         <div className="flex items-center justify-between mt-6 mb-6">
-          <div className="flex items-center bg-[#7FA5A3]/15 rounded-xl p-1">
+          <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`px-8 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === 'upcoming'
-                  ? 'bg-[#7FA5A3] text-white shadow-sm'
-                  : 'text-[#5A7C7A] hover:text-[#476B6B]'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
               Upcoming
             </button>
             <button
               onClick={() => setActiveTab('previous')}
-              className={`px-8 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === 'previous'
-                  ? 'bg-[#7FA5A3] text-white shadow-sm'
-                  : 'text-[#5A7C7A] hover:text-[#476B6B]'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
               Previous

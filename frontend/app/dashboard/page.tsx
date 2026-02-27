@@ -908,23 +908,18 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="p-4 pt-5 lg:p-6 lg:pt-5 space-y-6">
         {/* Welcome Banner */}
-        <div className="bg-[#476B6B] rounded-2xl p-6 lg:p-8 text-white relative overflow-hidden">
-          <div className="relative z-10">
-            <h1
-              className="text-2xl lg:text-3xl mb-2"
-              style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-            >
-              Welcome Back, {userName}
-            </h1>
-            <p className="text-white/80 text-sm lg:text-base">
-              {pets.length > 0
-                ? `You have ${pets.length} pet${pets.length > 1 ? 's' : ''} registered. Keep their records up to date!`
-                : 'Add your first pet to get started with PawSync!'}
-            </p>
-          </div>
-          <div className="absolute inset-0 opacity-5">
-            <div className="auth-background" />
-          </div>
+        <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-6 lg:p-8">
+          <h1
+            className="text-2xl lg:text-3xl mb-2 text-white"
+            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+          >
+            Welcome Back, {userName}
+          </h1>
+          <p className="text-white/80 text-sm lg:text-base">
+            {pets.length > 0
+              ? `You have ${pets.length} pet${pets.length > 1 ? 's' : ''} registered. Keep their records up to date!`
+              : 'Add your first pet to get started with PawSync!'}
+          </p>
         </div>
 
         {/* My Pets Section */}

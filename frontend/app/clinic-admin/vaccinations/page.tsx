@@ -107,15 +107,15 @@ export default function ClinicAdminVaccinationsPage() {
         </div>
 
         {/* Status tabs */}
-        <div className="flex gap-2 flex-wrap mb-6">
+        <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm mb-6">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-xl text-sm font-medium border transition-all capitalize ${
+              className={`px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all capitalize ${
                 activeTab === tab
-                  ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-[#476B6B]'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
               {tab === 'all' ? 'All' : getStatusLabel(tab as Vaccination['status'])}

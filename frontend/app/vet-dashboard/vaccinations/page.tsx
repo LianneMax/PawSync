@@ -113,15 +113,15 @@ export default function VetVaccinationsPage() {
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-none">
+        <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm mb-4">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors ${
+              className={`px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                 statusFilter === f.value
-                  ? 'bg-[#476B6B] text-white'
-                  : 'bg-[#F8F6F2] text-gray-600 hover:bg-gray-100'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
               {f.label}

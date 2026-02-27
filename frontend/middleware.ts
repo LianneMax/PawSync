@@ -23,6 +23,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   // Clinic admin / branch admin routes
   '/clinic-admin': ['clinic-admin', 'branch-admin'],
   '/clinic-admin/vaccinations': ['clinic-admin', 'branch-admin'],
+  '/clinic-admin/medical-records': ['clinic-admin', 'branch-admin'],
 
   // Any authenticated user
   '/billing': ['pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin'],

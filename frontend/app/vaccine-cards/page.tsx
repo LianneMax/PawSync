@@ -17,32 +17,49 @@ function formatFullDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
-function isExpired(nextDueDate: string | null): boolean {
-  if (!nextDueDate) return false
-  return new Date(nextDueDate) < new Date()
+function isPast(dateStr: string | null): boolean {
+  if (!dateStr) return false
+  return new Date(dateStr) < new Date()
 }
 
-function VaccineStatus({ nextDueDate }: { nextDueDate: string | null }) {
-  if (!nextDueDate) {
+function VaccineStatus({ expiryDate, nextDueDate, status }: {
+  expiryDate: string | null
+  nextDueDate: string | null
+  status: string
+}) {
+  // Prefer nextDueDate (booster), then expiryDate
+  const displayDate = nextDueDate ?? expiryDate
+  const label = nextDueDate ? 'Valid Until' : expiryDate ? 'Expires' : null
+
+  if (!displayDate || !label) {
+    // No date info — show the backend status
+    const statusMap: Record<string, { text: string; color: string }> = {
+      active: { text: 'Active', color: 'text-green-600' },
+      expired: { text: 'Expired', color: 'text-red-500' },
+      overdue: { text: 'Overdue', color: 'text-orange-500' },
+      pending: { text: 'Pending', color: 'text-blue-500' },
+      declined: { text: 'Declined', color: 'text-gray-400' },
+    }
+    const cfg = statusMap[status] ?? { text: 'Unknown', color: 'text-gray-400' }
     return (
       <div className="text-right">
         <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
-        <p className="text-sm font-semibold text-gray-500">No expiry</p>
+        <p className={`text-sm font-semibold ${cfg.color}`}>{cfg.text}</p>
       </div>
     )
   }
 
-  const expired = isExpired(nextDueDate)
+  const past = isPast(displayDate)
   return (
     <div className="text-right">
       <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-        {expired ? 'EXPIRED:' : 'VALID UNTIL:'}
+        {past ? 'Expired' : label}
       </p>
       <div className="flex items-center gap-1 justify-end">
-        <p className={`text-sm font-bold ${expired ? 'text-red-500' : 'text-green-600'}`}>
-          {formatMonthYear(nextDueDate)}
+        <p className={`text-sm font-bold ${past ? 'text-red-500' : 'text-green-600'}`}>
+          {formatMonthYear(displayDate)}
         </p>
-        {expired ? (
+        {past ? (
           <XCircle className="w-4 h-4 text-red-500" />
         ) : (
           <CheckCircle2 className="w-4 h-4 text-green-500" />
@@ -175,7 +192,7 @@ export default function VaccineCardsPage() {
                           }`}
                         >
                           <p className="font-semibold text-[#1a1a1a] text-sm">{vax.vaccineName}</p>
-                          <VaccineStatus nextDueDate={vax.nextDueDate} />
+                          <VaccineStatus expiryDate={vax.expiryDate} nextDueDate={vax.nextDueDate} status={vax.status} />
                         </button>
                       ))
                     )}

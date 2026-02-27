@@ -588,26 +588,28 @@ export default function ClinicAdminAppointmentsPage() {
         {/* Tabs + Actions */}
         <div className="flex items-center justify-between mt-6 mb-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}
-              className={`px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === 'upcoming'
-                  ? 'bg-[#7FA5A3] text-white'
-                  : 'bg-[#7FA5A3]/15 text-[#5A7C7A] hover:bg-[#7FA5A3]/25'
-              }`}
-            >
-              Upcoming appointments
-            </button>
-            <button
-              onClick={() => { setActiveTab('previous'); setViewMode('list') }}
-              className={`px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === 'previous'
-                  ? 'bg-[#7FA5A3] text-white'
-                  : 'bg-[#7FA5A3]/15 text-[#5A7C7A] hover:bg-[#7FA5A3]/25'
-              }`}
-            >
-              Previous appointments
-            </button>
+            <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+              <button
+                onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}
+                className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+                  activeTab === 'upcoming'
+                    ? 'bg-[#476B6B] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-gray-50'
+                }`}
+              >
+                Upcoming
+              </button>
+              <button
+                onClick={() => { setActiveTab('previous'); setViewMode('list') }}
+                className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+                  activeTab === 'previous'
+                    ? 'bg-[#476B6B] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-gray-50'
+                }`}
+              >
+                Previous
+              </button>
+            </div>
 
             {/* Branch name indicator */}
             {branches.length > 0 && (
