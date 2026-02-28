@@ -106,13 +106,14 @@ const startServer = async () => {
     // Initialize NFC WebSocket (real-time card/reader events)
     initNfcWebSocket(server);
 
-    // Start NFC reader detection only when running locally with USB hardware.
-    // On Render (cloud), set NFC_MODE=remote — the local agent handles hardware
-    // and sends events via POST /api/nfc/events.
-    if (process.env.NFC_MODE !== 'remote') {
+    // Render sets RENDER=true automatically in all services.
+    // USB hardware is never available in cloud VMs — skip the worker fork.
+    // NFC_MODE=remote can also be set explicitly for other cloud providers.
+    const isCloud = !!process.env.RENDER || process.env.NFC_MODE === 'remote';
+    if (!isCloud) {
       nfcService.init();
     } else {
-      console.log('🔌 NFC_MODE=remote — hardware managed by local NFC agent');
+      console.log('🔌 Cloud environment detected — NFC hardware managed by local NFC agent');
     }
 
     server.listen(PORT, () => {

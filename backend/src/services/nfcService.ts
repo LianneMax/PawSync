@@ -149,9 +149,10 @@ class NfcService extends EventEmitter {
   }
 
   isInitialized(): boolean {
-    // In remote mode there is no local worker — the local NFC agent manages
-    // the hardware. Report initialized if at least one reader is tracked.
-    if (process.env.NFC_MODE === 'remote') {
+    // In cloud environments the local NFC agent manages the hardware.
+    // Report initialized when at least one reader has checked in via the agent.
+    const isCloud = !!process.env.RENDER || process.env.NFC_MODE === 'remote';
+    if (isCloud) {
       return this.readers.size > 0;
     }
     return this.initialized && this.worker !== null;
