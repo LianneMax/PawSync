@@ -18,6 +18,7 @@ import {
 import { authMiddleware } from '../middleware/auth';
 import { nfcAuthMiddleware } from '../middleware/nfcAuth';
 import { NfcCommand } from '../models/NfcCommand';
+import Pet from '../models/Pet';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -173,6 +174,12 @@ router.post('/commands/:id/result', nfcAuthMiddleware, async (req: Request, res:
     if (!command) {
       res.status(404).json({ success: false, message: 'Command not found' });
       return;
+    }
+
+    // Persist the NFC tag UID on the pet document so the UI shows "Written"
+    if (writeSuccess && uid) {
+      await Pet.findByIdAndUpdate(command.petId, { nfcTagId: uid });
+      console.log(`[NFC/result] Saved tag UID ${uid} to pet ${command.petId}`);
     }
 
     // Notify WebSocket clients about the write outcome

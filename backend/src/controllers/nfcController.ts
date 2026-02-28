@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import Pet from '../models/Pet';
 import { nfcService } from '../services/nfcService';
+import { NfcCommand } from '../models/NfcCommand';
+
+const isCloud = !!process.env.RENDER || process.env.NFC_MODE === 'remote';
 
 /**
  * Get pet details for NFC tag writing.
@@ -89,7 +92,32 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
       });
     }
 
-    // Prevent concurrent writes
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const petProfileUrl = `${baseUrl}/pet/${petId}`;
+
+    // ── Remote mode (Render cloud) ───────────────────────────────────────────
+    // The local NFC agent owns the hardware. Queue a write command in MongoDB;
+    // the agent polls every 3 s, executes the write, then POSTs the result back
+    // to /api/nfc/commands/:id/result which emits a WebSocket event to the UI.
+    if (isCloud) {
+      const command = await NfcCommand.create({ petId: pet._id, url: petProfileUrl });
+      console.log(`[API] NFC write queued — command ${command._id} for pet ${pet.name}`);
+
+      // Push 'waiting' progress so the frontend modal shows the right stage
+      nfcService.emit('write:progress', { stage: 'waiting', url: petProfileUrl });
+
+      return res.status(202).json({
+        status: 'QUEUED',
+        message: 'Write command queued — place NFC tag on the reader',
+        data: {
+          commandId: command._id.toString(),
+          petId: pet._id,
+          url: petProfileUrl,
+        },
+      });
+    }
+
+    // ── Local mode (direct USB worker) ───────────────────────────────────────
     if (nfcService.isWriting()) {
       return res.status(409).json({
         status: 'ERROR',
@@ -97,16 +125,12 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
       });
     }
 
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const petProfileUrl = `${baseUrl}/pet/${petId}`;
-
     console.log(`[API] Starting NFC write for pet ${pet.name} (${petId}) → ${petProfileUrl}`);
 
     try {
       const writeResult = await nfcService.writeURLToTag(petProfileUrl, 60000);
 
       if (writeResult.writeSuccess) {
-        // Save NFC tag UID to pet document
         if (writeResult.uid) {
           pet.nfcTagId = writeResult.uid;
           await pet.save();

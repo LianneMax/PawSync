@@ -88,6 +88,13 @@ export default function ClinicNfcManagementPage() {
   const [writeStage, setWriteStage] = useState<string>('idle')
   const writeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  // Tracks context of a QUEUED (async) write so the WS handler can resolve it
+  const queuedWriteRef = useRef<{
+    petId: string
+    petName: string
+    url: string
+    requestId?: string
+  } | null>(null)
 
   // Connect WebSocket for real-time NFC events
   useEffect(() => {
@@ -111,10 +118,44 @@ export default function ClinicNfcManagementPage() {
         }
 
         if (msg.type === 'write:complete') {
-          if (msg.data.writeSuccess) {
-            setWriteStage('success')
+          const ctx = queuedWriteRef.current
+          if (ctx) {
+            // QUEUED (remote) write — resolve the modal from the WS event
+            queuedWriteRef.current = null
+            if (writeTimeoutRef.current) {
+              clearTimeout(writeTimeoutRef.current)
+              writeTimeoutRef.current = null
+            }
+            if (msg.data.writeSuccess) {
+              setWriteStage('success')
+              setCurrentWrite({
+                petId: ctx.petId,
+                petName: ctx.petName,
+                status: 'success',
+                nfcTagId: msg.data.uid,
+                url: ctx.url,
+              })
+              setNfcStatus(prev =>
+                prev.map(s => s.petId === ctx.petId ? { ...s, hasNFCTag: true, nfcTagId: msg.data.uid } : s)
+              )
+              if (ctx.requestId) {
+                setPendingRequests(prev => prev.filter(r => r._id !== ctx.requestId))
+                setSelectedRequest(null)
+              }
+              toast('NFC tag written successfully!', { description: `Tag for ${ctx.petName} is ready` })
+              setTimeout(() => setCurrentWrite(null), 5000)
+            } else {
+              setWriteStage('failed')
+              setCurrentWrite({
+                petId: ctx.petId,
+                petName: ctx.petName,
+                status: 'error',
+                error: msg.data.message || 'Write failed — tag may be write-protected',
+              })
+            }
           } else {
-            setWriteStage('failed')
+            // Local (synchronous) write — just update the stage indicator
+            setWriteStage(msg.data.writeSuccess ? 'success' : 'failed')
           }
         }
 
@@ -303,6 +344,18 @@ export default function ClinicNfcManagementPage() {
 
       const data = response
 
+      if (data.status === 'QUEUED') {
+        // Remote mode — agent will pick up the command and report back via WebSocket
+        queuedWriteRef.current = {
+          petId: request.petId._id,
+          petName: request.petId.name,
+          url: data.data.url,
+          requestId: request._id,
+        }
+        // Stay in 'writing' state; WS write:complete will resolve the modal
+        return
+      }
+
       if (writeTimeoutRef.current) {
         clearTimeout(writeTimeoutRef.current)
         writeTimeoutRef.current = null
@@ -410,6 +463,17 @@ export default function ClinicNfcManagementPage() {
       )
 
       const data = response
+
+      if (data.status === 'QUEUED') {
+        // Remote mode — agent will pick up the command and report back via WebSocket
+        queuedWriteRef.current = {
+          petId: pet._id,
+          petName: pet.name,
+          url: data.data.url,
+        }
+        // Stay in 'writing' state; WS write:complete will resolve the modal
+        return
+      }
 
       if (writeTimeoutRef.current) {
         clearTimeout(writeTimeoutRef.current)
