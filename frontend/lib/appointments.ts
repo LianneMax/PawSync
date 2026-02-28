@@ -18,7 +18,7 @@ export interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -142,6 +142,21 @@ export const updateAppointmentStatus = async (id: string, status: string, token?
   return authenticatedFetch(`/appointments/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status })
+  }, token);
+};
+
+/**
+ * Check in a patient — transitions appointment from confirmed → in_progress
+ * and auto-creates a draft medical record.
+ * Returns { medicalRecordId } on success.
+ */
+export const checkInAppointment = async (
+  id: string,
+  token?: string
+): Promise<{ status: string; message?: string; data?: { medicalRecordId?: string; appointment?: Appointment } }> => {
+  return authenticatedFetch(`/appointments/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'in_progress' })
   }, token);
 };
 

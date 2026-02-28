@@ -7,9 +7,11 @@ import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
   type Appointment,
-  updateAppointmentStatus,
+  checkInAppointment,
   cancelAppointment,
 } from '@/lib/appointments'
+import { getRecordByAppointment } from '@/lib/medicalRecords'
+import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import {
   Calendar,
   Clock,
@@ -19,6 +21,8 @@ import {
   Video,
   MapPin,
   X,
+  LogIn,
+  PlayCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -31,6 +35,7 @@ import {
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500' },
+  in_progress: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500' },
   completed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-l-red-500' },
 }
@@ -38,9 +43,9 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 // ==================== HELPERS ====================
 
 function getDisplayStatus(appt: Appointment): string {
-  if (appt.status === 'pending' || appt.status === 'confirmed') {
+  if (appt.status === 'pending' || appt.status === 'confirmed' || appt.status === 'in_progress') {
     const apptEnd = new Date(appt.date.split('T')[0] + 'T' + appt.endTime)
-    if (apptEnd < new Date()) return 'cancelled'
+    if (apptEnd < new Date() && appt.status !== 'in_progress') return 'cancelled'
   }
   return appt.status
 }
@@ -67,6 +72,14 @@ export default function VetAppointmentsPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
+  const [checkingIn, setCheckingIn] = useState<string | null>(null)
+  const [continuingVisit, setContinuingVisit] = useState<string | null>(null)
+
+  // Staged modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
+  const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null)
+  const [activePetId, setActivePetId] = useState<string | null>(null)
 
   const loadAppointments = useCallback(async () => {
     if (!token) return
@@ -87,16 +100,19 @@ export default function VetAppointmentsPage() {
     loadAppointments()
   }, [loadAppointments])
 
-  // Filter confirmed appointments for the selected calendar date
+  // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
-    if (a.status !== 'confirmed') return false
+    if (a.status !== 'confirmed' && a.status !== 'in_progress') return false
     const apptDate = new Date(a.date).toISOString().split('T')[0]
     return apptDate === calendarDate
   })
 
-  // Upcoming = confirmed and not yet passed, sorted by date asc
+  // Upcoming = confirmed/in_progress and not yet passed, sorted by date asc
   const upcomingAppointments = appointments
-    .filter((a) => getDisplayStatus(a) === 'confirmed')
+    .filter((a) => {
+      const ds = getDisplayStatus(a)
+      return ds === 'confirmed' || ds === 'in_progress'
+    })
     .sort((a, b) => {
       const dateA = new Date(a.date + 'T' + a.startTime)
       const dateB = new Date(b.date + 'T' + b.startTime)
@@ -118,21 +134,65 @@ export default function VetAppointmentsPage() {
   // Stats for today
   const today = new Date().toISOString().split('T')[0]
   const todayAppts = appointments.filter((a) => new Date(a.date).toISOString().split('T')[0] === today)
-  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed').length
+  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_progress').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
 
-  const handleComplete = async (id: string) => {
+  const handleCheckIn = async (appt: Appointment) => {
+    if (!token) return
+    setCheckingIn(appt._id)
     try {
-      const res = await updateAppointmentStatus(id, 'completed', token || undefined)
+      const res = await checkInAppointment(appt._id, token)
       if (res.status === 'SUCCESS') {
-        toast.success('Appointment marked as completed')
-        loadAppointments()
+        const recordId = res.data?.medicalRecordId
+        if (recordId) {
+          const petId = typeof appt.petId === 'object' ? appt.petId._id : appt.petId
+          setActiveRecordId(recordId)
+          setActiveAppointmentId(appt._id)
+          setActivePetId(petId)
+          setModalOpen(true)
+          loadAppointments()
+        }
       } else {
-        toast.error(res.message || 'Failed to complete')
+        toast.error(res.message || 'Failed to check in patient')
       }
-    } catch {
-      toast.error('An error occurred')
+    } finally {
+      setCheckingIn(null)
     }
+  }
+
+  const handleContinueVisit = async (appt: Appointment) => {
+    if (!token) return
+    setContinuingVisit(appt._id)
+    try {
+      const res = await getRecordByAppointment(appt._id, token)
+      if (res.status === 'SUCCESS' && res.data?.record) {
+        const petId = typeof appt.petId === 'object' ? appt.petId._id : appt.petId
+        setActiveRecordId(res.data.record._id)
+        setActiveAppointmentId(appt._id)
+        setActivePetId(petId)
+        setModalOpen(true)
+      } else {
+        toast.error('Could not find the visit record. Please try again.')
+      }
+    } finally {
+      setContinuingVisit(null)
+    }
+  }
+
+  const handleModalComplete = () => {
+    setModalOpen(false)
+    setActiveRecordId(null)
+    setActiveAppointmentId(null)
+    setActivePetId(null)
+    loadAppointments()
+  }
+
+  const handleModalClose = () => {
+    setModalOpen(false)
+    setActiveRecordId(null)
+    setActiveAppointmentId(null)
+    setActivePetId(null)
+    loadAppointments()
   }
 
   const handleCancel = (id: string) => {
@@ -259,7 +319,7 @@ export default function VetAppointmentsPage() {
                 <div className="text-center">
                   <p className="font-semibold text-[#4F4F4F]">{dateLabel}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {confirmedForDate.length} confirmed appointment{confirmedForDate.length !== 1 ? 's' : ''}
+                    {confirmedForDate.length} appointment{confirmedForDate.length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <button onClick={() => goToDay(1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
@@ -319,7 +379,7 @@ export default function VetAppointmentsPage() {
                                           {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
                                         </span>
                                         <div className={`text-[10px] font-medium capitalize mt-0.5 ${colors.text}`}>
-                                          {appt.status}
+                                          {appt.status === 'in_progress' ? 'In Progress' : appt.status}
                                         </div>
                                       </div>
                                     </div>
@@ -349,12 +409,26 @@ export default function VetAppointmentsPage() {
 
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 mt-2.5">
-                                      <button
-                                        onClick={() => handleComplete(appt._id)}
-                                        className="px-3 py-1 text-[10px] font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                                      >
-                                        Mark Complete
-                                      </button>
+                                      {appt.status === 'confirmed' && (
+                                        <button
+                                          onClick={() => handleCheckIn(appt)}
+                                          disabled={checkingIn === appt._id}
+                                          className="inline-flex items-center gap-1 px-3 py-1 text-[10px] font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
+                                        >
+                                          <LogIn className="w-3 h-3" />
+                                          {checkingIn === appt._id ? 'Checking in…' : 'Check In Patient'}
+                                        </button>
+                                      )}
+                                      {appt.status === 'in_progress' && (
+                                        <button
+                                          onClick={() => handleContinueVisit(appt)}
+                                          disabled={continuingVisit === appt._id}
+                                          className="inline-flex items-center gap-1 px-3 py-1 text-[10px] font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                                        >
+                                          <PlayCircle className="w-3 h-3" />
+                                          {continuingVisit === appt._id ? 'Loading…' : 'Continue Visit'}
+                                        </button>
+                                      )}
                                       <button
                                         onClick={() => handleCancel(appt._id)}
                                         className="px-3 py-1 text-[10px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
@@ -379,7 +453,9 @@ export default function VetAppointmentsPage() {
                 {Object.entries(statusColors).map(([status, colors]) => (
                   <div key={status} className="flex items-center gap-1.5">
                     <div className={`w-3 h-3 rounded-sm ${colors.bg} border-l-2 ${colors.border}`} />
-                    <span className="text-[10px] text-gray-500 capitalize">{status}</span>
+                    <span className="text-[10px] text-gray-500 capitalize">
+                      {status === 'in_progress' ? 'In Progress' : status}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -492,6 +568,17 @@ export default function VetAppointmentsPage() {
           </div>
         )}
       </div>
+
+      {/* Staged Medical Record Modal */}
+      {modalOpen && activeRecordId && activeAppointmentId && activePetId && (
+        <MedicalRecordStagedModal
+          recordId={activeRecordId}
+          appointmentId={activeAppointmentId}
+          petId={activePetId}
+          onComplete={handleModalComplete}
+          onClose={handleModalClose}
+        />
+      )}
 
       {/* Cancel Confirmation Modal */}
       <Dialog open={appointmentToCancel !== null} onOpenChange={(open) => { if (!open) setAppointmentToCancel(null) }}>

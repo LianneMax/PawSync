@@ -7,6 +7,7 @@ import VetApplication from '../models/VetApplication';
 import ClinicBranch from '../models/ClinicBranch';
 import VetSchedule from '../models/VetSchedule';
 import Vaccination from '../models/Vaccination';
+import MedicalRecord from '../models/MedicalRecord';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -331,7 +332,8 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
 
     const { status } = req.body;
     const validTransitions: Record<string, string[]> = {
-      'confirmed': ['completed', 'cancelled']
+      'confirmed': ['in_progress', 'cancelled'],
+      'in_progress': ['completed', 'cancelled']
     };
 
     if (!validTransitions[appointment.status]?.includes(status)) {
@@ -340,6 +342,31 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
 
     appointment.status = status;
     await appointment.save();
+
+    // When checking in (confirmed → in_progress), auto-create a draft medical record
+    let medicalRecordId: string | undefined;
+    if (status === 'in_progress') {
+      const existingRecord = await MedicalRecord.findOne({ appointmentId: appointment._id });
+      if (!existingRecord) {
+        // Mark any previous current records for this pet as historical
+        await MedicalRecord.updateMany(
+          { petId: appointment.petId, isCurrent: true },
+          { $set: { isCurrent: false } }
+        );
+        const record = await MedicalRecord.create({
+          petId: appointment.petId,
+          vetId: appointment.vetId,
+          clinicId: appointment.clinicId,
+          clinicBranchId: appointment.clinicBranchId,
+          appointmentId: appointment._id,
+          stage: 'pre_procedure',
+          isCurrent: true,
+        });
+        medicalRecordId = record._id.toString();
+      } else {
+        medicalRecordId = existingRecord._id.toString();
+      }
+    }
 
     // Auto-create a pending vaccination draft when appointment is completed
     let vaccinationId: string | undefined;
@@ -364,7 +391,11 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     return res.status(200).json({
       status: 'SUCCESS',
       message: `Appointment ${status} successfully`,
-      data: { appointment, ...(vaccinationId ? { vaccinationId } : {}) }
+      data: {
+        appointment,
+        ...(medicalRecordId ? { medicalRecordId } : {}),
+        ...(vaccinationId ? { vaccinationId } : {})
+      }
     });
   } catch (error) {
     console.error('Update appointment status error:', error);

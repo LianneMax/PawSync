@@ -5,12 +5,43 @@ export interface IVitalEntry {
   notes: string;
 }
 
+export interface IMedication {
+  name: string;
+  dosage: string;
+  route: 'oral' | 'topical' | 'injection' | 'other';
+  frequency: string;
+  duration: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  notes: string;
+  status: 'active' | 'completed' | 'discontinued';
+}
+
+export interface IDiagnosticTest {
+  testType: 'blood_work' | 'x_ray' | 'ultrasound' | 'urinalysis' | 'ecg' | 'other';
+  name: string;
+  date: Date | null;
+  result: string;
+  normalRange: string;
+  notes: string;
+}
+
+export interface IPreventiveCare {
+  careType: 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other';
+  product: string;
+  dateAdministered: Date | null;
+  nextDueDate: Date | null;
+  notes: string;
+}
+
 export interface IMedicalRecord extends Document {
   petId: mongoose.Types.ObjectId;
   vetId: mongoose.Types.ObjectId;
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
   appointmentId: mongoose.Types.ObjectId | null;
+  stage: 'pre_procedure' | 'in_procedure' | 'post_procedure' | 'completed';
+  chiefComplaint: string;
   vitals: {
     weight: IVitalEntry;
     temperature: IVitalEntry;
@@ -35,6 +66,9 @@ export interface IMedicalRecord extends Document {
   subjective: string;   // S - Patient history / owner complaint
   assessment: string;   // A - Diagnosis / clinical assessment
   plan: string;         // P - Treatment plan / next steps
+  medications: IMedication[];
+  diagnosticTests: IDiagnosticTest[];
+  preventiveCare: IPreventiveCare[];
   sharedWithOwner: boolean;
   isCurrent: boolean;
   createdAt: Date;
@@ -75,6 +109,44 @@ const ImageFragmentSchema = new Schema(
   { _id: true }
 );
 
+const MedicationSchema = new Schema(
+  {
+    name: { type: String, default: '' },
+    dosage: { type: String, default: '' },
+    route: { type: String, enum: ['oral', 'topical', 'injection', 'other'], default: 'oral' },
+    frequency: { type: String, default: '' },
+    duration: { type: String, default: '' },
+    startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+    notes: { type: String, default: '' },
+    status: { type: String, enum: ['active', 'completed', 'discontinued'], default: 'active' }
+  },
+  { _id: true }
+);
+
+const DiagnosticTestSchema = new Schema(
+  {
+    testType: { type: String, enum: ['blood_work', 'x_ray', 'ultrasound', 'urinalysis', 'ecg', 'other'], default: 'other' },
+    name: { type: String, default: '' },
+    date: { type: Date, default: null },
+    result: { type: String, default: '' },
+    normalRange: { type: String, default: '' },
+    notes: { type: String, default: '' }
+  },
+  { _id: true }
+);
+
+const PreventiveCareSchema = new Schema(
+  {
+    careType: { type: String, enum: ['flea', 'tick', 'heartworm', 'deworming', 'other'], default: 'other' },
+    product: { type: String, default: '' },
+    dateAdministered: { type: Date, default: null },
+    nextDueDate: { type: Date, default: null },
+    notes: { type: String, default: '' }
+  },
+  { _id: true }
+);
+
 const MedicalRecordSchema = new Schema(
   {
     petId: {
@@ -105,6 +177,15 @@ const MedicalRecordSchema = new Schema(
       ref: 'Appointment',
       default: null,
       index: true
+    },
+    stage: {
+      type: String,
+      enum: ['pre_procedure', 'in_procedure', 'post_procedure', 'completed'],
+      default: 'pre_procedure'
+    },
+    chiefComplaint: {
+      type: String,
+      default: ''
     },
     vitals: {
       weight: { type: VitalEntrySchema, default: emptyVital },
@@ -143,6 +224,9 @@ const MedicalRecordSchema = new Schema(
       type: String,
       default: ''
     },
+    medications: [MedicationSchema],
+    diagnosticTests: [DiagnosticTestSchema],
+    preventiveCare: [PreventiveCareSchema],
     sharedWithOwner: {
       type: Boolean,
       default: false

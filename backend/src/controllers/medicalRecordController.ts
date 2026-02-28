@@ -459,13 +459,25 @@ export const updateRecord = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet or clinic admin can update this record' });
     }
 
-    const { vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes } = req.body;
+    const {
+      vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
+      stage, chiefComplaint, subjective, assessment, plan,
+      medications, diagnosticTests, preventiveCare
+    } = req.body;
 
     if (vitals) record.vitals = vitals;
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;
     if (sharedWithOwner !== undefined) record.sharedWithOwner = sharedWithOwner;
+    if (stage !== undefined) record.stage = stage;
+    if (chiefComplaint !== undefined) record.chiefComplaint = chiefComplaint;
+    if (subjective !== undefined) record.subjective = subjective;
+    if (assessment !== undefined) record.assessment = assessment;
+    if (plan !== undefined) record.plan = plan;
+    if (medications !== undefined) record.medications = medications;
+    if (diagnosticTests !== undefined) record.diagnosticTests = diagnosticTests;
+    if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
 
     if (images) {
       record.images = images.map((img: { data: string; contentType: string; description?: string }) => ({

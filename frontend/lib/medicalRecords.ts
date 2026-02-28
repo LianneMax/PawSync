@@ -38,6 +38,38 @@ export interface ImageFragment {
   description: string;
 }
 
+export interface Medication {
+  _id?: string;
+  name: string;
+  dosage: string;
+  route: 'oral' | 'topical' | 'injection' | 'other';
+  frequency: string;
+  duration: string;
+  startDate: string | null;
+  endDate: string | null;
+  notes: string;
+  status: 'active' | 'completed' | 'discontinued';
+}
+
+export interface DiagnosticTest {
+  _id?: string;
+  testType: 'blood_work' | 'x_ray' | 'ultrasound' | 'urinalysis' | 'ecg' | 'other';
+  name: string;
+  date: string | null;
+  result: string;
+  normalRange: string;
+  notes: string;
+}
+
+export interface PreventiveCare {
+  _id?: string;
+  careType: 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other';
+  product: string;
+  dateAdministered: string | null;
+  nextDueDate: string | null;
+  notes: string;
+}
+
 export interface MedicalRecord {
   _id: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,11 +81,19 @@ export interface MedicalRecord {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicBranchId: any;
   appointmentId?: any;
+  stage: 'pre_procedure' | 'in_procedure' | 'post_procedure' | 'completed';
+  chiefComplaint: string;
   vitals: Vitals;
   images: ImageFragment[];
   visitSummary: string;
   vetNotes?: string;
   overallObservation: string;
+  subjective: string;
+  assessment: string;
+  plan: string;
+  medications: Medication[];
+  diagnosticTests: DiagnosticTest[];
+  preventiveCare: PreventiveCare[];
   sharedWithOwner: boolean;
   isCurrent: boolean;
   createdAt: string;
@@ -190,11 +230,19 @@ export const getRecordById = async (id: string, token?: string): Promise<Medical
  * Update a medical record
  */
 export const updateMedicalRecord = async (id: string, updates: Partial<{
+  stage: MedicalRecord['stage'];
+  chiefComplaint: string;
   vitals: Partial<Vitals>;
   images: { data: string; contentType: string; description?: string }[];
   overallObservation: string;
   visitSummary: string;
   vetNotes: string;
+  subjective: string;
+  assessment: string;
+  plan: string;
+  medications: Omit<Medication, '_id'>[];
+  diagnosticTests: Omit<DiagnosticTest, '_id'>[];
+  preventiveCare: Omit<PreventiveCare, '_id'>[];
   sharedWithOwner: boolean;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {

@@ -1,20 +1,23 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
+import { checkInAppointment } from '@/lib/appointments'
+import { getRecordByAppointment } from '@/lib/medicalRecords'
+import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import {
   Calendar,
   Clock,
   PawPrint,
   CheckCircle,
-  ChevronRight,
   FileText,
   Syringe,
-  Filter,
   AlertCircle,
+  LogIn,
+  PlayCircle,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface Appointment {
   _id: string
@@ -28,15 +31,24 @@ interface Appointment {
   endTime: string
   mode: 'online' | 'face-to-face'
   types: string[]
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed'
   notes?: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
   confirmed: 'bg-blue-100 text-blue-700 border-blue-300',
+  in_progress: 'bg-indigo-100 text-indigo-700 border-indigo-300',
   cancelled: 'bg-red-100 text-red-700 border-red-300',
   completed: 'bg-green-100 text-green-700 border-green-300',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  in_progress: 'In Progress',
+  cancelled: 'Cancelled',
+  completed: 'Completed',
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -52,12 +64,14 @@ export default function VetAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'upcoming' | 'all' | 'completed'>('upcoming')
-  const [completing, setCompleting] = useState<string | null>(null)
-  const [completedResult, setCompletedResult] = useState<{
-    appointmentId: string
-    vaccinationId?: string
-    types: string[]
-  } | null>(null)
+  const [checkingIn, setCheckingIn] = useState<string | null>(null)
+  const [continuingVisit, setContinuingVisit] = useState<string | null>(null)
+
+  // Staged modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
+  const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null)
+  const [activePetId, setActivePetId] = useState<string | null>(null)
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return
@@ -80,40 +94,66 @@ export default function VetAppointmentsPage() {
     fetchAppointments()
   }, [fetchAppointments])
 
-  const handleComplete = async (apptId: string, types: string[]) => {
+  const handleCheckIn = async (appt: Appointment) => {
     if (!token) return
-    setCompleting(apptId)
+    setCheckingIn(appt._id)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/appointments/${apptId}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ status: 'completed' }),
+      const res = await checkInAppointment(appt._id, token)
+      if (res.status === 'SUCCESS') {
+        const recordId = res.data?.medicalRecordId
+        if (recordId) {
+          const petId = typeof appt.petId === 'object' ? appt.petId._id : appt.petId
+          setActiveRecordId(recordId)
+          setActiveAppointmentId(appt._id)
+          setActivePetId(petId)
+          setModalOpen(true)
+          fetchAppointments()
         }
-      )
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
-        setCompletedResult({
-          appointmentId: apptId,
-          vaccinationId: data.data.vaccinationId,
-          types,
-        })
-        // Refresh list
-        fetchAppointments()
       } else {
-        alert(data.message || 'Failed to complete appointment')
+        alert(res.message || 'Failed to check in patient')
       }
     } finally {
-      setCompleting(null)
+      setCheckingIn(null)
     }
   }
 
+  const handleContinueVisit = async (appt: Appointment) => {
+    if (!token) return
+    setContinuingVisit(appt._id)
+    try {
+      const res = await getRecordByAppointment(appt._id, token)
+      if (res.status === 'SUCCESS' && res.data?.record) {
+        const petId = typeof appt.petId === 'object' ? appt.petId._id : appt.petId
+        setActiveRecordId(res.data.record._id)
+        setActiveAppointmentId(appt._id)
+        setActivePetId(petId)
+        setModalOpen(true)
+      } else {
+        alert('Could not find the visit record. Please try again.')
+      }
+    } finally {
+      setContinuingVisit(null)
+    }
+  }
+
+  const handleModalComplete = () => {
+    setModalOpen(false)
+    setActiveRecordId(null)
+    setActiveAppointmentId(null)
+    setActivePetId(null)
+    fetchAppointments()
+  }
+
+  const handleModalClose = () => {
+    setModalOpen(false)
+    setActiveRecordId(null)
+    setActiveAppointmentId(null)
+    setActivePetId(null)
+    fetchAppointments()
+  }
+
   const filtered = appointments.filter((a) => {
-    if (filter === 'upcoming') return a.status === 'pending' || a.status === 'confirmed'
+    if (filter === 'upcoming') return a.status === 'pending' || a.status === 'confirmed' || a.status === 'in_progress'
     if (filter === 'completed') return a.status === 'completed'
     return true
   })
@@ -150,44 +190,6 @@ export default function VetAppointmentsPage() {
           ))}
         </div>
 
-        {/* Post-completion action banner */}
-        {completedResult && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl">
-            <p className="font-semibold text-green-800 mb-3">Appointment marked as completed!</p>
-            <p className="text-sm text-green-700 mb-3">What would you like to do next?</p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => {
-                  router.push(`/vet-dashboard/medical-records/new?appointmentId=${completedResult.appointmentId}`)
-                  setCompletedResult(null)
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors"
-              >
-                <FileText className="w-4 h-4" />
-                Create Medical Record
-              </button>
-              {completedResult.vaccinationId && (
-                <button
-                  onClick={() => {
-                    router.push(`/vet-dashboard/vaccinations/new?edit=${completedResult.vaccinationId}`)
-                    setCompletedResult(null)
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-[#476B6B] text-[#476B6B] rounded-xl text-sm font-medium hover:bg-[#f0f7f7] transition-colors"
-                >
-                  <Syringe className="w-4 h-4" />
-                  Fill Vaccination Record
-                </button>
-              )}
-              <button
-                onClick={() => setCompletedResult(null)}
-                className="px-4 py-2 text-gray-500 text-sm hover:text-gray-700 transition-colors"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -207,18 +209,21 @@ export default function VetAppointmentsPage() {
                 typeof appt.ownerId === 'object'
                   ? `${appt.ownerId?.firstName || ''} ${appt.ownerId?.lastName || ''}`.trim()
                   : '—'
-              const canComplete = appt.status === 'confirmed'
 
               return (
                 <div
                   key={appt._id}
-                  className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+                  className={`bg-white rounded-2xl p-5 shadow-sm border transition-colors ${
+                    appt.status === 'in_progress' ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     {/* Left: date + info */}
                     <div className="flex items-start gap-4 flex-1 min-w-0">
                       {/* Date badge */}
-                      <div className="w-14 h-14 bg-[#476B6B] rounded-xl flex flex-col items-center justify-center shrink-0">
+                      <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 ${
+                        appt.status === 'in_progress' ? 'bg-indigo-600' : 'bg-[#476B6B]'
+                      }`}>
                         <span className="text-white text-lg font-bold leading-tight">
                           {new Date(appt.date).getDate()}
                         </span>
@@ -228,7 +233,7 @@ export default function VetAppointmentsPage() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        {/* Types */}
+                        {/* Types + status */}
                         <div className="flex flex-wrap gap-1 mb-1">
                           {appt.types.map((t) => (
                             <span
@@ -242,7 +247,8 @@ export default function VetAppointmentsPage() {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[appt.status]}`}
                           >
-                            {appt.status}
+                            {appt.status === 'in_progress' && <PlayCircle className="w-3 h-3 mr-1" />}
+                            {STATUS_LABELS[appt.status]}
                           </span>
                         </div>
 
@@ -268,14 +274,24 @@ export default function VetAppointmentsPage() {
 
                     {/* Right: actions */}
                     <div className="flex flex-col gap-2 shrink-0">
-                      {canComplete && (
+                      {appt.status === 'confirmed' && (
                         <button
-                          onClick={() => handleComplete(appt._id, appt.types)}
-                          disabled={completing === appt._id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-xl text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-60"
+                          onClick={() => handleCheckIn(appt)}
+                          disabled={checkingIn === appt._id}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-medium hover:bg-amber-600 transition-colors disabled:opacity-60"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          {completing === appt._id ? 'Completing…' : 'Complete'}
+                          <LogIn className="w-3.5 h-3.5" />
+                          {checkingIn === appt._id ? 'Checking in…' : 'Check In Patient'}
+                        </button>
+                      )}
+                      {appt.status === 'in_progress' && (
+                        <button
+                          onClick={() => handleContinueVisit(appt)}
+                          disabled={continuingVisit === appt._id}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                        >
+                          <PlayCircle className="w-3.5 h-3.5" />
+                          {continuingVisit === appt._id ? 'Loading…' : 'Continue Visit'}
                         </button>
                       )}
                       {appt.status === 'completed' && (
@@ -314,6 +330,17 @@ export default function VetAppointmentsPage() {
           </div>
         )}
       </div>
+
+      {/* Staged Medical Record Modal */}
+      {modalOpen && activeRecordId && activeAppointmentId && activePetId && (
+        <MedicalRecordStagedModal
+          recordId={activeRecordId}
+          appointmentId={activeAppointmentId}
+          petId={activePetId}
+          onComplete={handleModalComplete}
+          onClose={handleModalClose}
+        />
+      )}
     </DashboardLayout>
   )
 }
