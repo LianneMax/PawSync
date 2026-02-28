@@ -18,22 +18,31 @@ const verificationRoutes_1 = __importDefault(require("./routes/verificationRoute
 const vetApplicationRoutes_1 = __importDefault(require("./routes/vetApplicationRoutes"));
 const medicalRecordRoutes_1 = __importDefault(require("./routes/medicalRecordRoutes"));
 const appointmentRoutes_1 = __importDefault(require("./routes/appointmentRoutes"));
+const vetScheduleRoutes_1 = __importDefault(require("./routes/vetScheduleRoutes"));
+const vaccinationRoutes_1 = __importDefault(require("./routes/vaccinationRoutes"));
+const vaccineTypeRoutes_1 = __importDefault(require("./routes/vaccineTypeRoutes"));
+const confinementRoutes_1 = __importDefault(require("./routes/confinementRoutes"));
 const nfcService_1 = require("./services/nfcService");
 const nfcWebSocket_1 = require("./websocket/nfcWebSocket");
+const seedVaccineTypes_1 = require("./utils/seedVaccineTypes");
+const scheduler_1 = require("./utils/scheduler");
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5000;
-// Middleware
-app.use((0, helmet_1.default)());
+const PORT = process.env.PORT || 5001;
+// Simple CORS configuration
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
+    origin: process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
+    credentials: false
+}));
+// Middleware
+app.use((0, helmet_1.default)({
+    crossOriginResourcePolicy: false,
 }));
 app.use(express_1.default.json({ limit: '50mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
 // Health check route
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
     res.json({ status: 'OK', message: 'PawSync API is running' });
 });
 // Auth routes
@@ -52,6 +61,14 @@ app.use('/api/vet-applications', vetApplicationRoutes_1.default);
 app.use('/api/medical-records', medicalRecordRoutes_1.default);
 // Appointment routes
 app.use('/api/appointments', appointmentRoutes_1.default);
+// Vet schedule routes
+app.use('/api/vet-schedule', vetScheduleRoutes_1.default);
+// Vaccination routes
+app.use('/api/vaccinations', vaccinationRoutes_1.default);
+// Vaccine type routes
+app.use('/api/vaccine-types', vaccineTypeRoutes_1.default);
+// Confinement / surgery record routes
+app.use('/api/confinement', confinementRoutes_1.default);
 // NFC routes
 app.use('/api/nfc', nfcRoutes_1.default);
 // 404 handler - must be after all routes
@@ -65,11 +82,20 @@ app.use((req, res) => {
 const startServer = async () => {
     try {
         await (0, database_1.connectDatabase)();
+        await (0, seedVaccineTypes_1.seedVaccineTypes)();
+        (0, scheduler_1.startScheduler)();
         const server = http_1.default.createServer(app);
         // Initialize NFC WebSocket (real-time card/reader events)
         (0, nfcWebSocket_1.initNfcWebSocket)(server);
-        // Start NFC reader detection (runs in separate process, never blocks server)
-        nfcService_1.nfcService.init();
+        // Start NFC reader detection only when running locally with USB hardware.
+        // On Render (cloud), set NFC_MODE=remote — the local agent handles hardware
+        // and sends events via POST /api/nfc/events.
+        if (process.env.NFC_MODE !== 'remote') {
+            nfcService_1.nfcService.init();
+        }
+        else {
+            console.log('🔌 NFC_MODE=remote — hardware managed by local NFC agent');
+        }
         server.listen(PORT, () => {
             console.log('🚀 ================================');
             console.log(`🚀 Server running on http://localhost:${PORT}`);
