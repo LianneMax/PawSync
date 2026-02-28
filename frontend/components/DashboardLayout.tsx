@@ -224,7 +224,7 @@ export default function DashboardLayout({
 
       {/* Notifications Sheet */}
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-        <SheetContent side="right" className="w-[380px] sm:w-[420px] p-0 border-l border-[#7FA5A3]/20">
+        <SheetContent side="right" className="w-95 sm:w-105 p-0 border-l border-[#7FA5A3]/20">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <SheetTitle className="text-xl font-bold text-gray-900">Notifications</SheetTitle>

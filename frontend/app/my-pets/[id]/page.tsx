@@ -512,7 +512,7 @@ export default function PetProfilePage() {
         {/* Profile Card */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {/* Header with photo */}
-          <div className="bg-gradient-to-br from-[#476B6B] to-[#5A8A8A] p-8 flex flex-col items-center relative">
+          <div className="bg-linear-to-br from-[#476B6B] to-[#5A8A8A] p-8 flex flex-col items-center relative">
             {/* Edit / Save buttons */}
             <div className="absolute top-4 right-4 flex gap-2">
               {editing ? (
@@ -676,7 +676,7 @@ export default function PetProfilePage() {
                 {/* eHealth Card Quick-Access */}
                 <button
                   onClick={() => router.push(`/my-pets/${petId}/vaccine-card`)}
-                  className="w-full flex items-center justify-between bg-gradient-to-br from-[#476B6B] to-[#5A8A8A] text-white rounded-2xl px-5 py-4 mb-6 hover:opacity-90 transition-opacity shadow-md"
+                  className="w-full flex items-center justify-between bg-linear-to-br from-[#476B6B] to-[#5A8A8A] text-white rounded-2xl px-5 py-4 mb-6 hover:opacity-90 transition-opacity shadow-md"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
@@ -860,12 +860,12 @@ export default function PetProfilePage() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <Stethoscope className="w-4 h-4 text-[#7FA5A3] flex-shrink-0" />
+                              <Stethoscope className="w-4 h-4 text-[#7FA5A3] shrink-0" />
                               <h4 className="font-semibold text-[#4F4F4F]">Medical Record</h4>
                             </div>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
                               <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                                <Calendar className="w-4 h-4 shrink-0 text-gray-400" />
                                 <span>{new Date(record.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                               </div>
                               <div>
@@ -882,7 +882,7 @@ export default function PetProfilePage() {
                               </p>
                             )}
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" />
+                          <ChevronRight className="w-5 h-5 text-gray-300 shrink-0 mt-1" />
                         </div>
                       </button>
                     ))}
@@ -985,7 +985,7 @@ export default function PetProfilePage() {
           setShowClinicDropdown(false)
         }
       }}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Request Replacement Pet Tag for {pet?.name}</DialogTitle>
           </DialogHeader>
@@ -1160,7 +1160,7 @@ export default function PetProfilePage() {
                   <div className="grid grid-cols-2 gap-3">
                     {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, any]) => (
                       <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                        <p className="text-xs text-gray-500 uppercase font-semibold capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">{key.replace(/([A-Z])/g, ' $1')}</p>
                         <p className="text-sm font-medium text-[#4F4F4F] mt-1">
                           {vital.value || vital.value === 0 ? vital.value : '—'}
                         </p>
@@ -1276,7 +1276,7 @@ export default function PetProfilePage() {
           setLostMessage('')
         }
       }}>
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="sm:max-w-110">
           <DialogHeader>
             <DialogTitle 
               className="text-2xl font-normal text-[#900B09] flex items-center gap-2"
@@ -1293,7 +1293,7 @@ export default function PetProfilePage() {
           <div className="space-y-4 py-2">
             {/* Pet display */}
             <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
-              <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center overflow-hidden shrink-0">
                 {pet?.photo ? (
                   <img src={pet.photo} alt={pet?.name} className="w-full h-full object-cover" />
                 ) : (
@@ -1348,7 +1348,7 @@ export default function PetProfilePage() {
 
             {/* Warning info */}
             <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-[#900B09] flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
               <p className="text-xs text-[#900B09]">
                 Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.
               </p>

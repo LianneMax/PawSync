@@ -2,13 +2,13 @@
 
 export const dynamic = 'force-dynamic'
 
-import { Suspense, useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet as APIPet } from '@/lib/pets'
-import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
+import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { ArrowLeft, Search, FileText, Calendar, Stethoscope, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -51,9 +51,9 @@ function formatDate(dateStr: string): string {
   })
 }
 
-// ==================== CONTENT COMPONENT ====================
+// ==================== MAIN CONTENT COMPONENT ====================
 
-function MedicalRecordsContent() {
+export function MedicalRecordsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { token } = useAuthStore()
@@ -102,8 +102,9 @@ function MedicalRecordsContent() {
       setLoadingRecords(true)
       try {
         const res = await getRecordsByPet(petId, token)
-        if (res.status === 'SUCCESS' && res.data?.records) {
-          setRecords(res.data.records)
+        if (res.status === 'SUCCESS' && res.data) {
+          const current = res.data.currentRecord ? [res.data.currentRecord] : []
+          setRecords([...current, ...res.data.historicalRecords])
         } else {
           setRecords([])
         }
@@ -213,13 +214,15 @@ function MedicalRecordsContent() {
                 >
                   <div className="flex items-start gap-3">
                     {pet.photo ? (
-                      <img
+                      <Image
                         src={pet.photo}
                         alt={pet.name}
+                        width={56}
+                        height={56}
                         className="w-14 h-14 rounded-lg object-cover border border-gray-100"
                       />
                     ) : (
-                      <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-[#7FA5A3] to-[#5A7C7A] flex items-center justify-center flex-shrink-0">
+                      <div className="w-14 h-14 rounded-lg bg-linear-to-br from-[#7FA5A3] to-[#5A7C7A] flex items-center justify-center shrink-0">
                         <FileText className="w-6 h-6 text-white" />
                       </div>
                     )}
@@ -256,7 +259,7 @@ function MedicalRecordsContent() {
           </button>
           <div>
             <h1 className="text-[32px] font-bold text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
-              {selectedPet.name}'s Records
+              {selectedPet.name}&apos;s Records
             </h1>
             <p className="text-gray-600 text-sm">
               {selectedPet.breed} • {calculateAge(selectedPet.dateOfBirth)} old
@@ -288,12 +291,12 @@ function MedicalRecordsContent() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <Stethoscope className="w-4 h-4 text-[#7FA5A3] flex-shrink-0" />
+                      <Stethoscope className="w-4 h-4 text-[#7FA5A3] shrink-0" />
                       <h3 className="font-semibold text-[#4F4F4F]">Medical Record</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                        <Calendar className="w-4 h-4 shrink-0 text-gray-400" />
                         <span>{formatDate(record.createdAt)}</span>
                       </div>
                       <div>
@@ -310,7 +313,7 @@ function MedicalRecordsContent() {
                       </p>
                     )}
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" />
+                  <ChevronRight className="w-5 h-5 text-gray-300 shrink-0 mt-1" />
                 </div>
               </button>
             ))}
@@ -364,9 +367,9 @@ function MedicalRecordsContent() {
                 <div>
                   <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Physical Examination</p>
                   <div className="grid grid-cols-2 gap-3">
-                    {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, any]) => (
+                    {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, VitalEntry]) => (
                       <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                        <p className="text-xs text-gray-500 uppercase font-semibold capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">{key.replace(/([A-Z])/g, ' $1')}</p>
                         <p className="text-sm font-medium text-[#4F4F4F] mt-1">
                           {vital.value || vital.value === 0 ? vital.value : '—'}
                         </p>
@@ -394,6 +397,7 @@ function MedicalRecordsContent() {
                       {viewRecord.images.map((img, idx) => (
                         <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
                           {img.data ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={`data:${img.contentType};base64,${img.data}`}
                               alt={img.description || `Image ${idx + 1}`}
@@ -437,23 +441,5 @@ function MedicalRecordsContent() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
-  )
-}
-
-// ==================== MAIN PAGE ====================
-
-function LoadingFallback() {
-  return (
-    <div className="p-6 lg:p-8 flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
-    </div>
-  )
-}
-
-export default function MedicalRecordsPage() {
-  return (
-    <Suspense fallback={<LoadingFallback />}>
-      <MedicalRecordsContent />
-    </Suspense>
   )
 }

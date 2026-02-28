@@ -181,7 +181,7 @@ export default function LoginPage() {
             router.push('/onboarding/pet')
           }
         } else if (response.data.user.userType === 'veterinarian') {
-          const userId = response.data.user._id || response.data.user.id
+          const userId = response.data.user.id
           if (response.data.user.isVerified) {
             const notifiedKey = `vet_verified_notified_${userId}`
             if (!localStorage.getItem(notifiedKey)) {
@@ -263,7 +263,7 @@ export default function LoginPage() {
               router.push('/onboarding/pet')
             } else {
               const petsResponse = await getMyPets(token)
-              if (petsResponse.status === 'SUCCESS' && petsResponse.data?.pets?.length > 0) {
+              if (petsResponse.status === 'SUCCESS' && petsResponse.data?.pets && petsResponse.data.pets.length > 0) {
                 router.push('/dashboard')
               } else {
                 router.push('/onboarding/pet')
@@ -576,9 +576,9 @@ export default function LoginPage() {
 
               {/* Clinic Login Link */}
               <p className="text-center mt-3 text-xs text-gray-400">
-                Are you a clinic or vet?{' '}
+                Register your Clinic?{' '}
                 <Link href="/clinic-login" className="text-gray-400 hover:text-[#5A7C7A] underline underline-offset-2 transition-colors">
-                  Clinic login
+                  Clinic Login
                 </Link>
               </p>
             </form>

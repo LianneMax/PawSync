@@ -94,29 +94,6 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
   }
 }
 
-const mockAppointments = [
-  {
-    id: '1',
-    title: 'Rabies Vaccination',
-    date: new Date(2026, 0, 25),
-    time: '10:00 am - 10:30 am',
-    clinic: 'BaiVet Animal Clinic',
-    petName: 'Coco',
-    petBreed: 'Pomeranian',
-    status: 'CONFIRMED' as const,
-  },
-  {
-    id: '2',
-    title: 'Deworming',
-    date: new Date(2026, 1, 17),
-    time: '10:00 am - 10:30 am',
-    clinic: 'BaiVet Animal Clinic',
-    petName: 'Coco',
-    petBreed: 'Pomeranian',
-    status: 'PENDING' as const,
-  },
-]
-
 interface DashboardAppointment {
   id: string
   title: string
@@ -190,19 +167,6 @@ const quickActions = [
 ]
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'CONFIRMED':
-      return 'bg-emerald-500 text-white'
-    case 'PENDING':
-      return 'bg-amber-500 text-white'
-    case 'CANCELLED':
-      return 'bg-red-500 text-white'
-    default:
-      return 'bg-gray-500 text-white'
-  }
-}
 
 // --- Pet Detail Modal ---
 function PetDetailModal({
@@ -349,7 +313,7 @@ function PetDetailModal({
                   </p>
                 </div>
               </div>
-              <div className="bg-[#F8F6F2] rounded-lg p-4 min-h-[80px]">
+              <div className="bg-[#F8F6F2] rounded-lg p-4 min-h-20">
                 <p className="text-xs text-gray-400">What Strangers See When Scanning:</p>
               </div>
             </div>
@@ -426,19 +390,19 @@ function ReportLostPetModal({
   onClose: () => void
   onMarkedLost?: () => void
 }) {
-  if (!pet && (!pets || pets.length === 0)) return null
-
   const [contactName, setContactName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [message, setMessage] = useState('')
   const [selectedPet, setSelectedPet] = useState<Pet | null>(pet)
 
-  const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
-
   // Update selectedPet when pet prop changes
   useEffect(() => {
     setSelectedPet(pet)
   }, [pet])
+
+  if (!pet && (!pets || pets.length === 0)) return null
+
+  const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -935,14 +899,14 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2 pt-4">
             {petsLoading && pets.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 w-[314px] h-[206px] shrink-0 flex items-center justify-center">
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 w-78.5 h-51.5 shrink-0 flex items-center justify-center">
                 <p className="text-sm text-gray-400 animate-pulse">Loading pets...</p>
               </div>
             )}
             {pets.map((pet) => (
               <div
                 key={pet.id}
-                className={`bg-white rounded-2xl p-5 w-[314px] h-[206px] shrink-0 cursor-pointer hover:shadow-md transition-shadow relative flex flex-col overflow-visible ${
+                className={`bg-white rounded-2xl p-5 w-78.5 h-51.5 shrink-0 cursor-pointer hover:shadow-md transition-shadow relative flex flex-col overflow-visible ${
                   pet.isLost
                     ? 'border-2 border-[#900B09]'
                     : 'border border-gray-200'
@@ -988,7 +952,7 @@ export default function DashboardPage() {
             ))}
             {/* Add New Pet Card */}
             <div
-              className="bg-white rounded-2xl border-2 border-dashed border-gray-300 w-[314px] h-[206px] shrink-0 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors"
+              className="bg-white rounded-2xl border-2 border-dashed border-gray-300 w-78.5 h-51.5 shrink-0 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors"
               onClick={() => router.push('/onboarding/pet?from=dashboard')}
             >
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
@@ -1045,7 +1009,7 @@ export default function DashboardPage() {
               <Filter className="w-4 h-4" />
             </button>
           </div>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="space-y-3 max-h-100 overflow-y-auto">
             {appointments.length > 0 ? (
               appointments.map((appt) => (
                 <div
