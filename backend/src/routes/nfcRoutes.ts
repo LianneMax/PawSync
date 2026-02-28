@@ -100,6 +100,17 @@ router.post('/events', nfcAuthMiddleware, (req: Request, res: Response) => {
     return;
   }
 
+  // Keep the readers map in sync so GET /api/nfc/status returns the correct
+  // readerCount — this is what the frontend polls every 5 s to enable the
+  // "Write Tag" button.
+  if (type === 'reader:connect') {
+    const name = (data as { name?: string })?.name ?? 'unknown';
+    nfcService.trackReader(name, true);
+  } else if (type === 'reader:disconnect') {
+    const name = (data as { name?: string })?.name ?? 'unknown';
+    nfcService.trackReader(name, false);
+  }
+
   // Bridge into the in-process EventEmitter → WebSocket pipeline
   nfcService.emit(type, data);
 

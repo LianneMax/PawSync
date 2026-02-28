@@ -149,7 +149,24 @@ class NfcService extends EventEmitter {
   }
 
   isInitialized(): boolean {
+    // In remote mode there is no local worker — the local NFC agent manages
+    // the hardware. Report initialized if at least one reader is tracked.
+    if (process.env.NFC_MODE === 'remote') {
+      return this.readers.size > 0;
+    }
     return this.initialized && this.worker !== null;
+  }
+
+  /**
+   * Update the readers map directly — used in NFC_MODE=remote when the
+   * local agent reports reader connect/disconnect via POST /api/nfc/events.
+   */
+  trackReader(name: string, connected: boolean): void {
+    if (connected) {
+      this.readers.set(name, true);
+    } else {
+      this.readers.delete(name);
+    }
   }
 
   /**
