@@ -43,7 +43,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health check route
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'PawSync API is running' });
 });
 
@@ -106,8 +106,14 @@ const startServer = async () => {
     // Initialize NFC WebSocket (real-time card/reader events)
     initNfcWebSocket(server);
 
-    // Start NFC reader detection (runs in separate process, never blocks server)
-    nfcService.init();
+    // Start NFC reader detection only when running locally with USB hardware.
+    // On Render (cloud), set NFC_MODE=remote — the local agent handles hardware
+    // and sends events via POST /api/nfc/events.
+    if (process.env.NFC_MODE !== 'remote') {
+      nfcService.init();
+    } else {
+      console.log('🔌 NFC_MODE=remote — hardware managed by local NFC agent');
+    }
 
     server.listen(PORT, () => {
       console.log('🚀 ================================');

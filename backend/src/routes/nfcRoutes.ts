@@ -16,11 +16,14 @@ import {
   getTagRequest
 } from '../controllers/petTagRequestController';
 import { authMiddleware } from '../middleware/auth';
+import { nfcAuthMiddleware } from '../middleware/nfcAuth';
+import { NfcCommand } from '../models/NfcCommand';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
 // GET /api/nfc/readers - List all connected NFC readers
-router.get('/readers', (req: Request, res: Response) => {
+router.get('/readers', (_req: Request, res: Response) => {
   const readers = nfcService.getReaders();
   res.json({
     success: true,
@@ -30,7 +33,7 @@ router.get('/readers', (req: Request, res: Response) => {
 });
 
 // GET /api/nfc/status - Check if NFC service is running
-router.get('/status', (req: Request, res: Response) => {
+router.get('/status', (_req: Request, res: Response) => {
   res.json({
     success: true,
     data: {
@@ -75,5 +78,100 @@ router.put('/requests/:requestId/fulfill', authMiddleware, markTagRequestFulfill
 
 // DELETE /api/nfc/requests/:requestId - Cancel a tag request
 router.delete('/requests/:requestId', authMiddleware, cancelTagRequest);
+
+// ===== Local NFC Agent Routes (protected by x-nfc-secret) =====
+
+/**
+ * POST /api/nfc/events
+ * The local agent POSTs every NFC event here.
+ * We bridge it into nfcService so the existing WebSocket pipeline
+ * forwards it to connected browser clients in real-time.
+ */
+router.post('/events', nfcAuthMiddleware, (req: Request, res: Response) => {
+  const { id, type, data, timestamp } = req.body as {
+    id: string;
+    type: string;
+    data: unknown;
+    timestamp: string;
+  };
+
+  if (!type) {
+    res.status(400).json({ success: false, message: 'Missing event type' });
+    return;
+  }
+
+  // Bridge into the in-process EventEmitter → WebSocket pipeline
+  nfcService.emit(type, data);
+
+  console.log(`[NFC/events] type=${type} id=${id} ts=${timestamp}`);
+  res.json({ success: true });
+});
+
+/**
+ * GET /api/nfc/commands/pending
+ * The local agent polls this to pick up write commands queued by the web UI.
+ * Returns at most one command at a time and marks it in_progress atomically.
+ */
+router.get('/commands/pending', nfcAuthMiddleware, async (_req: Request, res: Response) => {
+  try {
+    // findOneAndUpdate with atomicity prevents two agents claiming the same command
+    const command = await NfcCommand.findOneAndUpdate(
+      { status: 'pending' },
+      { $set: { status: 'in_progress' } },
+      { sort: { createdAt: 1 }, new: true }
+    );
+
+    res.json({ success: true, data: command ? [command] : [] });
+  } catch (err: any) {
+    console.error('[NFC/commands/pending]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch pending commands' });
+  }
+});
+
+/**
+ * POST /api/nfc/commands/:id/result
+ * The local agent posts the write result here once the tag is written.
+ * We update the DB record and re-emit the event so WebSocket clients get notified.
+ */
+router.post('/commands/:id/result', nfcAuthMiddleware, async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ success: false, message: 'Invalid command id' });
+    return;
+  }
+
+  const { uid, writeSuccess, message } = req.body as {
+    uid: string;
+    writeSuccess: boolean;
+    message?: string;
+  };
+
+  try {
+    const command = await NfcCommand.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: writeSuccess ? 'done' : 'failed',
+          result: { uid, writeSuccess, message },
+        },
+      },
+      { new: true }
+    );
+
+    if (!command) {
+      res.status(404).json({ success: false, message: 'Command not found' });
+      return;
+    }
+
+    // Notify WebSocket clients about the write outcome
+    nfcService.emit('card:write-complete', { uid, writeSuccess, message, petId: command.petId });
+
+    res.json({ success: true, data: command });
+  } catch (err: any) {
+    console.error('[NFC/commands/:id/result]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to save command result' });
+  }
+});
 
 export default router;

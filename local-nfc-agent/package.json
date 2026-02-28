@@ -1,0 +1,25 @@
+{
+  "name": "pawsync-local-nfc-agent",
+  "version": "1.0.0",
+  "description": "Local NFC hardware agent — runs on admin computer, relays events to Render backend",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node --require dotenv/config src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:pm2": "pm2 start ecosystem.config.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "nfc-pcsc": "^0.8.1",
+    "uuid": "^9.0.0",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/uuid": "^9.0.8",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
