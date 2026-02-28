@@ -21,6 +21,7 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  Check,
 } from 'lucide-react'
 
 interface Owner {
@@ -57,10 +58,79 @@ const VITALS_CONFIG: { key: keyof Vitals; label: string; unit: string; placehold
   { key: 'bodyConditionScore', label: 'Body Condition Score', unit: '/9', placeholder: '1–9' },
   { key: 'dentalScore', label: 'Dental Score', unit: '/4', placeholder: '0–4' },
   { key: 'crt', label: 'CRT', unit: 'sec', placeholder: 'e.g. 2' },
-  { key: 'pregnancy', label: 'Pregnancy', unit: '', placeholder: 'e.g. Not pregnant' },
-  { key: 'xray', label: 'X-Ray Findings', unit: '', placeholder: 'e.g. Normal' },
-  { key: 'vaccinated', label: 'Vaccination Status', unit: '', placeholder: 'e.g. Up to date' },
 ]
+
+// Checkbox vitals (stored as 'Yes'/'No')
+const checkboxVitalKeys = ['xray', 'pregnancy', 'vaccinated'] as const
+const checkboxVitalLabels: Record<string, string> = {
+  xray: 'X-Ray',
+  pregnancy: 'Pregnancy',
+  vaccinated: 'Vaccinated',
+}
+
+// Extra service checkboxes (appended to overallObservation)
+const extraCheckboxKeys = ['ultrasound', 'availedProducts', 'others'] as const
+const extraCheckboxLabels: Record<string, string> = {
+  ultrasound: 'Ultrasound',
+  availedProducts: 'Availed Products',
+  others: 'Others',
+}
+
+type ExtraCheckboxState = Record<typeof extraCheckboxKeys[number], boolean>
+
+function emptyExtraCheckboxes(): ExtraCheckboxState {
+  return { ultrasound: false, availedProducts: false, others: false }
+}
+
+function CheckboxVitalsSection({
+  vitals,
+  onToggle,
+  extraCheckboxes,
+  onExtraToggle,
+}: {
+  vitals: Vitals
+  onToggle: (key: keyof Vitals) => void
+  extraCheckboxes: ExtraCheckboxState
+  onExtraToggle: (key: typeof extraCheckboxKeys[number]) => void
+}) {
+  const allItems = [
+    ...checkboxVitalKeys.map((key) => ({
+      key,
+      label: checkboxVitalLabels[key],
+      checked: vitals[key]?.value === 'Yes',
+      onToggle: () => onToggle(key as keyof Vitals),
+    })),
+    ...extraCheckboxKeys.map((key) => ({
+      key,
+      label: extraCheckboxLabels[key],
+      checked: extraCheckboxes[key],
+      onToggle: () => onExtraToggle(key),
+    })),
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <h2 className="font-semibold text-[#4F4F4F] mb-3">Services & Observations</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+        {allItems.map(({ key, label, checked, onToggle }) => (
+          <label key={key} className="flex items-center gap-2 cursor-pointer group">
+            <div
+              onClick={onToggle}
+              className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                checked
+                  ? 'bg-[#476B6B] border-[#476B6B]'
+                  : 'bg-white border-gray-300 group-hover:border-[#7FA5A3]'
+              }`}
+            >
+              {checked && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+            </div>
+            <span className="text-xs text-[#4F4F4F]">{label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function MedicalRecordFormInner() {
   const router = useRouter()
@@ -90,6 +160,7 @@ function MedicalRecordFormInner() {
 
   // Form state
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
+  const [extraCheckboxes, setExtraCheckboxes] = useState<ExtraCheckboxState>(emptyExtraCheckboxes())
   const [visitSummary, setVisitSummary] = useState('')
   const [vetNotes, setVetNotes] = useState('')
   const [overallObservation, setOverallObservation] = useState('')
@@ -222,6 +293,17 @@ function MedicalRecordFormInner() {
     }))
   }
 
+  const toggleCheckboxVital = (key: keyof Vitals) => {
+    setVitals((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], value: prev[key].value === 'Yes' ? 'No' : 'Yes' },
+    }))
+  }
+
+  const toggleExtraCheckbox = (key: typeof extraCheckboxKeys[number]) => {
+    setExtraCheckboxes((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const handleSave = async () => {
     setError('')
     if (!selectedPet) {
@@ -233,12 +315,16 @@ function MedicalRecordFormInner() {
       return
     }
 
+    const checkedExtras = extraCheckboxKeys.filter((k) => extraCheckboxes[k]).map((k) => extraCheckboxLabels[k])
+    const extraNote = checkedExtras.length > 0 ? `\n\nServices availed: ${checkedExtras.join(', ')}` : ''
+    const finalObservation = overallObservation + extraNote
+
     setSaving(true)
     try {
       if (editId) {
         const res = await updateMedicalRecord(
           editId,
-          { vitals, visitSummary, vetNotes, overallObservation, sharedWithOwner },
+          { vitals, visitSummary, vetNotes, overallObservation: finalObservation, sharedWithOwner },
           token!
         )
         if (res.status === 'SUCCESS') {
@@ -255,7 +341,7 @@ function MedicalRecordFormInner() {
           vitals,
           visitSummary,
           vetNotes,
-          overallObservation,
+          overallObservation: finalObservation,
           sharedWithOwner,
         }
         if (appointmentId) payload.appointmentId = appointmentId
@@ -459,6 +545,14 @@ function MedicalRecordFormInner() {
               </div>
             )}
           </div>
+
+          {/* Services & Observations checkboxes */}
+          <CheckboxVitalsSection
+            vitals={vitals}
+            onToggle={toggleCheckboxVital}
+            extraCheckboxes={extraCheckboxes}
+            onExtraToggle={toggleExtraCheckbox}
+          />
 
           {/* Clinical notes */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
