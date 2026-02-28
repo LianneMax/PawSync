@@ -53,10 +53,4 @@ const NfcCommandSchema = new Schema<INfcCommand>(
 // Compound index for the poller query (status=pending, sorted by creation)
 NfcCommandSchema.index({ status: 1, createdAt: 1 });
 
-// Auto-expire stale pending/in_progress commands after 10 minutes
-NfcCommandSchema.index(
-  { createdAt: 1 },
-  { expireAfterSeconds: 600, partialFilterExpression: { status: { $in: ['pending', 'in_progress'] } } }
-);
-
 export const NfcCommand = mongoose.model<INfcCommand>('NfcCommand', NfcCommandSchema);
