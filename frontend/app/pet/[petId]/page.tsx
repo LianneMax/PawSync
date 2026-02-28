@@ -252,7 +252,7 @@ export default function PetProfilePage() {
   return (
     <div className="min-h-screen bg-white pb-28">
       {/* Hero Section */}
-      <div className="bg-gradient-to-b from-[#7FA5A3] to-[#6b9391] h-64 flex items-center justify-center relative">
+      <div className="bg-linear-to-b from-[#7FA5A3] to-[#6b9391] h-64 flex items-center justify-center relative">
         {pet.photo ? (
           <Image
             src={pet.photo}
@@ -617,7 +617,7 @@ export default function PetProfilePage() {
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <div className="max-w-lg mx-auto">
             <div className="bg-[#2C4A3E] rounded-t-3xl px-5 py-4 flex items-center gap-4 shadow-2xl">
-              <div className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center shrink-0">
                 <User className="w-6 h-6 text-white/80" />
               </div>
               <div className="flex-1 min-w-0">
@@ -629,7 +629,7 @@ export default function PetProfilePage() {
               {owner.contactNumber && (
                 <a
                   href={`tel:${owner.contactNumber}`}
-                  className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[#4A6F5F] transition-colors"
+                  className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center shrink-0 hover:bg-[#4A6F5F] transition-colors"
                 >
                   <Phone className="w-5 h-5 text-white" />
                 </a>
@@ -637,7 +637,7 @@ export default function PetProfilePage() {
               {owner.contactNumber && (
                 <a
                   href={`sms:${owner.contactNumber}`}
-                  className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[#4A6F5F] transition-colors"
+                  className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center shrink-0 hover:bg-[#4A6F5F] transition-colors"
                 >
                   <MessageCircle className="w-5 h-5 text-white" />
                 </a>

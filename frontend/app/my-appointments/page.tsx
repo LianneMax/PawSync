@@ -172,7 +172,7 @@ export default function MyAppointmentsPage() {
         
         toast(
           <div className="flex gap-2">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
               <X className="w-4 h-4 text-red-600" />
             </div>
             <div className="flex-1">
@@ -554,7 +554,7 @@ function ScheduleModal({
         
         toast(
           <div className="flex gap-2">
-            <Calendar className="w-4 h-4 text-gray-600 flex-shrink-0 mt-0.5" />
+            <Calendar className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-medium">New Appointment Scheduled</p>
               <p className="text-sm text-gray-600">A new appointment for {petName} has been scheduled at {branchName} on {appointmentDate}.</p>
@@ -583,7 +583,7 @@ function ScheduleModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-[900px] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-225 p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-8 pb-2">
           <h2 className="text-3xl font-bold text-[#2C3E2D]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
@@ -714,7 +714,7 @@ function ScheduleModal({
           </div>
 
           {/* Right: Time Table */}
-          <div className="w-[260px] shrink-0">
+          <div className="w-65 shrink-0">
             <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col">
               {!selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -726,7 +726,7 @@ function ScheduleModal({
                 </div>
               ) : (
                 <>
-                  <div className="flex-1 overflow-y-auto space-y-0.5 max-h-[340px] pr-1">
+                  <div className="flex-1 overflow-y-auto space-y-0.5 max-h-85 pr-1">
                     {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
                       <div key={hour} className="flex gap-2">
                         {/* Hour label */}

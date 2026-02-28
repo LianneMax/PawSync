@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -150,7 +151,7 @@ export default function VetAppointmentsPage() {
         
         toast(
           <div className="flex gap-2">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
               <X className="w-4 h-4 text-red-600" />
             </div>
             <div className="flex-1">
@@ -268,7 +269,7 @@ export default function VetAppointmentsPage() {
 
               {/* Calendar Grid */}
               <div className="overflow-x-auto">
-                <div className="min-w-[500px]">
+                <div className="min-w-125">
                   {hours.map((hour) => {
                     const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
                     const hourAppts = confirmedForDate.filter((a) => {
@@ -277,7 +278,7 @@ export default function VetAppointmentsPage() {
                     })
 
                     return (
-                      <div key={hour} className="flex border-b border-gray-50 min-h-[72px]">
+                      <div key={hour} className="flex border-b border-gray-50 min-h-18">
                         {/* Time label */}
                         <div className="w-20 shrink-0 px-3 py-2 text-right">
                           <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
@@ -298,7 +299,7 @@ export default function VetAppointmentsPage() {
                                     <div className="flex items-start justify-between">
                                       <div className="flex items-center gap-3">
                                         {appt.petId?.photo ? (
-                                          <img src={appt.petId.photo} alt="" className="w-9 h-9 rounded-full object-cover" />
+                                          <Image src={appt.petId.photo} alt="" width={36} height={36} className="w-9 h-9 rounded-full object-cover" />
                                         ) : (
                                           <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
                                             <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
@@ -445,7 +446,7 @@ export default function VetAppointmentsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {appt.petId?.photo ? (
-                            <img src={appt.petId.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+                            <Image src={appt.petId.photo} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
                               <PawPrint className="w-5 h-5 text-[#5A7C7A]" />

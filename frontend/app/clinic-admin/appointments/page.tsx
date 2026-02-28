@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -331,14 +332,14 @@ function CalendarGridView({
 
       {/* Grid */}
       <div className="overflow-x-auto">
-        <div className="min-w-[700px]">
+        <div className="min-w-175">
           {/* Vet Headers */}
           <div className="flex border-b border-gray-100">
             {/* Time column header */}
             <div className="w-20 shrink-0 px-3 py-3 bg-gray-50" />
             {/* Vet columns */}
             {displayVets.map((vet) => (
-              <div key={vet._id} className="flex-1 min-w-[160px] px-3 py-3 bg-gray-50 border-l border-gray-100 text-center">
+              <div key={vet._id} className="flex-1 min-w-40 px-3 py-3 bg-gray-50 border-l border-gray-100 text-center">
                 <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center mx-auto mb-1.5">
                   <span className="text-sm font-semibold text-[#5A7C7A]">
                     {vet.firstName?.[0]}{vet.lastName?.[0]}
@@ -355,7 +356,7 @@ function CalendarGridView({
             const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
 
             return (
-              <div key={hour} className="flex border-b border-gray-50 min-h-[64px]">
+              <div key={hour} className="flex border-b border-gray-50 min-h-16">
                 {/* Time label */}
                 <div className="w-20 shrink-0 px-3 py-2 text-right">
                   <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
@@ -368,7 +369,7 @@ function CalendarGridView({
                   })
 
                   return (
-                    <div key={vet._id} className="flex-1 min-w-[160px] px-2 py-1.5 border-l border-gray-100">
+                    <div key={vet._id} className="flex-1 min-w-40 px-2 py-1.5 border-l border-gray-100">
                       {vetAppts.map((appt) => {
                         const colors = statusColors[appt.status] || statusColors.pending
                         return (
@@ -489,7 +490,7 @@ export default function ClinicAdminAppointmentsPage() {
       try {
         const res = await authenticatedFetch('/clinics/mine/vets', {}, token || undefined)
         if (res.status === 'SUCCESS' && res.data?.vets) {
-          setAllVets(res.data.vets.map((v: any) => ({
+          setAllVets(res.data.vets.map((v: { vetId?: string; _id?: string; name?: string; email?: string }) => ({
             _id: v.vetId || v._id,
             firstName: v.name?.replace('Dr. ', '').split(' ')[0] || '',
             lastName: v.name?.replace('Dr. ', '').split(' ').slice(1).join(' ') || '',
@@ -505,7 +506,7 @@ export default function ClinicAdminAppointmentsPage() {
   const loadAppointments = useCallback(async () => {
     setLoading(true)
     try {
-      const params: any = {}
+      const params: { filter?: 'upcoming' | 'previous' } = {}
       if (viewMode === 'calendar') {
         params.filter = 'upcoming'
       } else {
@@ -549,7 +550,7 @@ export default function ClinicAdminAppointmentsPage() {
         
         toast(
           <div className="flex gap-2">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
               <X className="w-4 h-4 text-red-600" />
             </div>
             <div className="flex-1">
@@ -669,7 +670,7 @@ export default function ClinicAdminAppointmentsPage() {
               <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {appt.petId?.photo ? (
-                    <img src={appt.petId.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    <Image src={appt.petId.photo} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
                       <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
@@ -992,7 +993,7 @@ function ClinicScheduleModal({
         
         toast(
           <div className="flex gap-2">
-            <Calendar className="w-4 h-4 text-gray-600 flex-shrink-0 mt-0.5" />
+            <Calendar className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-medium">New Appointment Scheduled</p>
               <p className="text-sm text-gray-600">A new appointment for {petName} has been scheduled at {branchName} on {appointmentDate}.</p>
@@ -1021,7 +1022,7 @@ function ClinicScheduleModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-[900px] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-225 p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-8 pb-2">
           <h2 className="text-3xl font-bold text-[#2C3E2D]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
@@ -1183,7 +1184,7 @@ function ClinicScheduleModal({
           </div>
 
           {/* Right: Time Table */}
-          <div className="w-[260px] shrink-0">
+          <div className="w-65 shrink-0">
             <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col">
               {!selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -1195,7 +1196,7 @@ function ClinicScheduleModal({
                 </div>
               ) : (
                 <>
-                  <div className="flex-1 overflow-y-auto space-y-0.5 max-h-[340px] pr-1">
+                  <div className="flex-1 overflow-y-auto space-y-0.5 max-h-85 pr-1">
                     {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
                       <div key={hour} className="flex gap-2">
                         <div className="w-10 shrink-0 text-right pt-1">
@@ -1357,7 +1358,7 @@ function RescheduleModal({
 
   return (
     <Dialog open={!!appointment} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-[520px] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-130 p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
           <h2 className="text-xl font-bold text-[#2C3E2D]">Reschedule Appointment</h2>
@@ -1376,7 +1377,7 @@ function RescheduleModal({
               <p className="text-xs text-gray-400 uppercase font-medium mb-2">Current Appointment</p>
               <div className="flex items-center gap-3">
                 {appointment.petId?.photo ? (
-                  <img src={appointment.petId.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  <Image src={appointment.petId.photo} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
                     <PawPrint className="w-5 h-5 text-[#5A7C7A]" />
@@ -1421,7 +1422,7 @@ function RescheduleModal({
                   <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="overflow-y-auto max-h-[220px] space-y-0.5 pr-1">
+                <div className="overflow-y-auto max-h-55 space-y-0.5 pr-1">
                   {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
                     <div key={hour} className="flex gap-2">
                       <div className="w-10 shrink-0 text-right pt-1">

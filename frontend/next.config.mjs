@@ -8,6 +8,12 @@ const nextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../'),
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'http', hostname: '**' },
+    ],
+  },
   rewrites: async () => {
     return {
       beforeFiles: [
