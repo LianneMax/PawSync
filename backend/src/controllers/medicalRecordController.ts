@@ -502,38 +502,6 @@ export const updateRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Delete a medical record.
- * Accessible by: creating vet OR clinic-admin/branch-admin.
- */
-export const deleteRecord = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
-    }
-
-    const record = await MedicalRecord.findById(req.params.id);
-    if (!record) {
-      return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
-    }
-
-    const isAdmin = isClinicAdminUser(req);
-    if (record.vetId.toString() !== req.user.userId && !isAdmin) {
-      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to delete this record' });
-    }
-
-    await record.deleteOne();
-
-    return res.status(200).json({
-      status: 'SUCCESS',
-      message: 'Medical record deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete record error:', error);
-    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the record' });
-  }
-};
-
-/**
  * Toggle sharing a medical record with the pet owner.
  * Accessible by: creating vet OR clinic-admin/branch-admin.
  *

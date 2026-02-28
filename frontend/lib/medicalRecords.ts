@@ -204,13 +204,6 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
 };
 
 /**
- * Delete a medical record
- */
-export const deleteMedicalRecord = async (id: string, token?: string): Promise<{ status: string; message: string }> => {
-  return authenticatedFetch(`/medical-records/${id}`, { method: 'DELETE' }, token);
-};
-
-/**
  * Toggle sharing a record with the pet owner
  */
 export const toggleShareRecord = async (id: string, shared: boolean, token?: string): Promise<{ status: string; message?: string; data?: { sharedWithOwner: boolean } }> => {

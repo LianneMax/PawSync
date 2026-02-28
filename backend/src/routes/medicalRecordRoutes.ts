@@ -9,7 +9,6 @@ import {
   getRecordByAppointment,
   getVetMedicalRecords,
   updateRecord,
-  deleteRecord,
   toggleShareRecord,
   getRecordImage
 } from '../controllers/medicalRecordController';
@@ -70,12 +69,6 @@ router.get('/:id', authMiddleware, getRecordById);
  * Update a medical record
  */
 router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateRecord);
-
-/**
- * DELETE /api/medical-records/:id
- * Delete a medical record
- */
-router.delete('/:id', authMiddleware, vetOrClinicAdminOnly, deleteRecord);
 
 /**
  * PATCH /api/medical-records/:id/share

@@ -11,7 +11,6 @@ import {
   getHistoricalRecords,
   getRecordById,
   updateMedicalRecord,
-  deleteMedicalRecord,
   toggleShareRecord,
   type MedicalRecord,
   type Vitals,
@@ -25,7 +24,6 @@ import {
   PawPrint,
   Calendar,
   Eye,
-  Trash2,
   Upload,
   X,
   FileText,
@@ -264,22 +262,6 @@ export default function PatientRecordsPage() {
         if (selectedPatient) loadRecords(selectedPatient._id)
       } else {
         toast.error(res.message || 'Failed to update sharing')
-      }
-    } catch {
-      toast.error('An error occurred')
-    }
-  }
-
-  // Delete record
-  const handleDeleteRecord = async (recordId: string) => {
-    if (!token) return
-    try {
-      const res = await deleteMedicalRecord(recordId, token)
-      if (res.status === 'SUCCESS') {
-        toast.success('Record deleted')
-        if (selectedPatient) loadRecords(selectedPatient._id)
-      } else {
-        toast.error(res.message || 'Failed to delete')
       }
     } catch {
       toast.error('An error occurred')
@@ -566,13 +548,6 @@ export default function PatientRecordsPage() {
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteRecord(currentRecord._id)}
-                          className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                          title="Delete record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -675,13 +650,6 @@ export default function PatientRecordsPage() {
                               title="Edit record"
                             >
                               <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteRecord(record._id)}
-                              className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                              title="Delete record"
-                            >
-                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
