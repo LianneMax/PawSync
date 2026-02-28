@@ -569,12 +569,7 @@ export default function ClinicNfcManagementPage() {
                         setSelectedRequest(request)
                         handleStartWriteFromRequest(request)
                       }}
-                      disabled={!readerAvailable}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 whitespace-nowrap ${
-                        readerAvailable
-                          ? 'bg-[#7FA5A3] text-white hover:bg-[#6B8E8C]'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
+                      className="px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 whitespace-nowrap bg-[#7FA5A3] text-white hover:bg-[#6B8E8C]"
                     >
                       <Nfc className="w-4 h-4" />
                       Write Tag
@@ -806,12 +801,7 @@ export default function ClinicNfcManagementPage() {
                       {!hasTag && (
                         <button
                           onClick={() => handleStartWrite(pet)}
-                          disabled={!readerAvailable}
-                          className={`px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                            readerAvailable
-                              ? 'bg-[#7FA5A3] text-white hover:bg-[#6B8E8C]'
-                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          }`}
+                          className="px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 bg-[#7FA5A3] text-white hover:bg-[#6B8E8C]"
                         >
                           <Nfc className="w-4 h-4" />
                           Write Tag
