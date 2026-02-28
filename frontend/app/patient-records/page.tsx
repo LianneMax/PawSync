@@ -87,7 +87,8 @@ function emptyVitals(): Vitals {
   }
 }
 
-const vitalLabels: Record<keyof Vitals, { label: string; unit: string; placeholder: string }> = {
+// Text-input vitals
+const vitalLabels: Record<string, { label: string; unit: string; placeholder: string }> = {
   weight: { label: 'Weight', unit: 'kg', placeholder: 'e.g. 12.5' },
   temperature: { label: 'Temperature', unit: '\u00B0C', placeholder: 'e.g. 38.5' },
   pulseRate: { label: 'Pulse Rate', unit: 'bpm', placeholder: 'e.g. 120' },
@@ -95,9 +96,28 @@ const vitalLabels: Record<keyof Vitals, { label: string; unit: string; placehold
   bodyConditionScore: { label: 'Body Condition Score', unit: '/9', placeholder: 'e.g. 5' },
   dentalScore: { label: 'Dental Score', unit: '/4', placeholder: 'e.g. 2' },
   crt: { label: 'CRT', unit: 'sec', placeholder: 'e.g. 2' },
-  pregnancy: { label: 'Pregnancy', unit: '', placeholder: 'e.g. No / Yes / N/A' },
-  xray: { label: 'X-Ray', unit: '', placeholder: 'e.g. Normal / Abnormal' },
-  vaccinated: { label: 'Vaccinated', unit: '', placeholder: 'e.g. Yes / No / Up to date' },
+}
+
+// Checkbox vitals (stored as 'Yes'/'No' in value field)
+const checkboxVitalKeys = ['xray', 'pregnancy', 'vaccinated'] as const
+const checkboxVitalLabels: Record<string, string> = {
+  xray: 'X-Ray',
+  pregnancy: 'Pregnancy',
+  vaccinated: 'Vaccinated',
+}
+
+// Extra checkbox fields (stored in a separate state, not in vitals)
+const extraCheckboxKeys = ['ultrasound', 'availedProducts', 'others'] as const
+const extraCheckboxLabels: Record<string, string> = {
+  ultrasound: 'Ultrasound',
+  availedProducts: 'Availed Products',
+  others: 'Others',
+}
+
+type ExtraCheckboxState = Record<typeof extraCheckboxKeys[number], boolean>
+
+function emptyExtraCheckboxes(): ExtraCheckboxState {
+  return { ultrasound: false, availedProducts: false, others: false }
 }
 
 // ==================== MAIN PAGE ====================
@@ -715,6 +735,63 @@ export default function PatientRecordsPage() {
   )
 }
 
+// ==================== CHECKBOX VITALS SECTION ====================
+
+function CheckboxVitalsSection({
+  vitals,
+  onToggle,
+  extraCheckboxes,
+  onExtraToggle,
+}: {
+  vitals: Vitals
+  onToggle: (key: keyof Vitals) => void
+  extraCheckboxes: ExtraCheckboxState
+  onExtraToggle: (key: typeof extraCheckboxKeys[number]) => void
+}) {
+  const allCheckboxItems = [
+    ...checkboxVitalKeys.map((key) => ({
+      key,
+      label: checkboxVitalLabels[key],
+      checked: vitals[key]?.value === 'Yes',
+      onToggle: () => onToggle(key as keyof Vitals),
+    })),
+    ...extraCheckboxKeys.map((key) => ({
+      key,
+      label: extraCheckboxLabels[key],
+      checked: extraCheckboxes[key],
+      onToggle: () => onExtraToggle(key),
+    })),
+  ]
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Services & Observations</h3>
+      <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+          {allCheckboxItems.map(({ key, label, checked, onToggle }) => (
+            <label
+              key={key}
+              className="flex items-center gap-2 cursor-pointer group"
+            >
+              <div
+                onClick={onToggle}
+                className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                  checked
+                    ? 'bg-[#476B6B] border-[#476B6B]'
+                    : 'bg-white border-gray-300 group-hover:border-[#7FA5A3]'
+                }`}
+              >
+                {checked && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+              </div>
+              <span className="text-xs text-[#4F4F4F]">{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== CREATE RECORD MODAL ====================
 
 function CreateRecordModal({
@@ -730,6 +807,7 @@ function CreateRecordModal({
 }) {
   const { token } = useAuthStore()
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
+  const [extraCheckboxes, setExtraCheckboxes] = useState<ExtraCheckboxState>(emptyExtraCheckboxes())
   const [overallObservation, setOverallObservation] = useState('')
   const [images, setImages] = useState<{ data: string; contentType: string; description: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -739,6 +817,7 @@ function CreateRecordModal({
   useEffect(() => {
     if (open) {
       setVitals(emptyVitals())
+      setExtraCheckboxes(emptyExtraCheckboxes())
       setOverallObservation('')
       setImages([])
     }
@@ -749,6 +828,17 @@ function CreateRecordModal({
       ...prev,
       [key]: { ...prev[key], [field]: val },
     }))
+  }
+
+  const toggleCheckboxVital = (key: keyof Vitals) => {
+    setVitals((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], value: prev[key].value === 'Yes' ? 'No' : 'Yes' },
+    }))
+  }
+
+  const toggleExtraCheckbox = (key: typeof extraCheckboxKeys[number]) => {
+    setExtraCheckboxes((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -777,6 +867,11 @@ function CreateRecordModal({
     if (!token) return
     setSubmitting(true)
     try {
+      // Build observation note with extra checkboxes
+      const checkedExtras = extraCheckboxKeys.filter((k) => extraCheckboxes[k]).map((k) => extraCheckboxLabels[k])
+      const extraNote = checkedExtras.length > 0 ? `\n\nServices availed: ${checkedExtras.join(', ')}` : ''
+      const finalObservation = overallObservation + extraNote
+
       const res = await createMedicalRecord(
         {
           petId: patient._id,
@@ -784,7 +879,7 @@ function CreateRecordModal({
           clinicBranchId: patient.clinicBranchId,
           vitals,
           images: images.length > 0 ? images : undefined,
-          overallObservation: overallObservation || undefined,
+          overallObservation: finalObservation || undefined,
         },
         token
       )
@@ -842,6 +937,14 @@ function CreateRecordModal({
               })}
             </div>
           </div>
+
+          {/* Checkbox Vitals + Extra Services */}
+          <CheckboxVitalsSection
+            vitals={vitals}
+            onToggle={toggleCheckboxVital}
+            extraCheckboxes={extraCheckboxes}
+            onExtraToggle={toggleExtraCheckbox}
+          />
 
           {/* Overall Observation */}
           <div>
@@ -930,6 +1033,7 @@ function EditRecordModal({
 }) {
   const { token } = useAuthStore()
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
+  const [extraCheckboxes, setExtraCheckboxes] = useState<ExtraCheckboxState>(emptyExtraCheckboxes())
   const [overallObservation, setOverallObservation] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -938,6 +1042,7 @@ function EditRecordModal({
     if (record) {
       setVitals(record.vitals || emptyVitals())
       setOverallObservation(record.overallObservation || '')
+      setExtraCheckboxes(emptyExtraCheckboxes())
     }
   }, [record])
 
@@ -948,13 +1053,28 @@ function EditRecordModal({
     }))
   }
 
+  const toggleCheckboxVital = (key: keyof Vitals) => {
+    setVitals((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], value: prev[key].value === 'Yes' ? 'No' : 'Yes' },
+    }))
+  }
+
+  const toggleExtraCheckbox = (key: typeof extraCheckboxKeys[number]) => {
+    setExtraCheckboxes((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const handleSave = async () => {
     if (!token || !record) return
     setSubmitting(true)
     try {
+      const checkedExtras = extraCheckboxKeys.filter((k) => extraCheckboxes[k]).map((k) => extraCheckboxLabels[k])
+      const extraNote = checkedExtras.length > 0 ? `\n\nServices availed: ${checkedExtras.join(', ')}` : ''
+      const finalObservation = overallObservation + extraNote
+
       const res = await updateMedicalRecord(
         record._id,
-        { vitals, overallObservation },
+        { vitals, overallObservation: finalObservation },
         token
       )
       if (res.status === 'SUCCESS') {
@@ -1017,6 +1137,14 @@ function EditRecordModal({
                   })}
                 </div>
               </div>
+
+              {/* Checkbox Vitals + Extra Services */}
+              <CheckboxVitalsSection
+                vitals={vitals}
+                onToggle={toggleCheckboxVital}
+                extraCheckboxes={extraCheckboxes}
+                onExtraToggle={toggleExtraCheckbox}
+              />
 
               {/* Overall Observation */}
               <div>
@@ -1220,6 +1348,26 @@ function ViewRecordModal({
                                 <span className="text-sm font-semibold text-[#2C3E2D]">
                                   {entry.value}
                                   {unit && <span className="text-xs font-normal text-gray-400 ml-1">{unit}</span>}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 text-xs text-gray-500">{entry?.notes || '—'}</td>
+                          </tr>
+                        )
+                      })}
+                      {/* Checkbox vitals in view */}
+                      {checkboxVitalKeys.map((key) => {
+                        const label = checkboxVitalLabels[key]
+                        const entry = record.vitals?.[key]
+                        return (
+                          <tr key={key} className="border-b border-gray-50 last:border-0">
+                            <td className="py-2 text-sm text-[#4F4F4F] font-medium">{label}</td>
+                            <td className="py-2">
+                              {entry?.value ? (
+                                <span className={`text-sm font-semibold ${entry.value === 'Yes' ? 'text-green-600' : 'text-gray-400'}`}>
+                                  {entry.value}
                                 </span>
                               ) : (
                                 <span className="text-sm text-gray-300">—</span>
