@@ -95,11 +95,12 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const petProfileUrl = `${baseUrl}/pet/${petId}`;
 
-    // ── Remote mode (Render cloud) ───────────────────────────────────────────
-    // The local NFC agent owns the hardware. Queue a write command in MongoDB;
-    // the agent polls every 3 s, executes the write, then POSTs the result back
-    // to /api/nfc/commands/:id/result which emits a WebSocket event to the UI.
-    if (isCloud) {
+    // ── Remote / agent mode ───────────────────────────────────────────────────
+    // Use the async queue whenever:
+    //   a) running on Render/cloud (RENDER=true or NFC_MODE=remote), OR
+    //   b) no local worker process is running (e.g. local agent owns the reader)
+    // This makes write work correctly regardless of where the backend is hosted.
+    if (isCloud || !nfcService.isWorkerRunning()) {
       const command = await NfcCommand.create({ petId: pet._id, url: petProfileUrl });
       console.log(`[API] NFC write queued — command ${command._id} for pet ${pet.name}`);
 

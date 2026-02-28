@@ -170,9 +170,14 @@ class NfcService extends EventEmitter {
     }
   }
 
+  /** True only when a live child worker process is attached. */
+  isWorkerRunning(): boolean {
+    return this.worker !== null;
+  }
+
   /**
    * Check if a write operation is currently in progress.
-   * Use this to prevent starting concurrent writes from the API layer.
+   * Use this to prevent concurrent writes from the API layer.
    */
   isWriting(): boolean {
     return this.writeLocked;
