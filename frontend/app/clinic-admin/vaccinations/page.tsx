@@ -32,7 +32,7 @@ export default function ClinicAdminVaccinationsPage() {
       const params = new URLSearchParams()
       if (activeTab !== 'all') params.set('status', activeTab)
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/vaccinations/clinic/records?${params.toString()}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/vaccinations/clinic/records?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       const data = await res.json()
@@ -58,6 +58,11 @@ export default function ClinicAdminVaccinationsPage() {
   function formatDate(d: string | null | undefined) {
     if (!d) return '—'
     return new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  function getPetPhoto(v: Vaccination) {
+    const pet = v.petId as any
+    return typeof pet === 'object' ? pet?.photo ?? null : null
   }
 
   function getPetInitial(v: Vaccination) {
@@ -159,9 +164,13 @@ export default function ClinicAdminVaccinationsPage() {
                   <div className="md:hidden p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {getPetInitial(v)}
-                        </div>
+                        {getPetPhoto(v) ? (
+                          <img src={getPetPhoto(v)!} alt={getPetName(v)} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            {getPetInitial(v)}
+                          </div>
+                        )}
                         <div>
                           <p className="font-medium text-[#4F4F4F] text-sm">{getPetName(v)}</p>
                           <p className="text-xs text-gray-500">{getVetName(v)}</p>

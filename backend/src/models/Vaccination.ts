@@ -26,6 +26,7 @@ export interface IVaccination extends Document {
   declinedAt: Date | null;
   // Notes
   notes: string;
+  verifyToken: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -122,6 +123,12 @@ const VaccinationSchema = new Schema(
     notes: {
       type: String,
       default: '',
+    },
+    verifyToken: {
+      type: String,
+      default: null,
+      index: true,
+      sparse: true,
     },
   },
   {

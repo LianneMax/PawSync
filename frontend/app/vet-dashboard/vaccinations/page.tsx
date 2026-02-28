@@ -51,6 +51,13 @@ function getPetSpecies(vax: Vaccination): string {
   return ''
 }
 
+function getPetPhoto(vax: Vaccination): string | null {
+  if (typeof vax.petId === 'object' && vax.petId !== null) {
+    return (vax.petId as any).photo || null
+  }
+  return null
+}
+
 export default function VetVaccinationsPage() {
   const router = useRouter()
   const { token } = useAuthStore()
@@ -168,11 +175,15 @@ export default function VetVaccinationsPage() {
                 className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#7FA5A3]/40 hover:bg-[#F8F6F2] transition-all text-left"
               >
                 {/* Pet avatar */}
-                <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
-                  <span className="text-[#476B6B] font-bold text-sm">
-                    {getPetName(vax).charAt(0).toUpperCase()}
-                  </span>
-                </div>
+                {getPetPhoto(vax) ? (
+                  <img src={getPetPhoto(vax)!} alt={getPetName(vax)} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
+                    <span className="text-[#476B6B] font-bold text-sm">
+                      {getPetName(vax).charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
 
                 {/* Main info */}
                 <div className="flex-1 min-w-0">

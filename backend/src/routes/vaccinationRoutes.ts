@@ -10,6 +10,7 @@ import {
   getClinicVaccinations,
   searchOwners,
   getPetsForOwner,
+  verifyVaccinationByToken,
 } from '../controllers/vaccinationController';
 import {
   authMiddleware,
@@ -41,6 +42,10 @@ router.get('/pet/:petId/public', getPublicVaccinationsByPet);
 // Authenticated pet vaccinations
 // GET /api/vaccinations/pet/:petId
 router.get('/pet/:petId', authMiddleware, getVaccinationsByPet);
+
+// Public verification by token (for QR codes)
+// GET /api/vaccinations/verify/:token
+router.get('/verify/:token', verifyVaccinationByToken);
 
 // Single record
 // GET /api/vaccinations/:id

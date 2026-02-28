@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import Vaccination, { computeVaccinationStatus } from '../models/Vaccination';
 import VaccineType from '../models/VaccineType';
 import Pet from '../models/Pet';
@@ -114,6 +115,14 @@ export const createVaccination = async (req: Request, res: Response) => {
       appointmentId: appointmentId || null,
       medicalRecordId: medicalRecordId || null,
     });
+
+    // Generate a unique verify token
+    vaccination.verifyToken = crypto
+      .createHmac('sha256', process.env.JWT_SECRET || 'pawsync-secret')
+      .update(vaccination._id.toString() + vaccination.createdAt.toString())
+      .digest('hex')
+      .substring(0, 24);
+    await vaccination.save();
 
     const populated = await Vaccination.findById(vaccination._id)
       .populate('vaccineTypeId', 'name species validityDays requiresBooster')
@@ -265,7 +274,7 @@ export const getVaccinationById = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
-      .populate('petId', 'name species breed');
+      .populate('petId', 'name species breed photo');
 
     if (!vaccination) {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccination record not found' });
@@ -561,5 +570,33 @@ export const getClinicVaccinations = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get clinic vaccinations error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vaccinations' });
+  }
+};
+
+/**
+ * GET /api/vaccinations/verify/:token
+ * Public — verify a vaccine record by its token (for QR scanning).
+ */
+export const verifyVaccinationByToken = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const vaccination = await Vaccination.findOne({ verifyToken: token })
+      .populate('petId', 'name species breed photo')
+      .populate('vaccineTypeId', 'name validityDays')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name');
+
+    if (!vaccination) {
+      return res.status(404).json({ status: 'ERROR', message: 'Invalid or expired verification token' });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { vaccination },
+    });
+  } catch (error) {
+    console.error('Verify vaccination error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };

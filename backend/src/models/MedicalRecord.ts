@@ -31,6 +31,10 @@ export interface IMedicalRecord extends Document {
   visitSummary: string;
   vetNotes: string;
   overallObservation: string;
+  // SOAP notes
+  subjective: string;   // S - Patient history / owner complaint
+  assessment: string;   // A - Diagnosis / clinical assessment
+  plan: string;         // P - Treatment plan / next steps
   sharedWithOwner: boolean;
   isCurrent: boolean;
   createdAt: Date;
@@ -124,6 +128,18 @@ const MedicalRecordSchema = new Schema(
       default: ''
     },
     overallObservation: {
+      type: String,
+      default: ''
+    },
+    subjective: {
+      type: String,
+      default: ''
+    },
+    assessment: {
+      type: String,
+      default: ''
+    },
+    plan: {
       type: String,
       default: ''
     },

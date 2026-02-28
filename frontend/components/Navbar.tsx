@@ -22,6 +22,7 @@ import {
   LogOut,
   User,
   Briefcase,
+  BarChart3,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -74,6 +75,9 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Patients', href: '/clinic-admin/patients', icon: <PawPrint className="w-5 h-5" />, badge: '1,247' },
     { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" />, badge: '12' },
     { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
+    { label: 'Vaccinations', href: '/clinic-admin/vaccinations', icon: <Syringe className="w-5 h-5" /> },
+    { label: 'Vaccine Types', href: '/clinic-admin/vaccine-types', icon: <Syringe className="w-5 h-5" /> },
+    { label: 'Analytics', href: '/clinic-admin/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
     { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" />, badge: '2' },

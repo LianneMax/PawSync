@@ -377,9 +377,13 @@ export default function NewVaccinationPage() {
                               : 'border-gray-100 bg-[#F8F6F2] hover:border-[#7FA5A3]/40'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
-                            <span className="text-[#476B6B] font-bold text-xs">{pet.name.charAt(0)}</span>
-                          </div>
+                          {pet.photo ? (
+                            <img src={pet.photo} alt={pet.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
+                              <span className="text-[#476B6B] font-bold text-xs">{pet.name.charAt(0)}</span>
+                            </div>
+                          )}
                           <div>
                             <p className="text-sm font-semibold text-[#4F4F4F]">{pet.name}</p>
                             <p className="text-xs text-gray-400 capitalize">{pet.species} · {pet.breed}</p>
@@ -404,14 +408,18 @@ export default function NewVaccinationPage() {
                   <Loader className="w-5 h-5 text-gray-400 animate-spin" />
                 ) : selectedPet ? (
                   <>
-                    <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
-                      <span className="text-[#476B6B] font-bold text-sm">{selectedPet.name.charAt(0)}</span>
-                    </div>
+                    {selectedPet.photo ? (
+                      <img src={selectedPet.photo} alt={selectedPet.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
+                        <span className="text-[#476B6B] font-bold text-sm">{selectedPet.name.charAt(0)}</span>
+                      </div>
+                    )}
                     <div className="flex-1">
                       <p className="font-semibold text-[#4F4F4F] text-sm">{selectedPet.name}</p>
                       <p className="text-xs text-gray-400 capitalize">{selectedPet.species} · {selectedPet.breed}</p>
                     </div>
-                    {!petIdParam && (
+                    {!petIdParam && !editId && (
                       <button
                         type="button"
                         onClick={() => { setSelectedPet(null); setSelectedOwner(null); setOwnerSearch('') }}

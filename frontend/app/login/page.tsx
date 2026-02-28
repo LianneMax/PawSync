@@ -573,6 +573,14 @@ export default function LoginPage() {
                   Sign up here
                 </Link>
               </p>
+
+              {/* Clinic Login Link */}
+              <p className="text-center mt-3 text-xs text-gray-400">
+                Are you a clinic or vet?{' '}
+                <Link href="/clinic-login" className="text-gray-400 hover:text-[#5A7C7A] underline underline-offset-2 transition-colors">
+                  Clinic login
+                </Link>
+              </p>
             </form>
           </div>
         </div>

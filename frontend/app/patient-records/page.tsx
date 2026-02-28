@@ -310,8 +310,10 @@ export default function PatientRecordsPage() {
                     <ClipboardList className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-green-600">{patients.length > 0 ? 'Active' : '0'}</p>
-                    <p className="text-xs text-gray-500">Patient Status</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {new Set(patients.map((p) => p.ownerId).filter(Boolean)).size}
+                    </p>
+                    <p className="text-xs text-gray-500">Unique Owners</p>
                   </div>
                 </div>
               </div>

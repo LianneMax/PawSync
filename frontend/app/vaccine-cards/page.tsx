@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet } from '@/lib/pets'
 import { getVaccinationsByPet, type Vaccination } from '@/lib/medicalRecords'
-import { CheckCircle2, XCircle, ShieldCheck, X, PawPrint } from 'lucide-react'
+import { CheckCircle2, XCircle, ShieldCheck, X, PawPrint, Printer } from 'lucide-react'
 
 function formatMonthYear(dateStr: string): string {
   const d = new Date(dateStr)
@@ -152,9 +152,18 @@ export default function VaccineCardsPage() {
                       </div>
                       <span className="text-white font-black text-lg tracking-wide">PawSync</span>
                     </div>
-                    <span className="text-white/90 font-bold text-sm tracking-wider uppercase">
-                      Vaccination Card
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/90 font-bold text-sm tracking-wider uppercase">
+                        Vaccination Card
+                      </span>
+                      <button
+                        onClick={() => window.print()}
+                        title="Print vaccine card"
+                        className="w-7 h-7 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors print:hidden"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Pet Info */}
