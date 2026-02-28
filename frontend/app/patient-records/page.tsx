@@ -43,6 +43,9 @@ import {
   ChevronUp,
   AlertCircle,
   EyeOff,
+  Printer,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -151,8 +154,8 @@ export default function PatientRecordsPage() {
   const [editLoading, setEditLoading] = useState(false)
 
   // View modal
-  const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
-  const [viewLoading, setViewLoading] = useState(false)
+  const [viewOpen, setViewOpen] = useState(false)
+  const [viewInitialIndex, setViewInitialIndex] = useState(0)
 
   // Load patients from vet's appointments
   const loadPatients = useCallback(async () => {
@@ -227,22 +230,17 @@ export default function PatientRecordsPage() {
     setHistoricalRecords([])
   }
 
-  // View full record
-  const handleViewRecord = async (recordId: string) => {
-    if (!token) return
-    setViewLoading(true)
-    try {
-      const res = await getRecordById(recordId, token)
-      if (res.status === 'SUCCESS' && res.data?.record) {
-        setViewRecord(res.data.record)
-      } else {
-        toast.error('Failed to load record')
-      }
-    } catch {
-      toast.error('An error occurred')
-    } finally {
-      setViewLoading(false)
-    }
+  // Build ordered list of all record IDs for the selected patient
+  const allRecordIds = [
+    ...(currentRecord ? [currentRecord._id] : []),
+    ...historicalRecords.map((r) => r._id),
+  ]
+
+  // View full record — open modal at the right index
+  const handleViewRecord = (recordId: string) => {
+    const idx = allRecordIds.indexOf(recordId)
+    setViewInitialIndex(idx >= 0 ? idx : 0)
+    setViewOpen(true)
   }
 
   // Edit record - load full record data then open edit modal
@@ -702,12 +700,13 @@ export default function PatientRecordsPage() {
 
       {/* View Record Modal */}
       <ViewRecordModal
-        record={viewRecord}
-        loading={viewLoading}
-        onClose={() => setViewRecord(null)}
+        open={viewOpen}
+        recordIds={allRecordIds}
+        initialIndex={viewInitialIndex}
+        token={token || ''}
+        onClose={() => setViewOpen(false)}
         onToggleShare={(id, shared) => {
           handleToggleShare(id, shared)
-          setViewRecord(null)
         }}
       />
     </DashboardLayout>
@@ -1422,23 +1421,180 @@ function calculateAge(dob: string) {
 }
 
 function ViewRecordModal({
-  record,
-  loading,
+  open,
+  recordIds,
+  initialIndex,
+  token,
   onClose,
   onToggleShare,
 }: {
-  record: MedicalRecord | null
-  loading: boolean
+  open: boolean
+  recordIds: string[]
+  initialIndex: number
+  token: string
   onClose: () => void
   onToggleShare: (id: string, currentlyShared: boolean) => void
 }) {
+  const [index, setIndex] = useState(initialIndex)
+  const [record, setRecord] = useState<MedicalRecord | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // Reset index when modal opens
+  useEffect(() => {
+    if (open) setIndex(initialIndex)
+  }, [open, initialIndex])
+
+  // Load record whenever index changes
+  useEffect(() => {
+    if (!open || !recordIds[index] || !token) return
+    setLoading(true)
+    setRecord(null)
+    getRecordById(recordIds[index], token).then((res) => {
+      if (res.status === 'SUCCESS' && res.data?.record) setRecord(res.data.record)
+    }).finally(() => setLoading(false))
+  }, [open, index, recordIds, token])
+
+  const total = recordIds.length
   const pet = record?.petId
   const vet = record?.vetId
   const clinic = record?.clinicId
   const branch = record?.clinicBranchId
 
+  const handlePrint = () => {
+    if (!record) return
+    const petName = pet?.name || 'Unknown'
+    const vetName = `Dr. ${vet?.firstName || ''} ${vet?.lastName || ''}`.trim()
+    const clinicName = [clinic?.name, branch?.name].filter(Boolean).join(' — ')
+    const visitDate = formatFullDate(record.createdAt)
+
+    const vitalRows = (Object.keys(vitalLabels) as (keyof Vitals)[]).map((key) => {
+      const { label, unit } = vitalLabels[key]
+      const entry = record.vitals?.[key]
+      const val = entry?.value || entry?.value === 0 ? `${entry.value}${unit ? ' ' + unit : ''}` : '—'
+      return `<tr><td>${label}</td><td><strong>${val}</strong></td><td>${entry?.notes || '—'}</td></tr>`
+    }).join('')
+
+    const checkboxRows = checkboxVitalKeys.map((key) => {
+      const label = checkboxVitalLabels[key]
+      const entry = record.vitals?.[key]
+      const val = entry?.value || '—'
+      return `<tr><td>${label}</td><td><strong>${val}</strong></td><td>${entry?.notes || '—'}</td></tr>`
+    }).join('')
+
+    const medRows = (record.medications || []).map((m: Medication) =>
+      `<tr><td>${m.name||'—'}</td><td>${m.dosage||'—'}</td><td>${m.route||'—'}</td><td>${m.frequency||'—'}</td><td>${m.duration||'—'}</td><td>${m.status||'—'}</td></tr>`
+    ).join('')
+
+    const testCards = (record.diagnosticTests || []).map((t: DiagnosticTest) =>
+      `<div class="test-card"><strong>${t.name||t.testType}</strong> <span class="sub">${(t.testType||'').replace('_',' ')}</span>${t.date ? `<br><span class="sub">${new Date(t.date).toLocaleDateString()}</span>` : ''}${t.result ? `<p>${t.result}</p>` : ''}${t.normalRange ? `<span class="sub">Normal: ${t.normalRange}</span>` : ''}</div>`
+    ).join('')
+
+    const careRows = (record.preventiveCare || []).map((c: PreventiveCare) =>
+      `<tr><td>${(c.careType||'—').replace('_',' ')}</td><td>${c.product||'—'}</td><td>${c.dateAdministered ? new Date(c.dateAdministered).toLocaleDateString() : '—'}</td><td>${c.nextDueDate ? new Date(c.nextDueDate).toLocaleDateString() : '—'}</td></tr>`
+    ).join('')
+
+    const soapSection = (record.subjective || record.assessment || record.plan) ? `
+      <div class="section">
+        <div class="section-header">SOAP NOTES</div>
+        <div class="section-body">
+          ${record.subjective ? `<p class="soap-label">S — Subjective</p><p>${record.subjective}</p>` : ''}
+          ${record.assessment ? `<p class="soap-label">A — Assessment</p><p>${record.assessment}</p>` : ''}
+          ${record.plan ? `<p class="soap-label">P — Plan</p><p>${record.plan}</p>` : ''}
+        </div>
+      </div>` : ''
+
+    const win = window.open('', '_blank', 'width=900,height=700')
+    if (!win) return
+    win.document.write(`<!DOCTYPE html><html><head><title>Medical Record — ${petName}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#2c2c2c;background:#fff;padding:0}
+      .header{background:#476B6B;color:#fff;padding:24px 32px;display:flex;justify-content:space-between;align-items:flex-start}
+      .header h1{font-size:18px;font-weight:700;letter-spacing:.05em}
+      .header .sub{opacity:.7;font-size:12px;margin-top:4px}
+      .header .id{text-align:right;font-size:11px;opacity:.7}
+      .header .id span{display:block;font-family:monospace;font-size:14px;opacity:.9}
+      .visit-nav{background:#f0f7f7;border-bottom:1px solid #dde8e8;padding:8px 32px;font-size:12px;color:#476B6B;font-weight:600}
+      .content{padding:24px 32px}
+      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+      .section{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:16px}
+      .section-header{background:#f9fafb;padding:8px 16px;font-size:10px;font-weight:700;color:#476B6B;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #e5e7eb}
+      .section-body{padding:12px 16px}
+      .pet-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+      .avatar{width:48px;height:48px;border-radius:50%;background:#d1e3e3;display:flex;align-items:center;justify-content:center;font-size:20px}
+      .pet-name{font-size:16px;font-weight:700}
+      .grid-info{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+      .info-label{font-size:9px;text-transform:uppercase;color:#9ca3af;margin-bottom:1px}
+      .info-val{font-size:12px;color:#374151}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th{text-align:left;font-size:9px;text-transform:uppercase;color:#9ca3af;font-weight:600;padding:0 8px 6px 0;border-bottom:1px solid #f3f4f6}
+      td{padding:6px 8px 6px 0;border-bottom:1px solid #f9fafb;vertical-align:top}
+      tr:last-child td{border-bottom:none}
+      .soap-label{font-size:10px;font-weight:700;color:#476B6B;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 3px}
+      .soap-label:first-child{margin-top:0}
+      p{margin:4px 0;line-height:1.5}
+      .test-card{background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:8px}
+      .test-card:last-child{margin-bottom:0}
+      .sub{font-size:10px;color:#9ca3af}
+      .footer{border-top:2px solid #e5e7eb;padding:16px 32px;display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px}
+      .sig-line{width:180px;border-bottom:1px solid #9ca3af;margin-bottom:4px}
+      .sig-label{font-size:10px;color:#9ca3af}
+      .allergy-tag{display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#b45309;border-radius:4px;padding:1px 6px;font-size:11px;margin:2px}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    </style></head><body>
+    <div class="header">
+      <div><h1>VETERINARY MEDICAL RECORD</h1><div class="sub">${clinicName}</div></div>
+      <div class="id">Record ID<span>${record._id.slice(-8).toUpperCase()}</span></div>
+    </div>
+    ${total > 1 ? `<div class="visit-nav">Visit ${index + 1} of ${total}</div>` : ''}
+    <div class="content">
+      <div class="grid2">
+        <div class="section">
+          <div class="section-header">Patient Information</div>
+          <div class="section-body">
+            <div class="pet-header"><div class="avatar">🐾</div><div class="pet-name">${petName}</div></div>
+            <div class="grid-info">
+              <div><div class="info-label">Species</div><div class="info-val">${pet?.species||'—'}</div></div>
+              <div><div class="info-label">Breed</div><div class="info-val">${pet?.breed||'—'}</div></div>
+              <div><div class="info-label">Sex</div><div class="info-val">${pet?.sex||'—'}</div></div>
+              <div><div class="info-label">Age</div><div class="info-val">${pet?.dateOfBirth ? calculateAge(pet.dateOfBirth) : '—'}</div></div>
+              ${pet?.microchipNumber ? `<div class="col-span-2"><div class="info-label">Microchip</div><div class="info-val" style="font-family:monospace">${pet.microchipNumber}</div></div>` : ''}
+            </div>
+            ${pet?.allergies?.length ? `<div style="margin-top:8px"><div class="info-label" style="margin-bottom:4px">⚠ Allergies</div>${pet.allergies.map((a: string) => `<span class="allergy-tag">${a}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header">Visit Information</div>
+          <div class="section-body">
+            <div style="margin-bottom:10px"><div class="info-label">Date of Examination</div><div class="info-val" style="font-weight:600">${visitDate}</div></div>
+            <div style="margin-bottom:10px"><div class="info-label">Attending Veterinarian</div><div class="info-val" style="font-weight:600">${vetName}</div>${vet?.email ? `<div class="sub">${vet.email}</div>` : ''}</div>
+            <div><div class="info-label">Clinic / Branch</div><div class="info-val">${clinicName||'—'}</div></div>
+          </div>
+        </div>
+      </div>
+      ${record.chiefComplaint ? `<div class="section"><div class="section-header">Chief Complaint / Reason for Visit</div><div class="section-body"><p>${record.chiefComplaint}</p></div></div>` : ''}
+      <div class="section">
+        <div class="section-header">Physical Examination</div>
+        <div class="section-body"><table><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>${vitalRows}${checkboxRows}</tbody></table></div>
+      </div>
+      ${record.overallObservation ? `<div class="section"><div class="section-header">Clinical Assessment &amp; Observation</div><div class="section-body"><p>${record.overallObservation}</p></div></div>` : ''}
+      ${soapSection}
+      ${record.visitSummary ? `<div class="section"><div class="section-header">Visit Summary</div><div class="section-body"><p>${record.visitSummary}</p></div></div>` : ''}
+      ${(record.medications||[]).length ? `<div class="section"><div class="section-header">💊 Medications</div><div class="section-body"><table><thead><tr><th>Name</th><th>Dosage</th><th>Route</th><th>Frequency</th><th>Duration</th><th>Status</th></tr></thead><tbody>${medRows}</tbody></table></div></div>` : ''}
+      ${(record.diagnosticTests||[]).length ? `<div class="section"><div class="section-header">🧪 Diagnostic Tests</div><div class="section-body">${testCards}</div></div>` : ''}
+      ${(record.preventiveCare||[]).length ? `<div class="section"><div class="section-header">🛡 Preventive Care</div><div class="section-body"><table><thead><tr><th>Type</th><th>Product</th><th>Administered</th><th>Next Due</th></tr></thead><tbody>${careRows}</tbody></table></div></div>` : ''}
+      <div class="footer">
+        <div><div class="sig-line"></div><div class="sig-label">${vetName}</div><div class="sig-label">Attending Veterinarian</div></div>
+        <div style="text-align:right"><div class="sig-label">${visitDate}</div><div class="sig-label">Date of Record</div></div>
+      </div>
+    </div>
+    <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
+    </body></html>`)
+    win.document.close()
+  }
+
   return (
-    <Dialog open={!!record || loading} onOpenChange={(v) => { if (!v) onClose() }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -1469,6 +1625,30 @@ function ViewRecordModal({
                 </p>
               )}
             </div>
+
+            {/* ===== VISIT NAVIGATION ===== */}
+            {total > 1 && (
+              <div className="flex items-center justify-between px-8 py-2.5 bg-[#f0f7f7] border-b border-[#dde8e8]">
+                <button
+                  onClick={() => setIndex((i) => i + 1)}
+                  disabled={index >= total - 1}
+                  className="flex items-center gap-1 text-xs font-medium text-[#476B6B] disabled:text-gray-300 hover:text-[#3a5a5a] disabled:cursor-not-allowed"
+                >
+                  <ChevronLeftIcon className="w-4 h-4" /> Older Visit
+                </button>
+                <span className="text-xs font-semibold text-[#476B6B]">
+                  Visit {index + 1} of {total}
+                  {index === 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-[#476B6B] text-white rounded text-[10px]">Current</span>}
+                </span>
+                <button
+                  onClick={() => setIndex((i) => i - 1)}
+                  disabled={index <= 0}
+                  className="flex items-center gap-1 text-xs font-medium text-[#476B6B] disabled:text-gray-300 hover:text-[#3a5a5a] disabled:cursor-not-allowed"
+                >
+                  Newer Visit <ChevronRightIcon className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             <div className="px-8 py-6 space-y-6">
               {/* ===== PATIENT & VISIT INFO ===== */}
@@ -1843,17 +2023,26 @@ function ViewRecordModal({
 
             {/* ===== ACTION BAR ===== */}
             <div className="sticky bottom-0 bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between">
-              <button
-                onClick={() => onToggleShare(record._id, !!record.sharedWithOwner)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  record.sharedWithOwner
-                    ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
-                    : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                <Share2 className="w-4 h-4" />
-                {record.sharedWithOwner ? 'Shared with Owner' : 'Share with Owner'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onToggleShare(record._id, !!record.sharedWithOwner)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    record.sharedWithOwner
+                      ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <Share2 className="w-4 h-4" />
+                  {record.sharedWithOwner ? 'Shared with Owner' : 'Share with Owner'}
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print / PDF
+                </button>
+              </div>
               <button
                 onClick={onClose}
                 className="px-6 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors"
