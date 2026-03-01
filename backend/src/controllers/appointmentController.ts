@@ -363,8 +363,14 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
           isCurrent: true,
         });
         medicalRecordId = record._id.toString();
+        appointment.medicalRecordId = record._id;
+        await appointment.save();
       } else {
         medicalRecordId = existingRecord._id.toString();
+        if (!appointment.medicalRecordId) {
+          appointment.medicalRecordId = existingRecord._id;
+          await appointment.save();
+        }
       }
     }
 

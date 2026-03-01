@@ -166,13 +166,15 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       .select('-images.data -vetNotes')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
-      .populate('clinicBranchId', 'name address');
+      .populate('clinicBranchId', 'name address')
+      .populate('appointmentId', 'date startTime types status');
 
     const historicalRecords = await MedicalRecord.find({ ...query, isCurrent: false })
       .select('-images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
+      .populate('appointmentId', 'date startTime types status')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -230,7 +232,8 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
       .select('-images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
-      .populate('clinicBranchId', 'name address');
+      .populate('clinicBranchId', 'name address')
+      .populate('appointmentId', 'date startTime types status');
 
     if (!record) {
       return res.status(404).json({ status: 'SUCCESS', message: 'No current medical record', data: { record: null } });
@@ -289,6 +292,7 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
+      .populate('appointmentId', 'date startTime types status')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({

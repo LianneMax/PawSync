@@ -106,6 +106,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [saving, setSaving] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [vitalsOpen, setVitalsOpen] = useState(true)
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false)
 
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
@@ -156,6 +157,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setSharedWithOwner(r.sharedWithOwner || false)
       const currentStep = STAGE_TO_STEP[r.stage] || 1
       setStep(currentStep)
+      setAlreadyCompleted(r.stage === 'completed')
     }
     if (petRes.status === 'SUCCESS' && petRes.data?.pet) {
       setPet(petRes.data.pet)
@@ -253,7 +255,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         sharedWithOwner,
         images,
       }, token)
-      await updateAppointmentStatus(appointmentId, 'completed', token)
+      if (!alreadyCompleted) {
+        await updateAppointmentStatus(appointmentId, 'completed', token)
+      }
       toast.success('Visit completed!')
       onComplete()
     } catch {

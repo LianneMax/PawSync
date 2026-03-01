@@ -459,6 +459,15 @@ export default function PatientRecordsPage() {
                           <span className="text-gray-400">•</span>
                           <span>{currentRecord.clinicId?.name}</span>
                         </div>
+                        {currentRecord.appointmentId && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {(currentRecord.appointmentId.types || []).map((t: string) => (
+                              <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#f0f7f7] text-[#476B6B] font-medium capitalize">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {currentRecord.overallObservation && (
                           <p className="text-sm text-gray-700 mt-2 leading-relaxed">{currentRecord.overallObservation}</p>
                         )}
@@ -604,6 +613,15 @@ export default function PatientRecordsPage() {
                                 Dr. {record.vetId?.firstName} {record.vetId?.lastName}
                               </span>
                             </div>
+                            {record.appointmentId && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {(record.appointmentId.types || []).map((t: string) => (
+                                  <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#f0f7f7] text-[#476B6B] font-medium capitalize">
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             {record.overallObservation && (
                               <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{record.overallObservation}</p>
                             )}

@@ -33,6 +33,7 @@ interface Appointment {
   types: string[]
   status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed'
   notes?: string
+  medicalRecordId?: string | null
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -66,6 +67,7 @@ export default function VetAppointmentsPage() {
   const [filter, setFilter] = useState<'upcoming' | 'all' | 'completed'>('upcoming')
   const [checkingIn, setCheckingIn] = useState<string | null>(null)
   const [continuingVisit, setContinuingVisit] = useState<string | null>(null)
+  const [loadingRecord, setLoadingRecord] = useState<string | null>(null)
 
   // Staged modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -133,6 +135,35 @@ export default function VetAppointmentsPage() {
       }
     } finally {
       setContinuingVisit(null)
+    }
+  }
+
+  const handleViewMedicalRecord = async (appt: Appointment) => {
+    if (!token) return
+    // Use the stored medicalRecordId if available, otherwise fetch by appointment
+    const recordId = appt.medicalRecordId
+    if (recordId) {
+      const petId = typeof appt.petId === 'object' ? appt.petId._id : appt.petId
+      setActiveRecordId(recordId)
+      setActiveAppointmentId(appt._id)
+      setActivePetId(petId)
+      setModalOpen(true)
+      return
+    }
+    setLoadingRecord(appt._id)
+    try {
+      const res = await getRecordByAppointment(appt._id, token)
+      if (res.status === 'SUCCESS' && res.data?.record) {
+        const petId = typeof appt.petId === 'object' ? appt.petId._id : appt.petId
+        setActiveRecordId(res.data.record._id)
+        setActiveAppointmentId(appt._id)
+        setActivePetId(petId)
+        setModalOpen(true)
+      } else {
+        alert('No medical record found for this appointment.')
+      }
+    } finally {
+      setLoadingRecord(null)
     }
   }
 
@@ -297,15 +328,12 @@ export default function VetAppointmentsPage() {
                       {appt.status === 'completed' && (
                         <>
                           <button
-                            onClick={() =>
-                              router.push(
-                                `/vet-dashboard/medical-records/new?appointmentId=${appt._id}`
-                              )
-                            }
-                            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#476B6B] text-[#476B6B] rounded-xl text-xs font-medium hover:bg-[#f0f7f7] transition-colors"
+                            onClick={() => handleViewMedicalRecord(appt)}
+                            disabled={loadingRecord === appt._id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#476B6B] text-[#476B6B] rounded-xl text-xs font-medium hover:bg-[#f0f7f7] transition-colors disabled:opacity-60"
                           >
                             <FileText className="w-3.5 h-3.5" />
-                            Medical Record
+                            {loadingRecord === appt._id ? 'Loading…' : 'Medical Record'}
                           </button>
                           {appt.types.includes('vaccination') && (
                             <button

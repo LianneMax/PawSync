@@ -20,6 +20,7 @@ export interface Appointment {
   endTime: string;
   status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
+  medicalRecordId: string | null;
   createdAt: string;
   updatedAt: string;
 }
