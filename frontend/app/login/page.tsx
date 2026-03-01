@@ -9,7 +9,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Mail, Lock, X, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { login, forgotPassword, verifyOtp, resetPassword, googleAuth } from '@/lib/auth'
+import { login, forgotPassword, verifyOtp, resetPassword, googleAuth, resendVerificationEmail } from '@/lib/auth'
 import { getMyPets } from '@/lib/pets'
 import { useAuthStore } from '@/store/authStore'
 import { useGoogleLogin } from '@react-oauth/google'
@@ -36,7 +36,7 @@ const slides = [
 
 const SLIDE_DURATION = 3000
 
-type ModalType = null | 'incorrect-password' | 'account-locked' | 'forgot-password' | 'otp' | 'new-password'
+type ModalType = null | 'incorrect-password' | 'account-locked' | 'forgot-password' | 'otp' | 'new-password' | 'email-not-verified'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -66,6 +66,11 @@ export default function LoginPage() {
   const [modalLoading, setModalLoading] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  // Email-not-verified flow state
+  const [unverifiedEmail, setUnverifiedEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
 
   // Pre-fill remembered email on mount
   useEffect(() => {
@@ -98,7 +103,11 @@ export default function LoginPage() {
     setError(null)
 
     const newFieldErrors: Record<string, string> = {}
-    if (!email.trim()) newFieldErrors.email = 'This field is required'
+    if (!email.trim()) {
+      newFieldErrors.email = 'This field is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      newFieldErrors.email = 'Please enter a valid email address (e.g. name@gmail.com)'
+    }
     if (!password) newFieldErrors.password = 'This field is required'
 
     if (Object.keys(newFieldErrors).length > 0) {
@@ -146,6 +155,10 @@ export default function LoginPage() {
           setActiveModal('account-locked')
         } else if (response.code === 'INCORRECT_PASSWORD') {
           setActiveModal('incorrect-password')
+        } else if (response.code === 'EMAIL_NOT_VERIFIED') {
+          setUnverifiedEmail(email)
+          setResendMessage(null)
+          setActiveModal('email-not-verified')
         } else {
           setError(response.message)
         }
@@ -154,6 +167,13 @@ export default function LoginPage() {
       }
 
       if (response.data) {
+        // Clinic admins must use /clinic-login — reject before setting any session
+        if (response.data.user.userType === 'clinic-admin' || response.data.user.userType === 'branch-admin') {
+          setError('This portal is for pet owners and veterinarians. Please use the Clinic Login portal.')
+          setLoading(false)
+          return
+        }
+
         storeLogin(response.data.user, response.data.token)
         localStorage.setItem('authToken', response.data.token)
 
@@ -215,8 +235,6 @@ export default function LoginPage() {
               router.push('/vet-dashboard')
             }
           }
-        } else if (response.data.user.userType === 'clinic-admin') {
-          router.push('/clinic-admin')
         } else {
           router.push('/dashboard')
         }
@@ -252,6 +270,13 @@ export default function LoginPage() {
 
         if (response.data) {
           const { user, token, isNewUser } = response.data
+
+          // Clinic admins must use /clinic-login — reject before setting any session
+          if (user.userType === 'clinic-admin' || user.userType === 'branch-admin') {
+            setError('This portal is for pet owners and veterinarians. Please use the Clinic Login portal.')
+            return
+          }
+
           storeLogin(user, token)
           localStorage.setItem('authToken', token)
           document.cookie = `authToken=${token}; path=/; SameSite=Lax`
@@ -277,8 +302,6 @@ export default function LoginPage() {
             } else {
               router.push('/onboarding/vet/verification-pending')
             }
-          } else if (user.userType === 'clinic-admin' || user.userType === 'branch-admin') {
-            router.push('/clinic-admin')
           } else {
             router.push('/dashboard')
           }
@@ -416,6 +439,19 @@ export default function LoginPage() {
     if (lockTimerRef.current) {
       clearInterval(lockTimerRef.current)
       lockTimerRef.current = null
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setResendLoading(true)
+    setResendMessage(null)
+    try {
+      const res = await resendVerificationEmail(unverifiedEmail)
+      setResendMessage(res.message)
+    } catch {
+      setResendMessage('Failed to resend. Please try again.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -907,6 +943,42 @@ export default function LoginPage() {
                   className="w-full py-3 border border-gray-300 rounded-lg text-[#4F4F4F] hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   {modalLoading ? 'Updating...' : 'Submit'}
+                </button>
+              </div>
+            )}
+
+            {/* ---- Email Not Verified Modal ---- */}
+            {activeModal === 'email-not-verified' && (
+              <div className="text-center">
+                <div className="w-14 h-14 bg-[#7FA5A3]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-7 h-7 text-[#7FA5A3]" />
+                </div>
+                <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">Verify Your Email</h2>
+                <p className="text-gray-500 mb-1">
+                  Your account hasn&apos;t been verified yet.
+                </p>
+                <p className="text-sm text-gray-400 mb-6">
+                  Check your inbox for the verification link we sent to <span className="font-medium text-[#4F4F4F]">{unverifiedEmail}</span>.
+                </p>
+
+                {resendMessage && (
+                  <p className="text-sm text-[#5A7C7A] mb-4">{resendMessage}</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                  className="w-full py-3 bg-[#7FA5A3] text-white rounded-xl hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+                >
+                  {resendLoading ? 'Sending...' : 'Resend verification email'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="w-full text-gray-500 hover:text-[#4F4F4F] underline text-sm"
+                >
+                  Back to Login
                 </button>
               </div>
             )}

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import dns from 'dns';
 import axios from 'axios';
 import User, { IUser } from '../models/User';
 import Clinic from '../models/Clinic';
@@ -12,6 +13,23 @@ const getJwtExpire = () => process.env.JWT_EXPIRE || '7d';
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOCK_DURATION = 15 * 60 * 1000; // 15 minutes
 const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Check that an email domain has MX records (i.e. it can actually receive mail).
+ * Returns false for non-existent or mail-less domains (ENOTFOUND / ENODATA).
+ * Fails open for transient DNS errors so real users aren't blocked.
+ */
+async function hasValidEmailDomain(email: string): Promise<boolean> {
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return false;
+  try {
+    const records = await dns.promises.resolveMx(domain);
+    return records.length > 0;
+  } catch (err: any) {
+    if (err.code === 'ENOTFOUND' || err.code === 'ENODATA') return false;
+    return true; // transient DNS failure — fail open
+  }
+}
 
 let resendClient: Resend | null = null;
 const getResend = (): Resend => {
@@ -111,6 +129,15 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    // Validate that the email domain can actually receive mail (has MX records)
+    const domainIsValid = await hasValidEmailDomain(email);
+    if (!domainIsValid) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Please use a valid email address with a real email provider.'
+      });
+    }
+
     // Validate user type
     if (!['pet-owner', 'veterinarian'].includes(userType)) {
       return res.status(400).json({
@@ -119,7 +146,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    // Create new user
+    // Create new user — emailVerified starts as false until they click the link
     const newUser = await User.create({
       firstName,
       lastName,
@@ -127,26 +154,52 @@ export const register = async (req: Request, res: Response) => {
       contactNumber: mobileNumber || null,
       password,
       userType,
-      isVerified: userType !== 'veterinarian' // Pet owners are auto-verified
+      isVerified: userType !== 'veterinarian',
+      emailVerified: false
     });
 
-    // Generate token
-    const token = generateToken(newUser);
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const hashedVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    newUser.emailVerificationToken = hashedVerificationToken;
+    newUser.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await newUser.save({ validateBeforeSave: false });
+
+    // Send verification email
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+    try {
+      await getResend().emails.send({
+        from: 'PawSync <onboarding@resend.dev>',
+        to: newUser.email,
+        subject: 'PawSync – Verify your email address',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #5A7C7A;">Welcome to PawSync, ${newUser.firstName}!</h2>
+            <p>Thanks for registering. Please verify your email address to activate your account.</p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${verifyUrl}" style="background: #7FA5A3; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: bold;">
+                Verify Email Address
+              </a>
+            </div>
+            <p style="color: #666;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+            <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+          </div>
+        `
+      });
+    } catch (emailError) {
+      console.error('Verification email send error:', emailError);
+      // Delete the user so they can try again — don't leave an unverifiable account
+      await User.deleteOne({ _id: newUser._id });
+      return res.status(500).json({
+        status: 'ERROR',
+        message: 'Failed to send verification email. Please try again.'
+      });
+    }
 
     return res.status(201).json({
-      status: 'SUCCESS',
-      message: 'User registered successfully',
-      data: {
-        user: {
-          id: newUser._id,
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          email: newUser.email,
-          userType: newUser.userType,
-          isVerified: newUser.isVerified
-        },
-        token
-      }
+      status: 'VERIFY_EMAIL',
+      message: 'Registration successful. Please check your email to verify your account.'
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -230,6 +283,15 @@ export const login = async (req: Request, res: Response) => {
       user.loginAttempts = 0;
       user.lockUntil = null;
       await user.save({ validateBeforeSave: false });
+    }
+
+    // Block login until email is verified (Google users are always verified)
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        status: 'ERROR',
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Please verify your email address before logging in.'
+      });
     }
 
     // Check if this clinic-admin or branch-admin is on the main branch
@@ -589,6 +651,121 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 /**
+ * Verify email address via token link
+ * GET /api/auth/verify-email?token=xxx
+ */
+export const verifyEmail = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ status: 'ERROR', message: 'Verification token is required.' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: new Date() }
+    }).select('+emailVerificationToken +emailVerificationExpires');
+
+    if (!user) {
+      return res.status(400).json({ status: 'ERROR', message: 'This verification link is invalid or has expired.' });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save({ validateBeforeSave: false });
+
+    const jwtToken = generateToken(user);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Email verified successfully.',
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          userType: user.userType,
+          isVerified: user.isVerified
+        },
+        token: jwtToken
+      }
+    });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred during email verification.' });
+  }
+};
+
+/**
+ * Resend verification email
+ * POST /api/auth/resend-verification
+ * Body: { email }
+ */
+export const resendVerificationEmail = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide your email address.' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('+emailVerificationToken +emailVerificationExpires');
+
+    // Don't reveal if the email is registered or already verified
+    if (!user || user.emailVerified) {
+      return res.status(200).json({
+        status: 'SUCCESS',
+        message: 'If your email is registered and unverified, a new verification link has been sent.'
+      });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    user.emailVerificationToken = hashedToken;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+    try {
+      await getResend().emails.send({
+        from: 'PawSync <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'PawSync – New verification link',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #5A7C7A;">Verify your email, ${user.firstName}</h2>
+            <p>Here is your new verification link. It expires in 24 hours.</p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${verifyUrl}" style="background: #7FA5A3; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: bold;">
+                Verify Email Address
+              </a>
+            </div>
+            <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+          </div>
+        `
+      });
+    } catch (emailError) {
+      console.error('Resend verification email error:', emailError);
+      return res.status(500).json({ status: 'ERROR', message: 'Failed to send verification email. Please try again.' });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Verification email sent. Please check your inbox.'
+    });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred. Please try again.' });
+  }
+};
+
+/**
  * Google OAuth authentication
  * Accepts a Google access_token, verifies it by calling Google's userinfo endpoint,
  * then creates or finds the user and returns our own JWT.
@@ -653,13 +830,15 @@ export const googleAuth = async (req: Request, res: Response) => {
       }
 
       // Create the account (no password — Google is the identity provider)
+      // Google has already verified the email address, so emailVerified = true
       user = await User.create({
         email: email.toLowerCase(),
         firstName: given_name || email.split('@')[0],
         lastName: family_name || '',
         googleId,
         userType,
-        isVerified: userType !== 'veterinarian' // Pet owners are auto-verified
+        isVerified: userType !== 'veterinarian',
+        emailVerified: true
       });
     } else if (!user.googleId) {
       // Existing email/password account — link the Google ID to it

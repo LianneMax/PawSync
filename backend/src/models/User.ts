@@ -13,6 +13,9 @@ export interface IUser extends Document {
   branchId: mongoose.Types.ObjectId | null;
   isMainBranch: boolean;
   isVerified: boolean;
+  emailVerified: boolean;
+  emailVerificationToken: string | null;
+  emailVerificationExpires: Date | null;
   googleId?: string;
   loginAttempts: number;
   lockUntil: Date | null;
@@ -94,6 +97,20 @@ const UserSchema = new Schema(
     lockUntil: {
       type: Date,
       default: null
+    },
+    emailVerified: {
+      type: Boolean,
+      default: true // true so existing users aren't locked out; register() sets it to false explicitly
+    },
+    emailVerificationToken: {
+      type: String,
+      default: null,
+      select: false
+    },
+    emailVerificationExpires: {
+      type: Date,
+      default: null,
+      select: false
     },
     resetOtp: {
       type: String,

@@ -35,6 +35,9 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
 // Pages that redirect already-logged-in users away (so you can't visit /login while logged in)
 const AUTH_ONLY_ROUTES = ['/login', '/signup', '/clinic-login']
 
+// Public routes that are always accessible regardless of auth state
+const PUBLIC_ROUTES = ['/verify-email']
+
 function getDashboardForUserType(userType: string): string {
   switch (userType) {
     case 'pet-owner':
@@ -80,6 +83,11 @@ export function middleware(request: NextRequest) {
   const authToken = request.cookies.get('authToken')?.value
   const userType = request.cookies.get('userType')?.value
   const isAuthenticated = !!authToken
+
+  // ── Always allow public routes (e.g. email verification link) ──────────
+  if (PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))) {
+    return NextResponse.next()
+  }
 
   // ── Redirect logged-in users away from auth pages ──────────────────────
   if (AUTH_ONLY_ROUTES.includes(pathname)) {

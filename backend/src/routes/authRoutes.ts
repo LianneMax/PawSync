@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth } from '../controllers/authController';
+import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -58,5 +58,18 @@ router.post('/logout', logout);
  * Body: { access_token: string, userType?: 'pet-owner' | 'veterinarian' }
  */
 router.post('/google', googleAuth);
+
+/**
+ * GET /api/auth/verify-email?token=xxx
+ * Verify email address via token from the verification email link
+ */
+router.get('/verify-email', verifyEmail);
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend verification email
+ * Body: { email }
+ */
+router.post('/resend-verification', resendVerificationEmail);
 
 export default router;

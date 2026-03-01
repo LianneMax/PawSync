@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Mail, Lock, User, Heart, Stethoscope, Eye, EyeOff, Phone } from 'lucide-react'
-import { register, googleAuth } from '@/lib/auth'
+import { register, googleAuth, resendVerificationEmail } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 import { useGoogleLogin } from '@react-oauth/google'
 
@@ -35,6 +35,10 @@ export default function SignUpClient() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [verifyEmailPending, setVerifyEmailPending] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -78,7 +82,11 @@ export default function SignUpClient() {
     if (!userType) newFieldErrors.userType = 'Please select a user type'
     if (!firstName.trim()) newFieldErrors.firstName = 'This field is required'
     if (!lastName.trim()) newFieldErrors.lastName = 'This field is required'
-    if (!email.trim()) newFieldErrors.email = 'This field is required'
+    if (!email.trim()) {
+      newFieldErrors.email = 'This field is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      newFieldErrors.email = 'Please enter a valid email address (e.g. name@gmail.com)'
+    }
     if (!mobileNumber.trim()) newFieldErrors.mobileNumber = 'This field is required'
     if (!password) newFieldErrors.password = 'This field is required'
     if (!confirmPassword) newFieldErrors.confirmPassword = 'This field is required'
@@ -105,31 +113,16 @@ export default function SignUpClient() {
     try {
       const response = await register(firstName, lastName, email, mobileNumber, password, confirmPassword, userType!)
 
+      if (response.status === 'VERIFY_EMAIL') {
+        setRegisteredEmail(email)
+        setVerifyEmailPending(true)
+        return
+      }
+
       if (response.status === 'ERROR') {
         setError(response.message)
         setLoading(false)
         return
-      }
-
-      if (response.data) {
-        storeLogin(response.data.user, response.data.token)
-        localStorage.setItem('authToken', response.data.token)
-        document.cookie = `authToken=${response.data.token}; path=/; SameSite=Lax`
-        document.cookie = `userType=${response.data.user.userType}; path=/; SameSite=Lax`
-
-        sessionStorage.setItem('signupData', JSON.stringify({
-          userType,
-          firstName,
-          lastName,
-          email,
-          mobileNumber
-        }))
-
-        if (userType === 'pet-owner') {
-          router.push('/onboarding/pet')
-        } else if (userType === 'veterinarian') {
-          router.push('/onboarding/vet')
-        }
       }
     } catch (err) {
       setError('An error occurred during registration. Please try again.')
@@ -183,6 +176,60 @@ export default function SignUpClient() {
       setError('Google sign-up was cancelled or failed. Please try again.')
     }
   })
+
+  const handleResendVerification = async () => {
+    setResendLoading(true)
+    setResendMessage(null)
+    try {
+      const res = await resendVerificationEmail(registeredEmail)
+      setResendMessage(res.message)
+    } catch {
+      setResendMessage('Failed to resend. Please try again.')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  // ── Verify-email pending screen ─────────────────────────────────────────────
+  if (verifyEmailPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#7FA5A3] p-4 relative overflow-hidden">
+        <div className="auth-background" />
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-12 relative z-10 text-center">
+          <div className="w-20 h-20 bg-[#7FA5A3]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-10 h-10 text-[#7FA5A3]" />
+          </div>
+          <h1 className="text-3xl text-[#5A7C7A] mb-3" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+            Check Your Email
+          </h1>
+          <p className="text-gray-600 mb-2">
+            We sent a verification link to:
+          </p>
+          <p className="font-semibold text-[#4F4F4F] mb-6">{registeredEmail}</p>
+          <p className="text-gray-500 text-sm mb-8">
+            Click the link in the email to activate your account. The link expires in 24 hours.
+          </p>
+
+          {resendMessage && (
+            <p className="text-sm text-[#5A7C7A] mb-4">{resendMessage}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={resendLoading}
+            className="w-full py-3 border-2 border-[#7FA5A3] text-[#5A7C7A] rounded-xl hover:bg-[#7FA5A3]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+          >
+            {resendLoading ? 'Sending...' : 'Resend verification email'}
+          </button>
+
+          <Link href="/login" className="text-sm text-gray-400 hover:text-[#5A7C7A] transition-colors">
+            Back to Login
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#7FA5A3] p-4 relative overflow-hidden">

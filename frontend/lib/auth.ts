@@ -3,7 +3,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 export interface AuthResponse {
-  status: 'SUCCESS' | 'ERROR';
+  status: 'SUCCESS' | 'ERROR' | 'VERIFY_EMAIL';
   message: string;
   code?: string;
   attemptsRemaining?: number;
@@ -200,6 +200,30 @@ export const googleAuth = async (
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ access_token, userType })
+  });
+  return await response.json();
+};
+
+/**
+ * Verify email address using the token from the verification email link
+ */
+export const verifyEmail = async (
+  token: string
+): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);
+  return await response.json();
+};
+
+/**
+ * Resend the verification email
+ */
+export const resendVerificationEmail = async (
+  email: string
+): Promise<{ status: string; message: string }> => {
+  const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
   });
   return await response.json();
 };
