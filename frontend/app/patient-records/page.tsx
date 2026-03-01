@@ -1176,32 +1176,21 @@ function EditRecordModal({
                 onExtraToggle={toggleExtraCheckbox}
               />
 
-              {/* Overall Observation */}
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Overall Observation (O)</h3>
-                <textarea
-                  value={overallObservation}
-                  onChange={(e) => setOverallObservation(e.target.value)}
-                  placeholder="Physical exam findings, clinical impression…"
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
-                />
-              </div>
-
               {/* SOAP Notes */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-[#2C3E2D]">SOAP Notes</h3>
                 {[
-                  { label: 'S — Subjective', placeholder: 'Patient history, owner complaint…', val: subjective, set: setSubjective },
-                  { label: 'A — Assessment', placeholder: 'Diagnosis, differential diagnosis…', val: assessment, set: setAssessment },
-                  { label: 'P — Plan', placeholder: 'Treatment plan, next steps…', val: plan, set: setPlan },
-                ].map(({ label, placeholder, val, set }) => (
+                  { label: 'S — Subjective', placeholder: 'Patient history, owner complaint…', val: subjective, set: setSubjective, rows: 2 },
+                  { label: 'O — Objective', placeholder: 'Physical exam findings, clinical impression…', val: overallObservation, set: setOverallObservation, rows: 3 },
+                  { label: 'A — Assessment', placeholder: 'Diagnosis, differential diagnosis…', val: assessment, set: setAssessment, rows: 2 },
+                  { label: 'P — Plan', placeholder: 'Treatment plan, next steps…', val: plan, set: setPlan, rows: 2 },
+                ].map(({ label, placeholder, val, set, rows }) => (
                   <div key={label}>
                     <label className="block text-xs font-medium text-[#476B6B] mb-1">{label}</label>
                     <textarea
                       value={val}
                       onChange={(e) => set(e.target.value)}
-                      rows={2}
+                      rows={rows}
                       placeholder={placeholder}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
                     />
@@ -1493,11 +1482,12 @@ function ViewRecordModal({
       `<tr><td>${(c.careType||'—').replace('_',' ')}</td><td>${c.product||'—'}</td><td>${c.dateAdministered ? new Date(c.dateAdministered).toLocaleDateString() : '—'}</td><td>${c.nextDueDate ? new Date(c.nextDueDate).toLocaleDateString() : '—'}</td></tr>`
     ).join('')
 
-    const soapSection = (record.subjective || record.assessment || record.plan) ? `
+    const soapSection = (record.subjective || record.overallObservation || record.assessment || record.plan) ? `
       <div class="section">
         <div class="section-header">SOAP NOTES</div>
         <div class="section-body">
           ${record.subjective ? `<p class="soap-label">S — Subjective</p><p>${record.subjective}</p>` : ''}
+          ${record.overallObservation ? `<p class="soap-label">O — Objective</p><p>${record.overallObservation}</p>` : ''}
           ${record.assessment ? `<p class="soap-label">A — Assessment</p><p>${record.assessment}</p>` : ''}
           ${record.plan ? `<p class="soap-label">P — Plan</p><p>${record.plan}</p>` : ''}
         </div>
@@ -1577,7 +1567,6 @@ function ViewRecordModal({
         <div class="section-header">Physical Examination</div>
         <div class="section-body"><table><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>${vitalRows}${checkboxRows}</tbody></table></div>
       </div>
-      ${record.overallObservation ? `<div class="section"><div class="section-header">Clinical Assessment &amp; Observation</div><div class="section-body"><p>${record.overallObservation}</p></div></div>` : ''}
       ${soapSection}
       ${record.visitSummary ? `<div class="section"><div class="section-header">Visit Summary</div><div class="section-body"><p>${record.visitSummary}</p></div></div>` : ''}
       ${(record.medications||[]).length ? `<div class="section"><div class="section-header">💊 Medications</div><div class="section-body"><table><thead><tr><th>Name</th><th>Dosage</th><th>Route</th><th>Frequency</th><th>Duration</th><th>Status</th></tr></thead><tbody>${medRows}</tbody></table></div></div>` : ''}
@@ -1810,22 +1799,8 @@ function ViewRecordModal({
                 </div>
               </div>
 
-              {/* ===== CLINICAL ASSESSMENT / OBSERVATION ===== */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Clinical Assessment &amp; Observation</h2>
-                </div>
-                <div className="p-4">
-                  {record.overallObservation ? (
-                    <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.overallObservation}</p>
-                  ) : (
-                    <p className="text-sm text-gray-300 italic">No observation recorded.</p>
-                  )}
-                </div>
-              </div>
-
               {/* ===== SOAP NOTES ===== */}
-              {(record.subjective || record.assessment || record.plan) && (
+              {(record.subjective || record.overallObservation || record.assessment || record.plan) && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                     <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">SOAP Notes</h2>
@@ -1835,6 +1810,12 @@ function ViewRecordModal({
                       <div>
                         <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">S — Subjective</p>
                         <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.subjective}</p>
+                      </div>
+                    )}
+                    {record.overallObservation && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">O — Objective</p>
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.overallObservation}</p>
                       </div>
                     )}
                     {record.assessment && (
