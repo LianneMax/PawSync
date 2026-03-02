@@ -1126,35 +1126,13 @@ function ClinicAdminBilling() {
 
 export default function BillingInvoicing() {
   const user = useAuthStore((state) => state.user)
-  const userType = user?.userType || 'pet-owner'
-
-  // TEMP DEV ONLY: remove before production
-  const [devRole, setDevRole] = useState(userType)
+  const userType = user?.userType
 
   return (
     <DashboardLayout>
-      {/* TEMP DEV ONLY: remove before production */}
-      <div className="fixed top-4 right-4 z-9999 flex items-center gap-2 bg-white border-2 border-dashed border-gray-300 rounded-xl px-3 py-2 shadow-lg">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1">Dev View</span>
-        {(['clinic-admin', 'veterinarian', 'pet-owner'] as const).map((role) => (
-          <button
-            key={role}
-            onClick={() => setDevRole(role)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
-              devRole === role
-                ? 'bg-[#7FA5A3] text-white border-[#7FA5A3] scale-105 shadow-sm'
-                : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100 hover:text-gray-600'
-            }`}
-          >
-            {role === 'clinic-admin' ? '🏥 Clinic Admin' : role === 'veterinarian' ? '🩺 Veterinarian' : '🐾 Pet Owner'}
-          </button>
-        ))}
-      </div>
-      {/* END TEMP */}
-
-      {devRole === 'clinic-admin' ? (
+      {userType === 'clinic-admin' || userType === 'branch-admin' ? (
         <ClinicAdminBilling />
-      ) : devRole === 'veterinarian' ? (
+      ) : userType === 'veterinarian' ? (
         <VetBilling />
       ) : (
         <PetOwnerBilling />

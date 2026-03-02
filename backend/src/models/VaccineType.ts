@@ -8,6 +8,7 @@ export interface IVaccineType extends Document {
   boosterIntervalDays: number | null;
   minAgeMonths: number;
   route: string | null;
+  pricePerDose: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +47,11 @@ const VaccineTypeSchema = new Schema(
     route: {
       type: String,
       default: null,
+    },
+    pricePerDose: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     isActive: {
       type: Boolean,

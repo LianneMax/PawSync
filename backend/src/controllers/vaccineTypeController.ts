@@ -103,6 +103,7 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       boosterIntervalDays,
       minAgeMonths,
       route,
+      pricePerDose,
       isActive,
     } = req.body;
 
@@ -113,6 +114,7 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (boosterIntervalDays !== undefined) vaccineType.boosterIntervalDays = boosterIntervalDays;
     if (minAgeMonths !== undefined) vaccineType.minAgeMonths = minAgeMonths;
     if (route !== undefined) vaccineType.route = route;
+    if (pricePerDose !== undefined) vaccineType.pricePerDose = pricePerDose;
     if (isActive !== undefined) vaccineType.isActive = isActive;
 
     await vaccineType.save();
