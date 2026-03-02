@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing } from '../controllers/petController';
+import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement } from '../controllers/petController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -45,6 +45,12 @@ router.get('/:id', authMiddleware, getPetById);
  * Update a pet
  */
 router.put('/:id', authMiddleware, updatePet);
+
+/**
+ * PATCH /api/pets/:id/confined
+ * Update confinement status — accessible by owner or treating vet
+ */
+router.patch('/:id/confined', authMiddleware, updatePetConfinement);
 
 /**
  * POST /api/pets/:id/transfer

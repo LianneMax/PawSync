@@ -165,7 +165,7 @@ export const updatePet = async (req: Request, res: Response) => {
     const allowedFields = [
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
       'dateOfBirth', 'weight', 'sterilization', 'microchipNumber',
-      'nfcTagId', 'photo', 'notes', 'allergies', 'isLost'
+      'nfcTagId', 'photo', 'notes', 'allergies', 'isLost', 'isConfined'
     ];
 
     for (const field of allowedFields) {
@@ -423,5 +423,51 @@ export const getPetByNfc = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get pet by NFC error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * Update a pet's confinement status.
+ * Accessible by: pet owner OR a vet who has treated this pet.
+ */
+export const updatePetConfinement = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.id);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+      isAuthorizedVet = !!hasRecords;
+    }
+
+    if (!isOwner && !isAuthorizedVet) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this pet\'s confinement status' });
+    }
+
+    const { isConfined } = req.body;
+    if (typeof isConfined !== 'boolean') {
+      return res.status(400).json({ status: 'ERROR', message: 'isConfined must be a boolean' });
+    }
+
+    pet.isConfined = isConfined;
+    await pet.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: isConfined ? 'Pet marked as confined' : 'Pet released from confinement',
+      data: { pet }
+    });
+  } catch (error) {
+    console.error('Update pet confinement error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating confinement status' });
   }
 };

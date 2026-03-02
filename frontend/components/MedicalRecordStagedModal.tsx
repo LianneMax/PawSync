@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals } from '@/lib/medicalRecords'
-import { getPetById } from '@/lib/pets'
+import { getPetById, updatePetConfinement } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
@@ -107,6 +107,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [completing, setCompleting] = useState(false)
   const [vitalsOpen, setVitalsOpen] = useState(true)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
+  const [confined, setConfined] = useState(false)
 
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
@@ -161,6 +162,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
     if (petRes.status === 'SUCCESS' && petRes.data?.pet) {
       setPet(petRes.data.pet)
+      setConfined(petRes.data.pet.isConfined || false)
     }
   }, [recordId, petId, token])
 
@@ -177,10 +179,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     return objective + (objective ? '\n\n' : '') + `Services availed: ${extras.join(', ')}`
   }
 
+  // Computes the confinement action for logging and syncs the pet's isConfined flag.
+  // Returns 'confined', 'released', or 'none'.
+  const syncConfinement = async (): Promise<'none' | 'confined' | 'released'> => {
+    const wasConfined = pet?.isConfined || false
+    if (confined === wasConfined) return 'none'
+    await updatePetConfinement(petId, confined, token!)
+    return confined ? 'confined' : 'released'
+  }
+
   const handleSaveAndClose = async () => {
     if (!token) return
     setSaving(true)
     try {
+      const confinementAction = await syncConfinement()
       await updateMedicalRecord(recordId, {
         chiefComplaint,
         vitals,
@@ -194,6 +206,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         diagnosticTests,
         preventiveCare,
         sharedWithOwner,
+        confinementAction,
       }, token)
       toast.success('Progress saved')
       onClose()
@@ -246,6 +259,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setCompleting(true)
     try {
+      const confinementAction = await syncConfinement()
       await updateMedicalRecord(recordId, {
         stage: 'completed',
         visitSummary,
@@ -254,6 +268,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         preventiveCare,
         sharedWithOwner,
         images,
+        confinementAction,
       }, token)
       if (!alreadyCompleted) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
@@ -383,6 +398,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Confinement alert */}
+              {pet?.isConfined && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                  <span className="text-amber-500 text-lg shrink-0">🔒</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">This pet is currently confined</p>
+                    <p className="text-xs text-amber-600">You can release the pet from confinement in the Post-Procedure step.</p>
+                  </div>
                 </div>
               )}
 
@@ -785,6 +811,30 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Pet confinement */}
+              <div className={`flex items-center justify-between p-4 rounded-2xl border ${confined ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-transparent'}`}>
+                <div>
+                  <p className="text-sm font-semibold text-[#4F4F4F]">
+                    {pet?.isConfined ? 'Release Pet from Confinement' : 'Mark Pet as Confined'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {confined
+                      ? pet?.isConfined
+                        ? 'Toggle off to release this pet from confinement'
+                        : 'Pet will be marked as confined after saving'
+                      : pet?.isConfined
+                        ? 'Pet will be released from confinement after saving'
+                        : 'Toggle to confine this pet after this visit'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setConfined(!confined)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${confined ? 'bg-amber-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${confined ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
               </div>
 
               {/* Share with owner */}

@@ -19,6 +19,7 @@ export interface Pet {
   bloodType: string | null;
   allergies: string[];
   isLost: boolean;
+  isConfined: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -133,3 +134,20 @@ export const togglePetLost = async (id: string, isLost: boolean, token?: string)
     body: JSON.stringify({ isLost })
   }, token);
 };
+
+/**
+ * Mark/unmark a pet as confined.
+ * Uses a dedicated endpoint accessible by both pet owners and treating vets.
+ */
+export const updatePetConfinement = async (id: string, isConfined: boolean, token?: string): Promise<PetResponse> => {
+  return authenticatedFetch(`/pets/${id}/confined`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isConfined })
+  }, token);
+};
+
+/**
+ * Mark/unmark a pet as confined (legacy alias — prefer updatePetConfinement)
+ * @deprecated Use updatePetConfinement instead
+ */
+export const togglePetConfined = updatePetConfinement;

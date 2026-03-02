@@ -96,6 +96,7 @@ export interface MedicalRecord {
   preventiveCare: PreventiveCare[];
   sharedWithOwner: boolean;
   isCurrent: boolean;
+  confinementAction: 'none' | 'confined' | 'released';
   createdAt: string;
   updatedAt: string;
 }
@@ -244,6 +245,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   diagnosticTests: Omit<DiagnosticTest, '_id'>[];
   preventiveCare: Omit<PreventiveCare, '_id'>[];
   sharedWithOwner: boolean;
+  confinementAction: 'none' | 'confined' | 'released';
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

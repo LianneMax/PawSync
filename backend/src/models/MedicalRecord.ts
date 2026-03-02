@@ -71,6 +71,7 @@ export interface IMedicalRecord extends Document {
   preventiveCare: IPreventiveCare[];
   sharedWithOwner: boolean;
   isCurrent: boolean;
+  confinementAction: 'none' | 'confined' | 'released';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -230,6 +231,11 @@ const MedicalRecordSchema = new Schema(
     sharedWithOwner: {
       type: Boolean,
       default: false
+    },
+    confinementAction: {
+      type: String,
+      enum: ['none', 'confined', 'released'],
+      default: 'none'
     },
     isCurrent: {
       type: Boolean,

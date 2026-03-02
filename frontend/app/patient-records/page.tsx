@@ -1864,6 +1864,21 @@ function ViewRecordModal({
                 </div>
               )}
 
+              {/* ===== CONFINEMENT LOG ===== */}
+              {record.confinementAction && record.confinementAction !== 'none' && (
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${record.confinementAction === 'confined' ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+                  <span className="text-lg shrink-0">{record.confinementAction === 'confined' ? '🔒' : '🔓'}</span>
+                  <div>
+                    <p className={`text-sm font-semibold ${record.confinementAction === 'confined' ? 'text-amber-800' : 'text-green-800'}`}>
+                      {record.confinementAction === 'confined' ? 'Pet was confined during this visit' : 'Pet was released from confinement during this visit'}
+                    </p>
+                    <p className={`text-xs ${record.confinementAction === 'confined' ? 'text-amber-600' : 'text-green-600'}`}>
+                      Logged on {new Date(record.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* ===== MEDICATIONS ===== */}
               {record.medications && record.medications.length > 0 && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
