@@ -8,6 +8,7 @@ import ClinicBranch from '../models/ClinicBranch';
 import VetSchedule from '../models/VetSchedule';
 import Vaccination from '../models/Vaccination';
 import MedicalRecord from '../models/MedicalRecord';
+import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -87,6 +88,30 @@ export const createAppointment = async (req: Request, res: Response) => {
       notes: notes || null,
       status: 'confirmed'
     });
+
+    // Send booking confirmation email (fire-and-forget)
+    try {
+      const [owner, vet, branch] = await Promise.all([
+        User.findById(req.user.userId).select('firstName email'),
+        User.findById(vetId).select('firstName lastName'),
+        ClinicBranch.findById(clinicBranchId).select('name'),
+      ]);
+      if (owner?.email && vet && branch) {
+        sendAppointmentBooked({
+          ownerEmail: owner.email,
+          ownerFirstName: owner.firstName,
+          petName: pet.name,
+          vetName: `${vet.firstName} ${vet.lastName}`,
+          clinicName: branch.name,
+          date: appointment.date,
+          startTime: appointment.startTime,
+          types: appointment.types,
+          mode: appointment.mode,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[Email] Appointment booked email error:', emailErr);
+    }
 
     return res.status(201).json({
       status: 'SUCCESS',
@@ -300,6 +325,27 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
     appointment.status = 'cancelled';
     await appointment.save();
+
+    // Send cancellation email (fire-and-forget)
+    try {
+      const [owner, vet] = await Promise.all([
+        User.findById(appointment.ownerId).select('firstName email'),
+        User.findById(appointment.vetId).select('firstName lastName'),
+      ]);
+      const pet = await Pet.findById(appointment.petId).select('name');
+      if (owner?.email && vet && pet) {
+        sendAppointmentCancelled({
+          ownerEmail: owner.email,
+          ownerFirstName: owner.firstName,
+          petName: pet.name,
+          vetName: `${vet.firstName} ${vet.lastName}`,
+          date: appointment.date,
+          startTime: appointment.startTime,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[Email] Appointment cancelled email error:', emailErr);
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -634,6 +680,30 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       notes: notes || null,
       status: 'confirmed' // Clinic admin appointments are auto-confirmed
     });
+
+    // Send booking confirmation email (fire-and-forget)
+    try {
+      const [owner, vet, branch] = await Promise.all([
+        User.findById(ownerId).select('firstName email'),
+        User.findById(vetId).select('firstName lastName'),
+        ClinicBranch.findById(clinicBranchId).select('name'),
+      ]);
+      if (owner?.email && vet && branch) {
+        sendAppointmentBooked({
+          ownerEmail: owner.email,
+          ownerFirstName: owner.firstName,
+          petName: pet.name,
+          vetName: `${vet.firstName} ${vet.lastName}`,
+          clinicName: branch.name,
+          date: appointment.date,
+          startTime: appointment.startTime,
+          types: appointment.types,
+          mode: appointment.mode,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[Email] Clinic appointment booked email error:', emailErr);
+    }
 
     return res.status(201).json({
       status: 'SUCCESS',

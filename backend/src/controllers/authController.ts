@@ -6,7 +6,7 @@ import axios from 'axios';
 import User, { IUser } from '../models/User';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
-import { Resend } from 'resend';
+import { getResend } from '../services/emailService';
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'your-secret-key';
 const getJwtExpire = () => process.env.JWT_EXPIRE || '7d';
@@ -30,18 +30,6 @@ async function hasValidEmailDomain(email: string): Promise<boolean> {
     return true; // transient DNS failure — fail open
   }
 }
-
-let resendClient: Resend | null = null;
-const getResend = (): Resend => {
-  if (!resendClient) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey || apiKey === 'your_resend_key') {
-      throw new Error('RESEND_API_KEY is not configured. Please set a valid API key in your .env file.');
-    }
-    resendClient = new Resend(apiKey);
-  }
-  return resendClient;
-};
 
 /**
  * Generate JWT token

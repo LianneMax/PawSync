@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement } from '../controllers/petController';
+import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement, scanPetAlert } from '../controllers/petController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -33,6 +33,12 @@ router.get('/:id/public', getPublicPetProfile);
  * Report a pet as missing (public - for scanners)
  */
 router.post('/:id/report-missing', reportPetMissing);
+
+/**
+ * POST /api/pets/:id/scan-alert
+ * Notify the owner when someone views a lost pet's public profile (public - no auth)
+ */
+router.post('/:id/scan-alert', scanPetAlert);
 
 /**
  * GET /api/pets/:id

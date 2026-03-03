@@ -90,12 +90,15 @@ export default function PetProfilePage() {
   const [isReportingFound, setIsReportingFound] = useState(false)
   const token = useAuthStore((state) => state.token)
 
-  // Auto-open the "found" drawer once when a lost pet profile loads
+  // Auto-open the "found" drawer + notify owner when a lost pet profile loads
   useEffect(() => {
     if (pet?.isLost) {
       setShowFoundDrawer(true)
+      // Fire-and-forget scan alert to the owner
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      fetch(`${apiUrl}/pets/${petId}/scan-alert`, { method: 'POST' }).catch(() => {})
     }
-  }, [pet?.isLost])
+  }, [pet?.isLost, petId])
 
   useEffect(() => {
     const fetchProfile = async () => {

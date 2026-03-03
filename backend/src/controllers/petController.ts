@@ -5,6 +5,7 @@ import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
 import Vaccination from '../models/Vaccination';
 import QRCode from 'qrcode';
+import { sendLostPetConfirmation, sendLostPetScanAlert } from '../services/emailService';
 
 /**
  * Generate QR code for a pet profile
@@ -162,6 +163,8 @@ export const updatePet = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this pet' });
     }
 
+    const wasLost = pet.isLost;
+
     const allowedFields = [
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
       'dateOfBirth', 'weight', 'sterilization', 'microchipNumber',
@@ -175,6 +178,24 @@ export const updatePet = async (req: Request, res: Response) => {
     }
 
     await pet.save();
+
+    // Send lost pet confirmation when owner first marks pet as lost
+    if (!wasLost && pet.isLost) {
+      try {
+        const owner = await User.findById(req.user.userId).select('firstName email');
+        if (owner?.email) {
+          sendLostPetConfirmation({
+            ownerEmail: owner.email,
+            ownerFirstName: owner.firstName,
+            petName: pet.name,
+            petId: (pet._id as any).toString(),
+            species: pet.species,
+          });
+        }
+      } catch (emailErr) {
+        console.error('[Email] Lost pet confirmation error:', emailErr);
+      }
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -469,5 +490,37 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Update pet confinement error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating confinement status' });
+  }
+};
+
+/**
+ * POST /api/pets/:id/scan-alert (public - no auth)
+ * Called by the public pet profile page when a lost pet's QR is scanned.
+ * Notifies the owner that someone viewed their lost pet's profile.
+ */
+export const scanPetAlert = async (req: Request, res: Response) => {
+  try {
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'firstName email');
+
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    if (pet.isLost) {
+      const owner = pet.ownerId as any;
+      if (owner?.email) {
+        sendLostPetScanAlert({
+          ownerEmail: owner.email,
+          ownerFirstName: owner.firstName,
+          petName: pet.name,
+          petId: (pet._id as any).toString(),
+        });
+      }
+    }
+
+    return res.status(200).json({ status: 'SUCCESS', isLost: pet.isLost });
+  } catch (error) {
+    console.error('Scan pet alert error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };

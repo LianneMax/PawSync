@@ -1,0 +1,352 @@
+import { Resend } from 'resend';
+
+let resendClient: Resend | null = null;
+
+export const getResend = (): Resend => {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey || apiKey === 'your_resend_key') {
+      throw new Error('RESEND_API_KEY is not configured. Please set a valid API key in your .env file.');
+    }
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+};
+
+const FROM = 'PawSync <onboarding@resend.dev>';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+function formatDate(date: Date | string): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+}
+
+function formatCurrency(amount: number): string {
+  return `₱${amount.toFixed(2)}`;
+}
+
+// ─── Appointment Booked ────────────────────────────────────────────────────────
+
+export async function sendAppointmentBooked(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  clinicName: string;
+  date: Date | string;
+  startTime: string;
+  types: string[];
+  mode: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'PawSync – Appointment Confirmed',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Confirmed!</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Your appointment for <strong>${params.petName}</strong> has been booked successfully.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Vet:</strong> Dr. ${params.vetName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
+            <p style="margin: 4px 0;"><strong>Mode:</strong> ${params.mode === 'online' ? 'Online Consultation' : 'Face-to-Face'}</p>
+          </div>
+          <p style="color: #666;">Please arrive 10 minutes early for face-to-face visits.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentBooked error:', err);
+  }
+}
+
+// ─── Appointment Reminder (24h before) ────────────────────────────────────────
+
+export async function sendAppointmentReminder(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  clinicName: string;
+  date: Date | string;
+  startTime: string;
+  types: string[];
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'PawSync – Appointment Reminder (Tomorrow)',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Reminder</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>This is a reminder that <strong>${params.petName}</strong> has an appointment <strong>tomorrow</strong>.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Vet:</strong> Dr. ${params.vetName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
+          </div>
+          <p style="color: #666;">We look forward to seeing you and ${params.petName}!</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentReminder error:', err);
+  }
+}
+
+// ─── Appointment Cancelled ────────────────────────────────────────────────────
+
+export async function sendAppointmentCancelled(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  date: Date | string;
+  startTime: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'PawSync – Appointment Cancelled',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Cancelled</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Your appointment for <strong>${params.petName}</strong> has been cancelled.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Vet:</strong> Dr. ${params.vetName}</p>
+          </div>
+          <p style="color: #666;">You can rebook an appointment anytime through the PawSync app.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentCancelled error:', err);
+  }
+}
+
+// ─── Vaccination Due Reminder ─────────────────────────────────────────────────
+
+export async function sendVaccinationDueReminder(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vaccineName: string;
+  nextDueDate: Date | string;
+  type: 'upcoming' | 'overdue';
+}) {
+  const isOverdue = params.type === 'overdue';
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: isOverdue
+        ? `PawSync – Vaccination Overdue for ${params.petName}`
+        : `PawSync – Vaccination Due in 7 Days for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">${isOverdue ? 'Vaccination Overdue' : 'Vaccination Due Soon'}</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>${isOverdue
+            ? `<strong>${params.petName}</strong>'s <strong>${params.vaccineName}</strong> vaccination is now <strong>overdue</strong>.`
+            : `<strong>${params.petName}</strong>'s <strong>${params.vaccineName}</strong> vaccination is due in 7 days.`
+          }</p>
+          <div style="background: ${isOverdue ? '#fef2f2' : '#f3f4f6'}; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Vaccine:</strong> ${params.vaccineName}</p>
+            <p style="margin: 4px 0;"><strong>Due Date:</strong> ${formatDate(params.nextDueDate)}</p>
+            <p style="margin: 4px 0; color: ${isOverdue ? '#dc2626' : '#666'};"><strong>Status:</strong> ${isOverdue ? 'OVERDUE' : 'Due in 7 days'}</p>
+          </div>
+          <p style="color: #666;">Please book an appointment with your vet to keep ${params.petName} up to date.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${FRONTEND_URL}/my-appointments" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Book Appointment</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendVaccinationDueReminder error:', err);
+  }
+}
+
+// ─── Lost Pet Confirmation (owner marked pet as lost) ─────────────────────────
+
+export async function sendLostPetConfirmation(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  petId: string;
+  species: string;
+}) {
+  const publicUrl = `${FRONTEND_URL}/pet/${params.petId}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – ${params.petName} Has Been Marked as Lost`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Your Pet Has Been Reported Missing</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>We've marked <strong>${params.petName}</strong>'s profile as lost. Share the link below so anyone who finds your ${params.species} can contact you.</p>
+          <div style="background: #fef9c3; border: 1px solid #fde047; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 8px;"><strong>Public Profile Link:</strong></p>
+            <a href="${publicUrl}" style="color: #5A7C7A; word-break: break-all;">${publicUrl}</a>
+          </div>
+          <p style="color: #666;">If you find ${params.petName}, you can mark them as found in the PawSync app.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendLostPetConfirmation error:', err);
+  }
+}
+
+// ─── Lost Pet Scan Alert (someone viewed the lost pet's public profile) ────────
+
+export async function sendLostPetScanAlert(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  petId: string;
+}) {
+  const publicUrl = `${FRONTEND_URL}/pet/${params.petId}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Someone Scanned ${params.petName}'s Profile`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Someone Found ${params.petName}!</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Someone just scanned <strong>${params.petName}</strong>'s QR tag and viewed their public profile. They may be trying to return your pet.</p>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0;">Your contact information is visible on the public profile so they can reach you directly.</p>
+          </div>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${publicUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">View Public Profile</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendLostPetScanAlert error:', err);
+  }
+}
+
+// ─── Billing – Payment Due (vet approved invoice) ─────────────────────────────
+
+export async function sendBillingPendingPayment(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  items: { name: string; unitPrice: number }[];
+  subtotal: number;
+  discount: number;
+  totalAmountDue: number;
+  serviceDate: Date | string;
+}) {
+  const itemRows = params.items
+    .map(item => `<tr><td style="padding:6px 0;">${item.name}</td><td style="padding:6px 0;text-align:right;">${formatCurrency(item.unitPrice)}</td></tr>`)
+    .join('');
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Invoice Ready for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Invoice Ready – Payment Due</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>An invoice for <strong>${params.petName}</strong>'s visit has been approved and is ready for payment.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 8px;"><strong>Service Date:</strong> ${formatDate(params.serviceDate)}</p>
+            <p style="margin: 0 0 12px;"><strong>Veterinarian:</strong> Dr. ${params.vetName}</p>
+            <table style="width: 100%; border-top: 1px solid #e5e7eb; margin-top: 8px;">
+              ${itemRows}
+              ${params.discount > 0 ? `<tr><td style="padding:6px 0;color:#666;">Discount</td><td style="padding:6px 0;text-align:right;color:#22c55e;">-${formatCurrency(params.discount)}</td></tr>` : ''}
+              <tr style="border-top: 2px solid #d1d5db; font-weight: bold;">
+                <td style="padding: 10px 0;">Total Due</td>
+                <td style="padding: 10px 0; text-align: right; color: #5A7C7A; font-size: 18px;">${formatCurrency(params.totalAmountDue)}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="color: #666;">Please proceed to the clinic to settle your balance.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendBillingPendingPayment error:', err);
+  }
+}
+
+// ─── Billing – Payment Receipt ────────────────────────────────────────────────
+
+export async function sendBillingPaidReceipt(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  items: { name: string; unitPrice: number }[];
+  subtotal: number;
+  discount: number;
+  totalAmountDue: number;
+  serviceDate: Date | string;
+  paidAt: Date | string;
+}) {
+  const itemRows = params.items
+    .map(item => `<tr><td style="padding:6px 0;">${item.name}</td><td style="padding:6px 0;text-align:right;">${formatCurrency(item.unitPrice)}</td></tr>`)
+    .join('');
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Payment Received for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Payment Confirmed ✓</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Thank you! Payment for <strong>${params.petName}</strong>'s visit has been received.</p>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 8px;"><strong>Service Date:</strong> ${formatDate(params.serviceDate)}</p>
+            <p style="margin: 0 0 8px;"><strong>Paid On:</strong> ${formatDate(params.paidAt)}</p>
+            <p style="margin: 0 0 12px;"><strong>Veterinarian:</strong> Dr. ${params.vetName}</p>
+            <table style="width: 100%; border-top: 1px solid #bbf7d0; margin-top: 8px;">
+              ${itemRows}
+              ${params.discount > 0 ? `<tr><td style="padding:6px 0;color:#666;">Discount</td><td style="padding:6px 0;text-align:right;color:#22c55e;">-${formatCurrency(params.discount)}</td></tr>` : ''}
+              <tr style="border-top: 2px solid #bbf7d0; font-weight: bold;">
+                <td style="padding: 10px 0;">Amount Paid</td>
+                <td style="padding: 10px 0; text-align: right; color: #16a34a; font-size: 18px;">${formatCurrency(params.totalAmountDue)}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="color: #666;">Thank you for trusting PawSync with ${params.petName}'s care.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendBillingPaidReceipt error:', err);
+  }
+}

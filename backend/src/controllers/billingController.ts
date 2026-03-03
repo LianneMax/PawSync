@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Billing from '../models/Billing';
+import { sendBillingPendingPayment, sendBillingPaidReceipt } from '../services/emailService';
 
 // Populate fields shared across all views
 const POPULATE_BILLING = [
@@ -317,7 +318,23 @@ export const updateBilling = async (req: Request, res: Response) => {
       }
       billing.status = 'pending_payment';
       await billing.save();
-      const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING);
+      const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
+
+      // Send payment-due email to owner (fire-and-forget)
+      if (populated?.ownerId?.email && populated.petId?.name && populated.vetId) {
+        sendBillingPendingPayment({
+          ownerEmail: populated.ownerId.email,
+          ownerFirstName: populated.ownerId.firstName,
+          petName: populated.petId.name,
+          vetName: `${populated.vetId.firstName} ${populated.vetId.lastName}`,
+          items: populated.items,
+          subtotal: populated.subtotal,
+          discount: populated.discount,
+          totalAmountDue: populated.totalAmountDue,
+          serviceDate: populated.serviceDate,
+        });
+      }
+
       return res.status(200).json({
         status: 'SUCCESS',
         message: 'Billing approved',
@@ -383,7 +400,23 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
     billing.paidAt = new Date();
     await billing.save();
 
-    const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING);
+    const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
+
+    // Send receipt email to owner (fire-and-forget)
+    if (populated?.ownerId?.email && populated.petId?.name && populated.vetId) {
+      sendBillingPaidReceipt({
+        ownerEmail: populated.ownerId.email,
+        ownerFirstName: populated.ownerId.firstName,
+        petName: populated.petId.name,
+        vetName: `${populated.vetId.firstName} ${populated.vetId.lastName}`,
+        items: populated.items,
+        subtotal: populated.subtotal,
+        discount: populated.discount,
+        totalAmountDue: populated.totalAmountDue,
+        serviceDate: populated.serviceDate,
+        paidAt: populated.paidAt,
+      });
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
