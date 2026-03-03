@@ -4,6 +4,8 @@ import Pet from '../models/Pet';
 import AssignedVet from '../models/AssignedVet';
 import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
+import User from '../models/User';
+import ClinicBranch from '../models/ClinicBranch';
 
 /**
  * Helper — returns true if req.user is a clinic-admin or branch-admin.
@@ -413,11 +415,28 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
     if (req.user.userType === 'veterinarian') {
       query.vetId = req.user.userId;
     } else if (req.user.userType === 'branch-admin') {
-      query.clinicId = req.user.clinicId;
-      const branchId = req.user.branchId || req.user.clinicBranchId;
+      let clinicId: string | undefined = req.user.clinicId;
+      let branchId: string | undefined = req.user.branchId || req.user.clinicBranchId;
+
+      // Stale-JWT fallback: look up missing fields from the User document
+      if (!clinicId || !branchId) {
+        const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
+        if (!clinicId && dbUser?.clinicId) clinicId = dbUser.clinicId.toString();
+        if (!branchId && dbUser?.branchId) branchId = dbUser.branchId.toString();
+      }
+
+      if (clinicId) query.clinicId = clinicId;
       if (branchId) query.clinicBranchId = branchId;
     } else if (req.user.userType === 'clinic-admin') {
-      query.clinicId = req.user.clinicId;
+      let clinicId: string | undefined = req.user.clinicId;
+
+      // Stale-JWT fallback: look up clinicId from the User document
+      if (!clinicId) {
+        const dbUser = await User.findById(req.user.userId).select('clinicId');
+        if (dbUser?.clinicId) clinicId = dbUser.clinicId.toString();
+      }
+
+      if (clinicId) query.clinicId = clinicId;
     }
 
     if (petId) query.petId = petId;
