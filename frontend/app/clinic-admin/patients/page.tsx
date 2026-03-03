@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -441,6 +441,9 @@ function FilesTab() {
 
 // ==================== PATIENT DRAWER ====================
 
+const DRAWER_MIN_WIDTH = 380
+const DRAWER_MAX_WIDTH = 860
+
 function PatientDrawer({
   patient,
   open,
@@ -455,6 +458,10 @@ function PatientDrawer({
   const [activeTab, setActiveTab] = useState<PatientTab>('overview')
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loadingRecords, setLoadingRecords] = useState(false)
+  const [drawerWidth, setDrawerWidth] = useState(520)
+  const isDragging = useRef(false)
+  const dragStartX = useRef(0)
+  const dragStartWidth = useRef(0)
 
   // Reset tab and load records when patient changes
   useEffect(() => {
@@ -475,6 +482,37 @@ function PatientDrawer({
   }, [patient?._id, token])
   // Note: 'patient' object reference is intentionally excluded; only the id matters
 
+  // Resize drag logic
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDragging.current = true
+    dragStartX.current = e.clientX
+    dragStartWidth.current = drawerWidth
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return
+      const delta = dragStartX.current - e.clientX
+      const next = Math.min(DRAWER_MAX_WIDTH, Math.max(DRAWER_MIN_WIDTH, dragStartWidth.current + delta))
+      setDrawerWidth(next)
+    }
+    const onMouseUp = () => {
+      if (!isDragging.current) return
+      isDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
   const tabs: { id: PatientTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'vaccine', label: 'Vaccine Card' },
@@ -489,9 +527,31 @@ function PatientDrawer({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:w-[520px] !p-0 flex flex-col"
+        className="!p-0 flex flex-col !max-w-none"
+        style={{ width: `${drawerWidth}px`, maxWidth: 'none', transition: 'none' }}
         close={false}
       >
+        {/* Resize handle — drag from left edge to resize */}
+        <div
+          onMouseDown={handleResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-5 z-20 cursor-col-resize group select-none"
+          title="Drag to resize"
+        >
+          {/* Left border line */}
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-200 group-hover:bg-[#4A8A87] transition-colors duration-150" />
+          {/* Grip pill */}
+          <div
+            className="absolute left-[3px] flex flex-col gap-[3px] items-center bg-white border border-gray-200 group-hover:border-[#4A8A87] rounded-full px-[3px] py-2 shadow-sm opacity-50 group-hover:opacity-100 transition-all duration-150"
+            style={{ top: '50%', transform: 'translateY(-50%)' }}
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className="block w-[3px] h-[3px] rounded-full bg-gray-400 group-hover:bg-[#4A8A87] transition-colors duration-150"
+              />
+            ))}
+          </div>
+        </div>
         {/* Header */}
         <div className="flex-shrink-0 border-b border-gray-200 bg-white">
           <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
