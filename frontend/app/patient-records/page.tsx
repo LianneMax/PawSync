@@ -55,6 +55,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 
 
 // ==================== TYPES ====================
@@ -154,6 +155,8 @@ export default function PatientRecordsPage() {
   const [editRecord, setEditRecord] = useState<MedicalRecord | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [currentRecordEdited, setCurrentRecordEdited] = useState(false)
+  const [billingModalOpen, setBillingModalOpen] = useState(false)
+  const [billingModalMode, setBillingModalMode] = useState<'create' | 'view' | 'update'>('create')
 
   // View modal
   const [viewOpen, setViewOpen] = useState(false)
@@ -575,17 +578,26 @@ export default function PatientRecordsPage() {
                     {/* Billing button */}
                     <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
                       {!currentRecord.billingId ? (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors">
+                        <button
+                          onClick={() => { setBillingModalMode('create'); setBillingModalOpen(true) }}
+                          className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors"
+                        >
                           <Receipt className="w-4 h-4" />
                           Create Billing from Record
                         </button>
                       ) : currentRecordEdited ? (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors">
+                        <button
+                          onClick={() => { setBillingModalMode('update'); setBillingModalOpen(true) }}
+                          className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors"
+                        >
                           <Receipt className="w-4 h-4" />
                           Update Billing
                         </button>
                       ) : (
-                        <button className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors">
+                        <button
+                          onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
+                          className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors"
+                        >
                           <Receipt className="w-4 h-4" />
                           View Billing
                         </button>
@@ -750,6 +762,24 @@ export default function PatientRecordsPage() {
         onToggleShare={(id, shared) => {
           handleToggleShare(id, shared)
         }}
+      />
+
+      {/* Billing Modal */}
+      <BillingFromRecordModal
+        open={billingModalOpen}
+        mode={billingModalMode}
+        onClose={() => setBillingModalOpen(false)}
+        patientName={selectedPatient?.name ?? ''}
+        appointmentId={
+          typeof currentRecord?.appointmentId === 'object'
+            ? currentRecord?.appointmentId?._id ?? null
+            : currentRecord?.appointmentId ?? null
+        }
+        vetName={
+          typeof currentRecord?.vetId === 'object' && currentRecord?.vetId
+            ? `Dr. ${(currentRecord.vetId as any).firstName ?? ''} ${(currentRecord.vetId as any).lastName ?? ''}`.trim()
+            : '—'
+        }
       />
     </DashboardLayout>
   )
