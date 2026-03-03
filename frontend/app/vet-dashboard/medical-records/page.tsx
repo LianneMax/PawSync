@@ -10,7 +10,6 @@ import {
   Plus,
   PawPrint,
   Clock,
-  Eye,
   Share2,
   ChevronRight,
 } from 'lucide-react'

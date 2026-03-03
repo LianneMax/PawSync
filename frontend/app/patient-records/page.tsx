@@ -46,6 +46,7 @@ import {
   Printer,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Receipt,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -152,6 +153,7 @@ export default function PatientRecordsPage() {
   // Edit modal
   const [editRecord, setEditRecord] = useState<MedicalRecord | null>(null)
   const [editLoading, setEditLoading] = useState(false)
+  const [currentRecordEdited, setCurrentRecordEdited] = useState(false)
 
   // View modal
   const [viewOpen, setViewOpen] = useState(false)
@@ -221,6 +223,7 @@ export default function PatientRecordsPage() {
 
   const handleSelectPatient = (pet: PatientPet) => {
     setSelectedPatient(pet)
+    setCurrentRecordEdited(false)
     loadRecords(pet._id)
   }
 
@@ -568,6 +571,26 @@ export default function PatientRecordsPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Billing button */}
+                    <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
+                      {!currentRecord.billingId ? (
+                        <button className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors">
+                          <Receipt className="w-4 h-4" />
+                          Create Billing from Record
+                        </button>
+                      ) : currentRecordEdited ? (
+                        <button className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors">
+                          <Receipt className="w-4 h-4" />
+                          Update Billing
+                        </button>
+                      ) : (
+                        <button className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors">
+                          <Receipt className="w-4 h-4" />
+                          View Billing
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl p-12 shadow-sm text-center border-2 border-dashed border-gray-200">
@@ -710,6 +733,7 @@ export default function PatientRecordsPage() {
           loading={editLoading}
           onClose={() => setEditRecord(null)}
           onUpdated={() => {
+            if (editRecord?._id === currentRecord?._id) setCurrentRecordEdited(true)
             setEditRecord(null)
             loadRecords(selectedPatient._id)
           }}

@@ -97,6 +97,7 @@ export interface MedicalRecord {
   sharedWithOwner: boolean;
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
+  billingId?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -638,6 +638,7 @@ function MedicalRecordFormInner() {
               Cancel
             </button>
           </div>
+
         </div>
       </div>
     </DashboardLayout>
