@@ -412,7 +412,11 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
 
     if (req.user.userType === 'veterinarian') {
       query.vetId = req.user.userId;
-    } else if (isClinicAdminUser(req)) {
+    } else if (req.user.userType === 'branch-admin') {
+      query.clinicId = req.user.clinicId;
+      const branchId = req.user.branchId || req.user.clinicBranchId;
+      if (branchId) query.clinicBranchId = branchId;
+    } else if (req.user.userType === 'clinic-admin') {
       query.clinicId = req.user.clinicId;
     }
 

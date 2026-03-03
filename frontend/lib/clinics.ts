@@ -69,11 +69,10 @@ export interface ClinicPatientsResponse {
 }
 
 /**
- * Get all patients for a clinic
+ * Get all patients for the authenticated clinic or branch admin
  */
 export const getClinicPatients = async (
-  clinicId: string,
   token?: string
 ): Promise<ClinicPatientsResponse> => {
-  return authenticatedFetch(`/clinics/${clinicId}/patients`, { method: 'GET' }, token);
+  return authenticatedFetch(`/clinics/mine/patients`, { method: 'GET' }, token);
 };

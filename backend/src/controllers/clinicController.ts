@@ -7,17 +7,52 @@ import VetApplication from '../models/VetApplication';
 import User from '../models/User';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
+import Appointment from '../models/Appointment';
 
 /**
  * Helper: get clinic for the authenticated admin using clinicId from JWT.
- * Falls back to legacy adminId lookup for backwards compatibility.
+ * Multiple fallbacks handle stale JWTs that may be missing clinicId/branchId.
  */
-async function getClinicForAdmin(req: Request) {
+async function getClinicForAdmin(req: Request): Promise<any> {
   if (req.user?.clinicId) {
     return Clinic.findOne({ _id: req.user.clinicId, isActive: true });
   }
-  // Legacy fallback: look up by adminId
+  // Branch-admin fallback: derive clinic from their branch document (JWT has branchId)
+  if (req.user?.branchId) {
+    const branch = await ClinicBranch.findById(req.user.branchId).select('clinicId');
+    if (branch?.clinicId) {
+      return Clinic.findOne({ _id: branch.clinicId, isActive: true });
+    }
+  }
+  // Stale-JWT fallback: look up branchId/clinicId from the User document via userId
+  if (req.user?.userId && req.user?.userType === 'branch-admin') {
+    const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
+    if (dbUser?.clinicId) {
+      return Clinic.findOne({ _id: dbUser.clinicId, isActive: true });
+    }
+    if (dbUser?.branchId) {
+      const branch = await ClinicBranch.findById(dbUser.branchId).select('clinicId');
+      if (branch?.clinicId) {
+        return Clinic.findOne({ _id: branch.clinicId, isActive: true });
+      }
+    }
+  }
+  // Legacy fallback: look up by adminId (clinic-admin accounts)
   return Clinic.findOne({ adminId: req.user?.userId, isActive: true });
+}
+
+/**
+ * Helper: resolve the branchId for a branch-admin, even if missing from JWT.
+ */
+async function getBranchIdForAdmin(req: Request): Promise<string | undefined> {
+  if (req.user?.branchId) return req.user.branchId;
+  if (req.user?.clinicBranchId) return req.user.clinicBranchId;
+  // Stale-JWT: look up from User document
+  if (req.user?.userId && req.user?.userType === 'branch-admin') {
+    const dbUser = await User.findById(req.user.userId).select('branchId');
+    if (dbUser?.branchId) return dbUser.branchId.toString();
+  }
+  return undefined;
 }
 
 // ==================== CLINIC ====================
@@ -549,7 +584,9 @@ export const getClinicVets = async (req: Request, res: Response) => {
 };
 
 /**
- * Get all patients (pets) for a clinic (filtered by branch)
+ * Get all patients (pets) for a clinic or branch, derived from appointments.
+ * Accessible by: clinic-admin, branch-admin.
+ * Branch-admins see only patients who have had appointments at their branch.
  */
 export const getClinicPatients = async (req: Request, res: Response) => {
   try {
@@ -557,9 +594,8 @@ export const getClinicPatients = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    // Only clinic admins can access this
-    if (req.user.userType !== 'clinic-admin') {
-      return res.status(403).json({ status: 'ERROR', message: 'Only clinic admins can access this' });
+    if (req.user.userType !== 'clinic-admin' && req.user.userType !== 'branch-admin') {
+      return res.status(403).json({ status: 'ERROR', message: 'Only clinic or branch admins can access this' });
     }
 
     const clinic = await getClinicForAdmin(req);
@@ -568,29 +604,50 @@ export const getClinicPatients = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    // Filter medical records by branch if branch admin
-    const recordFilter: any = { clinicId: clinic._id };
-    if (req.user.clinicBranchId) {
-      recordFilter.clinicBranchId = req.user.clinicBranchId;
+    // branch-admin: filter by their branch; clinic-admin: optionally filter by clinicBranchId
+    // getBranchIdForAdmin handles stale JWTs by falling back to the User document
+    const branchId = req.user.userType === 'branch-admin'
+      ? await getBranchIdForAdmin(req)
+      : req.user.clinicBranchId;
+
+    // Build appointment filter — source of truth for which patients visited this branch
+    const apptFilter: any = { clinicId: clinic._id };
+    if (branchId) {
+      apptFilter.clinicBranchId = branchId;
     }
 
-    // Get all medical records for this clinic/branch
-    const medicalRecords = await MedicalRecord.find(recordFilter)
+    // Fetch all appointments for this clinic/branch, sorted newest first
+    const appointments = await Appointment.find(apptFilter)
       .populate('petId')
-      .populate('vetId', 'firstName lastName')
-      .sort({ createdAt: -1 });
+      .sort({ date: -1, createdAt: -1 });
 
-    // Extract unique pets with their owners
-    const petMap = new Map();
+    // Extract unique pets and track their latest appointment date
+    const petMap = new Map<string, any>();
+    const lastVisitMap = new Map<string, string>();
 
-    for (const record of medicalRecords) {
-      const pet = record.petId as any;
-      if (pet && !petMap.has(pet._id.toString())) {
-        petMap.set(pet._id.toString(), pet);
+    for (const appt of appointments) {
+      const pet = appt.petId as any;
+      if (!pet) continue;
+      const petId = pet._id.toString();
+      if (!petMap.has(petId)) {
+        petMap.set(petId, pet);
+      }
+      if (!lastVisitMap.has(petId)) {
+        lastVisitMap.set(petId, String(appt.date));
       }
     }
 
-    // Populate owner details for all pets
+    // Count medical records per pet (scoped to same clinic/branch)
+    const recordFilter: any = { clinicId: clinic._id };
+    if (branchId) recordFilter.clinicBranchId = branchId;
+    const medicalRecords = await MedicalRecord.find(recordFilter).select('petId');
+    const recordCountMap = new Map<string, number>();
+    for (const rec of medicalRecords) {
+      const petId = rec.petId.toString();
+      recordCountMap.set(petId, (recordCountMap.get(petId) || 0) + 1);
+    }
+
+    // Populate owner details for each unique pet
     const pets = Array.from(petMap.values());
     const petsWithOwners = await Promise.all(
       pets.map(async (pet: any) => {
@@ -613,8 +670,8 @@ export const getClinicPatients = async (req: Request, res: Response) => {
             contactNumber: owner?.contactNumber,
             email: owner?.email
           },
-          recordCount: medicalRecords.filter((r: any) => r.petId._id.toString() === pet._id.toString()).length,
-          lastVisit: medicalRecords.find((r: any) => r.petId._id.toString() === pet._id.toString())?.createdAt
+          recordCount: recordCountMap.get(pet._id.toString()) || 0,
+          lastVisit: lastVisitMap.get(pet._id.toString()) || null
         };
       })
     );

@@ -5,7 +5,6 @@ import { useAuthStore } from '@/store/authStore'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
-import { authenticatedFetch } from '@/lib/auth'
 import { getRecordsByPet, getVaccinationsByPet, type MedicalRecord, type Vaccination } from '@/lib/medicalRecords'
 import {
   Sheet,
@@ -19,11 +18,6 @@ import {
 import { toast } from 'sonner'
 
 // ==================== TYPES ====================
-
-interface Clinic {
-  _id: string
-  name: string
-}
 
 type PatientTab = 'overview' | 'vaccine' | 'medical' | 'medications' | 'files'
 
@@ -599,8 +593,6 @@ function PatientDrawer({
 export default function PatientManagementPage() {
   const token = useAuthStore((state) => state.token)
 
-  const [, setClinics] = useState<Clinic[]>([])
-  const [selectedClinicId, setSelectedClinicId] = useState<string>('')
   const [patients, setPatients] = useState<ClinicPatient[]>([])
   const [filteredPatients, setFilteredPatients] = useState<ClinicPatient[]>([])
   const [loading, setLoading] = useState(true)
@@ -608,25 +600,15 @@ export default function PatientManagementPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<ClinicPatient | null>(null)
 
-  const fetchClinics = useCallback(async () => {
-    if (!token) return
-    try {
-      const response = await authenticatedFetch('/clinics/mine', { method: 'GET' }, token)
-      if (response.status === 'SUCCESS' && response.data?.clinics.length > 0) {
-        setClinics(response.data.clinics)
-        setSelectedClinicId(response.data.clinics[0]._id)
-      }
-    } catch (error) {
-      console.error('Failed to fetch clinics:', error)
-      toast.error('Failed to fetch clinics')
+  // Fetch patients — backend derives clinic/branch from the JWT directly
+  const fetchPatients = useCallback(async () => {
+    if (!token) {
+      setLoading(false)
+      return
     }
-  }, [token])
-
-  const fetchPatients = useCallback(async (clinicId: string) => {
-    if (!token || !clinicId) return
     setLoading(true)
     try {
-      const response = await getClinicPatients(clinicId, token)
+      const response = await getClinicPatients(token)
       if (response.status === 'SUCCESS' && response.data?.patients) {
         setPatients(response.data.patients)
         setFilteredPatients(response.data.patients)
@@ -673,8 +655,7 @@ export default function PatientManagementPage() {
     applyFilters(patients, speciesFilter, query)
   }
 
-  useEffect(() => { fetchClinics() }, [fetchClinics])
-  useEffect(() => { if (selectedClinicId) fetchPatients(selectedClinicId) }, [selectedClinicId, fetchPatients])
+  useEffect(() => { fetchPatients() }, [fetchPatients])
   useEffect(() => { applyFilters(patients, speciesFilter, searchQuery) }, [patients, speciesFilter, searchQuery])
 
   return (

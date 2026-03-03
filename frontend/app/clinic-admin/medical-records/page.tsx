@@ -13,11 +13,13 @@ import {
   Share2,
   ChevronRight,
   User,
+  Building2,
 } from 'lucide-react'
 
 export default function ClinicMedicalRecordsPage() {
   const router = useRouter()
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -66,6 +68,13 @@ export default function ClinicMedicalRecordsPage() {
     return '—'
   }
 
+  function getBranchName(record: MedicalRecord) {
+    if (typeof record.clinicBranchId === 'object' && record.clinicBranchId?.name) {
+      return record.clinicBranchId.name as string
+    }
+    return null
+  }
+
   function hasVitals(record: MedicalRecord) {
     const v = record.vitals
     return Object.values(v).some((e) => e.value !== '' && e.value !== null && e.value !== undefined)
@@ -79,7 +88,7 @@ export default function ClinicMedicalRecordsPage() {
           <div>
             <h1 className="text-2xl font-bold text-[#4F4F4F]">Medical Records</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {total} record{total !== 1 ? 's' : ''} across your clinic
+              {total} record{total !== 1 ? 's' : ''} across your {user?.userType === 'branch-admin' ? 'branch' : 'clinic'}
             </p>
           </div>
           <button
@@ -142,6 +151,12 @@ export default function ClinicMedicalRecordsPage() {
                         <User className="w-3 h-3" />
                         {getVetName(rec)}
                       </span>
+                      {getBranchName(rec) && (
+                        <span className="text-xs text-[#476B6B] flex items-center gap-1">
+                          <Building2 className="w-3 h-3" />
+                          {getBranchName(rec)}
+                        </span>
+                      )}
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full border ${
                           rec.isCurrent
