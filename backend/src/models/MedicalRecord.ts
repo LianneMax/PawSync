@@ -72,6 +72,7 @@ export interface IMedicalRecord extends Document {
   sharedWithOwner: boolean;
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
+  billingId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -241,7 +242,12 @@ const MedicalRecordSchema = new Schema(
       type: Boolean,
       default: true,
       index: true
-    }
+    },
+    billingId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Billing',
+      default: null,
+    },
   },
   {
     timestamps: true

@@ -17,6 +17,8 @@ import vetScheduleRoutes from './routes/vetScheduleRoutes';
 import vaccinationRoutes from './routes/vaccinationRoutes';
 import vaccineTypeRoutes from './routes/vaccineTypeRoutes';
 import confinementRoutes from './routes/confinementRoutes';
+import billingRoutes from './routes/billingRoutes';
+import productServiceRoutes from './routes/productServiceRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { seedVaccineTypes } from './utils/seedVaccineTypes';
@@ -82,6 +84,12 @@ app.use('/api/vaccine-types', vaccineTypeRoutes);
 
 // Confinement / surgery record routes
 app.use('/api/confinement', confinementRoutes);
+
+// Billing routes
+app.use('/api/billings', billingRoutes);
+
+// Product/service catalog routes
+app.use('/api/product-services', productServiceRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);
