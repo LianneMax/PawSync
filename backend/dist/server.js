@@ -22,6 +22,8 @@ const vetScheduleRoutes_1 = __importDefault(require("./routes/vetScheduleRoutes"
 const vaccinationRoutes_1 = __importDefault(require("./routes/vaccinationRoutes"));
 const vaccineTypeRoutes_1 = __importDefault(require("./routes/vaccineTypeRoutes"));
 const confinementRoutes_1 = __importDefault(require("./routes/confinementRoutes"));
+const billingRoutes_1 = __importDefault(require("./routes/billingRoutes"));
+const productServiceRoutes_1 = __importDefault(require("./routes/productServiceRoutes"));
 const nfcService_1 = require("./services/nfcService");
 const nfcWebSocket_1 = require("./websocket/nfcWebSocket");
 const seedVaccineTypes_1 = require("./utils/seedVaccineTypes");
@@ -69,6 +71,10 @@ app.use('/api/vaccinations', vaccinationRoutes_1.default);
 app.use('/api/vaccine-types', vaccineTypeRoutes_1.default);
 // Confinement / surgery record routes
 app.use('/api/confinement', confinementRoutes_1.default);
+// Billing routes
+app.use('/api/billings', billingRoutes_1.default);
+// Product/service catalog routes
+app.use('/api/product-services', productServiceRoutes_1.default);
 // NFC routes
 app.use('/api/nfc', nfcRoutes_1.default);
 // 404 handler - must be after all routes
@@ -87,14 +93,15 @@ const startServer = async () => {
         const server = http_1.default.createServer(app);
         // Initialize NFC WebSocket (real-time card/reader events)
         (0, nfcWebSocket_1.initNfcWebSocket)(server);
-        // Start NFC reader detection only when running locally with USB hardware.
-        // On Render (cloud), set NFC_MODE=remote — the local agent handles hardware
-        // and sends events via POST /api/nfc/events.
-        if (process.env.NFC_MODE !== 'remote') {
+        // Render sets RENDER=true automatically in all services.
+        // USB hardware is never available in cloud VMs — skip the worker fork.
+        // NFC_MODE=remote can also be set explicitly for other cloud providers.
+        const isCloud = !!process.env.RENDER || process.env.NFC_MODE === 'remote';
+        if (!isCloud) {
             nfcService_1.nfcService.init();
         }
         else {
-            console.log('🔌 NFC_MODE=remote — hardware managed by local NFC agent');
+            console.log('🔌 Cloud environment detected — NFC hardware managed by local NFC agent');
         }
         server.listen(PORT, () => {
             console.log('🚀 ================================');

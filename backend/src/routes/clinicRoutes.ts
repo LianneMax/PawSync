@@ -11,7 +11,8 @@ import {
   getClinicDashboardStats,
   getClinicVets,
   getClinicPatients,
-  createBranchAdmin
+  createBranchAdmin,
+  getBranchStats
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, clinicOrBranchAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -70,6 +71,12 @@ router.put('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, upd
  * Delete a branch
  */
 router.delete('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, mainBranchOnly, deleteBranch);
+
+/**
+ * GET /api/clinics/:clinicId/branches/:branchId/stats
+ * Get statistics for a specific branch (vets, patients, appointments)
+ */
+router.get('/:clinicId/branches/:branchId/stats', authMiddleware, clinicAdminOnly, getBranchStats);
 
 /**
  * POST /api/clinics/:clinicId/vets

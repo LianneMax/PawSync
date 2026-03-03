@@ -685,3 +685,65 @@ export const getClinicPatients = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching clinic patients' });
   }
 };
+
+/**
+ * Get statistics for a specific branch (vets, patients, and appointments counts)
+ */
+export const getBranchStats = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branchId = req.params.branchId;
+    if (!branchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'branchId is required' });
+    }
+
+    // Verify branch exists and belongs to this clinic
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    // Count approved vets for this branch
+    const vetCount = await VetApplication.countDocuments({
+      clinicId: clinic._id,
+      branchId: branchId,
+      status: 'approved'
+    });
+
+    // Count unique patients (pets) who have appointments at this branch
+    const appointments = await Appointment.find({
+      clinicId: clinic._id,
+      clinicBranchId: branchId
+    }).distinct('petId');
+    const patientCount = appointments.length;
+
+    // Count total appointments for this branch
+    const appointmentCount = await Appointment.countDocuments({
+      clinicId: clinic._id,
+      clinicBranchId: branchId
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        stats: {
+          vets: vetCount,
+          patients: patientCount,
+          appointments: appointmentCount
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get branch stats error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching branch stats' });
+  }
+};

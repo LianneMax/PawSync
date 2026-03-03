@@ -102,6 +102,8 @@ export default function ClinicManagementPage() {
   const [clinicId, setClinicId] = useState<string | null>(null)
   const [loadingVets, setLoadingVets] = useState(true)
   const [loadingBranches, setLoadingBranches] = useState(true)
+  const [branchStats, setBranchStats] = useState<Record<string, { vets: number; patients: number; appointments: number }>>({})
+  const [loadingStats, setLoadingStats] = useState(false)
 
   // Modal states
   const [removeVetOpen, setRemoveVetOpen] = useState(false)
@@ -179,6 +181,29 @@ export default function ClinicManagementPage() {
               operatingDays: (b.operatingDays || []).join(', '),
             }))
             setBranches(apiBranches)
+
+            // Fetch statistics for each branch
+            setLoadingStats(true)
+            try {
+              const statsMap: Record<string, { vets: number; patients: number; appointments: number }> = {}
+              await Promise.all(
+                apiBranches.map(async (branch) => {
+                  try {
+                    const statsRes = await authenticatedFetch(`/clinics/${myClinic._id}/branches/${branch.id}/stats`, {}, token)
+                    if (statsRes.status === 'SUCCESS') {
+                      statsMap[branch.id] = statsRes.data.stats
+                    }
+                  } catch (err) {
+                    console.error(`Failed to fetch stats for branch ${branch.id}:`, err)
+                  }
+                })
+              )
+              setBranchStats(statsMap)
+            } catch (err) {
+              console.error('Failed to fetch branch stats:', err)
+            } finally {
+              setLoadingStats(false)
+            }
           }
         }
       } catch (err) {
@@ -537,16 +562,16 @@ export default function ClinicManagementPage() {
                   {/* Stats */}
                   <div className="flex gap-3 mb-4">
                     <div className="bg-[#F8F6F2] rounded-xl px-4 py-3 flex-1 text-center">
-                      <p className="text-xl font-bold text-[#4F4F4F]">{branch.vets}</p>
+                      <p className="text-xl font-bold text-[#4F4F4F]">{branchStats[branch.id]?.vets ?? branch.vets}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-wide">Vets</p>
                     </div>
                     <div className="bg-[#F8F6F2] rounded-xl px-4 py-3 flex-1 text-center">
-                      <p className="text-xl font-bold text-[#4F4F4F]">{branch.patients}</p>
+                      <p className="text-xl font-bold text-[#4F4F4F]">{branchStats[branch.id]?.patients ?? branch.patients}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-wide">Patients</p>
                     </div>
                     <div className="bg-[#F8F6F2] rounded-xl px-4 py-3 flex-1 text-center">
-                      <p className="text-xl font-bold text-[#4F4F4F]">{branch.today}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Today</p>
+                      <p className="text-xl font-bold text-[#4F4F4F]">{branchStats[branch.id]?.appointments ?? branch.today}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Appointments</p>
                     </div>
                   </div>
 
