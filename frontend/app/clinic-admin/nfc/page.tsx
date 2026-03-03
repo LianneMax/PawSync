@@ -96,90 +96,115 @@ export default function ClinicNfcManagementPage() {
     requestId?: string
   } | null>(null)
 
-  // Connect WebSocket for real-time NFC events
+  // Connect WebSocket for real-time NFC events (with auto-reconnect)
   useEffect(() => {
-    const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001').replace(/^http/, 'ws').replace(/\/api$/, '')
-    const ws = new WebSocket(`${wsUrl}/ws/nfc`)
-    wsRef.current = ws
+    let isMounted = true
+    let reconnectDelay = 1000
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data)
+    const connect = () => {
+      if (!isMounted) return
+      const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001').replace(/^http/, 'ws').replace(/\/api$/, '')
+      const ws = new WebSocket(`${wsUrl}/ws/nfc`)
+      wsRef.current = ws
 
-        if (msg.type === 'readers') {
-          // Initial reader list sent on WebSocket connection
-          const connected = (msg.data as Array<{ name: string; connected: boolean }>).filter(r => r.connected)
-          setReaderAvailable(connected.length > 0)
-          setReaderStatus(connected.length > 0 ? `Reader connected: ${connected[0].name}` : 'No NFC reader detected')
-        }
+      ws.onopen = () => {
+        console.log('[WS] Connected to NFC WebSocket')
+        reconnectDelay = 1000 // reset backoff on successful connect
+      }
 
-        if (msg.type === 'write:progress') {
-          setWriteStage(msg.data.stage)
-        }
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data)
 
-        if (msg.type === 'write:complete') {
-          const ctx = queuedWriteRef.current
-          if (ctx) {
-            // QUEUED (remote) write — resolve the modal from the WS event
-            queuedWriteRef.current = null
-            if (writeTimeoutRef.current) {
-              clearTimeout(writeTimeoutRef.current)
-              writeTimeoutRef.current = null
-            }
-            if (msg.data.writeSuccess) {
-              setWriteStage('success')
-              setCurrentWrite({
-                petId: ctx.petId,
-                petName: ctx.petName,
-                status: 'success',
-                nfcTagId: msg.data.uid,
-                url: ctx.url,
-              })
-              setNfcStatus(prev =>
-                prev.map(s => s.petId === ctx.petId ? { ...s, hasNFCTag: true, nfcTagId: msg.data.uid } : s)
-              )
-              if (ctx.requestId) {
-                setPendingRequests(prev => prev.filter(r => r._id !== ctx.requestId))
-                setSelectedRequest(null)
-              }
-              toast('NFC tag written successfully!', { description: `Tag for ${ctx.petName} is ready` })
-              setTimeout(() => setCurrentWrite(null), 5000)
-            } else {
-              setWriteStage('failed')
-              setCurrentWrite({
-                petId: ctx.petId,
-                petName: ctx.petName,
-                status: 'error',
-                error: msg.data.message || 'Write failed — tag may be write-protected',
-              })
-            }
-          } else {
-            // Local (synchronous) write — just update the stage indicator
-            setWriteStage(msg.data.writeSuccess ? 'success' : 'failed')
+          if (msg.type === 'readers') {
+            // Initial reader list sent on WebSocket connection
+            const connected = (msg.data as Array<{ name: string; connected: boolean }>).filter(r => r.connected)
+            setReaderAvailable(connected.length > 0)
+            setReaderStatus(connected.length > 0 ? `Reader connected: ${connected[0].name}` : 'No NFC reader detected')
           }
-        }
 
-        if (msg.type === 'reader:connect') {
-          setReaderAvailable(true)
-          setReaderStatus(`Reader connected: ${msg.data.name}`)
-        }
+          if (msg.type === 'write:progress') {
+            setWriteStage(msg.data.stage)
+          }
 
-        if (msg.type === 'reader:disconnect') {
-          setReaderAvailable(false)
-          setReaderStatus('NFC reader disconnected')
+          if (msg.type === 'write:complete') {
+            const ctx = queuedWriteRef.current
+            if (ctx) {
+              // QUEUED (remote) write — resolve the modal from the WS event
+              queuedWriteRef.current = null
+              if (writeTimeoutRef.current) {
+                clearTimeout(writeTimeoutRef.current)
+                writeTimeoutRef.current = null
+              }
+              if (msg.data.writeSuccess) {
+                setWriteStage('success')
+                setCurrentWrite({
+                  petId: ctx.petId,
+                  petName: ctx.petName,
+                  status: 'success',
+                  nfcTagId: msg.data.uid,
+                  url: ctx.url,
+                })
+                setNfcStatus(prev =>
+                  prev.map(s => s.petId === ctx.petId ? { ...s, hasNFCTag: true, nfcTagId: msg.data.uid } : s)
+                )
+                if (ctx.requestId) {
+                  setPendingRequests(prev => prev.filter(r => r._id !== ctx.requestId))
+                  setSelectedRequest(null)
+                }
+                toast('NFC tag written successfully!', { description: `Tag for ${ctx.petName} is ready` })
+                setTimeout(() => setCurrentWrite(null), 5000)
+              } else {
+                setWriteStage('failed')
+                setCurrentWrite({
+                  petId: ctx.petId,
+                  petName: ctx.petName,
+                  status: 'error',
+                  error: msg.data.message || 'Write failed — tag may be write-protected',
+                })
+              }
+            } else {
+              // Local (synchronous) write — just update the stage indicator
+              setWriteStage(msg.data.writeSuccess ? 'success' : 'failed')
+            }
+          }
+
+          if (msg.type === 'reader:connect') {
+            setReaderAvailable(true)
+            setReaderStatus(`Reader connected: ${msg.data.name}`)
+          }
+
+          if (msg.type === 'reader:disconnect') {
+            setReaderAvailable(false)
+            setReaderStatus('NFC reader disconnected')
+          }
+        } catch {
+          // Ignore parse errors
         }
-      } catch {
-        // Ignore parse errors
+      }
+
+      ws.onclose = () => {
+        console.log('[WS] Disconnected from NFC WebSocket — reconnecting in', reconnectDelay, 'ms')
+        wsRef.current = null
+        if (isMounted) {
+          reconnectTimeout = setTimeout(() => {
+            reconnectDelay = Math.min(reconnectDelay * 2, 16000)
+            connect()
+          }, reconnectDelay)
+        }
       }
     }
 
-    ws.onclose = () => {
-      console.log('[WS] Disconnected from NFC WebSocket')
-    }
+    connect()
 
     return () => {
-      ws.close()
-      wsRef.current = null
+      isMounted = false
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
     }
   }, [])
 
