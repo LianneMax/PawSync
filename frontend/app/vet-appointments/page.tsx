@@ -12,6 +12,7 @@ import {
 } from '@/lib/appointments'
 import { getRecordByAppointment } from '@/lib/medicalRecords'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
+import WorkingHoursModal from '@/components/WorkingHoursModal'
 import {
   Calendar,
   Clock,
@@ -23,6 +24,9 @@ import {
   X,
   LogIn,
   PlayCircle,
+  Pencil,
+  Building2,
+  CheckCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -69,6 +73,24 @@ function formatDate(dateStr: string) {
 
 // ==================== MAIN PAGE ====================
 
+interface BranchSchedule {
+  branchId: string
+  branchName: string
+  branchAddress: string
+  branchOpeningTime: string | null
+  branchClosingTime: string | null
+  branchOperatingDays: string[]
+  schedule: { _id: string; workingDays: string[]; startTime: string; endTime: string } | null
+}
+
+function formatScheduleTime(time: string | null) {
+  if (!time) return '—'
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const display = h > 12 ? h - 12 : h === 0 ? 12 : h
+  return `${display}:${m.toString().padStart(2, '0')} ${ampm}`
+}
+
 export default function VetAppointmentsPage() {
   const { token } = useAuthStore()
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -79,6 +101,11 @@ export default function VetAppointmentsPage() {
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
   const [checkingIn, setCheckingIn] = useState<string | null>(null)
   const [continuingVisit, setContinuingVisit] = useState<string | null>(null)
+
+  // Working hours modal state
+  const [workingHoursOpen, setWorkingHoursOpen] = useState(false)
+  const [schedules, setSchedules] = useState<BranchSchedule[]>([])
+  const [schedulesLoading, setSchedulesLoading] = useState(true)
 
   // Staged modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -104,6 +131,25 @@ export default function VetAppointmentsPage() {
   useEffect(() => {
     loadAppointments()
   }, [loadAppointments])
+
+  const loadSchedules = useCallback(async () => {
+    if (!token) return
+    setSchedulesLoading(true)
+    try {
+      const res = await authenticatedFetch('/vet-schedule/mine', { method: 'GET' }, token)
+      if (res.status === 'SUCCESS' && res.data?.schedules) {
+        setSchedules(res.data.schedules)
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setSchedulesLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    loadSchedules()
+  }, [loadSchedules])
 
   // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
@@ -493,14 +539,50 @@ export default function VetAppointmentsPage() {
 
               {/* Working Hours */}
               <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <h3 className="font-semibold text-[#4F4F4F] mb-4">Working Hours</h3>
-                <div className="space-y-4">
-                  <div className="pb-4 border-b border-gray-100">
-                    <p className="text-sm font-medium text-[#2C3E2D] mb-2">Baivet - Main Branch</p>
-                    <p className="text-xs text-gray-500 mb-2">Paranaque</p>
-                    <p className="text-xs text-gray-600">9:00 AM - 6:00 PM • Mon, Wed, Tue, Thu, Fri</p>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-[#4F4F4F]">Working Hours</h3>
+                  <button
+                    onClick={() => setWorkingHoursOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
                 </div>
+                {schedulesLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="w-5 h-5 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : schedules.length === 0 ? (
+                  <div className="text-center py-4 border-2 border-dashed border-gray-200 rounded-xl">
+                    <Building2 className="w-8 h-8 text-gray-300 mx-auto mb-1.5" />
+                    <p className="text-xs text-gray-400">No clinic assignments yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {schedules.map((s) => (
+                      <div key={s.branchId} className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <p className="text-sm font-medium text-[#2C3E2D]">{s.branchName}</p>
+                          {s.schedule && (
+                            <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                          )}
+                        </div>
+                        {s.branchAddress && (
+                          <p className="text-xs text-gray-400 mb-1">{s.branchAddress}</p>
+                        )}
+                        {s.schedule ? (
+                          <p className="text-xs text-gray-600">
+                            {formatScheduleTime(s.schedule.startTime)} – {formatScheduleTime(s.schedule.endTime)}
+                            {' · '}{s.schedule.workingDays.join(', ')}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-amber-500">No schedule set</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -582,6 +664,15 @@ export default function VetAppointmentsPage() {
           petId={activePetId}
           onComplete={handleModalComplete}
           onClose={handleModalClose}
+        />
+      )}
+
+      {/* Working Hours Modal */}
+      {token && (
+        <WorkingHoursModal
+          open={workingHoursOpen}
+          onClose={() => { setWorkingHoursOpen(false); loadSchedules() }}
+          token={token}
         />
       )}
 
