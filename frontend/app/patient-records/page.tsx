@@ -1924,7 +1924,9 @@ function ViewRecordModal({
                   <span className="text-lg shrink-0">{record.confinementAction === 'confined' ? '🔒' : '🔓'}</span>
                   <div>
                     <p className={`text-sm font-semibold ${record.confinementAction === 'confined' ? 'text-amber-800' : 'text-green-800'}`}>
-                      {record.confinementAction === 'confined' ? 'Pet was confined during this visit' : 'Pet was released from confinement during this visit'}
+                      {record.confinementAction === 'confined'
+                        ? 'Pet was confined during this visit'
+                        : `Pet was released from confinement${record.confinementDays ? ` after ${record.confinementDays} day${record.confinementDays !== 1 ? 's' : ''}` : ' during this visit'}`}
                     </p>
                     <p className={`text-xs ${record.confinementAction === 'confined' ? 'text-amber-600' : 'text-green-600'}`}>
                       Logged on {new Date(record.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

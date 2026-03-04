@@ -72,6 +72,7 @@ export interface IMedicalRecord extends Document {
   sharedWithOwner: boolean;
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
+  confinementDays: number;
   billingId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -237,6 +238,10 @@ const MedicalRecordSchema = new Schema(
       type: String,
       enum: ['none', 'confined', 'released'],
       default: 'none'
+    },
+    confinementDays: {
+      type: Number,
+      default: 0
     },
     isCurrent: {
       type: Boolean,

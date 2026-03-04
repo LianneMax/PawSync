@@ -121,16 +121,21 @@ export const getPetById = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    // Only the owner or an assigned vet can view the pet
+    // Only the owner, an authorized vet, or a clinic/branch admin can view the pet
     const isOwner = pet.ownerId._id.toString() === req.user.userId;
-    let isAssignedVet = false;
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {
       const vetPet = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
-      isAssignedVet = !!vetPet;
+      isAuthorizedVet = !!vetPet;
+      if (!isAuthorizedVet) {
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
     }
 
-    if (!isOwner && !isAssignedVet) {
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this pet' });
     }
 
@@ -463,6 +468,7 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
     let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {
@@ -470,7 +476,7 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
       isAuthorizedVet = !!hasRecords;
     }
 
-    if (!isOwner && !isAuthorizedVet) {
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this pet\'s confinement status' });
     }
 
@@ -480,12 +486,22 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
     }
 
     pet.isConfined = isConfined;
+    let confinementDays = 0;
+    if (isConfined) {
+      pet.confinedSince = new Date();
+    } else {
+      if (pet.confinedSince) {
+        const msPerDay = 1000 * 60 * 60 * 24;
+        confinementDays = Math.max(1, Math.ceil((Date.now() - pet.confinedSince.getTime()) / msPerDay));
+      }
+      pet.confinedSince = null;
+    }
     await pet.save();
 
     return res.status(200).json({
       status: 'SUCCESS',
       message: isConfined ? 'Pet marked as confined' : 'Pet released from confinement',
-      data: { pet }
+      data: { pet, confinementDays }
     });
   } catch (error) {
     console.error('Update pet confinement error:', error);

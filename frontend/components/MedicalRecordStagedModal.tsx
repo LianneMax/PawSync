@@ -181,18 +181,27 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   // Computes the confinement action for logging and syncs the pet's isConfined flag.
   // Returns 'confined', 'released', or 'none'.
-  const syncConfinement = async (): Promise<'none' | 'confined' | 'released'> => {
+  const syncConfinement = async (): Promise<{ action: 'none' | 'confined' | 'released'; days: number }> => {
     const wasConfined = pet?.isConfined || false
-    if (confined === wasConfined) return 'none'
-    await updatePetConfinement(petId, confined, token!)
-    return confined ? 'confined' : 'released'
+    let days = 0
+    if (confined !== wasConfined) {
+      const result = await updatePetConfinement(petId, confined, token!)
+      if (result.status !== 'SUCCESS') {
+        throw new Error(result.message || 'Failed to update pet confinement status')
+      }
+      days = result.data?.confinementDays ?? 0
+      setPet((prev) => prev ? { ...prev, isConfined: confined } : prev)
+    }
+    if (confined) return { action: 'confined', days }
+    if (wasConfined && !confined) return { action: 'released', days }
+    return { action: 'none', days: 0 }
   }
 
   const handleSaveAndClose = async () => {
     if (!token) return
     setSaving(true)
     try {
-      const confinementAction = await syncConfinement()
+      const { action: confinementAction, days: confinementDays } = await syncConfinement()
       await updateMedicalRecord(recordId, {
         chiefComplaint,
         vitals,
@@ -207,6 +216,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         preventiveCare,
         sharedWithOwner,
         confinementAction,
+        confinementDays,
       }, token)
       toast.success('Progress saved')
       onClose()
@@ -259,7 +269,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setCompleting(true)
     try {
-      const confinementAction = await syncConfinement()
+      const { action: confinementAction, days: confinementDays } = await syncConfinement()
       await updateMedicalRecord(recordId, {
         stage: 'completed',
         visitSummary,
@@ -269,6 +279,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         sharedWithOwner,
         images,
         confinementAction,
+        confinementDays,
       }, token)
       if (!alreadyCompleted) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
@@ -407,7 +418,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   <span className="text-amber-500 text-lg shrink-0">🔒</span>
                   <div>
                     <p className="text-sm font-semibold text-amber-800">This pet is currently confined</p>
-                    <p className="text-xs text-amber-600">You can release the pet from confinement in the Post-Procedure step.</p>
+                    <p className="text-xs text-amber-600">
+                      {(() => {
+                        if (!pet.confinedSince) return 'Release the pet from confinement in the Post-Procedure step.'
+                        const days = Math.max(1, Math.ceil((Date.now() - new Date(pet.confinedSince).getTime()) / 86400000))
+                        return `Confined for ${days} day${days !== 1 ? 's' : ''}. Release from confinement in the Post-Procedure step.`
+                      })()}
+                    </p>
                   </div>
                 </div>
               )}
@@ -817,16 +834,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               <div className={`flex items-center justify-between p-4 rounded-2xl border ${confined ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-transparent'}`}>
                 <div>
                   <p className="text-sm font-semibold text-[#4F4F4F]">
-                    {pet?.isConfined ? 'Release Pet from Confinement' : 'Mark Pet as Confined'}
+                    {confined ? 'Release Pet from Confinement' : 'Mark Pet as Confined'}
                   </p>
                   <p className="text-xs text-gray-500">
                     {confined
-                      ? pet?.isConfined
-                        ? 'Toggle off to release this pet from confinement'
-                        : 'Pet will be marked as confined after saving'
-                      : pet?.isConfined
-                        ? 'Pet will be released from confinement after saving'
-                        : 'Toggle to confine this pet after this visit'}
+                      ? 'Toggle off to release this pet from confinement after saving'
+                      : 'Toggle to mark this pet as confined after saving'}
                   </p>
                 </div>
                 <button

@@ -19,6 +19,7 @@ export interface IPet extends Document {
   allergies: string[];
   isLost: boolean;
   isConfined: boolean;
+  confinedSince: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +104,10 @@ const PetSchema = new Schema(
     isConfined: {
       type: Boolean,
       default: false
+    },
+    confinedSince: {
+      type: Date,
+      default: null
     }
   },
   {

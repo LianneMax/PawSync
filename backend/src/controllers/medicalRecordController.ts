@@ -489,7 +489,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     const {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
-      medications, diagnosticTests, preventiveCare, confinementAction
+      medications, diagnosticTests, preventiveCare, confinementAction, confinementDays
     } = req.body;
 
     if (vitals) record.vitals = vitals;
@@ -506,6 +506,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (diagnosticTests !== undefined) record.diagnosticTests = diagnosticTests;
     if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
     if (confinementAction !== undefined) record.confinementAction = confinementAction;
+    if (confinementDays !== undefined) record.confinementDays = confinementDays;
 
     if (images) {
       record.images = images.map((img: { data: string; contentType: string; description?: string }) => ({

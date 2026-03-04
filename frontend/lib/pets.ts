@@ -20,6 +20,7 @@ export interface Pet {
   allergies: string[];
   isLost: boolean;
   isConfined: boolean;
+  confinedSince: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,7 +28,7 @@ export interface Pet {
 export interface PetResponse {
   status: 'SUCCESS' | 'ERROR';
   message?: string;
-  data?: { pet: Pet };
+  data?: { pet: Pet; confinementDays?: number };
 }
 
 export interface PetsResponse {
