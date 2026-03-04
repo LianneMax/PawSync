@@ -15,7 +15,12 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /**
  * Generate 30-minute time slots between two "HH:MM" time strings
  */
-function generateTimeSlots(startTime = '07:00', endTime = '17:00'): { startTime: string; endTime: string }[] {
+function generateTimeSlots(
+  startTime = '07:00',
+  endTime = '17:00',
+  breakStart?: string | null,
+  breakEnd?: string | null
+): { startTime: string; endTime: string }[] {
   const slots: { startTime: string; endTime: string }[] = [];
   let [h, m] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
@@ -28,7 +33,17 @@ function generateTimeSlots(startTime = '07:00', endTime = '17:00'): { startTime:
     if (nextM >= 60) { nextH++; nextM -= 60; }
     const nextHStr = nextH.toString().padStart(2, '0');
     const nextMStr = nextM.toString().padStart(2, '0');
-    slots.push({ startTime: `${hStr}:${mStr}`, endTime: `${nextHStr}:${nextMStr}` });
+    const slotStart = `${hStr}:${mStr}`;
+    const slotEnd = `${nextHStr}:${nextMStr}`;
+
+    // Skip slot if it overlaps with the break window
+    const overlapsBreak =
+      breakStart && breakEnd &&
+      slotStart < breakEnd && slotEnd > breakStart;
+
+    if (!overlapsBreak) {
+      slots.push({ startTime: slotStart, endTime: slotEnd });
+    }
     h = nextH;
     m = nextM;
   }
@@ -154,6 +169,8 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     // Resolve working hours: vet schedule → branch hours → default 7–17
     let slotStart = '07:00';
     let slotEnd = '17:00';
+    let slotBreakStart: string | null = null;
+    let slotBreakEnd: string | null = null;
     let isClosed = false;
 
     if (branchId) {
@@ -169,6 +186,8 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
         } else {
           slotStart = vetSchedule.startTime;
           slotEnd = vetSchedule.endTime;
+          slotBreakStart = vetSchedule.breakStart ?? null;
+          slotBreakEnd = vetSchedule.breakEnd ?? null;
         }
       } else {
         // Fall back to branch operating hours
@@ -202,7 +221,7 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       (a) => a.ownerId.toString() === req.user!.userId
     );
 
-    const allSlots = generateTimeSlots(slotStart, slotEnd);
+    const allSlots = generateTimeSlots(slotStart, slotEnd, slotBreakStart, slotBreakEnd);
 
     const slots = allSlots.map((slot) => {
       const bookedSlot = booked.find((b) => b.startTime === slot.startTime);

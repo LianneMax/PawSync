@@ -4,8 +4,10 @@ export interface IVetSchedule extends Document {
   vetId: mongoose.Types.ObjectId;
   branchId: mongoose.Types.ObjectId;
   workingDays: string[];
-  startTime: string; // e.g. "09:00"
-  endTime: string;   // e.g. "17:00"
+  startTime: string;      // e.g. "09:00"
+  endTime: string;        // e.g. "17:00"
+  breakStart: string | null; // e.g. "12:00"
+  breakEnd: string | null;   // e.g. "13:00"
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +38,14 @@ const VetScheduleSchema = new Schema(
     endTime: {
       type: String,
       required: true
+    },
+    breakStart: {
+      type: String,
+      default: null
+    },
+    breakEnd: {
+      type: String,
+      default: null
     }
   },
   {

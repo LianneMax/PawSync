@@ -57,10 +57,23 @@ export const upsertSchedule = async (req: Request, res: Response) => {
     }
 
     const { branchId } = req.params;
-    const { workingDays, startTime, endTime } = req.body;
+    const { workingDays, startTime, endTime, breakStart, breakEnd } = req.body;
 
     if (!workingDays || !startTime || !endTime) {
       return res.status(400).json({ status: 'ERROR', message: 'workingDays, startTime, and endTime are required' });
+    }
+
+    // Validate break times if provided
+    if (breakStart || breakEnd) {
+      if (!breakStart || !breakEnd) {
+        return res.status(400).json({ status: 'ERROR', message: 'Both breakStart and breakEnd are required when specifying a break' });
+      }
+      if (breakStart >= breakEnd) {
+        return res.status(400).json({ status: 'ERROR', message: 'Break start time must be before break end time' });
+      }
+      if (breakStart <= startTime || breakEnd >= endTime) {
+        return res.status(400).json({ status: 'ERROR', message: 'Break must fall within working hours' });
+      }
     }
 
     // Verify vet is approved at this branch
@@ -110,7 +123,13 @@ export const upsertSchedule = async (req: Request, res: Response) => {
 
     const schedule = await VetSchedule.findOneAndUpdate(
       { vetId: req.user.userId, branchId },
-      { workingDays, startTime, endTime },
+      {
+        workingDays,
+        startTime,
+        endTime,
+        breakStart: breakStart || null,
+        breakEnd: breakEnd || null,
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
