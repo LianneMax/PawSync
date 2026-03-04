@@ -142,8 +142,8 @@ export function startScheduler() {
     }
   });
 
-  // Run every 5 minutes to auto-complete appointments whose time window has passed
-  cron.schedule('*/5 * * * *', async () => {
+  // Run every minute to auto-cancel/complete appointments based on elapsed time
+  cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
 
@@ -151,19 +151,39 @@ export function startScheduler() {
       const todayStart = new Date(now);
       todayStart.setHours(0, 0, 0, 0);
 
-      const pastOrTodayAppointments = await Appointment.find({
+      const activeAppointments = await Appointment.find({
         status: { $in: ['confirmed', 'in_progress'] },
         date: { $lte: todayStart },
-      }).select('_id date endTime');
+      }).select('_id date startTime endTime status');
 
+      const toCancel: string[] = [];
       const toComplete: string[] = [];
 
-      for (const appt of pastOrTodayAppointments) {
+      for (const appt of activeAppointments) {
         const dateStr = appt.date.toISOString().split('T')[0];
-        const apptEnd = new Date(`${dateStr}T${appt.endTime}`);
-        if (apptEnd < now) {
-          toComplete.push(appt._id.toString());
+
+        if (appt.status === 'confirmed') {
+          // Auto-cancel if vet hasn't checked in within 15 minutes of start time
+          const apptStart = new Date(`${dateStr}T${appt.startTime}`);
+          const cancelThreshold = new Date(apptStart.getTime() + 15 * 60 * 1000);
+          if (cancelThreshold < now) {
+            toCancel.push(appt._id.toString());
+          }
+        } else if (appt.status === 'in_progress') {
+          // Auto-complete if the appointment's end time has passed
+          const apptEnd = new Date(`${dateStr}T${appt.endTime}`);
+          if (apptEnd < now) {
+            toComplete.push(appt._id.toString());
+          }
         }
+      }
+
+      if (toCancel.length > 0) {
+        await Appointment.updateMany(
+          { _id: { $in: toCancel } },
+          { $set: { status: 'cancelled' } }
+        );
+        console.log(`[Scheduler] Auto-cancelled ${toCancel.length} appointment(s) (no check-in within 15 min)`);
       }
 
       if (toComplete.length > 0) {
@@ -174,7 +194,7 @@ export function startScheduler() {
         console.log(`[Scheduler] Auto-completed ${toComplete.length} past appointment(s)`);
       }
     } catch (err) {
-      console.error('[Scheduler] Auto-complete appointments error:', err);
+      console.error('[Scheduler] Auto-update appointments error:', err);
     }
   });
 

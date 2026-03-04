@@ -43,7 +43,12 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 // ==================== HELPERS ====================
 
 function getDisplayStatus(appt: Appointment): string {
-  if (appt.status === 'pending' || appt.status === 'confirmed' || appt.status === 'in_progress') {
+  if (appt.status === 'confirmed') {
+    const apptStart = new Date(appt.date.split('T')[0] + 'T' + appt.startTime)
+    const cancelThreshold = new Date(apptStart.getTime() + 15 * 60 * 1000)
+    if (cancelThreshold < new Date()) return 'cancelled'
+  }
+  if (appt.status === 'in_progress') {
     const apptEnd = new Date(appt.date.split('T')[0] + 'T' + appt.endTime)
     if (apptEnd < new Date()) return 'completed'
   }
