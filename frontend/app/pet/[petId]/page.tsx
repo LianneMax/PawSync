@@ -287,8 +287,8 @@ export default function PetProfilePage() {
           </button>
         </div>
 
-        {/* Request NFC Tag (only for logged-in users) */}
-        {token && (
+        {/* Request NFC Tag (only for pet-owners) */}
+        {token && userType === 'pet-owner' && (
           <button
             onClick={() => setShowNfcRequestModal(true)}
             className="w-full bg-[#7FA5A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#6b9391] transition-colors"
