@@ -142,5 +142,41 @@ export function startScheduler() {
     }
   });
 
+  // Run every 5 minutes to auto-complete appointments whose time window has passed
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const now = new Date();
+
+      // Only consider appointments for today or earlier
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+
+      const pastOrTodayAppointments = await Appointment.find({
+        status: { $in: ['confirmed', 'in_progress'] },
+        date: { $lte: todayStart },
+      }).select('_id date endTime');
+
+      const toComplete: string[] = [];
+
+      for (const appt of pastOrTodayAppointments) {
+        const dateStr = appt.date.toISOString().split('T')[0];
+        const apptEnd = new Date(`${dateStr}T${appt.endTime}`);
+        if (apptEnd < now) {
+          toComplete.push(appt._id.toString());
+        }
+      }
+
+      if (toComplete.length > 0) {
+        await Appointment.updateMany(
+          { _id: { $in: toComplete } },
+          { $set: { status: 'completed' } }
+        );
+        console.log(`[Scheduler] Auto-completed ${toComplete.length} past appointment(s)`);
+      }
+    } catch (err) {
+      console.error('[Scheduler] Auto-complete appointments error:', err);
+    }
+  });
+
   console.log('[Scheduler] Daily tasks scheduled (midnight)');
 }
