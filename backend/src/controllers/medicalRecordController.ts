@@ -443,7 +443,7 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
 
     const records = await MedicalRecord.find(query)
       .select('-images.data -vetNotes')
-      .populate('petId', 'name species breed photo')
+      .populate({ path: 'petId', select: 'name species breed photo ownerId', populate: { path: 'ownerId', select: 'firstName lastName' } })
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
