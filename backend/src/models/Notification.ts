@@ -1,0 +1,50 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
+export type NotificationType =
+  | 'appointment_scheduled'
+  | 'appointment_cancelled'
+  | 'appointment_completed'
+  | 'appointment_reminder'
+  | 'appointment_rescheduled'
+  | 'bill_due'
+  | 'bill_paid'
+  | 'vaccine_due'
+  | 'pet_lost';
+
+export interface INotification extends Document {
+  userId: mongoose.Types.ObjectId;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+}
+
+const NotificationSchema = new Schema<INotification>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    type: {
+      type: String,
+      enum: [
+        'appointment_scheduled',
+        'appointment_cancelled',
+        'appointment_completed',
+        'appointment_reminder',
+        'appointment_rescheduled',
+        'bill_due',
+        'bill_paid',
+        'vaccine_due',
+        'pet_lost',
+      ],
+      required: true,
+    },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    read: { type: Boolean, default: false },
+    metadata: { type: Schema.Types.Mixed },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model<INotification>('Notification', NotificationSchema);

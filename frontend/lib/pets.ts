@@ -19,6 +19,9 @@ export interface Pet {
   bloodType: string | null;
   allergies: string[];
   isLost: boolean;
+  lostContactName: string | null;
+  lostContactNumber: string | null;
+  lostMessage: string | null;
   isConfined: boolean;
   confinedSince: string | null;
   createdAt: string;
@@ -129,10 +132,15 @@ export const transferPet = async (id: string, newOwnerEmail: string, token?: str
 /**
  * Mark/unmark a pet as lost
  */
-export const togglePetLost = async (id: string, isLost: boolean, token?: string): Promise<PetResponse> => {
+export const togglePetLost = async (
+  id: string,
+  isLost: boolean,
+  token?: string,
+  contactInfo?: { lostContactName?: string | null; lostContactNumber?: string | null; lostMessage?: string | null }
+): Promise<PetResponse> => {
   return authenticatedFetch(`/pets/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ isLost })
+    body: JSON.stringify({ isLost, ...contactInfo })
   }, token);
 };
 

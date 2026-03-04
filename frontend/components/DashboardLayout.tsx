@@ -9,7 +9,12 @@ import {
   Syringe,
   CheckCircle2,
   CalendarCheck,
-  Calendar,
+  CalendarX,
+  CalendarClock,
+  CalendarArrowUp,
+  Receipt,
+  BadgeCheck,
+  PawPrint,
   CheckCheck,
 } from 'lucide-react'
 import {
@@ -18,7 +23,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { toast } from 'sonner'
+import {
+  getMyNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  type Notification,
+  type NotificationType,
+} from '@/lib/notifications'
 
 type UserType = 'pet-owner' | 'veterinarian' | 'clinic-admin'
 
@@ -36,64 +47,76 @@ interface DashboardLayoutProps {
   userType?: UserType
 }
 
-interface Notification {
-  id: string
-  title: string
-  message: string
-  time: string
-  type: 'vaccination' | 'clinic' | 'appointment'
-  read: boolean
-}
-
-// Mock notifications
-const initialNotifications: Notification[] = [
-  {
-    id: '1',
-    title: 'Vaccination Reminder',
-    message: "Coco's rabies vaccination is due on January, 2026. Schedule an appointment soon!",
-    time: '2 hours ago',
-    type: 'vaccination',
-    read: false,
-  },
-  {
-    id: '2',
-    title: 'Clinic Visit Completed!',
-    message: "Coco's rabies vaccination is due on January, 2026. Schedule an appointment soon!",
-    time: '2 hours ago',
-    type: 'clinic',
-    read: false,
-  },
-  {
-    id: '3',
-    title: 'Appointment Confirmed!',
-    message: "Coco's rabies vaccination is due on January, 2026. Schedule an appointment soon!",
-    time: '2 hours ago',
-    type: 'appointment',
-    read: true,
-  },
-]
-
-function getNotificationIcon(type: Notification['type']) {
+function getNotificationIcon(type: NotificationType) {
   switch (type) {
-    case 'vaccination':
+    case 'vaccine_due':
       return (
         <div className="w-10 h-10 rounded-full bg-[#FEF9C3] flex items-center justify-center shrink-0">
           <Syringe className="w-5 h-5 text-[#CA8A04]" />
         </div>
       )
-    case 'clinic':
+    case 'appointment_completed':
       return (
         <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
           <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
         </div>
       )
-    case 'appointment':
+    case 'appointment_cancelled':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0">
+          <CalendarX className="w-5 h-5 text-[#DC2626]" />
+        </div>
+      )
+    case 'appointment_reminder':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#EDE9FE] flex items-center justify-center shrink-0">
+          <CalendarClock className="w-5 h-5 text-[#7C3AED]" />
+        </div>
+      )
+    case 'appointment_rescheduled':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
+          <CalendarArrowUp className="w-5 h-5 text-[#0369A1]" />
+        </div>
+      )
+    case 'bill_due':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
+          <Receipt className="w-5 h-5 text-[#D97706]" />
+        </div>
+      )
+    case 'bill_paid':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+          <BadgeCheck className="w-5 h-5 text-[#16A34A]" />
+        </div>
+      )
+    case 'pet_lost':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0">
+          <PawPrint className="w-5 h-5 text-[#DC2626]" />
+        </div>
+      )
+    case 'appointment_scheduled':
+    default:
       return (
         <div className="w-10 h-10 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0">
           <CalendarCheck className="w-5 h-5 text-[#5A7C7A]" />
         </div>
       )
   }
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function getDashboardPath(userType: string): string {
@@ -114,7 +137,7 @@ export default function DashboardLayout({
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
 
   useEffect(() => {
     // If no authenticated user in store, redirect to login
@@ -146,39 +169,33 @@ export default function DashboardLayout({
     })
   }, [userTypeOverride, authUser, router])
 
-  // Simulate a new system notification arriving after a delay
+  const fetchNotifications = useCallback(() => {
+    if (!authUser) return
+    getMyNotifications()
+      .then(setNotifications)
+      .catch((err) => console.error('[Notifications] fetch error:', err))
+  }, [authUser])
+
+  // Fetch on mount
+  useEffect(() => { fetchNotifications() }, [fetchNotifications])
+
+  // Re-fetch whenever the sheet opens so data is always fresh
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const newNotification: Notification = {
-        id: String(Date.now()),
-        title: 'New Appointment Scheduled',
-        message: 'A new appointment for Coco has been scheduled at BaiVet Animal Clinic on Feb 20, 2026.',
-        time: 'Just now',
-        type: 'appointment',
-        read: false,
-      }
-
-      setNotifications((prev) => [newNotification, ...prev])
-
-      toast('New Appointment Scheduled', {
-        description: 'A new appointment for Coco has been scheduled at BaiVet Animal Clinic on Feb 20, 2026.',
-        icon: <Calendar className="w-4 h-4 text-[#5A7C7A]" />,
-      })
-    }, 8000)
-
-    return () => clearTimeout(timer)
-  }, [])
+    if (notificationsOpen) fetchNotifications()
+  }, [notificationsOpen, fetchNotifications])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
-  const markAsRead = useCallback((id: string) => {
+  const markAsRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n._id === id ? { ...n, read: true } : n))
     )
+    await markNotificationRead(id).catch(() => {})
   }, [])
 
-  const markAllAsRead = useCallback(() => {
+  const markAllAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    await markAllNotificationsRead().catch(() => {})
   }, [])
 
   if (!userData) {
@@ -240,10 +257,13 @@ export default function DashboardLayout({
             </div>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {notifications.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-8">No notifications yet.</p>
+            )}
             {notifications.map((notification) => (
               <div
-                key={notification.id}
-                onClick={() => markAsRead(notification.id)}
+                key={notification._id}
+                onClick={() => markAsRead(notification._id)}
                 className={`rounded-xl border-l-4 p-4 cursor-pointer transition-all ${
                   notification.read
                     ? 'bg-[#EFEFEF] border-l-[#EFEFEF] shadow-none hover:shadow-sm'
@@ -253,9 +273,9 @@ export default function DashboardLayout({
                 <div className="flex gap-3">
                   {getNotificationIcon(notification.type)}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{notification.title}</p>
-                    <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notification.message}</p>
-                    <p className="text-[11px] text-[#73A3A7] mt-2 font-medium">{notification.time}</p>
+                    <p className="font-semibold text-[#4F4F4F] text-sm">{notification.title}</p>
+                    <p className="text-xs text-[#4F4F4F] mt-1 leading-relaxed">{notification.message}</p>
+                    <p className="text-[11px] text-[#959595] mt-2 font-medium">{timeAgo(notification.createdAt)}</p>
                   </div>
                 </div>
               </div>

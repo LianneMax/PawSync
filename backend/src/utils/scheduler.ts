@@ -7,6 +7,7 @@ import {
   sendAppointmentReminder,
   sendVaccinationDueReminder,
 } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
 
 export function startScheduler() {
   // Run every day at midnight
@@ -59,6 +60,14 @@ export function startScheduler() {
             nextDueDate: vax.nextDueDate,
             type: 'overdue',
           });
+          const dueDateStr = vax.nextDueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          await createNotification(
+            owner._id.toString(),
+            'vaccine_due',
+            'Vaccination Overdue',
+            `${pet.name}'s ${vax.vaccineName} vaccination was due on ${dueDateStr}. Please schedule an appointment soon.`,
+            { vaccinationId: vax._id, petId: pet._id }
+          );
         }
       }
       console.log(`[Scheduler] Sent ${overdueVaccinations.length} overdue vaccination emails`);
@@ -94,6 +103,14 @@ export function startScheduler() {
             nextDueDate: vax.nextDueDate,
             type: 'upcoming',
           });
+          const dueDateStr = vax.nextDueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          await createNotification(
+            owner._id.toString(),
+            'vaccine_due',
+            'Vaccination Reminder',
+            `${pet.name}'s ${vax.vaccineName} vaccination is due on ${dueDateStr}. Schedule an appointment soon.`,
+            { vaccinationId: vax._id, petId: pet._id }
+          );
         }
       }
       console.log(`[Scheduler] Sent ${upcomingVaccinations.length} upcoming vaccination reminder emails`);
@@ -123,11 +140,27 @@ export function startScheduler() {
         const pet = appt.petId as any;
         const vet = appt.vetId as any;
         const branch = appt.clinicBranchId as any;
+        const petName = pet?.name ?? 'your pet';
+        const vetName = vet ? `Dr. ${vet.firstName} ${vet.lastName}` : 'your vet';
+        const clinicName = branch?.name ?? 'the clinic';
+        const dateStr = appt.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        // Always create in-app reminder
+        if (owner?._id) {
+          await createNotification(
+            owner._id.toString(),
+            'appointment_reminder',
+            'Appointment Tomorrow',
+            `Reminder: ${petName} has an appointment with ${vetName} at ${clinicName} tomorrow (${dateStr}) at ${appt.startTime}.`,
+            { appointmentId: appt._id }
+          );
+        }
+
         if (owner?.email && vet && branch) {
           await sendAppointmentReminder({
             ownerEmail: owner.email,
             ownerFirstName: owner.firstName,
-            petName: pet?.name ?? '',
+            petName: petName,
             vetName: `${vet.firstName} ${vet.lastName}`,
             clinicName: branch.name,
             date: appt.date,

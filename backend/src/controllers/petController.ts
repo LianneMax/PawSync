@@ -6,6 +6,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import Vaccination from '../models/Vaccination';
 import QRCode from 'qrcode';
 import { sendLostPetConfirmation, sendLostPetScanAlert } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
 
 /**
  * Generate QR code for a pet profile
@@ -186,8 +187,15 @@ export const updatePet = async (req: Request, res: Response) => {
 
     // Send lost pet confirmation when owner first marks pet as lost
     if (!wasLost && pet.isLost) {
-      try {
-        const owner = await User.findById(req.user.userId).select('firstName email');
+      Promise.resolve().then(async () => {
+        await createNotification(
+          req.user!.userId,
+          'pet_lost',
+          'Pet Reported as Lost',
+          `${pet.name} has been marked as lost. Their public profile is now active — anyone who scans their tag can contact you.`,
+          { petId: pet._id }
+        );
+        const owner = await User.findById(req.user!.userId).select('firstName email');
         if (owner?.email) {
           sendLostPetConfirmation({
             ownerEmail: owner.email,
@@ -197,9 +205,7 @@ export const updatePet = async (req: Request, res: Response) => {
             species: pet.species,
           });
         }
-      } catch (emailErr) {
-        console.error('[Email] Lost pet confirmation error:', emailErr);
-      }
+      }).catch((err) => console.error('[Notification] Lost pet notification error:', err));
     }
 
     return res.status(200).json({

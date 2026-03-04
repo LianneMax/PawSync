@@ -19,6 +19,7 @@ import vaccineTypeRoutes from './routes/vaccineTypeRoutes';
 import confinementRoutes from './routes/confinementRoutes';
 import billingRoutes from './routes/billingRoutes';
 import productServiceRoutes from './routes/productServiceRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { seedVaccineTypes } from './utils/seedVaccineTypes';
@@ -90,6 +91,9 @@ app.use('/api/billings', billingRoutes);
 
 // Product/service catalog routes
 app.use('/api/product-services', productServiceRoutes);
+
+// Notification routes
+app.use('/api/notifications', notificationRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);

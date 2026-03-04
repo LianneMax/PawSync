@@ -44,6 +44,9 @@ interface Pet {
   nextVisit: string
   image: string | null
   isLost: boolean
+  lostContactName: string | null
+  lostContactNumber: string | null
+  lostMessage: string | null
   sterilization: string
   microchipNumber: string
   bloodType: string
@@ -85,6 +88,9 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     nextVisit: '-',
     image: apiPet.photo,
     isLost: apiPet.isLost,
+    lostContactName: apiPet.lostContactName ?? null,
+    lostContactNumber: apiPet.lostContactNumber ?? null,
+    lostMessage: apiPet.lostMessage ?? null,
     sterilization: apiPet.sterilization === 'yes' ? 'NEUTERED' : apiPet.sterilization === 'no' ? 'UNNEUTERED' : 'UNKNOWN',
     microchipNumber: apiPet.microchipNumber || '-',
     bloodType: apiPet.bloodType || '-',
@@ -174,6 +180,7 @@ function PetDetailModal({
   open,
   onClose,
   onReportLost,
+  onMarkFound,
   onRemovePet,
   onNavigateToMedicalRecords,
 }: {
@@ -181,9 +188,11 @@ function PetDetailModal({
   open: boolean
   onClose: () => void
   onReportLost: (pet: Pet) => void
+  onMarkFound: (pet: Pet) => void
   onRemovePet: (pet: Pet) => void
   onNavigateToMedicalRecords: () => void
 }) {
+  const router = useRouter()
   if (!pet) return null
 
   return (
@@ -314,14 +323,47 @@ function PetDetailModal({
                 </div>
               </div>
               <div className="bg-[#F8F6F2] rounded-lg p-4 min-h-20">
-                <p className="text-xs text-gray-400">What Strangers See When Scanning:</p>
+                <p className="text-xs text-gray-400 mb-2">What Strangers See When Scanning:</p>
+                {pet.isLost ? (
+                  <div className="space-y-2">
+                    <div className="bg-[#FEE2E2] border border-[#FCA5A5] rounded-lg p-3 space-y-1">
+                      <p className="text-xs font-bold text-[#900B09] uppercase tracking-wide">⚠ Lost Pet Alert</p>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">{pet.name}</p>
+                      {pet.lostContactName && (
+                        <p className="text-xs text-[#4F4F4F]">Contact: <span className="font-medium">{pet.lostContactName}</span></p>
+                      )}
+                      {pet.lostContactNumber && (
+                        <p className="text-xs text-[#4F4F4F]">Phone: <span className="font-medium">{pet.lostContactNumber}</span></p>
+                      )}
+                      {pet.lostMessage && (
+                        <p className="text-xs text-[#4F4F4F] italic">&ldquo;{pet.lostMessage}&rdquo;</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
+                      className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
+                    >
+                      View public NFC profile →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-400">Normal pet profile will be shown.</p>
+                    <button
+                      onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
+                      className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
+                    >
+                      View public NFC profile →
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Action Buttons */}
             <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-              onClick={() => {/* navigate to book appointment */}}
+              onClick={() => { onClose(); router.push('/my-appointments') }}
             >
               <div>
                 <p className="font-semibold text-[#4F4F4F] text-sm">Book Appointment</p>
@@ -341,7 +383,7 @@ function PetDetailModal({
             </button>
             <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-              onClick={() => {/* navigate to vaccine card */}}
+              onClick={() => { onClose(); router.push(`/my-pets/${pet.id}/vaccine-card`) }}
             >
               <div>
                 <p className="font-semibold text-[#4F4F4F] text-sm">Vaccine Card</p>
@@ -349,16 +391,29 @@ function PetDetailModal({
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
-            <button
-              className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-              onClick={() => onReportLost(pet)}
-            >
-              <div>
-                <p className="font-semibold text-[#4F4F4F] text-sm">Report {pet.name} as Lost</p>
-                <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {pet.isLost ? (
+              <button
+                className="w-full border border-[#679D82] rounded-xl p-4 text-left hover:bg-green-50 transition-colors flex items-center justify-between"
+                onClick={() => onMarkFound(pet)}
+              >
+                <div>
+                  <p className="font-semibold text-[#679D82] text-sm">Mark {pet.name} as Found</p>
+                  <p className="text-xs text-gray-400">Remove Lost Alert from NFC tag</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#679D82]" />
+              </button>
+            ) : (
+              <button
+                className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
+                onClick={() => onReportLost(pet)}
+              >
+                <div>
+                  <p className="font-semibold text-[#4F4F4F] text-sm">Report {pet.name} as Lost</p>
+                  <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+            )}
             <button
               className="w-full border border-red-200 rounded-xl p-4 text-left hover:bg-red-50 transition-colors flex items-center justify-between"
               onClick={() => onRemovePet(pet)}
@@ -500,7 +555,11 @@ function ReportLostPetModal({
             try {
               const token = useAuthStore.getState().token
               if (token && selectedPet) {
-                await togglePetLost(selectedPet.id, true, token)
+                await togglePetLost(selectedPet.id, true, token, {
+                  lostContactName: contactName || undefined,
+                  lostContactNumber: contactNumber || undefined,
+                  lostMessage: message || undefined,
+                })
               }
               toast('Pet Reported as Lost', {
                 description: `${selectedPet?.name} has been marked as lost. NFC tag updated.`,
@@ -761,6 +820,7 @@ export default function DashboardPage() {
   const [petModalOpen, setPetModalOpen] = useState(false)
   const [reportLostOpen, setReportLostOpen] = useState(false)
   const [reportLostPet, setReportLostPet] = useState<Pet | null>(null)
+  const [reportLostFromDetail, setReportLostFromDetail] = useState(false)
   const [removePetOpen, setRemovePetOpen] = useState(false)
   const [removePetTarget, setRemovePetTarget] = useState<Pet | null>(null)
 
@@ -848,7 +908,25 @@ export default function DashboardPage() {
   const handleReportLost = (pet: Pet) => {
     setPetModalOpen(false)
     setReportLostPet(pet)
+    setReportLostFromDetail(true)
     setTimeout(() => setReportLostOpen(true), 200)
+  }
+
+  const handleMarkFound = async (pet: Pet) => {
+    try {
+      await togglePetLost(pet.id, false, token ?? undefined, {
+        lostContactName: null,
+        lostContactNumber: null,
+        lostMessage: null,
+      })
+      toast('Pet Found!', {
+        description: `${pet.name} has been marked as found. NFC tag restored to normal.`,
+      })
+      await fetchPets()
+      setPetModalOpen(false)
+    } catch {
+      toast('Error', { description: 'Failed to update pet status. Please try again.' })
+    }
   }
 
   const handleRemovePet = (pet: Pet) => {
@@ -861,6 +939,7 @@ export default function DashboardPage() {
     if (href === '#') {
       if (pets.length > 0) {
         setReportLostPet(pets[0])
+        setReportLostFromDetail(false)
         setReportLostOpen(true)
       }
     } else {
@@ -1076,6 +1155,7 @@ export default function DashboardPage() {
         open={petModalOpen}
         onClose={() => setPetModalOpen(false)}
         onReportLost={handleReportLost}
+        onMarkFound={handleMarkFound}
         onRemovePet={handleRemovePet}
         onNavigateToMedicalRecords={() => router.push(`/dashboard/medical-records?petId=${selectedPet?.id}`)}
       />
@@ -1083,7 +1163,7 @@ export default function DashboardPage() {
       {/* Report Lost Pet Modal */}
       <ReportLostPetModal
         pet={reportLostPet}
-        pets={pets}
+        pets={reportLostFromDetail ? undefined : pets}
         open={reportLostOpen}
         onClose={() => setReportLostOpen(false)}
         onMarkedLost={fetchPets}

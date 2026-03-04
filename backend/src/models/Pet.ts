@@ -18,6 +18,9 @@ export interface IPet extends Document {
   bloodType: string | null;
   allergies: string[];
   isLost: boolean;
+  lostContactName: string | null;
+  lostContactNumber: string | null;
+  lostMessage: string | null;
   isConfined: boolean;
   confinedSince: Date | null;
   createdAt: Date;
@@ -100,6 +103,18 @@ const PetSchema = new Schema(
     isLost: {
       type: Boolean,
       default: false
+    },
+    lostContactName: {
+      type: String,
+      default: null
+    },
+    lostContactNumber: {
+      type: String,
+      default: null
+    },
+    lostMessage: {
+      type: String,
+      default: null
     },
     isConfined: {
       type: Boolean,

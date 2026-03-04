@@ -9,6 +9,7 @@ import VetSchedule from '../models/VetSchedule';
 import Vaccination from '../models/Vaccination';
 import MedicalRecord from '../models/MedicalRecord';
 import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -104,13 +105,26 @@ export const createAppointment = async (req: Request, res: Response) => {
       status: 'confirmed'
     });
 
-    // Send booking confirmation email (fire-and-forget)
-    try {
-      const [owner, vet, branch] = await Promise.all([
-        User.findById(req.user.userId).select('firstName email'),
-        User.findById(vetId).select('firstName lastName'),
-        ClinicBranch.findById(clinicBranchId).select('name'),
-      ]);
+    // Fetch related data for email + notification (fire-and-forget)
+    Promise.all([
+      User.findById(req.user.userId).select('firstName email'),
+      User.findById(vetId).select('firstName lastName'),
+      ClinicBranch.findById(clinicBranchId).select('name'),
+    ]).then(async ([owner, vet, branch]) => {
+      const dateStr = appointment.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const vetName = vet ? `Dr. ${vet.firstName} ${vet.lastName}` : 'your vet';
+      const clinicName = branch?.name ?? 'the clinic';
+
+      // Always create the in-app notification
+      await createNotification(
+        req.user!.userId,
+        'appointment_scheduled',
+        'New Appointment Scheduled',
+        `Your appointment for ${pet.name} with ${vetName} at ${clinicName} on ${dateStr} at ${appointment.startTime} has been confirmed.`,
+        { appointmentId: appointment._id }
+      );
+
+      // Send email only if we have the required fields
       if (owner?.email && vet && branch) {
         sendAppointmentBooked({
           ownerEmail: owner.email,
@@ -124,9 +138,9 @@ export const createAppointment = async (req: Request, res: Response) => {
           mode: appointment.mode,
         });
       }
-    } catch (emailErr) {
-      console.error('[Email] Appointment booked email error:', emailErr);
-    }
+    }).catch((err) => {
+      console.error('[Appointment] Post-create notification/email error:', err);
+    });
 
     return res.status(201).json({
       status: 'SUCCESS',
@@ -345,26 +359,36 @@ export const cancelAppointment = async (req: Request, res: Response) => {
     appointment.status = 'cancelled';
     await appointment.save();
 
-    // Send cancellation email (fire-and-forget)
-    try {
-      const [owner, vet] = await Promise.all([
-        User.findById(appointment.ownerId).select('firstName email'),
-        User.findById(appointment.vetId).select('firstName lastName'),
-      ]);
-      const pet = await Pet.findById(appointment.petId).select('name');
+    // Send cancellation email + notification (fire-and-forget)
+    Promise.all([
+      User.findById(appointment.ownerId).select('firstName email'),
+      User.findById(appointment.vetId).select('firstName lastName'),
+      Pet.findById(appointment.petId).select('name'),
+    ]).then(async ([owner, vet, pet]) => {
+      const dateStr = appointment.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const petName = (pet as any)?.name ?? 'your pet';
+
+      await createNotification(
+        appointment.ownerId.toString(),
+        'appointment_cancelled',
+        'Appointment Cancelled',
+        `Your appointment for ${petName} on ${dateStr} at ${appointment.startTime} has been cancelled.`,
+        { appointmentId: appointment._id }
+      );
+
       if (owner?.email && vet && pet) {
         sendAppointmentCancelled({
           ownerEmail: owner.email,
           ownerFirstName: owner.firstName,
-          petName: pet.name,
+          petName: (pet as any).name,
           vetName: `${vet.firstName} ${vet.lastName}`,
           date: appointment.date,
           startTime: appointment.startTime,
         });
       }
-    } catch (emailErr) {
-      console.error('[Email] Appointment cancelled email error:', emailErr);
-    }
+    }).catch((err) => {
+      console.error('[Appointment] Cancellation notification/email error:', err);
+    });
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -459,6 +483,22 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       }
     }
 
+    // Notify owner when appointment is completed
+    if (status === 'completed') {
+      Pet.findById(appointment.petId).select('name').then(async (pet) => {
+        const petName = (pet as any)?.name ?? 'your pet';
+        await createNotification(
+          appointment.ownerId.toString(),
+          'appointment_completed',
+          'Clinic Visit Completed',
+          `The clinic visit for ${petName} has been completed. Thank you for visiting us!`,
+          { appointmentId: appointment._id }
+        );
+      }).catch((err) => {
+        console.error('[Notification] Appointment completed notification error:', err);
+      });
+    }
+
     return res.status(200).json({
       status: 'SUCCESS',
       message: `Appointment ${status} successfully`,
@@ -514,6 +554,19 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
     appointment.startTime = startTime;
     appointment.endTime = endTime;
     await appointment.save();
+
+    // Notify owner of reschedule
+    Pet.findById(appointment.petId).select('name').then(async (pet) => {
+      const petName = (pet as any)?.name ?? 'your pet';
+      const dateStr = new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      await createNotification(
+        appointment.ownerId.toString(),
+        'appointment_rescheduled',
+        'Appointment Rescheduled',
+        `Your appointment for ${petName} has been rescheduled to ${dateStr} at ${startTime}.`,
+        { appointmentId: appointment._id }
+      );
+    }).catch((err) => console.error('[Notification] Reschedule notification error:', err));
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -700,13 +753,24 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       status: 'confirmed' // Clinic admin appointments are auto-confirmed
     });
 
-    // Send booking confirmation email (fire-and-forget)
-    try {
-      const [owner, vet, branch] = await Promise.all([
-        User.findById(ownerId).select('firstName email'),
-        User.findById(vetId).select('firstName lastName'),
-        ClinicBranch.findById(clinicBranchId).select('name'),
-      ]);
+    // Fetch related data for email + notification (fire-and-forget)
+    Promise.all([
+      User.findById(ownerId).select('firstName email'),
+      User.findById(vetId).select('firstName lastName'),
+      ClinicBranch.findById(clinicBranchId).select('name'),
+    ]).then(async ([owner, vet, branch]) => {
+      const dateStr = appointment.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const vetName = vet ? `Dr. ${vet.firstName} ${vet.lastName}` : 'your vet';
+      const clinicName = branch?.name ?? 'the clinic';
+
+      await createNotification(
+        ownerId,
+        'appointment_scheduled',
+        'New Appointment Scheduled',
+        `An appointment for ${pet.name} with ${vetName} at ${clinicName} on ${dateStr} at ${appointment.startTime} has been scheduled.`,
+        { appointmentId: appointment._id }
+      );
+
       if (owner?.email && vet && branch) {
         sendAppointmentBooked({
           ownerEmail: owner.email,
@@ -720,9 +784,9 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
           mode: appointment.mode,
         });
       }
-    } catch (emailErr) {
-      console.error('[Email] Clinic appointment booked email error:', emailErr);
-    }
+    }).catch((err) => {
+      console.error('[Appointment] Clinic post-create notification/email error:', err);
+    });
 
     return res.status(201).json({
       status: 'SUCCESS',

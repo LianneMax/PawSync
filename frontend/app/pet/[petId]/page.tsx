@@ -89,6 +89,7 @@ export default function PetProfilePage() {
   const [foundStep, setFoundStep] = useState<'alert' | 'location' | 'success'>('alert')
   const [isReportingFound, setIsReportingFound] = useState(false)
   const token = useAuthStore((state) => state.token)
+  const userType = useAuthStore((state) => state.user?.userType)
 
   // Auto-open the "found" drawer + notify owner when a lost pet profile loads
   useEffect(() => {

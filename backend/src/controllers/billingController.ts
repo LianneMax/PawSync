@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Billing from '../models/Billing';
 import { sendBillingPendingPayment, sendBillingPaidReceipt } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
 
 // Populate fields shared across all views
 const POPULATE_BILLING = [
@@ -333,6 +334,13 @@ export const updateBilling = async (req: Request, res: Response) => {
           totalAmountDue: populated.totalAmountDue,
           serviceDate: populated.serviceDate,
         });
+        await createNotification(
+          populated.ownerId._id.toString(),
+          'bill_due',
+          'New Invoice Ready',
+          `A new invoice of ₱${populated.totalAmountDue.toFixed(2)} for ${populated.petId.name} is ready for payment.`,
+          { billingId: billing._id }
+        );
       }
 
       return res.status(200).json({
@@ -416,6 +424,16 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
         serviceDate: populated.serviceDate,
         paidAt: populated.paidAt,
       });
+    }
+
+    if (populated?.ownerId?._id && populated.petId?.name) {
+      await createNotification(
+        populated.ownerId._id.toString(),
+        'bill_paid',
+        'Payment Confirmed',
+        `Your payment of ₱${populated.totalAmountDue.toFixed(2)} for ${populated.petId.name} has been received. Thank you!`,
+        { billingId: billing._id }
+      );
     }
 
     return res.status(200).json({

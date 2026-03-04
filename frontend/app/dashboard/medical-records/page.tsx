@@ -51,7 +51,7 @@ function formatDate(dateStr: string): string {
 
 // ==================== MAIN CONTENT COMPONENT ====================
 
-export function MedicalRecordsContent() {
+export default function MedicalRecordsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { token } = useAuthStore()
