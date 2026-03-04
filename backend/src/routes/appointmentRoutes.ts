@@ -55,31 +55,8 @@ router.get('/pet/:petId/next', authMiddleware, getNextAppointment);
  */
 router.get('/vet', authMiddleware, getVetAppointments);
 
-/**
- * GET /api/appointments/:id
- * Get a single appointment by ID (vet, owner, clinic admin)
- */
-router.get('/:id', authMiddleware, getAppointmentById);
-
-/**
- * PATCH /api/appointments/:id/cancel
- * Cancel an appointment
- */
-router.patch('/:id/cancel', authMiddleware, cancelAppointment);
-
-/**
- * PATCH /api/appointments/:id/status
- * Update appointment status (confirm/complete)
- */
-router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
-
-/**
- * PATCH /api/appointments/:id/reschedule
- * Reschedule an appointment to a new date/time (clinic admin)
- */
-router.patch('/:id/reschedule', authMiddleware, clinicAdminOnly, rescheduleAppointment);
-
 // ==================== CLINIC ADMIN ROUTES ====================
+// These must be registered before /:id to prevent "clinic" being matched as an ObjectId
 
 /**
  * GET /api/appointments/clinic/search-owners?q=...
@@ -104,5 +81,29 @@ router.post('/clinic', authMiddleware, clinicAdminOnly, createClinicAppointment)
  * Get all appointments for the clinic (clinic admin)
  */
 router.get('/clinic', authMiddleware, clinicAdminOnly, getClinicAppointments);
+
+/**
+ * GET /api/appointments/:id
+ * Get a single appointment by ID (vet, owner, clinic admin)
+ */
+router.get('/:id', authMiddleware, getAppointmentById);
+
+/**
+ * PATCH /api/appointments/:id/cancel
+ * Cancel an appointment
+ */
+router.patch('/:id/cancel', authMiddleware, cancelAppointment);
+
+/**
+ * PATCH /api/appointments/:id/status
+ * Update appointment status (confirm/complete)
+ */
+router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
+
+/**
+ * PATCH /api/appointments/:id/reschedule
+ * Reschedule an appointment to a new date/time (clinic admin)
+ */
+router.patch('/:id/reschedule', authMiddleware, clinicAdminOnly, rescheduleAppointment);
 
 export default router;

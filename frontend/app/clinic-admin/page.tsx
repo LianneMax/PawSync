@@ -5,6 +5,7 @@ import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import { getClinicAppointments, Appointment } from '@/lib/appointments'
 import {
   Users,
   Building2,
@@ -32,14 +33,17 @@ interface ApplicationItem {
   createdAt: string
 }
 
-// Mock appointments (still mock until appointments feature is built)
-const todayAppointments = [
-  { id: '1', time: '9:00 AM', pet: 'Coco', owner: 'Maria Santos', type: 'Check-up', vet: 'Dr. Gino Bailon' },
-  { id: '2', time: '10:30 AM', pet: 'Bruno', owner: 'Juan Reyes', type: 'Vaccination', vet: 'Dr. Maria Santos' },
-  { id: '3', time: '1:00 PM', pet: 'Mimi', owner: 'Ana Castro', type: 'Dental Cleaning', vet: 'Dr. Juan Reyes' },
-  { id: '4', time: '2:30 PM', pet: 'Max', owner: 'Paolo Luna', type: 'Follow-up', vet: 'Dr. Ana Castro' },
-  { id: '5', time: '4:00 PM', pet: 'Luna', owner: 'Rosa Cruz', type: 'Grooming', vet: 'Dr. Sofia Lim' },
-]
+// ==================== HELPERS ====================
+
+const formatTime = (time: string) => {
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hour = h % 12 || 12
+  return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`
+}
+
+const formatTypes = (types: string[]) =>
+  types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')
 
 // ==================== MAIN COMPONENT ====================
 
@@ -54,14 +58,17 @@ export default function ClinicAdminDashboard() {
     pendingApplications: 0,
   })
   const [pendingApps, setPendingApps] = useState<ApplicationItem[]>([])
+  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsRes, appsRes] = await Promise.all([
+        const today = new Date().toISOString().split('T')[0]
+        const [statsRes, appsRes, appointmentsRes] = await Promise.all([
           authenticatedFetch('/clinics/mine/stats', {}, token || undefined),
           authenticatedFetch('/vet-applications/clinic?status=pending', {}, token || undefined),
+          getClinicAppointments({ date: today, filter: 'upcoming' }, token || undefined),
         ])
 
         if (statsRes.status === 'SUCCESS') {
@@ -70,6 +77,10 @@ export default function ClinicAdminDashboard() {
 
         if (appsRes.status === 'SUCCESS') {
           setPendingApps(appsRes.data.applications || [])
+        }
+
+        if (appointmentsRes.status === 'SUCCESS' && appointmentsRes.data) {
+          setTodayAppointments(appointmentsRes.data.appointments)
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err)
@@ -129,24 +140,41 @@ export default function ClinicAdminDashboard() {
               </Link>
             </div>
             <div className="divide-y divide-gray-50">
-              {todayAppointments.map((apt) => (
-                <div key={apt.id} className="px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-10 bg-[#476B6B] rounded-xl flex flex-col items-center justify-center shrink-0">
-                      <span className="text-white text-[11px] font-semibold leading-tight">{apt.time.split(' ')[0]}</span>
-                      <span className="text-white/70 text-[9px] font-medium leading-tight">{apt.time.split(' ')[1]}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#4F4F4F] text-sm">{apt.type}</p>
-                      <p className="text-xs text-gray-500">{apt.vet}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-[#4F4F4F]">{apt.pet}</p>
-                    <p className="text-xs text-gray-500">{apt.owner}</p>
-                  </div>
+              {loading ? (
+                <div className="px-6 py-8 text-center">
+                  <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
-              ))}
+              ) : todayAppointments.length === 0 ? (
+                <div className="px-6 py-8 text-center text-gray-400 text-sm">
+                  No appointments scheduled for today
+                </div>
+              ) : (
+                todayAppointments.slice(0, 5).map((apt) => {
+                  const time = formatTime(apt.startTime)
+                  const [timePart, ampm] = time.split(' ')
+                  const vetName = apt.vetId ? `Dr. ${apt.vetId.firstName} ${apt.vetId.lastName}` : '—'
+                  const petName = apt.petId?.name ?? '—'
+                  const ownerName = apt.ownerId ? `${apt.ownerId.firstName} ${apt.ownerId.lastName}` : '—'
+                  return (
+                    <div key={apt._id} className="px-6 py-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-10 bg-[#476B6B] rounded-xl flex flex-col items-center justify-center shrink-0">
+                          <span className="text-white text-[11px] font-semibold leading-tight">{timePart}</span>
+                          <span className="text-white/70 text-[9px] font-medium leading-tight">{ampm}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-[#4F4F4F] text-sm">{formatTypes(apt.types)}</p>
+                          <p className="text-xs text-gray-500">{vetName}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-[#4F4F4F]">{petName}</p>
+                        <p className="text-xs text-gray-500">{ownerName}</p>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
 

@@ -773,6 +773,9 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
         { date: { $lt: new Date(now.toISOString().split('T')[0]) } },
         { status: { $in: ['completed', 'cancelled'] } }
       ];
+    } else if (date) {
+      // No filter specified but a specific date was requested — exclude cancelled
+      query.status = { $nin: ['cancelled'] };
     }
 
     const appointments = await Appointment.find(query)
