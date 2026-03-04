@@ -27,6 +27,7 @@ import {
   Pencil,
   Building2,
   CheckCircle,
+  Coffee,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -80,7 +81,7 @@ interface BranchSchedule {
   branchOpeningTime: string | null
   branchClosingTime: string | null
   branchOperatingDays: string[]
-  schedule: { _id: string; workingDays: string[]; startTime: string; endTime: string } | null
+  schedule: { _id: string; workingDays: string[]; startTime: string; endTime: string; breakStart: string | null; breakEnd: string | null } | null
 }
 
 function formatScheduleTime(time: string | null) {
@@ -572,10 +573,18 @@ export default function VetAppointmentsPage() {
                           <p className="text-xs text-gray-400 mb-1">{s.branchAddress}</p>
                         )}
                         {s.schedule ? (
-                          <p className="text-xs text-gray-600">
-                            {formatScheduleTime(s.schedule.startTime)} – {formatScheduleTime(s.schedule.endTime)}
-                            {' · '}{s.schedule.workingDays.join(', ')}
-                          </p>
+                          <div className="space-y-0.5">
+                            <p className="text-xs text-gray-600">
+                              {formatScheduleTime(s.schedule.startTime)} – {formatScheduleTime(s.schedule.endTime)}
+                              {' · '}{s.schedule.workingDays.join(', ')}
+                            </p>
+                            {s.schedule.breakStart && s.schedule.breakEnd && (
+                              <p className="text-xs text-gray-400 flex items-center gap-1">
+                                <Coffee className="w-3 h-3" />
+                                Break: {formatScheduleTime(s.schedule.breakStart)} – {formatScheduleTime(s.schedule.breakEnd)}
+                              </p>
+                            )}
+                          </div>
                         ) : (
                           <p className="text-xs text-amber-500">No schedule set</p>
                         )}
