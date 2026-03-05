@@ -449,13 +449,6 @@ export default function PatientRecordsPage() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setCreateOpen(true)}
-                    className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Record
-                  </button>
                 </div>
               </div>
             </div>
@@ -663,14 +656,7 @@ export default function PatientRecordsPage() {
                   <div className="bg-white rounded-2xl p-12 shadow-sm text-center border-2 border-dashed border-gray-200">
                     <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">No medical records yet</h3>
-                    <p className="text-gray-500 text-sm mb-4">Create a new medical record for this patient.</p>
-                    <button
-                      onClick={() => setCreateOpen(true)}
-                      className="inline-flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2.5 rounded-xl hover:bg-[#6b9391] transition-colors text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Create Record
-                    </button>
+                    <p className="text-gray-500 text-sm">Medical records will appear here once created during an appointment.</p>
                   </div>
                 )}
               </div>
