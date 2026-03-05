@@ -42,7 +42,7 @@ export default function ScanLocationsMap({ locations, petName }: ScanLocationsMa
     <MapContainer
       center={center}
       zoom={15}
-      style={{ height: '220px', width: '100%', borderRadius: '12px' }}
+      style={{ height: '100%', width: '100%', borderRadius: '12px' }}
       scrollWheelZoom={false}
     >
       <TileLayer

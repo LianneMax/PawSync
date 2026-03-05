@@ -934,7 +934,7 @@ export default function PetProfilePage() {
 
                 {/* Scan Locations Map */}
                 {pet.scanLocations && pet.scanLocations.length > 0 ? (
-                  <div className="mb-8 flex gap-6">
+                  <div className="mb-8 flex gap-6 items-start">
                     {/* Left - Map */}
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
@@ -944,7 +944,9 @@ export default function PetProfilePage() {
                         <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1" />
                         Blue = earlier sightings
                       </p>
-                      <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
+                      <div className="mb-2 h-[600px] rounded-lg overflow-hidden border border-gray-200">
+                        <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
+                      </div>
                       {pet.lastScannedLat && pet.lastScannedLng && (
                         <a
                           href={`https://www.google.com/maps?q=${pet.lastScannedLat},${pet.lastScannedLng}`}
@@ -967,8 +969,9 @@ export default function PetProfilePage() {
                             {pet.scanLocations.length} sighting{pet.scanLocations.length !== 1 ? 's' : ''}
                           </p>
                         </div>
-                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                          <div className="p-3 space-y-3">
+                        <div className="flex-1 overflow-hidden flex flex-col">
+                          <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1">
+                            <div className="p-3 space-y-3">
                             {[...pet.scanLocations]
                               .sort((a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime())
                               .map((scan, idx) => (
