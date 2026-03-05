@@ -329,7 +329,11 @@ export default function PetProfilePage() {
     if (!pet || !token) return
     setIsMarkingLost(true)
     try {
-      const response = await togglePetLost(pet._id, true, token)
+      const response = await togglePetLost(pet._id, true, token, {
+        lostContactName: lostNameShown || null,
+        lostContactNumber: lostContact || null,
+        lostMessage: lostMessage || null,
+      })
       if (response.status === 'SUCCESS') {
         toast('Pet Marked as Lost', { description: `${pet.name} has been marked as lost. Vets will be notified.` })
         setShowLostModal(false)

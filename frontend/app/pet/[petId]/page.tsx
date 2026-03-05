@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import dynamic from 'next/dynamic'
 import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
@@ -16,7 +15,6 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 
-const ScanLocationsMap = dynamic(() => import('@/components/ScanLocationsMap'), { ssr: false })
 
 interface ScanLocation {
   lat: number
@@ -37,6 +35,8 @@ interface PetData {
   allergies: string[]
   isLost: boolean
   lostReportedByStranger: boolean
+  lostContactName: string | null
+  lostMessage: string | null
   scanLocations: ScanLocation[]
 }
 
@@ -345,36 +345,29 @@ export default function PetProfilePage() {
           </button>
         </div>
 
-        {/* Stranger-reported note */}
-        {pet.isLost && pet.lostReportedByStranger && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800 leading-relaxed">
-              <span className="font-semibold">Note:</span> This pet was reported missing by a finder, not the registered owner.
-              If you are the owner and your pet is safe, please update its status.
-            </p>
-          </div>
-        )}
-
-        {/* Scan Locations Map (visible to all when pet is lost and locations exist) */}
-        {pet.isLost && pet.scanLocations.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
-            <p className="text-xs text-gray-500 mb-3">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1.5" />
-              Red = most recent &nbsp;·&nbsp;
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5" />
-              Blue = earlier sightings
-            </p>
-            <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
-            <a
-              href={`https://www.google.com/maps?q=${pet.scanLocations[pet.scanLocations.length - 1].lat},${pet.scanLocations[pet.scanLocations.length - 1].lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-2 text-xs text-[#7FA5A3] hover:underline"
-            >
-              Open latest location in Google Maps →
-            </a>
+        {/* Lost pet info card — shown when lost */}
+        {pet.isLost && (
+          <div className="bg-[#FDF2F2] border border-[#E8BEBE] rounded-xl px-4 py-4 space-y-2">
+            {pet.lostReportedByStranger ? (
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
+                <p className="text-xs text-[#7A2828] leading-relaxed">
+                  <span className="font-semibold">Reported by a finder.</span> The registered owner has not yet confirmed this report.
+                  If you are the owner and your pet is safe, please update its status.
+                </p>
+              </div>
+            ) : (
+              <>
+                {pet.lostContactName && (
+                  <p className="text-sm font-semibold text-[#4F4F4F]">
+                    Looking for: <span className="text-[#900B09]">{pet.lostContactName}</span>
+                  </p>
+                )}
+                {pet.lostMessage && (
+                  <p className="text-sm text-[#4F4F4F] leading-relaxed">{pet.lostMessage}</p>
+                )}
+              </>
+            )}
           </div>
         )}
 

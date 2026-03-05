@@ -186,13 +186,26 @@ export const updatePet = async (req: Request, res: Response) => {
     const allowedFields = [
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
       'dateOfBirth', 'weight', 'sterilization', 'microchipNumber',
-      'nfcTagId', 'photo', 'notes', 'allergies', 'isLost', 'isConfined'
+      'nfcTagId', 'photo', 'notes', 'allergies', 'isLost', 'isConfined',
+      'lostContactName', 'lostContactNumber', 'lostMessage'
     ];
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         (pet as any)[field] = req.body[field];
       }
+    }
+
+    // Clear lost metadata when owner marks the pet as found again
+    if (wasLost && !pet.isLost) {
+      pet.lostReportedByStranger = false;
+      pet.lostContactName = null;
+      pet.lostContactNumber = null;
+      pet.lostMessage = null;
+      pet.scanLocations = [];
+      pet.lastScannedLat = null;
+      pet.lastScannedLng = null;
+      pet.lastScannedAt = null;
     }
 
     await pet.save();
@@ -338,7 +351,7 @@ export const transferPet = async (req: Request, res: Response) => {
 export const getPublicPetProfile = async (req: Request, res: Response) => {
   try {
     const pet = await Pet.findById(req.params.id)
-      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost lostReportedByStranger scanLocations ownerId')
+      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost lostReportedByStranger lostContactName lostMessage scanLocations ownerId')
       .populate('ownerId', 'firstName lastName contactNumber');
 
     if (!pet) {
@@ -383,6 +396,8 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           allergies: pet.allergies,
           isLost: pet.isLost,
           lostReportedByStranger: pet.lostReportedByStranger,
+          lostContactName: pet.lostContactName,
+          lostMessage: pet.lostMessage,
           scanLocations: pet.scanLocations ?? [],
         },
         owner: pet.ownerId,
