@@ -1,6 +1,9 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback } from 'react'
+
+const LastScannedMap = dynamic(() => import('@/components/LastScannedMap'), { ssr: false })
 import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -900,6 +903,30 @@ export default function PetProfilePage() {
                   <DetailField label="NFC Tag ID" value={pet.nfcTagId || 'Not registered'} />
                   <DetailField label="Lost Status" value={pet.isLost ? 'Marked as Lost' : 'Safe'} highlight={pet.isLost} />
                 </div>
+
+                {/* Last Scanned Location Map */}
+                {pet.lastScannedLat && pet.lastScannedLng && (
+                  <div className="mb-8">
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Last Scanned Location</h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Reported by a finder on {pet.lastScannedAt ? new Date(pet.lastScannedAt).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'unknown date'}
+                    </p>
+                    <LastScannedMap
+                      lat={pet.lastScannedLat}
+                      lng={pet.lastScannedLng}
+                      petName={pet.name}
+                      scannedAt={pet.lastScannedAt ?? ''}
+                    />
+                    <a
+                      href={`https://www.google.com/maps?q=${pet.lastScannedLat},${pet.lastScannedLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-2 text-xs text-[#7FA5A3] hover:underline"
+                    >
+                      Open in Google Maps →
+                    </a>
+                  </div>
+                )}
 
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8 mb-8">

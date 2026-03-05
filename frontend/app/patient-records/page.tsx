@@ -47,7 +47,9 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Receipt,
+  Syringe,
 } from 'lucide-react'
+import { getVaccinationsByPet, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -162,6 +164,11 @@ export default function PatientRecordsPage() {
   const [viewOpen, setViewOpen] = useState(false)
   const [viewInitialIndex, setViewInitialIndex] = useState(0)
 
+  // Patient detail tab
+  const [patientTab, setPatientTab] = useState<'records' | 'vaccinations'>('records')
+  const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
+  const [loadingVaccinations, setLoadingVaccinations] = useState(false)
+
   // Load patients from vet's appointments
   const loadPatients = useCallback(async () => {
     if (!token) return
@@ -224,9 +231,24 @@ export default function PatientRecordsPage() {
     }
   }, [token])
 
+  const loadVaccinations = useCallback(async (petId: string) => {
+    if (!token) return
+    setLoadingVaccinations(true)
+    try {
+      const vacs = await getVaccinationsByPet(petId, token)
+      setVaccinations(Array.isArray(vacs) ? vacs : [])
+    } catch {
+      setVaccinations([])
+    } finally {
+      setLoadingVaccinations(false)
+    }
+  }, [token])
+
   const handleSelectPatient = (pet: PatientPet) => {
     setSelectedPatient(pet)
     setCurrentRecordEdited(false)
+    setPatientTab('records')
+    setVaccinations([])
     loadRecords(pet._id)
   }
 
@@ -234,6 +256,8 @@ export default function PatientRecordsPage() {
     setSelectedPatient(null)
     setCurrentRecord(null)
     setHistoricalRecords([])
+    setPatientTab('records')
+    setVaccinations([])
   }
 
   // Build ordered list of all record IDs for the selected patient
@@ -436,8 +460,39 @@ export default function PatientRecordsPage() {
               </div>
             </div>
 
+            {/* Patient Detail Tabs */}
+            <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
+              <button
+                onClick={() => setPatientTab('records')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  patientTab === 'records'
+                    ? 'bg-white text-[#476B6B] shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                Medical Records
+              </button>
+              <button
+                onClick={() => {
+                  setPatientTab('vaccinations')
+                  if (selectedPatient && vaccinations.length === 0 && !loadingVaccinations) {
+                    loadVaccinations(selectedPatient._id)
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  patientTab === 'vaccinations'
+                    ? 'bg-white text-[#476B6B] shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Syringe className="w-4 h-4" />
+                Vaccinations
+              </button>
+            </div>
+
             {/* Medical Records */}
-            <div className="space-y-6">
+            {patientTab === 'records' && <div className="space-y-6">
               {/* Current Record Section */}
               <div>
                 <h2 className="text-lg font-semibold text-[#4F4F4F] mb-4">Current Medical Record</h2>
@@ -720,7 +775,56 @@ export default function PatientRecordsPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
+
+            {/* Vaccinations Tab */}
+            {patientTab === 'vaccinations' && (
+              <div className="space-y-4">
+                {loadingVaccinations ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : vaccinations.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                    <Syringe className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <h3 className="text-base font-semibold text-gray-500 mb-1">No vaccination records</h3>
+                    <p className="text-sm text-gray-400">Vaccination records for this patient will appear here.</p>
+                  </div>
+                ) : (
+                  vaccinations.map((v) => {
+                    const vt = v.vaccineTypeId as any
+                    return (
+                      <div key={v._id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 bg-[#7FA5A3]/15 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                              <Syringe className="w-5 h-5 text-[#476B6B]" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-[#4F4F4F]">{vt?.name || v.vaccineName}</h3>
+                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500 mt-1">
+                                <span>Administered: {v.dateAdministered ? new Date(v.dateAdministered).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                                {v.expiryDate && <span>Expires: {new Date(v.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                                {v.nextDueDate && <span>Next due: {new Date(v.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                              </div>
+                              <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-1">
+                                {v.manufacturer && <span>Mfr: {v.manufacturer}</span>}
+                                {v.batchNumber && <span>Lot: {v.batchNumber}</span>}
+                                {v.route && <span>Route: {v.route}</span>}
+                              </div>
+                              {v.notes && <p className="text-xs text-gray-500 mt-1 italic">{v.notes}</p>}
+                            </div>
+                          </div>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-semibold shrink-0 ${getStatusClasses(v.status)}`}>
+                            {getStatusLabel(v.status)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -23,6 +23,9 @@ export interface IPet extends Document {
   lostMessage: string | null;
   isConfined: boolean;
   confinedSince: Date | null;
+  lastScannedLat: number | null;
+  lastScannedLng: number | null;
+  lastScannedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -121,6 +124,18 @@ const PetSchema = new Schema(
       default: false
     },
     confinedSince: {
+      type: Date,
+      default: null
+    },
+    lastScannedLat: {
+      type: Number,
+      default: null
+    },
+    lastScannedLng: {
+      type: Number,
+      default: null
+    },
+    lastScannedAt: {
       type: Date,
       default: null
     }

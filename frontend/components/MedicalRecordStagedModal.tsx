@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals } from '@/lib/medicalRecords'
 import { getPetById, updatePetConfinement } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
+import { getVaccineTypes, createVaccination, type VaccineType } from '@/lib/vaccinations'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
 import {
@@ -35,6 +36,7 @@ interface Props {
   recordId: string
   appointmentId: string
   petId: string
+  appointmentTypes?: string[]
   onComplete: () => void
   onClose: () => void
 }
@@ -99,7 +101,7 @@ function calcAge(dob: string): string {
   return rem > 0 ? `${years}yr ${rem}mo` : `${years}yr`
 }
 
-export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, onComplete, onClose }: Props) {
+export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
   const [step, setStep] = useState<StepKey>(1)
   const [pet, setPet] = useState<Pet | null>(null)
@@ -108,6 +110,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vitalsOpen, setVitalsOpen] = useState(true)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const [confined, setConfined] = useState(false)
+
+  // Whether this appointment includes vaccination/booster
+  const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster')
+
+  // Vaccine form state (step 2)
+  const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([])
+  const [vaccineTypeId, setVaccineTypeId] = useState('')
+  const [vaccineManufacturer, setVaccineManufacturer] = useState('')
+  const [vaccineBatchNumber, setVaccineBatchNumber] = useState('')
+  const [vaccineRoute, setVaccineRoute] = useState('')
+  const [vaccineDateAdministered, setVaccineDateAdministered] = useState(new Date().toISOString().split('T')[0])
+  const [vaccineNotes, setVaccineNotes] = useState('')
+  const [vaccineSubmitting, setVaccineSubmitting] = useState(false)
+  const [vaccineCreated, setVaccineCreated] = useState(false)
 
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
@@ -161,10 +177,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setAlreadyCompleted(r.stage === 'completed')
     }
     if (petRes.status === 'SUCCESS' && petRes.data?.pet) {
-      setPet(petRes.data.pet)
-      setConfined(petRes.data.pet.isConfined || false)
+      const loadedPet = petRes.data.pet
+      setPet(loadedPet)
+      setConfined(loadedPet.isConfined || false)
+      if (isVaccinationAppt) {
+        const vts = await getVaccineTypes(loadedPet.species)
+        setVaccineTypes(vts.filter((vt) => vt.isActive))
+      }
     }
-  }, [recordId, petId, token])
+  }, [recordId, petId, token, isVaccinationAppt])
 
   useEffect(() => {
     loadData()
@@ -242,6 +263,34 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       toast.error('Failed to save vitals')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSubmitVaccine = async () => {
+    if (!token || !vaccineTypeId || vaccineCreated) return
+    setVaccineSubmitting(true)
+    try {
+      const res = await createVaccination({
+        petId,
+        vaccineTypeId,
+        manufacturer: vaccineManufacturer || undefined,
+        batchNumber: vaccineBatchNumber || undefined,
+        route: (vaccineRoute as any) || undefined,
+        dateAdministered: vaccineDateAdministered,
+        notes: vaccineNotes || undefined,
+        medicalRecordId: recordId,
+        appointmentId,
+      }, token)
+      if (res.status === 'SUCCESS') {
+        toast.success('Vaccination record saved')
+        setVaccineCreated(true)
+      } else {
+        toast.error(res.message || 'Failed to save vaccination')
+      }
+    } catch {
+      toast.error('Failed to save vaccination')
+    } finally {
+      setVaccineSubmitting(false)
     }
   }
 
@@ -642,6 +691,147 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   placeholder="Private notes, reminders, follow-up instructions…"
                 />
               </div>
+
+              {/* Vaccination Form (only when appt type includes vaccination/booster) */}
+              {isVaccinationAppt && (
+                <div className="border-2 border-[#7FA5A3]/40 rounded-2xl p-4 bg-[#f0f7f7]/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Syringe className="w-4 h-4 text-[#476B6B]" />
+                      <h3 className="text-sm font-semibold text-[#4F4F4F]">Vaccination Record</h3>
+                    </div>
+                    {vaccineCreated && (
+                      <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" /> Saved
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Vaccine Type */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        Vaccine Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={vaccineTypeId}
+                        onChange={(e) => setVaccineTypeId(e.target.value)}
+                        disabled={vaccineCreated}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:opacity-60"
+                      >
+                        <option value="">Select vaccine type…</option>
+                        {vaccineTypes.map((vt) => (
+                          <option key={vt._id} value={vt._id}>{vt.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Computed preview */}
+                    {vaccineTypeId && (() => {
+                      const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
+                      if (!vt) return null
+                      const base = new Date(vaccineDateAdministered)
+                      const expiry = new Date(base); expiry.setDate(expiry.getDate() + (vt.validityDays || 0))
+                      const nextDue = vt.requiresBooster && vt.boosterIntervalDays != null
+                        ? (() => { const d = new Date(base); d.setDate(d.getDate() + (vt.boosterIntervalDays as number)); return d })()
+                        : null
+                      return (
+                        <div className="grid grid-cols-2 gap-2 text-xs bg-white rounded-xl p-3 border border-gray-100">
+                          <div>
+                            <p className="text-gray-400 font-medium uppercase tracking-wide">Expiry</p>
+                            <p className="font-semibold text-[#4F4F4F]">{expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          </div>
+                          {nextDue && (
+                            <div>
+                              <p className="text-gray-400 font-medium uppercase tracking-wide">Next Due</p>
+                              <p className="font-semibold text-[#4F4F4F]">{nextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Date Administered */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Date Administered</label>
+                        <input
+                          type="date"
+                          value={vaccineDateAdministered}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setVaccineDateAdministered(e.target.value)}
+                          disabled={vaccineCreated}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:opacity-60"
+                        />
+                      </div>
+                      {/* Route */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Route</label>
+                        <select
+                          value={vaccineRoute}
+                          onChange={(e) => setVaccineRoute(e.target.value)}
+                          disabled={vaccineCreated}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:opacity-60"
+                        >
+                          <option value="">Select route…</option>
+                          <option value="SC">Subcutaneous (SC)</option>
+                          <option value="IM">Intramuscular (IM)</option>
+                          <option value="IN">Intranasal (IN)</option>
+                          <option value="oral">Oral</option>
+                        </select>
+                      </div>
+                      {/* Manufacturer */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Manufacturer</label>
+                        <input
+                          type="text"
+                          value={vaccineManufacturer}
+                          onChange={(e) => setVaccineManufacturer(e.target.value)}
+                          disabled={vaccineCreated}
+                          placeholder="e.g. Zoetis"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:opacity-60"
+                        />
+                      </div>
+                      {/* Batch Number */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Batch / Lot Number</label>
+                        <input
+                          type="text"
+                          value={vaccineBatchNumber}
+                          onChange={(e) => setVaccineBatchNumber(e.target.value)}
+                          disabled={vaccineCreated}
+                          placeholder="e.g. B1234"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Clinical Notes</label>
+                      <textarea
+                        value={vaccineNotes}
+                        onChange={(e) => setVaccineNotes(e.target.value)}
+                        disabled={vaccineCreated}
+                        rows={2}
+                        placeholder="Any observations or reactions…"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none disabled:opacity-60"
+                      />
+                    </div>
+
+                    {!vaccineCreated && (
+                      <button
+                        onClick={handleSubmitVaccine}
+                        disabled={!vaccineTypeId || vaccineSubmitting}
+                        className="w-full bg-[#476B6B] text-white py-2 rounded-xl text-sm font-semibold hover:bg-[#3a5a5a] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        <Syringe className="w-4 h-4" />
+                        {vaccineSubmitting ? 'Saving…' : 'Save Vaccination Record'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

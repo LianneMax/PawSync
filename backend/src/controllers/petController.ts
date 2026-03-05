@@ -546,3 +546,32 @@ export const scanPetAlert = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };
+
+/**
+ * POST /api/pets/:id/report-found
+ * Public endpoint — called when a finder shares their location on the public profile.
+ * Saves the last scanned coordinates to the pet record.
+ */
+export const reportPetFound = async (req: Request, res: Response) => {
+  try {
+    const pet = await Pet.findById(req.params.id);
+
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    const { latitude, longitude } = req.body;
+
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      pet.lastScannedLat = latitude;
+      pet.lastScannedLng = longitude;
+      pet.lastScannedAt = new Date();
+      await pet.save();
+    }
+
+    return res.status(200).json({ status: 'SUCCESS', message: 'Location recorded. The owner has been notified.' });
+  } catch (error) {
+    console.error('Report pet found error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};

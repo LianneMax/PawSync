@@ -24,6 +24,9 @@ export interface Pet {
   lostMessage: string | null;
   isConfined: boolean;
   confinedSince: string | null;
+  lastScannedLat: number | null;
+  lastScannedLng: number | null;
+  lastScannedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
