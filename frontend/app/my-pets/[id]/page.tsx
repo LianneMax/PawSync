@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback } from 'react'
 
 const LastScannedMap = dynamic(() => import('@/components/LastScannedMap'), { ssr: false })
+const ScanLocationsMap = dynamic(() => import('@/components/ScanLocationsMap'), { ssr: false })
 import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -899,13 +900,59 @@ export default function PetProfilePage() {
               <>
                 {/* NFC & ID Section */}
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Identification</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                  <DetailField label="NFC Tag ID" value={pet.nfcTagId || 'Not registered'} />
-                  <DetailField label="Lost Status" value={pet.isLost ? 'Marked as Lost' : 'Safe'} highlight={pet.isLost} />
+                <div className="bg-[#F8F6F2] rounded-xl flex mb-4">
+                  <div className="flex-1 p-4">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">NFC Tag ID</p>
+                    <p className="text-sm font-bold text-[#4F4F4F]">{pet.nfcTagId || 'Not registered'}</p>
+                  </div>
+                  <div className="w-px bg-gray-300 my-3" />
+                  <div className="flex-1 p-4">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Lost Status</p>
+                    <p className={`text-sm font-bold ${pet.isLost ? 'text-[#900B09]' : 'text-[#4F4F4F]'}`}>
+                      {pet.isLost ? 'Marked as Lost' : 'Safe'}
+                    </p>
+                  </div>
                 </div>
+                {pet.isLost && pet.lostReportedByStranger && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5 mb-8">
+                    <span className="text-amber-600 text-sm shrink-0 mt-0.5">⚠️</span>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      <span className="font-semibold">Reported by a stranger:</span> This pet was marked as missing by a finder, not by you.
+                      If your pet is safe, please update its status.
+                    </p>
+                  </div>
+                )}
 
-                {/* Last Scanned Location Map */}
-                {pet.lastScannedLat && pet.lastScannedLng && (
+                {/* Scan Locations Map */}
+                {pet.scanLocations && pet.scanLocations.length > 0 ? (
+                  <div className="mb-8">
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
+                    <p className="text-xs text-gray-500 mb-1">
+                      {pet.scanLocations.length} sighting{pet.scanLocations.length !== 1 ? 's' : ''} reported by finders.
+                      Most recent:{' '}
+                      {pet.lastScannedAt
+                        ? new Date(pet.lastScannedAt).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                        : 'unknown date'}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-3">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1" />
+                      Red = most recent &nbsp;·&nbsp;
+                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1" />
+                      Blue = earlier sightings
+                    </p>
+                    <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
+                    {pet.lastScannedLat && pet.lastScannedLng && (
+                      <a
+                        href={`https://www.google.com/maps?q=${pet.lastScannedLat},${pet.lastScannedLng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 text-xs text-[#7FA5A3] hover:underline"
+                      >
+                        Open latest location in Google Maps →
+                      </a>
+                    )}
+                  </div>
+                ) : pet.lastScannedLat && pet.lastScannedLng ? (
                   <div className="mb-8">
                     <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Last Scanned Location</h3>
                     <p className="text-xs text-gray-500 mb-3">
@@ -926,7 +973,7 @@ export default function PetProfilePage() {
                       Open in Google Maps →
                     </a>
                   </div>
-                )}
+                ) : null}
 
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8 mb-8">

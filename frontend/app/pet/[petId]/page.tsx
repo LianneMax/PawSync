@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
@@ -14,6 +15,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
+
+const ScanLocationsMap = dynamic(() => import('@/components/ScanLocationsMap'), { ssr: false })
+
+interface ScanLocation {
+  lat: number
+  lng: number
+  scannedAt: string
+}
 
 interface PetData {
   _id: string
@@ -27,6 +36,8 @@ interface PetData {
   photo?: string
   allergies: string[]
   isLost: boolean
+  lostReportedByStranger: boolean
+  scanLocations: ScanLocation[]
 }
 
 interface OwnerData {
@@ -89,17 +100,24 @@ export default function PetProfilePage() {
   const [foundStep, setFoundStep] = useState<'alert' | 'location' | 'success'>('alert')
   const [isReportingFound, setIsReportingFound] = useState(false)
   const token = useAuthStore((state) => state.token)
+  const userId = useAuthStore((state) => state.user?.id)
   const userType = useAuthStore((state) => state.user?.userType)
+  // Ensures the drawer only auto-opens once (on initial page load), not when state updates later
+  const drawerTriggeredRef = useRef(false)
 
-  // Auto-open the "found" drawer + notify owner when a lost pet profile loads
+  // Auto-open the "found" drawer when a lost pet profile loads — skip if the viewer is the owner
   useEffect(() => {
-    if (pet?.isLost) {
-      setShowFoundDrawer(true)
-      // Fire-and-forget scan alert to the owner
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      fetch(`${apiUrl}/pets/${petId}/scan-alert`, { method: 'POST' }).catch(() => {})
+    if (pet?.isLost && owner && !drawerTriggeredRef.current) {
+      drawerTriggeredRef.current = true
+      const isOwner = !!userId && userId === owner._id
+      if (!isOwner) {
+        setShowFoundDrawer(true)
+        // Fire-and-forget scan alert to the owner
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+        fetch(`${apiUrl}/pets/${petId}/scan-alert`, { method: 'POST' }).catch(() => {})
+      }
     }
-  }, [pet?.isLost, petId])
+  }, [pet?.isLost, owner, userId, petId])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -144,12 +162,42 @@ export default function PetProfilePage() {
     if (!pet) return
     setIsReporting(true)
     try {
+      // Capture geolocation first so the stranger's location is recorded with the report
+      const getLocation = (): Promise<GeolocationPosition | null> =>
+        new Promise((resolve) => {
+          if (!navigator.geolocation) return resolve(null)
+          navigator.geolocation.getCurrentPosition((pos) => resolve(pos), () => resolve(null), { timeout: 10000 })
+        })
+      const position = await getLocation()
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const res = await fetch(`${apiUrl}/pets/${pet._id}/report-missing`, { method: 'POST' })
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      // Pass auth token so backend can detect if this is the owner
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const body: Record<string, unknown> = {}
+      if (position) {
+        body.latitude = position.coords.latitude
+        body.longitude = position.coords.longitude
+      }
+
+      const res = await fetch(`${apiUrl}/pets/${pet._id}/report-missing`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      })
       const json = await res.json()
       if (json.status === 'SUCCESS') {
         toast.success('Report Submitted', { description: json.message })
-        setPet(prev => prev ? { ...prev, isLost: true } : null)
+        // Mark the drawer as already triggered so it doesn't auto-open again
+        drawerTriggeredRef.current = true
+        // Update local pet state — include the new scan location if the backend saved one
+        setPet(prev => {
+          if (!prev) return null
+          const newLocations = [...prev.scanLocations]
+          if (json.scanLocation) newLocations.push({ ...json.scanLocation, scannedAt: new Date(json.scanLocation.scannedAt).toISOString() })
+          return { ...prev, isLost: true, lostReportedByStranger: true, scanLocations: newLocations }
+        })
       } else {
         toast.error('Error', { description: json.message })
       }
@@ -186,6 +234,16 @@ export default function PetProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+
+      // Update local scanLocations so the map refreshes immediately
+      if (position) {
+        const newEntry = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          scannedAt: new Date().toISOString(),
+        }
+        setPet(prev => prev ? { ...prev, scanLocations: [...prev.scanLocations, newEntry] } : null)
+      }
 
       setFoundStep('success')
     } catch {
@@ -256,7 +314,7 @@ export default function PetProfilePage() {
   return (
     <div className="min-h-screen bg-white pb-28">
       {/* Hero Section */}
-      <div className="bg-linear-to-b from-[#7FA5A3] to-[#6b9391] h-64 flex items-center justify-center relative">
+      <div className={`h-64 flex items-center justify-center relative ${pet.isLost ? 'bg-linear-to-b from-[#C0392B] to-[#962d22]' : 'bg-linear-to-b from-[#7FA5A3] to-[#6b9391]'}`}>
         {pet.photo ? (
           <Image
             src={pet.photo}
@@ -286,6 +344,39 @@ export default function PetProfilePage() {
             {pet.isLost ? 'Reported Missing' : 'Report Missing'}
           </button>
         </div>
+
+        {/* Stranger-reported note */}
+        {pet.isLost && pet.lostReportedByStranger && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <span className="font-semibold">Note:</span> This pet was reported missing by a finder, not the registered owner.
+              If you are the owner and your pet is safe, please update its status.
+            </p>
+          </div>
+        )}
+
+        {/* Scan Locations Map (visible to all when pet is lost and locations exist) */}
+        {pet.isLost && pet.scanLocations.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1.5" />
+              Red = most recent &nbsp;·&nbsp;
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5" />
+              Blue = earlier sightings
+            </p>
+            <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
+            <a
+              href={`https://www.google.com/maps?q=${pet.scanLocations[pet.scanLocations.length - 1].lat},${pet.scanLocations[pet.scanLocations.length - 1].lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-2 text-xs text-[#7FA5A3] hover:underline"
+            >
+              Open latest location in Google Maps →
+            </a>
+          </div>
+        )}
 
         {/* Request NFC Tag (only for pet-owners) */}
         {token && userType === 'pet-owner' && (
@@ -460,8 +551,8 @@ export default function PetProfilePage() {
               <SheetHeader className="text-center mb-5">
                 <SheetTitle className="text-xl font-bold text-[#900B09]">Lost Pet Alert!</SheetTitle>
                 <SheetDescription className="text-sm text-gray-600 mt-1">
-                  <span className="font-semibold text-[#4F4F4F]">{pet?.name}</span> has been marked as
-                  lost by their owner. Have you found this pet?
+                  <span className="font-semibold text-[#4F4F4F]">{pet?.name}</span> has been reported
+                  as missing{pet?.lostReportedByStranger ? ' by a finder' : ' by their owner'}. Have you found this pet?
                 </SheetDescription>
               </SheetHeader>
               <div className="space-y-3">

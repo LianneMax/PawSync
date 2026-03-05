@@ -21,11 +21,13 @@ export interface IPet extends Document {
   lostContactName: string | null;
   lostContactNumber: string | null;
   lostMessage: string | null;
+  lostReportedByStranger: boolean;
   isConfined: boolean;
   confinedSince: Date | null;
   lastScannedLat: number | null;
   lastScannedLng: number | null;
   lastScannedAt: Date | null;
+  scanLocations: { lat: number; lng: number; scannedAt: Date }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -107,6 +109,10 @@ const PetSchema = new Schema(
       type: Boolean,
       default: false
     },
+    lostReportedByStranger: {
+      type: Boolean,
+      default: false
+    },
     lostContactName: {
       type: String,
       default: null
@@ -138,6 +144,14 @@ const PetSchema = new Schema(
     lastScannedAt: {
       type: Date,
       default: null
+    },
+    scanLocations: {
+      type: [{
+        lat: { type: Number, required: true },
+        lng: { type: Number, required: true },
+        scannedAt: { type: Date, default: Date.now }
+      }],
+      default: []
     }
   },
   {

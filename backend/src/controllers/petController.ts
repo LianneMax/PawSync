@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import Pet from '../models/Pet';
 import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
@@ -7,6 +8,17 @@ import Vaccination from '../models/Vaccination';
 import QRCode from 'qrcode';
 import { sendLostPetConfirmation, sendLostPetScanAlert } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+
+/** Decode JWT from Authorization header without failing if absent/invalid */
+const tryDecodeToken = (req: Request): { userId: string } | null => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) return null;
+    return jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'your-secret-key') as any;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Generate QR code for a pet profile
@@ -326,7 +338,7 @@ export const transferPet = async (req: Request, res: Response) => {
 export const getPublicPetProfile = async (req: Request, res: Response) => {
   try {
     const pet = await Pet.findById(req.params.id)
-      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost ownerId')
+      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost lostReportedByStranger scanLocations ownerId')
       .populate('ownerId', 'firstName lastName contactNumber');
 
     if (!pet) {
@@ -370,6 +382,8 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           photo: pet.photo,
           allergies: pet.allergies,
           isLost: pet.isLost,
+          lostReportedByStranger: pet.lostReportedByStranger,
+          scanLocations: pet.scanLocations ?? [],
         },
         owner: pet.ownerId,
         vitals: latestRecord ? {
@@ -417,12 +431,30 @@ export const reportPetMissing = async (req: Request, res: Response) => {
       return res.status(200).json({ status: 'SUCCESS', message: 'This pet is already reported as missing' });
     }
 
+    const decoded = tryDecodeToken(req);
+    const isOwner = decoded?.userId === pet.ownerId.toString();
+
     pet.isLost = true;
+    pet.lostReportedByStranger = !isOwner;
+
+    // Capture stranger's geolocation as the first scan entry
+    const { latitude, longitude } = req.body ?? {};
+    let savedLocation: { lat: number; lng: number; scannedAt: Date } | null = null;
+    if (!isOwner && typeof latitude === 'number' && typeof longitude === 'number') {
+      const now = new Date();
+      savedLocation = { lat: latitude, lng: longitude, scannedAt: now };
+      pet.scanLocations.push(savedLocation);
+      pet.lastScannedLat = latitude;
+      pet.lastScannedLng = longitude;
+      pet.lastScannedAt = now;
+    }
+
     await pet.save();
 
     return res.status(200).json({
       status: 'SUCCESS',
-      message: 'Pet has been reported as missing. The owner will be notified.'
+      message: 'Pet has been reported as missing. The owner will be notified.',
+      scanLocation: savedLocation,
     });
   } catch (error) {
     console.error('Report pet missing error:', error);
@@ -563,9 +595,11 @@ export const reportPetFound = async (req: Request, res: Response) => {
     const { latitude, longitude } = req.body;
 
     if (typeof latitude === 'number' && typeof longitude === 'number') {
+      const now = new Date();
+      pet.scanLocations.push({ lat: latitude, lng: longitude, scannedAt: now });
       pet.lastScannedLat = latitude;
       pet.lastScannedLng = longitude;
-      pet.lastScannedAt = new Date();
+      pet.lastScannedAt = now;
       await pet.save();
     }
 

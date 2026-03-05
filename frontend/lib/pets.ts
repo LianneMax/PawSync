@@ -19,6 +19,7 @@ export interface Pet {
   bloodType: string | null;
   allergies: string[];
   isLost: boolean;
+  lostReportedByStranger: boolean;
   lostContactName: string | null;
   lostContactNumber: string | null;
   lostMessage: string | null;
@@ -27,6 +28,7 @@ export interface Pet {
   lastScannedLat: number | null;
   lastScannedLng: number | null;
   lastScannedAt: string | null;
+  scanLocations: { lat: number; lng: number; scannedAt: string }[];
   createdAt: string;
   updatedAt: string;
 }
