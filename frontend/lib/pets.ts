@@ -141,7 +141,7 @@ export const togglePetLost = async (
   id: string,
   isLost: boolean,
   token?: string,
-  contactInfo?: { lostContactName?: string | null; lostContactNumber?: string | null; lostMessage?: string | null }
+  contactInfo?: { lostContactName?: string | null; lostContactNumber?: string | null; lostMessage?: string | null; lostReportedByStranger?: boolean }
 ): Promise<PetResponse> => {
   return authenticatedFetch(`/pets/${id}`, {
     method: 'PUT',

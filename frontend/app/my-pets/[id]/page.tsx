@@ -321,7 +321,7 @@ export default function PetProfilePage() {
     if (!pet) return
     setLostNameShown(pet.name)
     setLostContact(typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '' : '')
-    setLostMessage('')
+    setLostMessage('If you found me, please call or message my owner and feel free to share your current location with them.')
     setShowLostModal(true)
   }
 
@@ -333,6 +333,7 @@ export default function PetProfilePage() {
         lostContactName: lostNameShown || null,
         lostContactNumber: lostContact || null,
         lostMessage: lostMessage || null,
+        lostReportedByStranger: false, // Owner is marking as lost, not a stranger
       })
       if (response.status === 'SUCCESS') {
         toast('Pet Marked as Lost', { description: `${pet.name} has been marked as lost. Vets will be notified.` })
@@ -954,6 +955,58 @@ export default function PetProfilePage() {
                       >
                         Open latest location in Google Maps →
                       </a>
+                    )}
+
+                    {/* Scan History List */}
+                    {pet.scanLocations && pet.scanLocations.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-600 mb-3">Scan History</h4>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {[...pet.scanLocations]
+                            .sort((a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime())
+                            .map((scan, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between gap-3 bg-white border border-gray-100 rounded-lg p-3 hover:border-[#7FA5A3] hover:bg-gray-50 transition-all"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {idx === 0 && (
+                                      <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+                                    )}
+                                    {idx > 0 && (
+                                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                                    )}
+                                    <p className="text-sm font-medium text-[#4F4F4F]">
+                                      {idx === 0 ? 'Most Recent' : `Scan ${idx}`}
+                                    </p>
+                                  </div>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(scan.scannedAt).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                      hour12: true,
+                                    })}
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    📍 {scan.lat.toFixed(6)}, {scan.lng.toFixed(6)}
+                                  </p>
+                                </div>
+                                <a
+                                  href={`https://www.google.com/maps?q=${scan.lat},${scan.lng}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1.5 text-xs text-[#7FA5A3] hover:text-[#6b8f8d] font-semibold border border-[#7FA5A3]/30 rounded-lg hover:border-[#7FA5A3] transition-colors shrink-0"
+                                >
+                                  Map
+                                </a>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 ) : pet.lastScannedLat && pet.lastScannedLng ? (

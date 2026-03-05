@@ -324,39 +324,15 @@ function PetDetailModal({
               </div>
               <div className="bg-[#F8F6F2] rounded-lg p-4 min-h-20">
                 <p className="text-xs text-gray-400 mb-2">What Strangers See When Scanning:</p>
-                {pet.isLost ? (
-                  <div className="space-y-2">
-                    <div className="bg-[#FEE2E2] border border-[#FCA5A5] rounded-lg p-3 space-y-1">
-                      <p className="text-xs font-bold text-[#900B09] uppercase tracking-wide">⚠ Lost Pet Alert</p>
-                      <p className="text-sm font-semibold text-[#4F4F4F]">{pet.name}</p>
-                      {pet.lostContactName && (
-                        <p className="text-xs text-[#4F4F4F]">Contact: <span className="font-medium">{pet.lostContactName}</span></p>
-                      )}
-                      {pet.lostContactNumber && (
-                        <p className="text-xs text-[#4F4F4F]">Phone: <span className="font-medium">{pet.lostContactNumber}</span></p>
-                      )}
-                      {pet.lostMessage && (
-                        <p className="text-xs text-[#4F4F4F] italic">&ldquo;{pet.lostMessage}&rdquo;</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
-                      className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
-                    >
-                      View public NFC profile →
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs text-gray-400">Normal pet profile will be shown.</p>
-                    <button
-                      onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
-                      className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
-                    >
-                      View public NFC profile →
-                    </button>
-                  </div>
-                )}
+                <p className="text-xs text-gray-400 mb-3">
+                  {pet.isLost ? 'Lost pet profile with alert and contact info.' : 'Normal pet profile will be shown.'}
+                </p>
+                <button
+                  onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
+                  className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
+                >
+                  View public NFC profile →
+                </button>
               </div>
             </div>
 

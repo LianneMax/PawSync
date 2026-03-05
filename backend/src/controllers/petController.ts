@@ -187,7 +187,7 @@ export const updatePet = async (req: Request, res: Response) => {
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
       'dateOfBirth', 'weight', 'sterilization', 'microchipNumber',
       'nfcTagId', 'photo', 'notes', 'allergies', 'isLost', 'isConfined',
-      'lostContactName', 'lostContactNumber', 'lostMessage'
+      'lostContactName', 'lostContactNumber', 'lostMessage', 'lostReportedByStranger'
     ];
 
     for (const field of allowedFields) {

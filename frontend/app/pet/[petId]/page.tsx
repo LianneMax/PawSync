@@ -99,6 +99,8 @@ export default function PetProfilePage() {
   const [showFoundDrawer, setShowFoundDrawer] = useState(false)
   const [foundStep, setFoundStep] = useState<'alert' | 'location' | 'success'>('alert')
   const [isReportingFound, setIsReportingFound] = useState(false)
+  const [isSharingLocation, setIsSharingLocation] = useState(false)
+  const [locationShared, setLocationShared] = useState(false)
   const token = useAuthStore((state) => state.token)
   const userId = useAuthStore((state) => state.user?.id)
   const userType = useAuthStore((state) => state.user?.userType)
@@ -253,6 +255,45 @@ export default function PetProfilePage() {
     }
   }
 
+  const handleShareLocation = async () => {
+    setIsSharingLocation(true)
+    try {
+      const getLocation = (): Promise<GeolocationPosition | null> =>
+        new Promise((resolve) => {
+          if (!navigator.geolocation) return resolve(null)
+          navigator.geolocation.getCurrentPosition((pos) => resolve(pos), () => resolve(null), { timeout: 10000 })
+        })
+      const position = await getLocation()
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const body: Record<string, unknown> = {}
+      if (position) {
+        body.latitude = position.coords.latitude
+        body.longitude = position.coords.longitude
+      }
+      await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (position) {
+        setPet(prev => prev ? {
+          ...prev,
+          scanLocations: [...prev.scanLocations, {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            scannedAt: new Date().toISOString(),
+          }]
+        } : null)
+      }
+      setLocationShared(true)
+      toast.success('Location Shared', { description: 'The owner has been notified. Thank you!' })
+    } catch {
+      toast.error('Error', { description: 'Could not share location. Please try again.' })
+    } finally {
+      setIsSharingLocation(false)
+    }
+  }
+
   const handleSubmitNfcRequest = async () => {
     if (!pet || !token) {
       toast.error('Please sign in to request an NFC tag')
@@ -347,7 +388,7 @@ export default function PetProfilePage() {
 
         {/* Lost pet info card — shown when lost */}
         {pet.isLost && (
-          <div className="bg-[#FDF2F2] border border-[#E8BEBE] rounded-xl px-4 py-4 space-y-2">
+          <div className="bg-[#FDF2F2] border border-[#E8BEBE] rounded-xl px-4 py-4 space-y-3">
             {pet.lostReportedByStranger ? (
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
@@ -367,6 +408,22 @@ export default function PetProfilePage() {
                   <p className="text-sm text-[#4F4F4F] leading-relaxed">{pet.lostMessage}</p>
                 )}
               </>
+            )}
+            {/* Share location button — visible to strangers only */}
+            {!(!!userId && !!owner && userId === owner._id) && (
+              <button
+                onClick={handleShareLocation}
+                disabled={isSharingLocation || locationShared}
+                className="w-full py-2.5 bg-[#35785C] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#2D6B52] transition-colors disabled:opacity-60"
+              >
+                {isSharingLocation ? (
+                  <><Loader className="w-4 h-4 animate-spin" /> Sharing location...</>
+                ) : locationShared ? (
+                  <><CheckCircle2 className="w-4 h-4" /> Location Shared</>
+                ) : (
+                  <><Navigation className="w-4 h-4" /> Share My Location</>
+                )}
+              </button>
             )}
           </div>
         )}
@@ -700,34 +757,37 @@ export default function PetProfilePage() {
         </div>
       )}
 
-      {/* Sticky Bottom Bar - Owner Info */}
+      {/* Sticky Bottom Bar - Owner Info (pill) */}
       {owner && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <div className="max-w-lg mx-auto">
-            <div className="bg-[#2C4A3E] rounded-t-3xl px-5 py-4 flex items-center gap-4 shadow-2xl">
-              <div className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center shrink-0">
-                <User className="w-6 h-6 text-white/80" />
+        <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-5 pointer-events-none">
+          <div className="max-w-lg mx-auto pointer-events-auto">
+            <div
+              className="rounded-full px-5 py-3 flex items-center gap-3 shadow-lg"
+              style={{ backgroundColor: '#7FA5A3', boxShadow: '0 8px 24px rgba(127,165,163,0.45)' }}
+            >
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold text-[#8BAFA5] uppercase tracking-wider">Pet Owner</p>
-                <p className="text-white font-bold text-base truncate">
+                <p className="text-[9px] font-semibold text-white/70 uppercase tracking-wider">Pet Owner</p>
+                <p className="text-white font-bold text-sm truncate leading-tight">
                   {owner.firstName} {owner.lastName}
                 </p>
               </div>
               {owner.contactNumber && (
                 <a
                   href={`tel:${owner.contactNumber}`}
-                  className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center shrink-0 hover:bg-[#4A6F5F] transition-colors"
+                  className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0 hover:bg-white/30 transition-colors"
                 >
-                  <Phone className="w-5 h-5 text-white" />
+                  <Phone className="w-4 h-4 text-white" />
                 </a>
               )}
               {owner.contactNumber && (
                 <a
                   href={`sms:${owner.contactNumber}`}
-                  className="w-12 h-12 bg-[#3D5E50] rounded-full flex items-center justify-center shrink-0 hover:bg-[#4A6F5F] transition-colors"
+                  className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0 hover:bg-white/30 transition-colors"
                 >
-                  <MessageCircle className="w-5 h-5 text-white" />
+                  <MessageCircle className="w-4 h-4 text-white" />
                 </a>
               )}
             </div>
