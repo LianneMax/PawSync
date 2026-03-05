@@ -24,6 +24,7 @@ const vaccineTypeRoutes_1 = __importDefault(require("./routes/vaccineTypeRoutes"
 const confinementRoutes_1 = __importDefault(require("./routes/confinementRoutes"));
 const billingRoutes_1 = __importDefault(require("./routes/billingRoutes"));
 const productServiceRoutes_1 = __importDefault(require("./routes/productServiceRoutes"));
+const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const nfcService_1 = require("./services/nfcService");
 const nfcWebSocket_1 = require("./websocket/nfcWebSocket");
 const seedVaccineTypes_1 = require("./utils/seedVaccineTypes");
@@ -75,6 +76,8 @@ app.use('/api/confinement', confinementRoutes_1.default);
 app.use('/api/billings', billingRoutes_1.default);
 // Product/service catalog routes
 app.use('/api/product-services', productServiceRoutes_1.default);
+// Notification routes
+app.use('/api/notifications', notificationRoutes_1.default);
 // NFC routes
 app.use('/api/nfc', nfcRoutes_1.default);
 // 404 handler - must be after all routes
