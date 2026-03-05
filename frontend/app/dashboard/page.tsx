@@ -347,7 +347,7 @@ function PetDetailModal({
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
-            <button
+            {/* <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
               onClick={onNavigateToMedicalRecords}
             >
@@ -356,7 +356,7 @@ function PetDetailModal({
                 <p className="text-xs text-gray-400">Medical History and Reports</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            </button> */}
             <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
               onClick={() => { onClose(); router.push(`/my-pets/${pet.id}/vaccine-card`) }}
