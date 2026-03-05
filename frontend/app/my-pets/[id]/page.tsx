@@ -15,7 +15,7 @@ import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medica
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -508,7 +508,7 @@ export default function PetProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-4xl">
+      <div className="p-6 lg:p-8">
         {/* Back button */}
         <button
           onClick={() => router.push('/my-pets')}
@@ -517,6 +517,10 @@ export default function PetProfilePage() {
           <ArrowLeft className="w-4 h-4" />
           Back to My Pets
         </button>
+
+        <div className="flex gap-6 max-w-6xl mx-auto">
+          {/* Main Profile Card */}
+          <div className="flex-1 min-w-0">
 
         {/* Profile Card */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -920,7 +924,7 @@ export default function PetProfilePage() {
                 </div>
                 {pet.isLost && pet.lostReportedByStranger && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5 mb-8">
-                    <span className="text-amber-600 text-sm shrink-0 mt-0.5">⚠️</span>
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-800 leading-relaxed">
                       <span className="font-semibold">Reported by a stranger:</span> This pet was marked as missing by a finder, not by you.
                       If your pet is safe, please update its status.
@@ -930,84 +934,92 @@ export default function PetProfilePage() {
 
                 {/* Scan Locations Map */}
                 {pet.scanLocations && pet.scanLocations.length > 0 ? (
-                  <div className="mb-8">
-                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
-                    <p className="text-xs text-gray-500 mb-1">
-                      {pet.scanLocations.length} sighting{pet.scanLocations.length !== 1 ? 's' : ''} reported by finders.
-                      Most recent:{' '}
-                      {pet.lastScannedAt
-                        ? new Date(pet.lastScannedAt).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-                        : 'unknown date'}
-                    </p>
-                    <p className="text-xs text-gray-400 mb-3">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1" />
-                      Red = most recent &nbsp;·&nbsp;
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1" />
-                      Blue = earlier sightings
-                    </p>
-                    <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
-                    {pet.lastScannedLat && pet.lastScannedLng && (
-                      <a
-                        href={`https://www.google.com/maps?q=${pet.lastScannedLat},${pet.lastScannedLng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-2 text-xs text-[#7FA5A3] hover:underline"
-                      >
-                        Open latest location in Google Maps →
-                      </a>
-                    )}
+                  <div className="mb-8 flex gap-6">
+                    {/* Left - Map */}
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
+                      <p className="text-xs text-gray-400 mb-3">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1" />
+                        Red = most recent &nbsp;·&nbsp;
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1" />
+                        Blue = earlier sightings
+                      </p>
+                      <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
+                      {pet.lastScannedLat && pet.lastScannedLng && (
+                        <a
+                          href={`https://www.google.com/maps?q=${pet.lastScannedLat},${pet.lastScannedLng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 mt-2 text-xs text-[#7FA5A3] hover:text-[#6b8f8d] transition-colors"
+                        >
+                          <MapPin className="w-3.5 h-3.5" />
+                          Open latest location in Google Maps
+                        </a>
+                      )}
+                    </div>
 
-                    {/* Scan History List */}
-                    {pet.scanLocations && pet.scanLocations.length > 0 && (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <h4 className="text-sm font-semibold text-gray-600 mb-3">Scan History</h4>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {[...pet.scanLocations]
-                            .sort((a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime())
-                            .map((scan, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center justify-between gap-3 bg-white border border-gray-100 rounded-lg p-3 hover:border-[#7FA5A3] hover:bg-gray-50 transition-all"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    {idx === 0 && (
-                                      <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-                                    )}
-                                    {idx > 0 && (
-                                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
-                                    )}
-                                    <p className="text-sm font-medium text-[#4F4F4F]">
-                                      {idx === 0 ? 'Most Recent' : `Scan ${idx}`}
-                                    </p>
-                                  </div>
-                                  <p className="text-xs text-gray-500">
-                                    {new Date(scan.scannedAt).toLocaleString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric',
-                                      hour: 'numeric',
-                                      minute: '2-digit',
-                                      hour12: true,
-                                    })}
-                                  </p>
-                                  <p className="text-xs text-gray-400 mt-1">
-                                    📍 {scan.lat.toFixed(6)}, {scan.lng.toFixed(6)}
-                                  </p>
-                                </div>
-                                <a
-                                  href={`https://www.google.com/maps?q=${scan.lat},${scan.lng}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 py-1.5 text-xs text-[#7FA5A3] hover:text-[#6b8f8d] font-semibold border border-[#7FA5A3]/30 rounded-lg hover:border-[#7FA5A3] transition-colors shrink-0"
+                    {/* Right - Scan History List */}
+                    <div className="w-80 shrink-0">
+                      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col h-[600px] sticky top-6">
+                        <div className="p-4 border-b border-gray-200 bg-gray-50 shrink-0">
+                          <h3 className="text-sm font-semibold text-[#4F4F4F]">Scan History</h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {pet.scanLocations.length} sighting{pet.scanLocations.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                          <div className="p-3 space-y-3">
+                            {[...pet.scanLocations]
+                              .sort((a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime())
+                              .map((scan, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-start justify-between gap-2 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-lg p-3 hover:border-[#7FA5A3] hover:shadow-md transition-all"
                                 >
-                                  Map
-                                </a>
-                              </div>
-                            ))}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                      {idx === 0 && (
+                                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm" />
+                                      )}
+                                      {idx > 0 && (
+                                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
+                                      )}
+                                      <p className="text-xs font-semibold text-[#4F4F4F]">
+                                        {idx === 0 ? 'Most Recent' : `Scan ${idx}`}
+                                      </p>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mb-1">
+                                      {new Date(scan.scannedAt).toLocaleString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                        hour12: true,
+                                      })}
+                                    </p>
+                                    <div className="flex items-center gap-1 text-gray-600">
+                                      <MapPin className="w-3.5 h-3.5 text-[#7FA5A3] shrink-0" />
+                                      <p className="text-xs text-gray-500 truncate">
+                                        {scan.lat.toFixed(4)}, {scan.lng.toFixed(4)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={`https://www.google.com/maps?q=${scan.lat},${scan.lng}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Open in Google Maps"
+                                    className="flex items-center justify-center w-8 h-8 text-[#7FA5A3] hover:text-[#6b8f8d] hover:bg-[#7FA5A3]/10 rounded-lg transition-all shrink-0 mt-0.5"
+                                  >
+                                    <MapPin className="w-4 h-4" />
+                                  </a>
+                                </div>
+                              ))}
+                          </div>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 ) : pet.lastScannedLat && pet.lastScannedLng ? (
                   <div className="mb-8">
@@ -1025,15 +1037,16 @@ export default function PetProfilePage() {
                       href={`https://www.google.com/maps?q=${pet.lastScannedLat},${pet.lastScannedLng}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-block mt-2 text-xs text-[#7FA5A3] hover:underline"
+                      className="inline-flex items-center gap-1 mt-2 text-xs text-[#7FA5A3] hover:text-[#6b8f8d] transition-colors"
                     >
-                      Open in Google Maps →
+                      <MapPin className="w-3.5 h-3.5" />
+                      Open in Google Maps
                     </a>
                   </div>
                 ) : null}
 
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8 mb-8">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4 mb-4">
                   <button
                     onClick={handleRequestNfcTag}
                     disabled={isSubmittingRequest || !pet.nfcTagId}
@@ -1101,6 +1114,8 @@ export default function PetProfilePage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
           </div>
         </div>
       </div>
