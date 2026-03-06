@@ -947,8 +947,8 @@ function ClinicScheduleModal({
     label: branch.name,
   }))
 
-  const selectType = (type: string) => {
-    setSelectedTypes([type])
+  const handleTypeChange = (types: string[]) => {
+    setSelectedTypes(types)
   }
 
   const handleSubmit = async () => {
@@ -1137,8 +1137,8 @@ function ClinicScheduleModal({
                 </div>
               ) : (
                 <AppointmentServiceSelector
-                  value={selectedTypes[0] ?? ''}
-                  onChange={selectType}
+                  values={selectedTypes}
+                  onChange={handleTypeChange}
                 />
               )}
             </div>

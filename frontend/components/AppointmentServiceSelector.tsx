@@ -92,32 +92,32 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function RadioOption({
+function CheckboxOption({
   item,
   selected,
-  onSelect,
+  onToggle,
 }: {
   item: ServiceItem
   selected: boolean
-  onSelect: (value: string) => void
+  onToggle: (value: string) => void
 }) {
   return (
     <button
       type="button"
-      onClick={() => onSelect(item.value)}
+      onClick={() => onToggle(item.value)}
       className={`w-full px-3 py-2 rounded-lg text-sm text-left flex items-center gap-2.5 transition-colors ${
         selected
           ? 'bg-[#7FA5A3]/10 text-[#5A7C7A]'
           : 'text-[#4F4F4F] hover:bg-gray-100'
       }`}
     >
-      {/* Radio circle */}
+      {/* Checkbox */}
       <span
-        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-          selected ? 'border-[#5A7C7A]' : 'border-gray-300'
+        className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+          selected ? 'border-[#5A7C7A] bg-[#7FA5A3]' : 'border-gray-300'
         }`}
       >
-        {selected && <span className="w-2 h-2 rounded-full bg-[#5A7C7A]" />}
+        {selected && <Check className="w-3 h-3 text-white" />}
       </span>
       {item.label}
     </button>
@@ -127,14 +127,14 @@ function RadioOption({
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface AppointmentServiceSelectorProps {
-  /** Currently selected service value (single selection). */
-  value: string
-  /** Called when the user picks a service. */
-  onChange: (value: string) => void
+  /** Currently selected service values (multiple selection). */
+  values: string[]
+  /** Called when the user toggles a service. */
+  onChange: (values: string[]) => void
 }
 
 export default function AppointmentServiceSelector({
-  value,
+  values,
   onChange,
 }: AppointmentServiceSelectorProps) {
   // "general" is expanded by default as it's the most common booking.
@@ -144,27 +144,40 @@ export default function AppointmentServiceSelector({
     setOpenCategory((prev) => (prev === id ? '' : id))
   }
 
-  // Determine which category contains the currently selected value
-  const findCategoryForValue = (val: string): string => {
-    for (const cat of SERVICE_CATEGORIES) {
-      if (cat.services?.some((s) => s.value === val)) return cat.id
-      if (cat.subGroups?.some((sg) => sg.services.some((s) => s.value === val))) return cat.id
+  // Toggle a service value
+  const toggleService = (serviceValue: string) => {
+    if (values.includes(serviceValue)) {
+      onChange(values.filter((v) => v !== serviceValue))
+    } else {
+      onChange([...values, serviceValue])
     }
-    return ''
   }
 
-  const selectedCategory = findCategoryForValue(value)
+  // Determine which categories have selections
+  const findCategoriesForValues = (vals: string[]): Set<string> => {
+    const categories = new Set<string>()
+    for (const cat of SERVICE_CATEGORIES) {
+      if (cat.services?.some((s) => vals.includes(s.value))) categories.add(cat.id)
+      if (cat.subGroups?.some((sg) => sg.services.some((s) => vals.includes(s.value)))) categories.add(cat.id)
+    }
+    return categories
+  }
+
+  const selectedCategories = findCategoriesForValues(values)
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
       {SERVICE_CATEGORIES.map((cat) => {
         const isOpen = openCategory === cat.id
-        const hasSelection = selectedCategory === cat.id
+        const hasSelection = selectedCategories.has(cat.id)
 
         // Collect all services for rendering
         const allServices: ServiceItem[] = cat.services
           ? cat.services
           : cat.subGroups?.flatMap((sg) => sg.services) ?? []
+
+        // Count selected services in this category
+        const selectedCount = allServices.filter((s) => values.includes(s.value)).length
 
         return (
           <div key={cat.id}>
@@ -181,7 +194,7 @@ export default function AppointmentServiceSelector({
                 {hasSelection && !isOpen && (
                   <span className="flex items-center gap-1 text-[10px] font-medium text-[#5A7C7A] bg-[#7FA5A3]/15 px-2 py-0.5 rounded-full">
                     <Check className="w-2.5 h-2.5" />
-                    {allServices.find((s) => s.value === value)?.label}
+                    {selectedCount} selected
                   </span>
                 )}
               </div>
@@ -207,11 +220,11 @@ export default function AppointmentServiceSelector({
                         {sg.label}
                       </p>
                       {sg.services.map((item) => (
-                        <RadioOption
+                        <CheckboxOption
                           key={item.value}
                           item={item}
-                          selected={value === item.value}
-                          onSelect={onChange}
+                          selected={values.includes(item.value)}
+                          onToggle={toggleService}
                         />
                       ))}
                     </div>
@@ -219,11 +232,11 @@ export default function AppointmentServiceSelector({
                 ) : (
                   // Flat service list
                   cat.services?.map((item) => (
-                    <RadioOption
+                    <CheckboxOption
                       key={item.value}
                       item={item}
-                      selected={value === item.value}
-                      onSelect={onChange}
+                      selected={values.includes(item.value)}
+                      onToggle={toggleService}
                     />
                   ))
                 )}

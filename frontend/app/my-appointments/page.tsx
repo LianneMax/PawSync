@@ -504,8 +504,8 @@ function ScheduleModal({
 
   const selectedBranchOption = branchOptions.find((b) => b.value === selectedBranchId)
 
-  const selectType = (type: string) => {
-    setSelectedTypes([type])
+  const handleTypeChange = (types: string[]) => {
+    setSelectedTypes(types)
   }
 
   const handleSubmit = async () => {
@@ -667,8 +667,8 @@ function ScheduleModal({
                 </div>
               ) : (
                 <AppointmentServiceSelector
-                  value={selectedTypes[0] ?? ''}
-                  onChange={selectType}
+                  values={selectedTypes}
+                  onChange={handleTypeChange}
                 />
               )}
             </div>
