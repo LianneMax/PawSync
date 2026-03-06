@@ -13,7 +13,6 @@ interface ProductItem {
   id: string
   name: string
   price: number
-  productType?: 'Medication' | 'Others'
   lastUpdateDate: string
 }
 
@@ -33,11 +32,11 @@ interface AddModalProps {
 }
 
 function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
-  const [form, setForm] = useState({ name: '', price: '', description: '', productType: 'Others' })
+  const [form, setForm] = useState({ name: '', price: '', description: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
@@ -69,7 +68,6 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
           type: tab === 'Products' ? 'Product' : 'Service',
           price: parsed,
           description: form.description.trim(),
-          ...(tab === 'Products' && { productType: form.productType }),
         }),
       })
 
@@ -80,7 +78,6 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
           id: data.data.item._id,
           name: data.data.item.name,
           price: data.data.item.price,
-          productType: data.data.item.productType,
           lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -131,20 +128,6 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
-          {tab === 'Products' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
-              <select
-                name="productType"
-                value={form.productType}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-              >
-                <option value="Medication">Medication</option>
-                <option value="Others">Others</option>
-              </select>
-            </div>
-          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
             <input
@@ -342,7 +325,6 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
             id: item._id,
             name: item.name,
             price: item.price,
-            productType: item.productType,
             lastUpdateDate: new Date(item.updatedAt).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -485,11 +467,6 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Name" colKey="name" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
-                  {tab === 'Products' && (
-                    <th className="px-4 py-3 text-left">
-                      <SortHeader label="Type" colKey="productType" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                    </th>
-                  )}
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
@@ -521,13 +498,6 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                         {item.name}
                       </span>
                     </td>
-                    {tab === 'Products' && (
-                      <td className="px-4 py-3.5 text-sm text-gray-700">
-                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                          {item.productType || 'Others'}
-                        </span>
-                      </td>
-                    )}
                     <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
                     <td className="px-4 py-3.5">
@@ -542,7 +512,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                 ))}
                 {sorted.length === 0 && (
                   <tr>
-                    <td colSpan={tab === 'Products' ? 6 : 5} className="px-5 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
                       No {tab.toLowerCase()} found.
                     </td>
                   </tr>

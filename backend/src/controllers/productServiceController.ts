@@ -36,7 +36,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, productType } = req.body;
+    const { name, type, price, description } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -44,10 +44,6 @@ export const createProductService = async (req: Request, res: Response) => {
 
     if (!['Service', 'Product'].includes(type)) {
       return res.status(400).json({ status: 'ERROR', message: 'type must be "Service" or "Product"' });
-    }
-
-    if (type === 'Product' && productType && !['Medication', 'Others'].includes(productType)) {
-      return res.status(400).json({ status: 'ERROR', message: 'productType must be "Medication" or "Others"' });
     }
 
     const existing = await ProductService.findOne({ name: name.trim() });
@@ -58,7 +54,6 @@ export const createProductService = async (req: Request, res: Response) => {
     const item = await ProductService.create({
       name: name.trim(),
       type,
-      productType: type === 'Product' ? (productType || 'Others') : undefined,
       price,
       description: description || '',
     });
@@ -92,14 +87,13 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, isActive, productType } = req.body;
+    const { name, type, price, description, isActive } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
     if (price !== undefined) item.price = price;
     if (description !== undefined) item.description = description;
     if (isActive !== undefined) item.isActive = isActive;
-    if (productType !== undefined) item.productType = productType;
 
     await item.save();
 
