@@ -22,38 +22,78 @@ interface VaccineItem {
   pricePerDose: number
 }
 
-// ==================== MOCK DATA ====================
-
-const mockProducts: ProductItem[] = [
-  { id: '1', name: 'Flea & Tick Collar', price: 450, lastUpdateDate: 'Feb 10, 2026' },
-  { id: '2', name: 'Deworming Tablet', price: 250, lastUpdateDate: 'Feb 12, 2026' },
-  { id: '3', name: 'Ear Cleaning Solution', price: 180, lastUpdateDate: 'Jan 28, 2026' },
-]
-
-const mockServices: ProductItem[] = [
-  { id: '1', name: 'Annual Checkup', price: 800, lastUpdateDate: 'Feb 5, 2026' },
-  { id: '2', name: 'Dental Cleaning', price: 2500, lastUpdateDate: 'Jan 20, 2026' },
-  { id: '3', name: 'Post-Surgery Checkup', price: 600, lastUpdateDate: 'Feb 14, 2026' },
-]
-
 // ==================== ADD MODAL ====================
 
 interface AddModalProps {
   tab: 'Products' | 'Services'
+  token: string | null
   onClose: () => void
+  onSaved: (item: ProductItem) => void
 }
 
-function AddModal({ tab, onClose }: AddModalProps) {
-  const [form, setForm] = useState({ name: '', price: '' })
+function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
+  const [form, setForm] = useState({ name: '', price: '', description: '' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleSave = () => {
-    // TODO: BACKEND — POST /products-services with { name, type: tab === 'Products' ? 'Product' : 'Service', price }
-    console.log('Save:', { ...form, type: tab === 'Products' ? 'Product' : 'Service' })
-    onClose()
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.price) {
+      setError('Name and price are required.')
+      return
+    }
+
+    const parsed = parseFloat(form.price)
+    if (isNaN(parsed) || parsed < 0) {
+      setError('Please enter a valid price.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const res = await fetch(`${apiUrl}/product-services`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          type: tab === 'Products' ? 'Product' : 'Service',
+          price: parsed,
+          description: form.description.trim(),
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.status === 'SUCCESS') {
+        const newItem: ProductItem = {
+          id: data.data.item._id,
+          name: data.data.item.name,
+          price: data.data.item.price,
+          lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }),
+        }
+        onSaved(newItem)
+        onClose()
+      } else {
+        setError(data.message || 'Failed to create item.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const label = tab === 'Products' ? 'Product' : 'Service'
@@ -100,14 +140,27 @@ function AddModal({ tab, onClose }: AddModalProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
+            <input
+              type="text"
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Enter description"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+            />
+          </div>
+          {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-7">
           <button
             onClick={handleSave}
-            className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+            disabled={saving}
+            className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
           >
-            Save {label}
+            {saving ? 'Saving...' : `Save ${label}`}
           </button>
           <button
             onClick={onClose}
@@ -247,20 +300,54 @@ function SortHeader({
 
 // ==================== PRODUCTS / SERVICES TAB ====================
 
-function ProductServiceTab({ tab }: { tab: 'Products' | 'Services' }) {
-  const [data, setData] = useState<ProductItem[]>(tab === 'Products' ? mockProducts : mockServices)
+function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token: string | null }) {
+  const [data, setData] = useState<ProductItem[]>([])
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  // Reset selection when tab changes
   useEffect(() => {
-    setData(tab === 'Products' ? mockProducts : mockServices)
+    const fetchData = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+        const typeParam = tab === 'Products' ? 'Product' : 'Service'
+        const res = await fetch(`${apiUrl}/product-services?type=${typeParam}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const result = await res.json()
+
+        if (result.status === 'SUCCESS') {
+          const items = result.data.items.map((item: any) => ({
+            id: item._id,
+            name: item.name,
+            price: item.price,
+            lastUpdateDate: new Date(item.updatedAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            }),
+          }))
+          setData(items)
+        } else {
+          setError('Failed to load items.')
+        }
+      } catch {
+        setError('Could not connect to server.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     setSelected(new Set())
     setSearch('')
-  }, [tab])
+    setLoading(true)
+    setError('')
+    fetchData()
+  }, [tab, token])
 
   const handleSort = (key: string) => {
     if (sortKey === key) setSortAsc(!sortAsc)
@@ -282,12 +369,25 @@ function ProductServiceTab({ tab }: { tab: 'Products' | 'Services' }) {
     setSelected(allSelected ? new Set() : new Set(data.map((d) => d.id)))
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selected.size === 0) return
-    if (window.confirm(`Delete ${selected.size} item(s)?`)) {
-      // TODO: BACKEND — DELETE /products-services with selected IDs
+    if (!window.confirm(`Delete ${selected.size} item(s)?`)) return
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const ids = Array.from(selected)
+
+      for (const id of ids) {
+        await fetch(`${apiUrl}/product-services/${id}`, {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+      }
+
       setData((prev) => prev.filter((d) => !selected.has(d.id)))
       setSelected(new Set())
+    } catch {
+      alert('Error deleting items. Please try again.')
     }
   }
 
@@ -303,9 +403,13 @@ function ProductServiceTab({ tab }: { tab: 'Products' | 'Services' }) {
     return sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
   })
 
+  const handleSaved = (newItem: ProductItem) => {
+    setData((prev) => [newItem, ...prev])
+  }
+
   return (
     <>
-      {showModal && <AddModal tab={tab} onClose={() => setShowModal(false)} />}
+      {showModal && <AddModal tab={tab} token={token} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
 
       <div className="flex justify-center mb-6">
         <button
@@ -340,76 +444,82 @@ function ProductServiceTab({ tab }: { tab: 'Products' | 'Services' }) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-5 py-3 text-left w-12">
-                  <button
-                    onClick={handleSelectAll}
-                    className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                      allSelected || someSelected
-                        ? 'bg-[#7FA5A3] border-[#7FA5A3]'
-                        : 'border-gray-300 hover:border-[#7FA5A3]'
-                    }`}
-                  >
-                    {(allSelected || someSelected) && <Minus className="w-3 h-3 text-white" />}
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-left">
-                  <SortHeader label="Name" colKey="name" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                </th>
-                <th className="px-4 py-3 text-left">
-                  <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                </th>
-                <th className="px-4 py-3 text-left">
-                  <SortHeader label="Last Update Date" colKey="lastUpdateDate" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((item) => (
-                <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
-                  <td className="px-5 py-3.5">
+          {loading ? (
+            <div className="py-16 text-center text-sm text-gray-400">Loading...</div>
+          ) : error ? (
+            <div className="py-16 text-center text-sm text-red-400">{error}</div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="px-5 py-3 text-left w-12">
                     <button
-                      onClick={() => toggleSelect(item.id)}
+                      onClick={handleSelectAll}
                       className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                        selected.has(item.id) ? 'bg-[#7FA5A3] border-[#7FA5A3]' : 'border-gray-300 hover:border-[#7FA5A3]'
+                        allSelected || someSelected
+                          ? 'bg-[#7FA5A3] border-[#7FA5A3]'
+                          : 'border-gray-300 hover:border-[#7FA5A3]'
                       }`}
                     >
-                      {selected.has(item.id) && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
-                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
+                      {(allSelected || someSelected) && <Minus className="w-3 h-3 text-white" />}
                     </button>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-sm font-medium text-[#476B6B] underline underline-offset-2 cursor-pointer hover:text-[#7FA5A3] transition-colors">
-                      {item.name}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
-                  <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
-                  <td className="px-4 py-3.5">
-                    <button
-                      onClick={() => alert(`Edit ${item.name} — backend to be connected`)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
-                    >
-                      <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
-                    </button>
-                  </td>
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <SortHeader label="Name" colKey="name" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <SortHeader label="Last Update Date" colKey="lastUpdateDate" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Action</th>
                 </tr>
-              ))}
-              {sorted.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
-                    No {tab.toLowerCase()} found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sorted.map((item) => (
+                  <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <button
+                        onClick={() => toggleSelect(item.id)}
+                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                          selected.has(item.id) ? 'bg-[#7FA5A3] border-[#7FA5A3]' : 'border-gray-300 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {selected.has(item.id) && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-sm font-medium text-[#476B6B] underline underline-offset-2 cursor-pointer hover:text-[#7FA5A3] transition-colors">
+                        {item.name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
+                    <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
+                    <td className="px-4 py-3.5">
+                      <button
+                        onClick={() => alert(`Edit ${item.name} — backend to be connected`)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {sorted.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
+                      No {tab.toLowerCase()} found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </>
@@ -593,8 +703,8 @@ export default function ProductManPage() {
           ))}
         </div>
 
-        {activeTab === 'Products' && <ProductServiceTab tab="Products" />}
-        {activeTab === 'Services' && <ProductServiceTab tab="Services" />}
+        {activeTab === 'Products' && <ProductServiceTab tab="Products" token={token} />}
+        {activeTab === 'Services' && <ProductServiceTab tab="Services" token={token} />}
         {activeTab === 'Vaccines' && <VaccinesTab token={token} />}
       </div>
     </DashboardLayout>

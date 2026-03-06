@@ -3,6 +3,7 @@ import {
   listProductServices,
   createProductService,
   updateProductService,
+  deleteProductService,
 } from '../controllers/productServiceController';
 import { authMiddleware, clinicOrBranchAdminOnly } from '../middleware/auth';
 
@@ -18,5 +19,8 @@ router.post('/', authMiddleware, clinicOrBranchAdminOnly, createProductService);
 
 // PUT /api/product-services/:id
 router.put('/:id', authMiddleware, clinicOrBranchAdminOnly, updateProductService);
+
+// DELETE /api/product-services/:id
+router.delete('/:id', authMiddleware, clinicOrBranchAdminOnly, deleteProductService);
 
 export default router;

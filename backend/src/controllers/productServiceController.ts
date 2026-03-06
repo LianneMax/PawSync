@@ -107,3 +107,31 @@ export const updateProductService = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating the product/service' });
   }
 };
+
+/**
+ * DELETE /api/product-services/:id
+ * Clinic admin / branch admin only — soft delete an item (set isActive to false).
+ */
+export const deleteProductService = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const item = await ProductService.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
+    }
+
+    item.isActive = false;
+    await item.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Product/service deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete product service error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the product/service' });
+  }
+};

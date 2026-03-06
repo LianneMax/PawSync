@@ -10,39 +10,17 @@ export interface IProductService extends Document {
   updatedAt: Date;
 }
 
-const ProductServiceSchema = new Schema(
+const ProductServiceSchema: Schema = new Schema(
   {
-    name: {
-      type: String,
-      required: [true, 'Product/Service name is required'],
-      unique: true,
-      trim: true,
-    },
-    type: {
-      type: String,
-      enum: ['Service', 'Product'],
-      required: [true, 'Type is required'],
-    },
-    price: {
-      type: Number,
-      required: [true, 'Price is required'],
-      min: 0,
-    },
-    description: {
-      type: String,
-      default: '',
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    name: { type: String, required: true, unique: true, trim: true },
+    type: { type: String, required: true, enum: ['Service', 'Product'] },
+    price: { type: Number, required: true, min: 0 },
+    description: { type: String, default: '' },
+    isActive: { type: Boolean, default: true },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-ProductServiceSchema.index({ type: 1 });
-ProductServiceSchema.index({ name: 'text' });
+const ProductService = mongoose.model<IProductService>('ProductService', ProductServiceSchema);
 
-export default mongoose.model<IProductService>('ProductService', ProductServiceSchema);
+export default ProductService;
