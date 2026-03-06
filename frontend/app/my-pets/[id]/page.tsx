@@ -11,7 +11,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, togglePetLost, type Pet as APIPet } from '@/lib/pets'
 import { updateProfile } from '@/lib/users'
-import { getRecordsByPet, getRecordById, type MedicalRecord } from '@/lib/medicalRecords'
+import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
@@ -25,6 +25,21 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+
+interface PopulatedOwner {
+  contactNumber?: string
+  firstName?: string
+  lastName?: string
+}
+
+interface TagRequest {
+  _id: string
+  petId: { _id: string }
+  status: string
+  reason?: string
+  createdAt: string
+  fulfilledAt?: string
+}
 
 function calculateAge(dateOfBirth: string): string {
   const birth = new Date(dateOfBirth)
@@ -58,17 +73,17 @@ export default function PetProfilePage() {
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
-  const [nextAppointment, setNextAppointment] = useState<any>(null)
+  const [, setNextAppointment] = useState<unknown>(null)
   const [selectedBranch, setSelectedBranch] = useState('')
   const [pickupDate, setPickupDate] = useState('')
   const [clinicBranches, setClinicBranches] = useState<ClinicWithBranches[]>([])
-  const [loadingClinics, setLoadingClinics] = useState(false)
+  const [, setLoadingClinics] = useState(false)
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
   const [showQRCodeModal, setShowQRCodeModal] = useState(false)
-  const [tagRequests, setTagRequests] = useState<any[]>([])
+  const [tagRequests, setTagRequests] = useState<TagRequest[]>([])
   const [loadingTagRequests, setLoadingTagRequests] = useState(false)
   const [showClinicDropdown, setShowClinicDropdown] = useState(false)
   const [showLostModal, setShowLostModal] = useState(false)
@@ -107,8 +122,12 @@ export default function PetProfilePage() {
     setRecordsLoading(true)
     try {
       const res = await getRecordsByPet(petId, token)
-      if (res.status === 'SUCCESS' && res.data?.records) {
-        setMedicalRecords(res.data.records)
+      if (res.status === 'SUCCESS' && res.data) {
+        const records = [
+          ...(res.data.currentRecord ? [res.data.currentRecord] : []),
+          ...res.data.historicalRecords,
+        ]
+        setMedicalRecords(records)
       } else {
         setMedicalRecords([])
       }
@@ -124,7 +143,6 @@ export default function PetProfilePage() {
     if (!token || !petId) return
     setLoadingTagRequests(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
       const response = await authenticatedFetch(
         `/nfc/clinic/all-requests`,
         { method: 'GET' },
@@ -132,7 +150,7 @@ export default function PetProfilePage() {
       )
       const data = response
       if (data.status === 'SUCCESS' && data.data?.requests) {
-        const petRequests = data.data.requests.filter((req: any) => req.petId._id === petId)
+        const petRequests = data.data.requests.filter((req: TagRequest) => req.petId._id === petId)
         setTagRequests(petRequests)
       } else {
         setTagRequests([])
@@ -205,7 +223,7 @@ export default function PetProfilePage() {
     setEditNotes(pet.notes || '')
     setEditAllergies(pet.allergies.join(', '))
     setEditPhoto(null)
-    setEditOwnerContact(typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '' : '')
+    setEditOwnerContact(typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '' : '')
     setEditing(true)
   }
 
@@ -237,7 +255,7 @@ export default function PetProfilePage() {
       }
 
       // Check if owner contact number changed
-      const currentOwnerContact = typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber : ''
+      const currentOwnerContact = typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber : ''
       const contactNumberChanged = editOwnerContact.trim() !== (currentOwnerContact || '')
 
       if (Object.keys(updates).length === 0 && !contactNumberChanged) {
@@ -299,28 +317,10 @@ export default function PetProfilePage() {
     }
   }
 
-  const handleMarkAsLost = async () => {
-    if (!pet || !token) return
-    setIsSubmittingRequest(true)
-    try {
-      const response = await updatePet(petId, { isLost: true } as Partial<APIPet>, token)
-      if (response.status === 'SUCCESS') {
-        toast('Pet Marked as Lost', { description: `${pet.name} has been marked as lost. Vets will be notified.` })
-        await fetchPet()
-      } else {
-        toast('Error', { description: response.message || 'Failed to mark pet as lost.' })
-      }
-    } catch {
-      toast('Error', { description: 'Something went wrong. Please try again.' })
-    } finally {
-      setIsSubmittingRequest(false)
-    }
-  }
-
   const openLostModal = () => {
     if (!pet) return
     setLostNameShown(pet.name)
-    setLostContact(typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '' : '')
+    setLostContact(typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '' : '')
     setLostMessage('If you found me, please call or message my owner and feel free to share your current location with them.')
     setShowLostModal(true)
   }
@@ -387,39 +387,15 @@ export default function PetProfilePage() {
     }
   }
 
-  const fetchNextAppointment = async () => {
-    if (!pet || !token) return
-    try {
-      const response = await authenticatedFetch(
-        `/appointments/pet/${pet._id}/next`,
-        { method: 'GET' },
-        token
-      )
-      const data = response
-
-      if (data.data?.appointment) {
-        setNextAppointment(data.data.appointment)
-        // Auto-fill pickup date from appointment date
-        const appointmentDate = new Date(data.data.appointment.date)
-        setPickupDate(appointmentDate.toISOString().split('T')[0])
-        setSelectedBranch(data.data.appointment.clinicBranchId?._id || '')
-      }
-    } catch (error) {
-      console.error('Error fetching next appointment:', error)
-    }
-  }
-
   const handleSubmitPetTagRequest = async () => {
     if (!pet || !token || !selectedBranch || !pickupDate) return
     setIsSubmittingRequest(true)
     try {
       // Find the clinic and branch details
-      let clinicName = ''
       let branchName = ''
       for (const clinic of clinicBranches) {
         const branch = clinic.branches.find((b) => b._id === selectedBranch)
         if (branch) {
-          clinicName = clinic.name
           branchName = branch.name
           break
         }
@@ -434,7 +410,7 @@ export default function PetProfilePage() {
             petId: pet._id,
             petName: pet.name,
             ownerId: pet.ownerId,
-            ownerName: (pet.ownerId as any)?.firstName || '',
+            ownerName: (pet.ownerId as PopulatedOwner)?.firstName || '',
             clinicBranchId: selectedBranch,
             clinicBranchName: branchName,
             reason: nfcReason,
@@ -790,7 +766,7 @@ export default function PetProfilePage() {
               ) : (
                 <DetailField 
                   label="Owner Contact" 
-                  value={typeof pet.ownerId === 'object' ? (pet.ownerId as any).contactNumber || '-' : '-'} 
+                  value={typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '-' : '-'} 
                 />
               )}
             </div>
@@ -944,7 +920,7 @@ export default function PetProfilePage() {
                         <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1" />
                         Blue = earlier sightings
                       </p>
-                      <div className="mb-2 h-[600px] rounded-lg overflow-hidden border border-gray-200">
+                      <div className="mb-2 h-150 rounded-lg overflow-hidden border border-gray-200">
                         <ScanLocationsMap locations={pet.scanLocations} petName={pet.name} />
                       </div>
                       {pet.lastScannedLat && pet.lastScannedLng && (
@@ -962,7 +938,7 @@ export default function PetProfilePage() {
 
                     {/* Right - Scan History List */}
                     <div className="w-80 shrink-0">
-                      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col h-[600px] sticky top-6">
+                      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col h-150 sticky top-6">
                         <div className="p-4 border-b border-gray-200 bg-gray-50 shrink-0">
                           <h3 className="text-sm font-semibold text-[#4F4F4F]">Scan History</h3>
                           <p className="text-xs text-gray-500 mt-1">
@@ -977,7 +953,7 @@ export default function PetProfilePage() {
                               .map((scan, idx) => (
                                 <div
                                   key={idx}
-                                  className="flex items-start justify-between gap-2 bg-gradient-to-r from-gray-50 to-white border border-gray-100 rounded-lg p-3 hover:border-[#7FA5A3] hover:shadow-md transition-all"
+                                  className="flex items-start justify-between gap-2 bg-linear-to-r from-gray-50 to-white border border-gray-100 rounded-lg p-3 hover:border-[#7FA5A3] hover:shadow-md transition-all"
                                 >
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1.5">
@@ -1024,6 +1000,7 @@ export default function PetProfilePage() {
                       </div>
                     </div>
                   </div>
+                </div>
                 ) : pet.lastScannedLat && pet.lastScannedLng ? (
                   <div className="mb-8">
                     <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Last Scanned Location</h3>
@@ -1307,7 +1284,7 @@ export default function PetProfilePage() {
                 <div>
                   <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Physical Examination</p>
                   <div className="grid grid-cols-2 gap-3">
-                    {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, any]) => (
+                    {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, VitalEntry]) => (
                       <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                         <p className="text-xs text-gray-500 uppercase font-semibold">{key.replace(/([A-Z])/g, ' $1')}</p>
                         <p className="text-sm font-medium text-[#4F4F4F] mt-1">
@@ -1337,10 +1314,13 @@ export default function PetProfilePage() {
                       {viewRecord.images.map((img, idx) => (
                         <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
                           {img.data ? (
-                            <img
+                            <Image
                               src={`data:${img.contentType};base64,${img.data}`}
                               alt={img.description || `Image ${idx + 1}`}
+                              width={400}
+                              height={160}
                               className="w-full h-40 object-cover"
+                              unoptimized
                             />
                           ) : (
                             <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
@@ -1382,17 +1362,20 @@ export default function PetProfilePage() {
       <Dialog open={showQRCodeModal} onOpenChange={setShowQRCodeModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center">{pet?.name}'s Pet Profile QR Code</DialogTitle>
+            <DialogTitle className="text-center">{pet?.name}&apos;s Pet Profile QR Code</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col items-center gap-6 py-6">
             {pet?.qrCode && (
               <>
                 <div className="bg-white p-4 rounded-lg border-2 border-gray-200 w-full max-w-xs">
-                  <img
+                  <Image
                     src={pet.qrCode}
                     alt={`QR code for ${pet.name}`}
+                    width={256}
+                    height={256}
                     className="w-full"
+                    unoptimized
                   />
                 </div>
 
@@ -1444,7 +1427,7 @@ export default function PetProfilePage() {
             <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
               <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center overflow-hidden shrink-0">
                 {pet?.photo ? (
-                  <img src={pet.photo} alt={pet?.name} className="w-full h-full object-cover" />
+                  <Image src={pet.photo} alt={pet?.name || ''} width={40} height={40} className="w-full h-full object-cover" unoptimized />
                 ) : (
                   <PawPrint className="w-5 h-5 text-[#7FA5A3]" />
                 )}
