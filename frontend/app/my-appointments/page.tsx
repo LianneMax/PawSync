@@ -29,6 +29,7 @@ import {
   Users,
   Check,
 } from 'lucide-react'
+import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -41,12 +42,6 @@ const appointmentModes = [
   { value: 'face-to-face', label: 'Face to Face', icon: Users },
 ]
 
-const faceToFaceTypes = [
-  { value: 'consultation', label: 'Consultation' },
-  { value: 'vaccination', label: 'Vaccination' },
-  { value: 'deworming', label: 'Deworming' },
-  { value: 'check-up', label: 'Check Up' },
-]
 
 // ---- Helper: format time for display ----
 function formatSlotTime(time: string) {
@@ -509,10 +504,8 @@ function ScheduleModal({
 
   const selectedBranchOption = branchOptions.find((b) => b.value === selectedBranchId)
 
-  const toggleType = (type: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    )
+  const selectType = (type: string) => {
+    setSelectedTypes([type])
   }
 
   const handleSubmit = async () => {
@@ -673,30 +666,10 @@ function ScheduleModal({
                   Consultation
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {faceToFaceTypes.map((t) => {
-                    const isSelected = selectedTypes.includes(t.value)
-                    return (
-                      <button
-                        key={t.value}
-                        type="button"
-                        onClick={() => toggleType(t.value)}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors text-left flex items-center gap-2 ${
-                          isSelected
-                            ? 'border-[#7FA5A3] bg-[#7FA5A3]/10 text-[#5A7C7A]'
-                            : 'border-gray-300 bg-white text-[#4F4F4F] hover:border-[#7FA5A3]/50'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                          isSelected ? 'bg-[#5A7C7A] border-[#5A7C7A]' : 'border-gray-300'
-                        }`}>
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
-                        </div>
-                        {t.label}
-                      </button>
-                    )
-                  })}
-                </div>
+                <AppointmentServiceSelector
+                  value={selectedTypes[0] ?? ''}
+                  onChange={selectType}
+                />
               )}
             </div>
 
