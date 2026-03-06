@@ -146,10 +146,28 @@ export default function AppointmentServiceSelector({
 
   // Toggle a service value
   const toggleService = (serviceValue: string) => {
-    if (values.includes(serviceValue)) {
-      onChange(values.filter((v) => v !== serviceValue))
+    // Grooming options are mutually exclusive
+    const groomingOptions = ['basic-grooming', 'full-grooming']
+    const isGroomingOption = groomingOptions.includes(serviceValue)
+
+    if (isGroomingOption) {
+      // If selecting a grooming option, remove other grooming options
+      const nonGroomingTypes = values.filter((v) => !groomingOptions.includes(v))
+      
+      if (values.includes(serviceValue)) {
+        // Deselect the grooming option
+        onChange(nonGroomingTypes)
+      } else {
+        // Select this grooming option (removes other grooming options)
+        onChange([...nonGroomingTypes, serviceValue])
+      }
     } else {
-      onChange([...values, serviceValue])
+      // Regular toggle for non-grooming options
+      if (values.includes(serviceValue)) {
+        onChange(values.filter((v) => v !== serviceValue))
+      } else {
+        onChange([...values, serviceValue])
+      }
     }
   }
 
