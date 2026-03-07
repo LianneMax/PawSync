@@ -1262,6 +1262,9 @@ function ClinicScheduleModal({
                     const next = !isEmergency
                     setIsEmergency(next)
                     if (next) setIsWalkIn(true)
+                    else if (selectedSlot && slots.find(s => s.startTime === selectedSlot.startTime)?.status !== 'available') {
+                      setSelectedSlot(null)
+                    }
                   }}
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isEmergency ? 'bg-red-500' : 'bg-gray-200'}`}
                 >
@@ -1319,17 +1322,19 @@ function ClinicScheduleModal({
                             const isSelected = selectedSlot?.startTime === slot.startTime
                             const isAvailable = slot.status === 'available'
                             const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
+                            const isOverridable = isEmergency && isUnavailable
 
                             let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
-                            if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
+                            if (isUnavailable && !isOverridable) bg = 'bg-[#900B09] text-white cursor-default'
+                            if (isOverridable) bg = 'bg-amber-400 hover:bg-amber-500 cursor-pointer text-white'
                             if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
 
                             return (
                               <button
                                 key={slot.startTime}
                                 type="button"
-                                onClick={() => { if (isAvailable) setSelectedSlot(slot) }}
-                                disabled={!isAvailable}
+                                onClick={() => { if (isAvailable || isOverridable) setSelectedSlot(slot) }}
+                                disabled={!isAvailable && !isOverridable}
                                 className={`w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bg}`}
                               >
                                 {formatSlotTime(slot.startTime)} – {formatSlotTime(slot.endTime)}
@@ -1351,10 +1356,17 @@ function ClinicScheduleModal({
                       <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
                       <span className="text-[10px] text-gray-500">Booked</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#900B09]" />
-                      <span className="text-[10px] text-gray-500">Unavailable</span>
-                    </div>
+                    {isEmergency ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                        <span className="text-[10px] text-gray-500">Override</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#900B09]" />
+                        <span className="text-[10px] text-gray-500">Unavailable</span>
+                      </div>
+                    )}
                   </div>
                 </>
               )}

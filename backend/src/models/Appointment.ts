@@ -116,7 +116,7 @@ const AppointmentSchema = new Schema(
 // Prevent double-booking: same vet, same date, same time slot (emergency appointments bypass this)
 AppointmentSchema.index(
   { vetId: 1, date: 1, startTime: 1 },
-  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'in_progress'] }, isEmergency: { $ne: true } } }
+  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'in_progress'] }, isEmergency: false } }
 );
 
 export default mongoose.model<IAppointment>('Appointment', AppointmentSchema);
