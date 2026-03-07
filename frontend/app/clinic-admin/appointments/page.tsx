@@ -73,20 +73,6 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function generateMockSlots(): TimeSlot[] {
-  const slots: TimeSlot[] = []
-  for (let h = 7; h < 17; h++) {
-    const hStr = h.toString().padStart(2, '0')
-    const nextH = (h + 1).toString().padStart(2, '0')
-    slots.push({ startTime: `${hStr}:00`, endTime: `${hStr}:30`, status: 'available' })
-    slots.push({ startTime: `${hStr}:30`, endTime: `${nextH}:00`, status: 'available' })
-  }
-  slots[0].status = 'unavailable'
-  slots[7].status = 'unavailable'
-  slots[12].status = 'unavailable'
-  return slots
-}
-
 // ==================== DROPDOWN COMPONENT ====================
 
 function Dropdown({
@@ -899,6 +885,7 @@ function ClinicScheduleModal({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [slotsIsClosed, setSlotsIsClosed] = useState(false)
   const [isWalkIn, setIsWalkIn] = useState(false)
   const [isEmergency, setIsEmergency] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -941,18 +928,19 @@ function ClinicScheduleModal({
 
   // Load slots when vet + date change
   useEffect(() => {
-    if (!selectedVetId || !selectedDate) { setSlots([]); return }
+    if (!selectedVetId || !selectedDate) { setSlots([]); setSlotsIsClosed(false); return }
     const load = async () => {
       setLoadingSlots(true)
       try {
         const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
         if (res.status === 'SUCCESS' && res.data) {
-          // Use real slots if available, otherwise fall back to mock
-          setSlots(res.data.slots && res.data.slots.length > 0 ? res.data.slots : generateMockSlots())
+          setSlotsIsClosed(res.data.isClosed ?? false)
+          setSlots(res.data.slots ?? [])
         } else {
-          setSlots(generateMockSlots())
+          setSlotsIsClosed(false)
+          setSlots([])
         }
-      } catch { setSlots(generateMockSlots()) }
+      } catch { setSlotsIsClosed(false); setSlots([]) }
       finally { setLoadingSlots(false) }
     }
     load()
@@ -992,6 +980,7 @@ function ClinicScheduleModal({
       setSelectedSlot(null)
       setSlots([])
       setBranchVets([])
+      setSlotsIsClosed(false)
       setIsWalkIn(false)
       setIsEmergency(false)
     }
@@ -1307,6 +1296,14 @@ function ClinicScheduleModal({
                 <div className="flex-1 flex items-center justify-center">
                   <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : slotsIsClosed ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">Vet is not available on this date</p>
+                </div>
+              ) : slots.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">No available slots for this date</p>
+                </div>
               ) : (
                 <>
                   <div className="flex-1 overflow-y-auto space-y-0.5 max-h-85 pr-1">
@@ -1402,6 +1399,7 @@ function RescheduleModal({
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [rescheduleIsClosed, setRescheduleIsClosed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Reset state when appointment changes
@@ -1412,13 +1410,14 @@ function RescheduleModal({
       setSelectedDate(tomorrow.toISOString().split('T')[0])
       setSelectedSlot(null)
       setSlots([])
+      setRescheduleIsClosed(false)
     }
   }, [appointment])
 
   // Load slots when date changes
   useEffect(() => {
     const vetId = appointment?.vetId?._id
-    if (!vetId || !selectedDate) { setSlots([]); return }
+    if (!vetId || !selectedDate) { setSlots([]); setRescheduleIsClosed(false); return }
     const load = async () => {
       setLoadingSlots(true)
       setSelectedSlot(null)
@@ -1426,12 +1425,13 @@ function RescheduleModal({
         const branchId = appointment?.clinicBranchId?._id || appointment?.clinicBranchId
         const res = await getAvailableSlots(vetId, selectedDate, token || undefined, branchId || undefined)
         if (res.status === 'SUCCESS' && res.data) {
-          // Use real slots if available, otherwise fall back to mock
-          setSlots(res.data.slots && res.data.slots.length > 0 ? res.data.slots : generateMockSlots())
+          setRescheduleIsClosed(res.data.isClosed ?? false)
+          setSlots(res.data.slots ?? [])
         } else {
-          setSlots(generateMockSlots())
+          setRescheduleIsClosed(false)
+          setSlots([])
         }
-      } catch { setSlots(generateMockSlots()) }
+      } catch { setRescheduleIsClosed(false); setSlots([]) }
       finally { setLoadingSlots(false) }
     }
     load()
@@ -1531,6 +1531,14 @@ function RescheduleModal({
               {loadingSlots ? (
                 <div className="flex items-center justify-center py-6">
                   <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : rescheduleIsClosed ? (
+                <div className="flex items-center justify-center py-6">
+                  <p className="text-sm text-gray-400 text-center">Vet is not available on this date</p>
+                </div>
+              ) : slots.length === 0 ? (
+                <div className="flex items-center justify-center py-6">
+                  <p className="text-sm text-gray-400 text-center">No available slots for this date</p>
                 </div>
               ) : (
                 <div className="overflow-y-auto max-h-55 space-y-0.5 pr-1">
