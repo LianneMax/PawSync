@@ -996,12 +996,6 @@ function ClinicScheduleModal({
     setSelectedTypes(types)
   }
 
-  // Filter out grooming services from medical records
-  const getNonGroomingTypes = (types: string[]) => {
-    const groomingOptions = ['basic-grooming', 'full-grooming']
-    return types.filter((t) => !groomingOptions.includes(t))
-  }
-
   const handleSubmit = async () => {
     if (!selectedOwner) return toast.error('Please select a pet owner')
     if (!selectedPetId) return toast.error('Please select a pet')
@@ -1013,9 +1007,7 @@ function ClinicScheduleModal({
 
     setSubmitting(true)
     try {
-      // Filter out grooming services (they won't generate medical records)
-      const typesForMedicalRecords = getNonGroomingTypes(selectedTypes)
-
+      // Send full types array including grooming; backend will handle not creating medical records for grooming
       const res = await createClinicAppointment({
         ownerId: selectedOwner._id,
         petId: selectedPetId,
@@ -1023,7 +1015,7 @@ function ClinicScheduleModal({
         clinicId: clinic?._id || '',
         clinicBranchId: selectedBranchId,
         mode: mode as 'online' | 'face-to-face',
-        types: typesForMedicalRecords,
+        types: selectedTypes,
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
