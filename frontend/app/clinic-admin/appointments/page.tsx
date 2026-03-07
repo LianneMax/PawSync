@@ -238,6 +238,8 @@ function CalendarGridView({
   vets,
   onReschedule,
   onCancel,
+  scheduleType,
+  branches,
 }: {
   appointments: Appointment[]
   selectedDate: string
@@ -245,6 +247,8 @@ function CalendarGridView({
   vets: BranchVet[]
   onReschedule: (appt: Appointment) => void
   onCancel: (id: string) => void
+  scheduleType: 'medical' | 'grooming'
+  branches: ClinicBranchItem[]
 }) {
   const hours = Array.from({ length: 11 }, (_, i) => i + 7) // 7AM to 5PM
 
@@ -270,7 +274,131 @@ function CalendarGridView({
     return apptDate === selectedDate
   })
 
-  // Map appointments by vetId for quick lookup
+  // For grooming, we only need one column (clinic/branch); for medical, we map by vet
+  if (scheduleType === 'grooming') {
+    // Grooming view: single column for clinic/branch
+    const branchName = branches.length > 0 ? branches[0].name : 'Clinic'
+    
+    return (
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        {/* Date Navigation */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <button onClick={() => goToDay(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <ChevronLeft className="w-5 h-5 text-gray-500" />
+          </button>
+          <div className="text-center">
+            <p className="font-semibold text-[#4F4F4F]">{dateLabel}</p>
+          </div>
+          <button onClick={() => goToDay(1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <ChevronRight className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Grid */}
+        <div className="overflow-x-auto">
+          <div className="min-w-80">
+            {/* Branch Header */}
+            <div className="flex border-b border-gray-100">
+              {/* Time column header */}
+              <div className="w-20 shrink-0 px-3 py-3 bg-gray-50" />
+              {/* Branch column */}
+              <div className="flex-1 min-w-60 px-3 py-3 bg-gray-50 border-l border-gray-100 text-center">
+                <div className="w-10 h-10 rounded-full bg-[#E8D5B7]/30 flex items-center justify-center mx-auto mb-1.5">
+                  <span className="text-sm font-semibold text-[#B8860B]">🏥</span>
+                </div>
+                <p className="text-sm font-medium text-[#4F4F4F]">{branchName}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Grooming</p>
+              </div>
+            </div>
+
+            {/* Time Rows */}
+            {hours.map((hour) => {
+              const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
+              const hourAppointments = confirmedAppointments.filter((a) => {
+                const startHour = parseInt(a.startTime.split(':')[0])
+                return startHour === hour
+              })
+
+              return (
+                <div key={hour} className="flex border-b border-gray-50 min-h-16">
+                  {/* Time label */}
+                  <div className="w-20 shrink-0 px-3 py-2 text-right">
+                    <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
+                  </div>
+                  {/* Grooming column */}
+                  <div className="flex-1 min-w-60 px-2 py-1.5 border-l border-gray-100">
+                    {hourAppointments.map((appt) => {
+                      const colors = statusColors[appt.status] || statusColors.pending
+                      return (
+                        <div
+                          key={appt._id}
+                          className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
+                        >
+                          <p className="text-xs font-medium text-[#4F4F4F] truncate">
+                            {appt.petId?.name || 'Pet'}
+                          </p>
+                          <p className="text-[10px] text-gray-500 truncate">
+                            {appt.ownerId?.firstName} {appt.ownerId?.lastName}
+                          </p>
+                          <div className="flex items-start justify-between mt-0.5">
+                            <span className="text-[10px] text-gray-400">
+                              {formatSlotTime(appt.startTime)}
+                            </span>
+                            <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
+                              {appt.isEmergency ? 'Emergency' : appt.status}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
+                              {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
+                            </span>
+                            {appt.isEmergency && (
+                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
+                                Emergency
+                              </span>
+                            )}
+                            {appt.isWalkIn && !appt.isEmergency && (
+                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
+                                Walk-In
+                              </span>
+                            )}
+                            {appt.types.map((t) => (
+                              <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
+                                {t.replace('-', ' ')}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => onReschedule(appt)}
+                              className="text-[10px] font-medium text-[#7FA5A3] hover:text-[#5A8280] leading-none"
+                            >
+                              Reschedule
+                            </button>
+                            <span className="text-[10px] text-gray-300">·</span>
+                            <button
+                              type="button"
+                              onClick={() => onCancel(appt._id)}
+                              className="text-[10px] font-medium text-red-400 hover:text-red-600 leading-none"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Medical view: map appointments by vetId for quick lookup
   const apptMap: Record<string, Appointment[]> = {}
   confirmedAppointments.forEach((appt) => {
     const vetKey = appt.vetId?._id || 'unknown'
@@ -715,6 +843,8 @@ export default function ClinicAdminAppointmentsPage() {
             vets={allVets}
             onReschedule={setRescheduleTarget}
             onCancel={handleCancel}
+            scheduleType={scheduleType}
+            branches={branches}
           />
         ) : appointments.length > 0 ? (
           /* ---- LIST VIEW ---- */
