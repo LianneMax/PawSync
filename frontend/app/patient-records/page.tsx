@@ -160,6 +160,9 @@ export default function PatientRecordsPage() {
   const [billingModalOpen, setBillingModalOpen] = useState(false)
   const [billingModalMode, setBillingModalMode] = useState<'create' | 'view' | 'update'>('create')
 
+  // Follow-up modal
+  const [followUpOpen, setFollowUpOpen] = useState(false)
+
   // View modal
   const [viewOpen, setViewOpen] = useState(false)
   const [viewInitialIndex, setViewInitialIndex] = useState(0)
@@ -449,6 +452,13 @@ export default function PatientRecordsPage() {
                       </p>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setFollowUpOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Follow-up Record
+                  </button>
                 </div>
               </div>
             </div>
@@ -513,7 +523,7 @@ export default function PatientRecordsPage() {
                           <span className="text-gray-400">•</span>
                           <span>{currentRecord.clinicId?.name}</span>
                         </div>
-                        {currentRecord.appointmentId && (
+                        {currentRecord.appointmentId ? (
                           <div className="flex flex-wrap gap-1 mb-2">
                             {(currentRecord.appointmentId.types || []).map((t: string) => (
                               <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#f0f7f7] text-[#476B6B] font-medium capitalize">
@@ -521,6 +531,10 @@ export default function PatientRecordsPage() {
                               </span>
                             ))}
                           </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 mb-2 text-[10px] rounded-full bg-purple-50 text-purple-600 font-medium">
+                            Follow-up / Online Consultation
+                          </span>
                         )}
                         {currentRecord.overallObservation && (
                           <p className="text-sm text-gray-700 mt-2 leading-relaxed">{currentRecord.overallObservation}</p>
@@ -689,7 +703,7 @@ export default function PatientRecordsPage() {
                                 Dr. {record.vetId?.firstName} {record.vetId?.lastName}
                               </span>
                             </div>
-                            {record.appointmentId && (
+                            {record.appointmentId ? (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {(record.appointmentId.types || []).map((t: string) => (
                                   <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#f0f7f7] text-[#476B6B] font-medium capitalize">
@@ -697,6 +711,10 @@ export default function PatientRecordsPage() {
                                   </span>
                                 ))}
                               </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 text-[10px] rounded-full bg-purple-50 text-purple-600 font-medium">
+                                Follow-up / Online Consultation
+                              </span>
                             )}
                             {record.overallObservation && (
                               <p className="text-xs text-gray-400 mt-1.5 line-clamp-2">{record.overallObservation}</p>
@@ -823,6 +841,19 @@ export default function PatientRecordsPage() {
           patient={selectedPatient}
           onCreated={() => {
             setCreateOpen(false)
+            loadRecords(selectedPatient._id)
+          }}
+        />
+      )}
+
+      {/* Follow-up Record Modal */}
+      {selectedPatient && (
+        <FollowUpRecordModal
+          open={followUpOpen}
+          onClose={() => setFollowUpOpen(false)}
+          patient={selectedPatient}
+          onCreated={() => {
+            setFollowUpOpen(false)
             loadRecords(selectedPatient._id)
           }}
         />
@@ -2212,6 +2243,208 @@ function ViewRecordModal({
             </div>
           </div>
         ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ==================== FOLLOW-UP RECORD MODAL ====================
+
+function FollowUpRecordModal({
+  open,
+  onClose,
+  patient,
+  onCreated,
+}: {
+  open: boolean
+  onClose: () => void
+  patient: PatientPet
+  onCreated: () => void
+}) {
+  const { token } = useAuthStore()
+  const [ownerObservations, setOwnerObservations] = useState('')
+  const [vetNotes, setVetNotes] = useState('')
+  const [sharedWithOwner, setSharedWithOwner] = useState(false)
+  const [media, setMedia] = useState<{ data: string; contentType: string; description: string }[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (open) {
+      setOwnerObservations('')
+      setVetNotes('')
+      setSharedWithOwner(false)
+      setMedia([])
+    }
+  }, [open])
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(',')[1]
+        setMedia((prev) => [...prev, { data: base64, contentType: file.type, description: file.name }])
+      }
+      reader.readAsDataURL(file)
+    })
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeMedia = (index: number) => {
+    setMedia((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async () => {
+    if (!token) return
+    if (!ownerObservations.trim()) {
+      toast.error('Please enter the owner\'s observations before saving.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await createMedicalRecord(
+        {
+          petId: patient._id,
+          clinicId: patient.clinicId,
+          clinicBranchId: patient.clinicBranchId,
+          subjective: ownerObservations,
+          overallObservation: vetNotes || undefined,
+          images: media.length > 0 ? media : undefined,
+          sharedWithOwner,
+        },
+        token
+      )
+      if (res.status === 'SUCCESS') {
+        toast.success('Follow-up record created successfully!')
+        onCreated()
+      } else {
+        toast.error(res.message || 'Failed to create follow-up record')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-[#4F4F4F] flex items-center gap-2">
+            <FileText className="w-5 h-5 text-purple-500" />
+            Follow-up Record — {patient.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-xs text-purple-700 mt-2">
+          This follow-up record is for online consultations. Record the pet owner's observations and any relevant media shared during the consultation.
+        </div>
+
+        <div className="space-y-5 mt-4">
+          {/* Owner Observations */}
+          <div>
+            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">
+              Owner's Observations <span className="text-red-400">*</span>
+            </h3>
+            <p className="text-xs text-gray-400 mb-2">What the pet owner reports about the pet's condition, symptoms, or behavior.</p>
+            <textarea
+              value={ownerObservations}
+              onChange={(e) => setOwnerObservations(e.target.value)}
+              placeholder="e.g. Owner reports pet has been lethargic for 2 days, reduced appetite, mild coughing..."
+              rows={5}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none"
+            />
+          </div>
+
+          {/* Vet Notes */}
+          <div>
+            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">Vet Notes / Assessment</h3>
+            <p className="text-xs text-gray-400 mb-2">Your clinical impression and any recommendations based on the online consultation.</p>
+            <textarea
+              value={vetNotes}
+              onChange={(e) => setVetNotes(e.target.value)}
+              placeholder="Based on the owner's description, possible differential diagnosis, advice given, next steps..."
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+            />
+          </div>
+
+          {/* Media Upload */}
+          <div>
+            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">Photos & Videos</h3>
+            <p className="text-xs text-gray-400 mb-2">Upload images or videos shared by the owner during the consultation.</p>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-purple-300 hover:bg-purple-50/40 transition-colors"
+            >
+              <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Click to upload photos or videos</p>
+              <p className="text-[10px] text-gray-400 mt-1">JPG, PNG, MP4, MOV and other formats supported</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaUpload}
+              className="hidden"
+            />
+
+            {media.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {media.map((item, idx) => {
+                  const isVideo = item.contentType.startsWith('video/')
+                  return (
+                    <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-1.5">
+                      {isVideo ? (
+                        <FileText className="w-3 h-3 text-purple-400 shrink-0" />
+                      ) : (
+                        <ImageIcon className="w-3 h-3 text-blue-400 shrink-0" />
+                      )}
+                      <span className="truncate max-w-[120px]">{item.description || `File ${idx + 1}`}</span>
+                      <button
+                        onClick={() => removeMedia(idx)}
+                        className="absolute top-1 right-1 p-0.5 rounded-full hover:bg-gray-200 transition-colors"
+                      >
+                        <X className="w-3 h-3 text-gray-400" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Share with owner toggle */}
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div
+              onClick={() => setSharedWithOwner((v) => !v)}
+              className={`w-10 h-6 rounded-full relative transition-colors ${sharedWithOwner ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+            >
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${sharedWithOwner ? 'left-5' : 'left-1'}`} />
+            </div>
+            <span className="text-sm text-[#4F4F4F]">Share this record with the pet owner</span>
+          </label>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+          >
+            {submitting ? 'Saving...' : 'Save Follow-up Record'}
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   )

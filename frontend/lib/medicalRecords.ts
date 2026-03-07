@@ -168,6 +168,7 @@ export const createMedicalRecord = async (recordData: {
   vitals?: Partial<Vitals>;
   images?: { data: string; contentType: string; description?: string }[];
   overallObservation?: string;
+  subjective?: string;
   visitSummary?: string;
   vetNotes?: string;
   sharedWithOwner?: boolean;
