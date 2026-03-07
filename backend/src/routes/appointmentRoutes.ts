@@ -2,6 +2,7 @@ import express from 'express';
 import {
   createAppointment,
   getAvailableSlots,
+  getGroomingSlots,
   getMyAppointments,
   getVetAppointments,
   cancelAppointment,
@@ -30,6 +31,12 @@ router.post('/', authMiddleware, createAppointment);
  * Get available time slots for a vet on a date
  */
 router.get('/slots', authMiddleware, getAvailableSlots);
+
+/**
+ * GET /api/appointments/grooming-slots?branchId=...&date=...
+ * Get available time slots for grooming based on clinic branch hours
+ */
+router.get('/grooming-slots', authMiddleware, getGroomingSlots);
 
 /**
  * GET /api/appointments/branch-vets?branchId=...

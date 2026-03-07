@@ -37,7 +37,7 @@ const AppointmentSchema = new Schema(
     vetId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Veterinarian is required'],
+      required: false,
       index: true
     },
     clinicId: {

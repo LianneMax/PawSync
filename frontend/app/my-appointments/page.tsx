@@ -713,10 +713,6 @@ function ScheduleModal({
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a clinic branch to view available slots</p>
                 </div>
-              ) : hasGrooming && !selectedVetId ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-gray-400 text-center">Select a date to view available grooming slots</p>
-                </div>
               ) : !hasGrooming && !selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a veterinarian to view available slots</p>

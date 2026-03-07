@@ -78,13 +78,32 @@ export const createAppointment = async (req: Request, res: Response) => {
       }
     }
 
+    // Check if appointment is grooming-only (no vet required) or requires vet
+    const hasGrooming = types.some((t: string) => t === 'basic-grooming' || t === 'full-grooming');
+    const hasOtherServices = types.some((t: string) => t !== 'basic-grooming' && t !== 'full-grooming');
+    
+    // If it's grooming-only, vetId can be null; if it has other services, vetId is required
+    if (hasOtherServices && !vetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for this appointment type' });
+    }
+
     // Check if the slot is already taken
-    const existing = await Appointment.findOne({
-      vetId,
+    let existingQuery: any = {
       date: new Date(date),
       startTime,
       status: { $in: ['pending', 'confirmed'] }
-    });
+    };
+    
+    if (hasGrooming && !hasOtherServices) {
+      // Grooming-only: check by branch
+      existingQuery.clinicBranchId = clinicBranchId;
+      existingQuery.types = { $in: ['basic-grooming', 'full-grooming'] };
+    } else {
+      // Medical: check by vet
+      existingQuery.vetId = vetId;
+    }
+
+    const existing = await Appointment.findOne(existingQuery);
 
     if (existing) {
       return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
@@ -93,7 +112,7 @@ export const createAppointment = async (req: Request, res: Response) => {
     const appointment = await Appointment.create({
       petId,
       ownerId: req.user.userId,
-      vetId,
+      vetId: vetId || null,
       clinicId,
       clinicBranchId,
       mode,
@@ -247,6 +266,75 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get available slots error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching available slots' });
+  }
+};
+
+/**
+ * Get available time slots for grooming based on clinic branch operating hours
+ * Uses branch's operating hours for grooming scheduling
+ */
+export const getGroomingSlots = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { branchId, date } = req.query;
+
+    if (!branchId || !date) {
+      return res.status(400).json({ status: 'ERROR', message: 'branchId and date are required' });
+    }
+
+    // Determine the day-of-week for the requested date
+    const [yr, mo, dy] = (date as string).split('-').map(Number);
+    const dayName = DAY_NAMES[new Date(yr, mo - 1, dy).getDay()];
+
+    // Get branch operating hours
+    let slotStart = '07:00';
+    let slotEnd = '17:00';
+    let isClosed = false;
+
+    const branch = await ClinicBranch.findById(branchId as string);
+    if (branch) {
+      if (branch.operatingDays.length > 0 && !branch.operatingDays.includes(dayName)) {
+        isClosed = true;
+      } else {
+        if (branch.openingTime) slotStart = branch.openingTime;
+        if (branch.closingTime) slotEnd = branch.closingTime;
+      }
+    }
+
+    if (isClosed) {
+      return res.status(200).json({ status: 'SUCCESS', data: { slots: [], isClosed: true } });
+    }
+
+    const [qy, qm, qd] = (date as string).split('-').map(Number);
+    const dayStart = new Date(Date.UTC(qy, qm - 1, qd, 0, 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(qy, qm - 1, qd, 23, 59, 59, 999));
+
+    // Get all booked/confirmed grooming slots for that branch on that date
+    const booked = await Appointment.find({
+      clinicBranchId: branchId as string,
+      date: { $gte: dayStart, $lte: dayEnd },
+      types: { $in: ['basic-grooming', 'full-grooming'] },
+      status: { $in: ['pending', 'confirmed', 'in_progress'] }
+    }).select('startTime endTime status ownerId');
+
+    const allSlots = generateTimeSlots(slotStart, slotEnd);
+
+    const slots = allSlots.map((slot) => {
+      const bookedSlot = booked.find((b) => b.startTime === slot.startTime);
+      const status: 'available' | 'unavailable' = bookedSlot ? 'unavailable' : 'available';
+      return { ...slot, status };
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { slots, isClosed: false }
+    });
+  } catch (error) {
+    console.error('Get grooming slots error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching grooming slots' });
   }
 };
 
