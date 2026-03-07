@@ -336,22 +336,22 @@ export default function PatientRecordsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div className="bg-white rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                    <PawPrint className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-[#C5D8FF] rounded-xl flex items-center justify-center">
+                    <PawPrint className="w-5 h-5 text-[#4569B1]" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-blue-600">{totalPatients}</p>
+                    <p className="text-2xl font-bold text-[#4569B1]">{totalPatients}</p>
                     <p className="text-xs text-gray-500">Total Patients</p>
                   </div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                    <ClipboardList className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 bg-[#E8F2EE] rounded-xl flex items-center justify-center">
+                    <ClipboardList className="w-5 h-5 text-[#35785C]" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-[#35785C]">
                       {new Set(patients.map((p) => p.ownerId).filter(Boolean)).size}
                     </p>
                     <p className="text-xs text-gray-500">Unique Owners</p>

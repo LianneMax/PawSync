@@ -69,7 +69,6 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Vaccination Records', href: '/vet-dashboard/vaccinations', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Vaccine Types', href: '/vet-dashboard/vaccine-types', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
-    { label: 'My Schedule', href: '/schedule', icon: <Calendar className="w-5 h-5" /> },
   ],
   'clinic-admin': [
     { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" />, section: 'MAIN MENU' },

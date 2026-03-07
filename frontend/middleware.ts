@@ -14,7 +14,6 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   // Veterinarian routes
   '/vet-dashboard': ['veterinarian'],
   '/vet-appointments': ['veterinarian'],
-  '/schedule': ['veterinarian'],
   '/onboarding/vet': ['veterinarian'],
   '/vet-dashboard/vaccinations': ['veterinarian'],
   '/vet-dashboard/vaccine-types': ['veterinarian'],

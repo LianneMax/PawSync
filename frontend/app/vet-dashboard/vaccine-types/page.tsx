@@ -7,8 +7,6 @@ import {
   Syringe,
   Plus,
   Pencil,
-  ToggleLeft,
-  ToggleRight,
   AlertCircle,
   Loader,
   X,
@@ -17,9 +15,9 @@ import {
 import { getAllVaccineTypes, createVaccineType, updateVaccineType, type VaccineType } from '@/lib/vaccinations'
 
 const SPECIES_OPTIONS = [
-  { value: 'dog', label: 'Dog' },
-  { value: 'cat', label: 'Cat' },
-  { value: 'all', label: 'All (Dog & Cat)' },
+  { value: 'dog', label: 'Canine' },
+  { value: 'cat', label: 'Feline' },
+  { value: 'both', label: 'Both' },
 ]
 
 const ROUTE_OPTIONS = [
@@ -54,19 +52,25 @@ const emptyForm = (): FormState => ({
   defaultBatchNumber: '',
 })
 
+const SPECIES_LABEL: Record<string, string> = {
+  dog: 'Canine',
+  cat: 'Feline',
+  both: 'Canine + Feline',
+  all: 'Canine + Feline',
+}
+
 function SpeciesBadge({ species }: { species: string[] }) {
+  const isBoth = species.includes('dog') && species.includes('cat')
+  const display = isBoth ? [{ key: 'both', label: 'Canine + Feline', cls: 'bg-teal-100 text-teal-700' }] : species.map((s) => ({
+    key: s,
+    label: SPECIES_LABEL[s] ?? s,
+    cls: s === 'dog' ? 'bg-amber-100 text-amber-700' : s === 'cat' ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700',
+  }))
   return (
     <div className="flex gap-1 flex-wrap">
-      {species.map((s) => (
-        <span
-          key={s}
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
-            s === 'dog' ? 'bg-amber-100 text-amber-700' :
-            s === 'cat' ? 'bg-purple-100 text-purple-700' :
-            'bg-teal-100 text-teal-700'
-          }`}
-        >
-          {s === 'all' ? 'Dog + Cat' : s}
+      {display.map((d) => (
+        <span key={d.key} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${d.cls}`}>
+          {d.label}
         </span>
       ))}
     </div>
@@ -130,13 +134,13 @@ export default function VetVaccineTypesPage() {
     setShowModal(true)
   }
 
-  const handleSpeciesToggle = (val: string) => {
-    setForm((prev) => {
-      const next = prev.species.includes(val)
-        ? prev.species.filter((s) => s !== val)
-        : [...prev.species, val]
-      return { ...prev, species: next.length === 0 ? [val] : next }
-    })
+  const handleSpeciesSelect = (val: string) => {
+    setForm((prev) => ({ ...prev, species: val === 'both' ? ['dog', 'cat'] : [val] }))
+  }
+
+  const activeSpeciesOption = (val: string) => {
+    if (val === 'both') return form.species.length === 2
+    return form.species.length === 1 && form.species[0] === val
   }
 
   const handleSave = async () => {
@@ -229,10 +233,10 @@ export default function VetVaccineTypesPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {types.map((vt) => (
+            {[...types].sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0)).map((vt) => (
               <div
                 key={vt._id}
-                className={`bg-white border rounded-2xl px-5 py-4 flex items-center justify-between gap-4 transition-opacity ${
+                className={`bg-white border rounded-2xl px-5 py-4 flex items-center justify-between gap-4 transition-all ${
                   !vt.isActive ? 'opacity-50' : ''
                 }`}
               >
@@ -273,15 +277,17 @@ export default function VetVaccineTypesPage() {
                   <button
                     onClick={() => handleToggleActive(vt)}
                     disabled={togglingId === vt._id}
-                    className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-[#476B6B] transition-colors disabled:opacity-50"
                     title={vt.isActive ? 'Deactivate' : 'Activate'}
+                    className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 shrink-0 overflow-hidden ${vt.isActive ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
                   >
                     {togglingId === vt._id ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : vt.isActive ? (
-                      <ToggleRight className="w-5 h-5 text-[#476B6B]" />
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Loader className="w-3.5 h-3.5 animate-spin text-white" />
+                      </span>
                     ) : (
-                      <ToggleLeft className="w-5 h-5" />
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${vt.isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                      />
                     )}
                   </button>
                 </div>
@@ -322,14 +328,14 @@ export default function VetVaccineTypesPage() {
               {/* Species */}
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-2">Species</label>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2">
                   {SPECIES_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => handleSpeciesToggle(opt.value)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                        form.species.includes(opt.value)
+                      onClick={() => handleSpeciesSelect(opt.value)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                        activeSpeciesOption(opt.value)
                           ? 'bg-[#476B6B] text-white border-[#476B6B]'
                           : 'bg-white text-gray-500 border-gray-200 hover:border-[#7FA5A3]'
                       }`}

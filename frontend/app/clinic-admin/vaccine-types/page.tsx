@@ -283,14 +283,17 @@ export default function VaccineTypesPage() {
                   <button
                     onClick={() => handleToggle(vt)}
                     disabled={togglingId === vt._id}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#476B6B] hover:bg-[#F8F6F2] transition-colors disabled:opacity-50"
+                    title={vt.isActive ? 'Deactivate' : 'Activate'}
+                    className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 shrink-0 overflow-hidden ${vt.isActive ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
                   >
                     {togglingId === vt._id ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : vt.isActive ? (
-                      <ToggleRight className="w-5 h-5 text-green-500" />
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Loader className="w-3.5 h-3.5 animate-spin text-white" />
+                      </span>
                     ) : (
-                      <ToggleLeft className="w-5 h-5 text-gray-400" />
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${vt.isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                      />
                     )}
                   </button>
                 </div>

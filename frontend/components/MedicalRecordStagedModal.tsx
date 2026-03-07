@@ -807,14 +807,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       : null
                     return (
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                          <p className="text-[10px] font-bold text-green-600 uppercase tracking-wide">Expires</p>
-                          <p className="font-bold text-green-700 text-sm mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        <div className="bg-[#F4D3D2] border border-[#983232] rounded-xl p-3">
+                          <p className="text-[10px] font-bold text-[#983232] uppercase tracking-wide">Expires</p>
+                          <p className="font-bold text-[#983232] text-sm mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                         </div>
                         {nextDue && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">Next Due</p>
-                            <p className="font-bold text-blue-700 text-sm mt-0.5">{nextDue.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                          <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-[#4569B1] uppercase tracking-wide">Next Due</p>
+                            <p className="font-bold text-[#4569B1] text-sm mt-0.5">{nextDue.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                           </div>
                         )}
                       </div>
@@ -1186,7 +1186,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               <button
                 onClick={handleCompleteRecord}
                 disabled={completing}
-                className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-60"
+                className="flex items-center gap-2 px-5 py-2 bg-[#35785C] text-white rounded-xl text-sm font-medium hover:bg-[#2a6049] transition-colors disabled:opacity-60"
               >
                 {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                 Complete Record & Finish Visit

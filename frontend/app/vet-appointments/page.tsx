@@ -37,12 +37,12 @@ import {
 
 // ==================== CONSTANTS ====================
 
-const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
-  pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500' },
-  in_progress: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500' },
-  completed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
-  cancelled: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-l-red-500' },
+const statusColors: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500', dot: 'bg-green-500' },
+  pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500', dot: 'bg-amber-500' },
+  in_progress: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500', dot: 'bg-indigo-500' },
+  completed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500', dot: 'bg-blue-500' },
+  cancelled: { bg: 'bg-[#F4D3D2]', text: 'text-[#983232]', border: 'border-l-[#983232]', dot: 'bg-[#983232]' },
 }
 
 // ==================== HELPERS ====================
@@ -348,22 +348,22 @@ export default function VetAppointmentsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 bg-[#E8F2EE] rounded-xl flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-[#35785C]" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-600">{todayConfirmed}</p>
-                <p className="text-xs text-gray-500">Confirmed Today</p>
+                <p className="text-2xl font-bold text-[#35785C]">{todayConfirmed}</p>
+                <p className="text-xs text-gray-500">Appointments Today</p>
               </div>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                <PawPrint className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-[#C5D8FF] rounded-xl flex items-center justify-center">
+                <PawPrint className="w-5 h-5 text-[#4569B1]" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-blue-600">{todayCompleted}</p>
+                <p className="text-2xl font-bold text-[#4569B1]">{todayCompleted}</p>
                 <p className="text-xs text-gray-500">Completed Today</p>
               </div>
             </div>
@@ -536,7 +536,7 @@ export default function VetAppointmentsPage() {
               <div className="flex items-center justify-center gap-5 px-6 py-3 border-t border-gray-100 bg-gray-50">
                 {Object.entries(statusColors).map(([status, colors]) => (
                   <div key={status} className="flex items-center gap-1.5">
-                    <div className={`w-3 h-3 rounded-sm ${colors.bg} border-l-2 ${colors.border}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
                     <span className="text-[10px] text-gray-500 capitalize">
                       {status === 'in_progress' ? 'In Progress' : status}
                     </span>
