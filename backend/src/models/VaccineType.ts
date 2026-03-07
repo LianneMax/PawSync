@@ -9,6 +9,8 @@ export interface IVaccineType extends Document {
   minAgeMonths: number;
   route: string | null;
   pricePerDose: number;
+  defaultManufacturer: string | null;
+  defaultBatchNumber: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +54,14 @@ const VaccineTypeSchema = new Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    defaultManufacturer: {
+      type: String,
+      default: null,
+    },
+    defaultBatchNumber: {
+      type: String,
+      default: null,
     },
     isActive: {
       type: Boolean,

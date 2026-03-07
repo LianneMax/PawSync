@@ -8,9 +8,9 @@ import VaccineType from '../models/VaccineType';
  */
 export const listVaccineTypes = async (req: Request, res: Response) => {
   try {
-    const { species } = req.query;
+    const { species, includeInactive } = req.query;
 
-    const query: any = { isActive: true };
+    const query: any = includeInactive === 'true' ? {} : { isActive: true };
     if (species) {
       query.species = { $in: [species, 'all'] };
     }
@@ -45,6 +45,8 @@ export const createVaccineType = async (req: Request, res: Response) => {
       boosterIntervalDays,
       minAgeMonths,
       route,
+      defaultManufacturer,
+      defaultBatchNumber,
     } = req.body;
 
     if (!name || !species || !validityDays) {
@@ -64,6 +66,8 @@ export const createVaccineType = async (req: Request, res: Response) => {
       boosterIntervalDays: boosterIntervalDays || null,
       minAgeMonths: minAgeMonths || 0,
       route: route || null,
+      defaultManufacturer: defaultManufacturer || null,
+      defaultBatchNumber: defaultBatchNumber || null,
     });
 
     return res.status(201).json({
@@ -104,6 +108,8 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       minAgeMonths,
       route,
       pricePerDose,
+      defaultManufacturer,
+      defaultBatchNumber,
       isActive,
     } = req.body;
 
@@ -115,6 +121,8 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (minAgeMonths !== undefined) vaccineType.minAgeMonths = minAgeMonths;
     if (route !== undefined) vaccineType.route = route;
     if (pricePerDose !== undefined) vaccineType.pricePerDose = pricePerDose;
+    if (defaultManufacturer !== undefined) vaccineType.defaultManufacturer = defaultManufacturer || null;
+    if (defaultBatchNumber !== undefined) vaccineType.defaultBatchNumber = defaultBatchNumber || null;
     if (isActive !== undefined) vaccineType.isActive = isActive;
 
     await vaccineType.save();

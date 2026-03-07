@@ -9,6 +9,8 @@ export interface VaccineType {
   boosterIntervalDays: number | null;
   minAgeMonths: number;
   route: string | null;
+  defaultManufacturer: string | null;
+  defaultBatchNumber: string | null;
   isActive: boolean;
 }
 
@@ -66,6 +68,52 @@ export async function getVaccineTypes(species?: string): Promise<VaccineType[]> 
   const json = await res.json();
   if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch vaccine types');
   return json.data.vaccineTypes;
+}
+
+/** Get all vaccine types including inactive (for admin/vet management views). */
+export async function getAllVaccineTypes(token: string): Promise<VaccineType[]> {
+  const url = new URL(`${API_BASE_URL}/vaccine-types`);
+  url.searchParams.set('includeInactive', 'true');
+  const res = await fetch(url.toString(), { headers: authHeaders(token) });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch vaccine types');
+  return json.data.vaccineTypes;
+}
+
+export interface VaccineTypeInput {
+  name: string;
+  species: string[];
+  validityDays: number;
+  requiresBooster: boolean;
+  boosterIntervalDays?: number | null;
+  minAgeMonths?: number;
+  route?: string | null;
+  defaultManufacturer?: string | null;
+  defaultBatchNumber?: string | null;
+}
+
+/** Create a vaccine type (vet or clinic-admin). */
+export async function createVaccineType(data: VaccineTypeInput, token: string): Promise<VaccineType> {
+  const res = await fetch(`${API_BASE_URL}/vaccine-types`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to create vaccine type');
+  return json.data.vaccineType;
+}
+
+/** Update a vaccine type (vet or clinic-admin). */
+export async function updateVaccineType(id: string, data: Partial<VaccineTypeInput> & { isActive?: boolean }, token: string): Promise<VaccineType> {
+  const res = await fetch(`${API_BASE_URL}/vaccine-types/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to update vaccine type');
+  return json.data.vaccineType;
 }
 
 /** Get all vaccinations for a pet (authenticated). */

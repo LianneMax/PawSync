@@ -4,7 +4,7 @@ import {
   createVaccineType,
   updateVaccineType,
 } from '../controllers/vaccineTypeController';
-import { authMiddleware, clinicOrBranchAdminOnly } from '../middleware/auth';
+import { authMiddleware, clinicOrBranchAdminOnly, vetOrClinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -12,11 +12,11 @@ const router = express.Router();
 // GET /api/vaccine-types
 router.get('/', listVaccineTypes);
 
-// Clinic admin / branch admin only
+// Vet or clinic admin / branch admin — create and update vaccine types
 // POST /api/vaccine-types
-router.post('/', authMiddleware, clinicOrBranchAdminOnly, createVaccineType);
+router.post('/', authMiddleware, vetOrClinicAdminOnly, createVaccineType);
 
 // PUT /api/vaccine-types/:id
-router.put('/:id', authMiddleware, clinicOrBranchAdminOnly, updateVaccineType);
+router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateVaccineType);
 
 export default router;
