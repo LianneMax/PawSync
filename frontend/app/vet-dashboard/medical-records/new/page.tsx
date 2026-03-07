@@ -55,8 +55,8 @@ const VITALS_CONFIG: { key: keyof Vitals; label: string; unit: string; placehold
   { key: 'temperature', label: 'Temperature', unit: '°C', placeholder: 'e.g. 38.5' },
   { key: 'pulseRate', label: 'Pulse Rate', unit: 'bpm', placeholder: 'e.g. 80' },
   { key: 'spo2', label: 'SpO₂', unit: '%', placeholder: 'e.g. 98' },
-  { key: 'bodyConditionScore', label: 'Body Condition Score', unit: '/9', placeholder: '1–9' },
-  { key: 'dentalScore', label: 'Dental Score', unit: '/4', placeholder: '0–4' },
+  { key: 'bodyConditionScore', label: 'Body Condition Score', unit: '/5', placeholder: '1–5' },
+  { key: 'dentalScore', label: 'Dental Score', unit: '/3', placeholder: '1–3' },
   { key: 'crt', label: 'CRT', unit: 'sec', placeholder: 'e.g. 2' },
 ]
 
@@ -166,6 +166,7 @@ function MedicalRecordFormInner() {
   const [overallObservation, setOverallObservation] = useState('')
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
   const [showVitals, setShowVitals] = useState(true)
+  const [vitalsErrors, setVitalsErrors] = useState<Partial<Record<keyof Vitals, string>>>({})
   const [hasVaccinationDraft, setHasVaccinationDraft] = useState(false)
   const [vaccinationDraftId, setVaccinationDraftId] = useState<string | null>(null)
 
@@ -291,6 +292,17 @@ function MedicalRecordFormInner() {
       ...prev,
       [key]: { ...prev[key], [field]: val },
     }))
+    if (field === 'value') {
+      if (key === 'bodyConditionScore') {
+        const num = Number(val)
+        const hasError = val !== '' && (isNaN(num) || num < 1 || num > 5)
+        setVitalsErrors((prev) => ({ ...prev, bodyConditionScore: hasError ? 'Must be between 1 and 5' : '' }))
+      } else if (key === 'dentalScore') {
+        const num = Number(val)
+        const hasError = val !== '' && (isNaN(num) || num < 1 || num > 3)
+        setVitalsErrors((prev) => ({ ...prev, dentalScore: hasError ? 'Must be between 1 and 3' : '' }))
+      }
+    }
   }
 
   const toggleCheckboxVital = (key: keyof Vitals) => {
@@ -531,7 +543,7 @@ function MedicalRecordFormInner() {
                       placeholder={placeholder}
                       value={String(vitals[key]?.value ?? '')}
                       onChange={(e) => handleVitalChange(key, 'value', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#476B6B]"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-red-400' : 'border-gray-200'}`}
                     />
                     <input
                       type="text"
@@ -540,6 +552,9 @@ function MedicalRecordFormInner() {
                       onChange={(e) => handleVitalChange(key, 'notes', e.target.value)}
                       className="w-full px-3 py-1.5 border-x border-b border-gray-200 rounded-b-lg text-xs text-gray-500 focus:outline-none focus:border-[#476B6B] -mt-px"
                     />
+                    {vitalsErrors[key] && (
+                      <p className="text-xs text-red-500 mt-1">{vitalsErrors[key]}</p>
+                    )}
                   </div>
                 ))}
               </div>

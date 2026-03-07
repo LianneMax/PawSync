@@ -26,6 +26,8 @@ interface VitalRow {
   type: 'number' | 'yesno'
   unit?: string
   placeholder?: string
+  min?: number
+  max?: number
 }
 
 interface ImageUpload {
@@ -41,8 +43,8 @@ const vitalRows: VitalRow[] = [
   { key: 'temperature', label: 'Temperature', type: 'number', unit: '°C', placeholder: '38.5' },
   { key: 'pulseRate', label: 'Pulse Rate', type: 'number', unit: 'bpm', placeholder: '80' },
   { key: 'spo2', label: 'SpO2', type: 'number', unit: '%', placeholder: '98' },
-  { key: 'bodyConditionScore', label: 'Body Condition Score', type: 'number', unit: '/9', placeholder: '5' },
-  { key: 'dentalScore', label: 'Dental Score', type: 'number', unit: '/4', placeholder: '1' },
+  { key: 'bodyConditionScore', label: 'Body Condition Score', type: 'number', unit: '/5', placeholder: '1–5', min: 1, max: 5 },
+  { key: 'dentalScore', label: 'Dental Score', type: 'number', unit: '/3', placeholder: '1–3', min: 1, max: 3 },
   { key: 'crt', label: 'CRT', type: 'number', unit: 'sec', placeholder: '2' },
   { key: 'pregnancy', label: 'Pregnancy', type: 'yesno' },
   { key: 'xray', label: 'X-Ray', type: 'yesno' },
@@ -83,6 +85,7 @@ function NewMedicalRecordPage() {
 
   // Vitals
   const [vitals, setVitals] = useState(buildEmptyVitals)
+  const [vitalsErrors, setVitalsErrors] = useState<Partial<Record<string, string>>>({})
 
   // Images
   const [images, setImages] = useState<ImageUpload[]>([])
@@ -114,6 +117,12 @@ function NewMedicalRecordPage() {
   // Vital change handlers
   const handleVitalValue = useCallback((key: string, value: string) => {
     setVitals((prev) => ({ ...prev, [key]: { ...prev[key], value } }))
+    const row = vitalRows.find((r) => r.key === key)
+    if (row?.min !== undefined && row?.max !== undefined) {
+      const num = Number(value)
+      const hasError = value !== '' && (isNaN(num) || num < row.min || num > row.max)
+      setVitalsErrors((prev) => ({ ...prev, [key]: hasError ? `Must be between ${row.min} and ${row.max}` : '' }))
+    }
   }, [])
 
   const handleVitalNotes = useCallback((key: string, notes: string) => {
@@ -333,14 +342,21 @@ function NewMedicalRecordPage() {
                     </td>
                     <td className="py-3 px-4">
                       {row.type === 'number' ? (
-                        <input
-                          type="number"
-                          step="any"
-                          value={vitals[row.key].value}
-                          onChange={(e) => handleVitalValue(row.key, e.target.value)}
-                          placeholder={row.placeholder}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#7FA5A3] transition-colors"
-                        />
+                        <>
+                          <input
+                            type="number"
+                            step="any"
+                            min={row.min}
+                            max={row.max}
+                            value={vitals[row.key].value}
+                            onChange={(e) => handleVitalValue(row.key, e.target.value)}
+                            placeholder={row.placeholder}
+                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#7FA5A3] transition-colors ${vitalsErrors[row.key] ? 'border-red-400' : 'border-gray-200'}`}
+                          />
+                          {vitalsErrors[row.key] && (
+                            <p className="text-xs text-red-500 mt-1">{vitalsErrors[row.key]}</p>
+                          )}
+                        </>
                       ) : (
                         <div className="flex gap-3">
                           <label className="flex items-center gap-1.5 cursor-pointer">

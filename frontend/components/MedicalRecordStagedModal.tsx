@@ -139,6 +139,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
+  const [vitalsErrors, setVitalsErrors] = useState<Partial<Record<keyof Vitals, string>>>({})
 
   // Step 2 fields
   const [subjective, setSubjective] = useState('')
@@ -442,6 +443,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
     setVitals((prev) => ({ ...prev, [key]: { ...prev[key], [field]: val } }))
+    if (field === 'value') {
+      if (key === 'bodyConditionScore') {
+        const num = Number(val)
+        const hasError = val !== '' && (isNaN(num) || num < 1 || num > 5)
+        setVitalsErrors((prev) => ({ ...prev, bodyConditionScore: hasError ? 'Must be between 1 and 5' : '' }))
+      } else if (key === 'dentalScore') {
+        const num = Number(val)
+        const hasError = val !== '' && (isNaN(num) || num < 1 || num > 3)
+        setVitalsErrors((prev) => ({ ...prev, dentalScore: hasError ? 'Must be between 1 and 3' : '' }))
+      }
+    }
   }
 
   return (
@@ -603,8 +615,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       { key: 'temperature' as const, label: 'Temperature', unit: '°C' },
                       { key: 'pulseRate' as const, label: 'Pulse Rate', unit: 'bpm' },
                       { key: 'spo2' as const, label: 'SpO₂', unit: '%' },
-                      { key: 'bodyConditionScore' as const, label: 'Body Condition Score', unit: '/9' },
-                      { key: 'dentalScore' as const, label: 'Dental Score', unit: '/4' },
+                      { key: 'bodyConditionScore' as const, label: 'Body Condition Score', unit: '/5' },
+                      { key: 'dentalScore' as const, label: 'Dental Score', unit: '/3' },
                       { key: 'crt' as const, label: 'CRT', unit: 'sec' },
                     ] as const).map(({ key, label, unit }) => (
                       <div key={key} className="grid grid-cols-2 gap-2 pt-3 first:pt-0 border-t border-gray-50 first:border-0">
@@ -614,7 +626,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             type="text"
                             value={String(vitals[key]?.value ?? '')}
                             onChange={(e) => updateVital(key, 'value', e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${vitalsErrors[key] ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                             placeholder={unit}
                           />
                         </div>
@@ -628,6 +640,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             placeholder="Optional"
                           />
                         </div>
+                        {vitalsErrors[key] && (
+                          <p className="col-span-2 text-xs text-red-500 -mt-1">{vitalsErrors[key]}</p>
+                        )}
                       </div>
                     ))}
                     {/* Checkboxes */}

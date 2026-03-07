@@ -109,8 +109,8 @@ const vitalLabels: Record<string, { label: string; unit: string; placeholder: st
   temperature: { label: 'Temperature', unit: '\u00B0C', placeholder: 'e.g. 38.5' },
   pulseRate: { label: 'Pulse Rate', unit: 'bpm', placeholder: 'e.g. 120' },
   spo2: { label: 'SpO2', unit: '%', placeholder: 'e.g. 98' },
-  bodyConditionScore: { label: 'Body Condition Score', unit: '/9', placeholder: 'e.g. 5' },
-  dentalScore: { label: 'Dental Score', unit: '/4', placeholder: 'e.g. 2' },
+  bodyConditionScore: { label: 'Body Condition Score', unit: '/5', placeholder: 'e.g. 3' },
+  dentalScore: { label: 'Dental Score', unit: '/3', placeholder: 'e.g. 2' },
   crt: { label: 'CRT', unit: 'sec', placeholder: 'e.g. 2' },
 }
 
@@ -555,7 +555,7 @@ export default function PatientRecordsPage() {
                           {currentRecord.vitals?.bodyConditionScore?.value && (
                             <div className="bg-white rounded-lg p-2 border border-emerald-100">
                               <p className="text-[10px] text-gray-500 font-medium">BCS</p>
-                              <p className="text-sm font-semibold text-emerald-600">{currentRecord.vitals.bodyConditionScore.value}/9</p>
+                              <p className="text-sm font-semibold text-emerald-600">{currentRecord.vitals.bodyConditionScore.value}/5</p>
                             </div>
                           )}
                         </div>
@@ -568,7 +568,7 @@ export default function PatientRecordsPage() {
                           currentRecord.vitals?.vaccinated?.value) && (
                           <div className="mt-3 space-y-1">
                             {currentRecord.vitals?.dentalScore?.value && (
-                              <p className="text-xs text-gray-600">Dental Score: <span className="font-semibold">{currentRecord.vitals.dentalScore.value}/4</span></p>
+                              <p className="text-xs text-gray-600">Dental Score: <span className="font-semibold">{currentRecord.vitals.dentalScore.value}/3</span></p>
                             )}
                             {currentRecord.vitals?.crt?.value && (
                               <p className="text-xs text-gray-600">CRT: <span className="font-semibold">{currentRecord.vitals.crt.value} sec</span></p>

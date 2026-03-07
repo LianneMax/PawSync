@@ -263,4 +263,22 @@ const MedicalRecordSchema = new Schema(
 MedicalRecordSchema.index({ petId: 1, createdAt: -1 });
 MedicalRecordSchema.index({ petId: 1, isCurrent: 1 });
 
+// Validate score ranges before saving
+MedicalRecordSchema.pre('validate', function() {
+  const bcs = this.vitals?.bodyConditionScore?.value;
+  if (bcs !== '' && bcs !== null && bcs !== undefined) {
+    const num = Number(bcs);
+    if (!isNaN(num) && (num < 1 || num > 5)) {
+      this.invalidate('vitals.bodyConditionScore.value', 'Body Condition Score must be between 1 and 5');
+    }
+  }
+  const ds = this.vitals?.dentalScore?.value;
+  if (ds !== '' && ds !== null && ds !== undefined) {
+    const num = Number(ds);
+    if (!isNaN(num) && (num < 1 || num > 3)) {
+      this.invalidate('vitals.dentalScore.value', 'Dental Score must be between 1 and 3');
+    }
+  }
+});
+
 export default mongoose.model<IMedicalRecord>('MedicalRecord', MedicalRecordSchema);
