@@ -13,6 +13,7 @@ export interface IAppointment extends Document {
   endTime: string;   // e.g. "07:30"
   status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
+  isWalkIn: boolean;
   medicalRecordId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -91,6 +92,10 @@ const AppointmentSchema = new Schema(
     notes: {
       type: String,
       default: null
+    },
+    isWalkIn: {
+      type: Boolean,
+      default: false
     },
     medicalRecordId: {
       type: Schema.Types.ObjectId,

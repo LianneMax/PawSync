@@ -693,7 +693,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes } = req.body;
+    const { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn } = req.body;
 
     if (!ownerId) {
       return res.status(400).json({ status: 'ERROR', message: 'Owner is required' });
@@ -739,6 +739,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       startTime,
       endTime,
       notes: notes || null,
+      isWalkIn: isWalkIn === true,
       status: 'confirmed' // Clinic admin appointments are auto-confirmed
     });
 

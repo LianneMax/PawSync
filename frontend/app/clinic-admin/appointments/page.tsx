@@ -390,6 +390,11 @@ function CalendarGridView({
                               <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
                                 {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
                               </span>
+                              {appt.isWalkIn && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
+                                  Walk-In
+                                </span>
+                              )}
                               {appt.types.map((t) => (
                                 <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
                                   {t.replace('-', ' ')}
@@ -688,6 +693,9 @@ export default function ClinicAdminAppointmentsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex flex-wrap gap-1">
+                    {appt.isWalkIn && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
+                    )}
                     {appt.types.map((t) => (
                       <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t.replace('-', ' ')}</span>
                     ))}
@@ -847,6 +855,7 @@ function ClinicScheduleModal({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [isWalkIn, setIsWalkIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Load pets when owner changes
@@ -938,6 +947,7 @@ function ClinicScheduleModal({
       setSelectedSlot(null)
       setSlots([])
       setBranchVets([])
+      setIsWalkIn(false)
     }
   }, [open])
 
@@ -982,6 +992,7 @@ function ClinicScheduleModal({
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
+        isWalkIn,
       }, token || undefined)
 
       if (res.status === 'SUCCESS') {
@@ -1162,6 +1173,27 @@ function ClinicScheduleModal({
                 allowFutureDates={true}
                 minDate={new Date(new Date().setHours(0, 0, 0, 0))}
               />
+            </div>
+
+            {/* Walk-In Toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isWalkIn}
+                onClick={() => setIsWalkIn((v) => !v)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isWalkIn ? 'bg-[#7FA5A3]' : 'bg-gray-200'}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${isWalkIn ? 'translate-x-4' : 'translate-x-0'}`}
+                />
+              </button>
+              <span className="text-sm font-semibold text-[#2C3E2D]">Walk-in patient</span>
+              {isWalkIn && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">
+                  Walk-In
+                </span>
+              )}
             </div>
           </div>
 
