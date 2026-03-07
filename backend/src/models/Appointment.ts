@@ -14,6 +14,7 @@ export interface IAppointment extends Document {
   status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
   isWalkIn: boolean;
+  isEmergency: boolean;
   medicalRecordId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -97,6 +98,10 @@ const AppointmentSchema = new Schema(
       type: Boolean,
       default: false
     },
+    isEmergency: {
+      type: Boolean,
+      default: false
+    },
     medicalRecordId: {
       type: Schema.Types.ObjectId,
       ref: 'MedicalRecord',
@@ -108,10 +113,10 @@ const AppointmentSchema = new Schema(
   }
 );
 
-// Prevent double-booking: same vet, same date, same time slot
+// Prevent double-booking: same vet, same date, same time slot (emergency appointments bypass this)
 AppointmentSchema.index(
   { vetId: 1, date: 1, startTime: 1 },
-  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'in_progress'] } } }
+  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'in_progress'] }, isEmergency: { $ne: true } } }
 );
 
 export default mongoose.model<IAppointment>('Appointment', AppointmentSchema);

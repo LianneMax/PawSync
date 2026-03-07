@@ -336,8 +336,9 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
     const isOwner = appointment.ownerId.toString() === req.user.userId;
     const isVet = appointment.vetId.toString() === req.user.userId;
+    const isAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
 
-    if (!isOwner && !isVet) {
+    if (!isOwner && !isVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to cancel this appointment' });
     }
 
@@ -693,7 +694,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn } = req.body;
+    const { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn, isEmergency } = req.body;
 
     if (!ownerId) {
       return res.status(400).json({ status: 'ERROR', message: 'Owner is required' });
@@ -715,16 +716,34 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       }
     }
 
-    // Check if the slot is already taken
-    const existing = await Appointment.findOne({
-      vetId,
-      date: new Date(date),
-      startTime,
-      status: { $in: ['pending', 'confirmed'] }
-    });
+    // Check if the slot is already taken (skip for emergency appointments)
+    if (!isEmergency) {
+      const existing = await Appointment.findOne({
+        vetId,
+        date: new Date(date),
+        startTime,
+        status: { $in: ['pending', 'confirmed'] }
+      });
 
-    if (existing) {
-      return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+      if (existing) {
+        return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+      }
+    }
+
+    // For emergency appointments, find all confirmed/pending appointments for this vet
+    // on the same date at or after the emergency start time (these will be delayed)
+    let displacedAppointments: any[] = [];
+    if (isEmergency) {
+      displacedAppointments = await Appointment.find({
+        vetId,
+        date: new Date(date),
+        startTime: { $gte: startTime },
+        status: { $in: ['pending', 'confirmed'] }
+      })
+      .populate('petId', 'name')
+      .populate('ownerId', 'firstName lastName')
+      .sort({ startTime: 1 })
+      .lean();
     }
 
     const appointment = await Appointment.create({
@@ -739,7 +758,8 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       startTime,
       endTime,
       notes: notes || null,
-      isWalkIn: isWalkIn === true,
+      isWalkIn: isEmergency ? true : isWalkIn === true,
+      isEmergency: isEmergency === true,
       status: 'confirmed' // Clinic admin appointments are auto-confirmed
     });
 
@@ -781,7 +801,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Appointment booked successfully',
-      data: { appointment }
+      data: { appointment, displacedAppointments }
     });
   } catch (error: any) {
     console.error('Create clinic appointment error:', error);

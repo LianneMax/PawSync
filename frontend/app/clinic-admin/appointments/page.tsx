@@ -34,6 +34,7 @@ import {
   Users,
   Check,
   Search,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -249,11 +250,15 @@ function CalendarGridView({
   selectedDate,
   onDateChange,
   vets,
+  onReschedule,
+  onCancel,
 }: {
   appointments: Appointment[]
   selectedDate: string
   onDateChange: (date: string) => void
   vets: BranchVet[]
+  onReschedule: (appt: Appointment) => void
+  onCancel: (id: string) => void
 }) {
   const hours = Array.from({ length: 11 }, (_, i) => i + 7) // 7AM to 5PM
 
@@ -370,7 +375,7 @@ function CalendarGridView({
                         return (
                           <div
                             key={appt._id}
-                            className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${colors.border} ${colors.bg}`}
+                            className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
                           >
                             <p className="text-xs font-medium text-[#4F4F4F] truncate">
                               {appt.petId?.name || 'Pet'}
@@ -378,19 +383,24 @@ function CalendarGridView({
                             <p className="text-[10px] text-gray-500 truncate">
                               {appt.ownerId?.firstName} {appt.ownerId?.lastName}
                             </p>
-                            <div className="flex items-center justify-between mt-0.5">
+                            <div className="flex items-start justify-between mt-0.5">
                               <span className="text-[10px] text-gray-400">
                                 {formatSlotTime(appt.startTime)}
                               </span>
-                              <span className={`text-[10px] font-medium capitalize ${colors.text}`}>
-                                {appt.status}
+                              <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
+                                {appt.isEmergency ? 'Emergency' : appt.status}
                               </span>
                             </div>
                             <div className="flex flex-wrap items-center gap-1 mt-1">
                               <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
                                 {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
                               </span>
-                              {appt.isWalkIn && (
+                              {appt.isEmergency && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
+                                  Emergency
+                                </span>
+                              )}
+                              {appt.isWalkIn && !appt.isEmergency && (
                                 <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
                                   Walk-In
                                 </span>
@@ -400,6 +410,23 @@ function CalendarGridView({
                                   {t.replace('-', ' ')}
                                 </span>
                               ))}
+                            </div>
+                            <div className="flex items-center justify-end gap-1.5 mt-1">
+                              <button
+                                type="button"
+                                onClick={() => onReschedule(appt)}
+                                className="text-[10px] font-medium text-[#7FA5A3] hover:text-[#5A8280] leading-none"
+                              >
+                                Reschedule
+                              </button>
+                              <span className="text-[10px] text-gray-300">·</span>
+                              <button
+                                type="button"
+                                onClick={() => onCancel(appt._id)}
+                                className="text-[10px] font-medium text-red-400 hover:text-red-600 leading-none"
+                              >
+                                Cancel
+                              </button>
                             </div>
                           </div>
                         )
@@ -418,6 +445,10 @@ function CalendarGridView({
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-green-500" />
           <span className="text-[10px] text-gray-500">Confirmed</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-red-500" />
+          <span className="text-[10px] text-gray-500">Emergency</span>
         </div>
       </div>
     </div>
@@ -662,6 +693,8 @@ export default function ClinicAdminAppointmentsPage() {
             selectedDate={calendarDate}
             onDateChange={setCalendarDate}
             vets={allVets}
+            onReschedule={setRescheduleTarget}
+            onCancel={handleCancel}
           />
         ) : appointments.length > 0 ? (
           /* ---- LIST VIEW ---- */
@@ -693,7 +726,10 @@ export default function ClinicAdminAppointmentsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex flex-wrap gap-1">
-                    {appt.isWalkIn && (
+                    {appt.isEmergency && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
+                    )}
+                    {appt.isWalkIn && !appt.isEmergency && (
                       <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
                     )}
                     {appt.types.map((t) => (
@@ -709,13 +745,21 @@ export default function ClinicAdminAppointmentsPage() {
                   }`}>
                     {appt.status}
                   </span>
-                  {appt.status === 'confirmed' && activeTab === 'upcoming' && (
-                    <button
-                      onClick={() => handleCancel(appt._id)}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium"
-                    >
-                      Cancel
-                    </button>
+                  {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
+                    <>
+                      <button
+                        onClick={() => setRescheduleTarget(appt)}
+                        className="text-xs text-[#7FA5A3] hover:text-[#5A8280] font-medium"
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        onClick={() => handleCancel(appt._id)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -856,6 +900,7 @@ function ClinicScheduleModal({
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [isWalkIn, setIsWalkIn] = useState(false)
+  const [isEmergency, setIsEmergency] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Load pets when owner changes
@@ -948,6 +993,7 @@ function ClinicScheduleModal({
       setSlots([])
       setBranchVets([])
       setIsWalkIn(false)
+      setIsEmergency(false)
     }
   }, [open])
 
@@ -993,17 +1039,18 @@ function ClinicScheduleModal({
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
         isWalkIn,
+        isEmergency,
       }, token || undefined)
 
       if (res.status === 'SUCCESS') {
         // Get pet name and branch info for toast
         const pet = ownerPets.find(p => p._id === selectedPetId)
         const branch = branches.find(b => b._id === selectedBranchId)
-        
+
         const petName = pet?.name || 'the pet'
         const branchName = branch?.name || 'the clinic'
         const appointmentDate = new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        
+
         toast(
           <div className="flex gap-2">
             <Calendar className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" />
@@ -1014,6 +1061,25 @@ function ClinicScheduleModal({
           </div>,
           { duration: 5000 }
         )
+
+        // If emergency, warn about displaced appointments
+        const displaced: any[] = res.data?.displacedAppointments ?? []
+        if (isEmergency && displaced.length > 0) {
+          const names = displaced
+            .map((a: any) => `${a.petId?.name || 'Pet'} (${a.ownerId?.firstName || ''} ${a.ownerId?.lastName || ''}) at ${formatSlotTime(a.startTime)}`)
+            .join(', ')
+          toast(
+            <div className="flex gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-amber-800">Appointments may be delayed</p>
+                <p className="text-sm text-amber-700">{displaced.length} existing appointment{displaced.length > 1 ? 's' : ''} may be pushed back: {names}. Consider notifying the owners.</p>
+              </div>
+            </div>,
+            { duration: 10000 }
+          )
+        }
+
         onBooked(selectedDate)
       } else {
         toast.error(res.message || 'Failed to book appointment')
@@ -1175,24 +1241,57 @@ function ClinicScheduleModal({
               />
             </div>
 
-            {/* Walk-In Toggle */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isWalkIn}
-                onClick={() => setIsWalkIn((v) => !v)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isWalkIn ? 'bg-[#7FA5A3]' : 'bg-gray-200'}`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${isWalkIn ? 'translate-x-4' : 'translate-x-0'}`}
-                />
-              </button>
-              <span className="text-sm font-semibold text-[#2C3E2D]">Walk-in patient</span>
-              {isWalkIn && (
-                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">
-                  Walk-In
-                </span>
+            {/* Walk-In / Emergency Toggles */}
+            <div className="space-y-2.5">
+              {/* Walk-In Toggle */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isWalkIn}
+                  onClick={() => { if (!isEmergency) setIsWalkIn((v) => !v) }}
+                  disabled={isEmergency}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${isEmergency ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${isWalkIn ? 'bg-[#7FA5A3]' : 'bg-gray-200'}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${isWalkIn ? 'translate-x-4' : 'translate-x-0'}`}
+                  />
+                </button>
+                <span className={`text-sm font-semibold ${isEmergency ? 'text-gray-400' : 'text-[#2C3E2D]'}`}>Walk-in patient</span>
+                {isWalkIn && !isEmergency && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
+                )}
+              </div>
+
+              {/* Emergency Toggle */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isEmergency}
+                  onClick={() => {
+                    const next = !isEmergency
+                    setIsEmergency(next)
+                    if (next) setIsWalkIn(true)
+                  }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isEmergency ? 'bg-red-500' : 'bg-gray-200'}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${isEmergency ? 'translate-x-4' : 'translate-x-0'}`}
+                  />
+                </button>
+                <span className="text-sm font-semibold text-[#2C3E2D]">Emergency</span>
+                {isEmergency && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
+                )}
+              </div>
+
+              {/* Emergency warning */}
+              {isEmergency && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700">This will override any existing booking for the selected time slot. Affected appointments will be flagged for review after saving.</p>
+                </div>
               )}
             </div>
           </div>
