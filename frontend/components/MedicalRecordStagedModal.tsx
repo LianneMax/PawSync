@@ -29,6 +29,7 @@ import {
   Shield,
   Upload,
   AlertCircle,
+  Lock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -245,6 +246,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setSaving(true)
     try {
+      if (step === 3 && isVaccinationAppt) await trySaveVaccination()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       await updateMedicalRecord(recordId, {
         chiefComplaint,
@@ -349,16 +351,49 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }
 
+  // Silently save vaccination data if a vaccine type has been selected — used by
+  // Save & Close, X, and Back so progress is never lost.
+  const trySaveVaccination = async () => {
+    if (!token || !vaccineTypeId) return
+    try {
+      if (vaccineCreated && createdVaccineId) {
+        await updateVaccination(createdVaccineId, {
+          vaccineTypeId,
+          manufacturer: vaccineManufacturer || undefined,
+          batchNumber: vaccineBatchNumber || undefined,
+          route: (vaccineRoute as any) || undefined,
+          dateAdministered: vaccineDateAdministered,
+          notes: vaccineNotes || undefined,
+        }, token)
+      } else {
+        const res = await createVaccination({
+          petId,
+          vaccineTypeId,
+          manufacturer: vaccineManufacturer || undefined,
+          batchNumber: vaccineBatchNumber || undefined,
+          route: (vaccineRoute as any) || undefined,
+          dateAdministered: vaccineDateAdministered,
+          notes: vaccineNotes || undefined,
+          medicalRecordId: recordId,
+          appointmentId,
+        }, token)
+        setVaccineCreated(true)
+        setCreatedVaccineId(res._id)
+      }
+    } catch {
+      // silent — don't block close/back on a vaccination save error
+    }
+  }
+
   const handleProceedStep3Vaccination = async () => {
     if (!token) return
     setSaving(true)
     try {
-      await updateMedicalRecord(recordId, {
-        stage: 'post_procedure',
-      }, token)
+      await trySaveVaccination()
+      await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
       setStep(4)
     } catch {
-      toast.error('Failed to proceed')
+      toast.error('Failed to save vaccination')
     } finally {
       setSaving(false)
     }
@@ -425,7 +460,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+          <button
+            onClick={async () => { if (step === 3 && isVaccinationAppt) await trySaveVaccination(); onClose() }}
+            className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -518,7 +556,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               {/* Confinement alert */}
               {pet?.isConfined && (
                 <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
-                  <span className="text-amber-500 text-lg shrink-0">🔒</span>
+                  <Lock className="w-4 h-4 text-amber-500 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-amber-800">This pet is currently confined</p>
                     <p className="text-xs text-amber-600">
@@ -887,21 +925,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     />
                   </div>
 
-                  {/* Save button */}
-                  <button
-                    onClick={handleSubmitVaccine}
-                    disabled={!vaccineTypeId || vaccineSubmitting}
-                    className="w-full bg-[#476B6B] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a5a5a] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {vaccineSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Syringe className="w-4 h-4" />}
-                    {vaccineSubmitting ? 'Saving…' : vaccineCreated ? 'Update Vaccination Record' : 'Save Vaccination Record'}
-                  </button>
-
-                  {vaccineCreated && (
-                    <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                      <CheckCircle className="w-4 h-4" /> Vaccination record saved
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1143,8 +1166,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           <div className="flex items-center gap-2">
             {step > 1 && (
               <button
-                onClick={() => setStep((s) => (s - 1) as StepKey)}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                onClick={async () => {
+                  if (step === 3 && isVaccinationAppt) await trySaveVaccination()
+                  setStep((s) => (s - 1) as StepKey)
+                }}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 ← Back
               </button>

@@ -465,15 +465,15 @@ export default function VaccinationFormClient() {
             {selectedVaccineType && dateAdministered && (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {computedExpiryDate && (
-                  <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-green-600 uppercase tracking-wide font-semibold mb-0.5">Expires</p>
-                    <p className="text-xs font-bold text-green-700">{computedExpiryDate}</p>
+                  <div className="bg-[#F4D3D2] border border-[#983232] rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-[#983232] uppercase tracking-wide font-semibold mb-0.5">Expires</p>
+                    <p className="text-xs font-bold text-[#983232]">{computedExpiryDate}</p>
                   </div>
                 )}
                 {computedNextDueDate && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-blue-600 uppercase tracking-wide font-semibold mb-0.5">Next Due</p>
-                    <p className="text-xs font-bold text-blue-700">{computedNextDueDate}</p>
+                  <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-[#4569B1] uppercase tracking-wide font-semibold mb-0.5">Next Due</p>
+                    <p className="text-xs font-bold text-[#4569B1]">{computedNextDueDate}</p>
                   </div>
                 )}
               </div>

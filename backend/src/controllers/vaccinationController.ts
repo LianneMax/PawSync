@@ -270,7 +270,7 @@ export const getVaccinationById = async (req: Request, res: Response) => {
     }
 
     const vaccination = await Vaccination.findById(req.params.id)
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
+      .populate('vaccineTypeId', 'name species validityDays requiresBooster boosterIntervalDays route')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
