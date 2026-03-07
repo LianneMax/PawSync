@@ -462,6 +462,7 @@ export default function ClinicAdminAppointmentsPage() {
   
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
+  const [scheduleType, setScheduleType] = useState<'medical' | 'grooming'>('medical')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -531,11 +532,20 @@ export default function ClinicAdminAppointmentsPage() {
       }
       const res = await getClinicAppointments(params, token || undefined)
       if (res.status === 'SUCCESS' && res.data) {
-        setAppointments(res.data.appointments)
+        // Filter appointments based on schedule type
+        const filtered = res.data.appointments.filter((a: Appointment) => {
+          const hasGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+          if (scheduleType === 'grooming') {
+            return hasGrooming
+          } else {
+            return !hasGrooming
+          }
+        })
+        setAppointments(filtered)
 
         // On initial calendar load, auto-navigate to the first confirmed appointment's date
-        if (viewMode === 'calendar' && res.data.appointments.length > 0) {
-          const firstConfirmed = res.data.appointments.find((a) => a.status === 'confirmed')
+        if (viewMode === 'calendar' && filtered.length > 0) {
+          const firstConfirmed = filtered.find((a) => a.status === 'confirmed')
           if (firstConfirmed) {
             const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
             setCalendarDate((prev) => {
@@ -547,7 +557,7 @@ export default function ClinicAdminAppointmentsPage() {
       }
     } catch { /* silent */ }
     finally { setLoading(false) }
-  }, [activeTab, viewMode, token])
+  }, [activeTab, viewMode, token, scheduleType])
 
   useEffect(() => { loadAppointments() }, [loadAppointments])
 
@@ -626,6 +636,30 @@ export default function ClinicAdminAppointmentsPage() {
                 }`}
               >
                 Previous
+              </button>
+            </div>
+
+            {/* Schedule Type Toggle */}
+            <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+              <button
+                onClick={() => setScheduleType('medical')}
+                className={`px-8 py-2.5 rounded-full text-sm font-medium transition-all ${
+                  scheduleType === 'medical'
+                    ? 'bg-[#7FA5A3] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-gray-50'
+                }`}
+              >
+                Medical Services
+              </button>
+              <button
+                onClick={() => setScheduleType('grooming')}
+                className={`px-8 py-2.5 rounded-full text-sm font-medium transition-all ${
+                  scheduleType === 'grooming'
+                    ? 'bg-[#7FA5A3] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-gray-50'
+                }`}
+              >
+                Grooming
               </button>
             </div>
 
