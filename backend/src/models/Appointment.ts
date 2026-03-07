@@ -55,7 +55,15 @@ const AppointmentSchema = new Schema(
     },
     types: {
       type: [String],
-      enum: ['consultation', 'vaccination', 'deworming', 'check-up'],
+      enum: [
+        'consultation', 'general-checkup', 'primary-treatment',
+        'vaccination', 'puppy-litter-vaccination', 'deworming',
+        'cbc', 'blood-chemistry-16', 'pcr-test',
+        'x-ray', 'ultrasound',
+        'abdominal-surgery', 'orthopedic-surgery', 'dental-scaling', 'laser-therapy',
+        'inpatient-care', 'outpatient-treatment', 'point-of-care-diagnostic',
+        'basic-grooming', 'full-grooming',
+      ],
       required: [true, 'At least one appointment type is required'],
       validate: {
         validator: (v: string[]) => v.length > 0,

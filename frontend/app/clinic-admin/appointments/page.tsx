@@ -1190,11 +1190,9 @@ function ClinicScheduleModal({
                           {hourSlots.map((slot) => {
                             const isSelected = selectedSlot?.startTime === slot.startTime
                             const isAvailable = slot.status === 'available'
-                            const isYourBooking = slot.status === 'your-booking'
-                            const isUnavailable = slot.status === 'unavailable'
+                            const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
 
                             let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
-                            if (isYourBooking) bg = 'bg-gray-300 text-gray-600 cursor-default'
                             if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
                             if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
 
@@ -1416,11 +1414,9 @@ function RescheduleModal({
                         {hourSlots.map((slot) => {
                           const isSelected = selectedSlot?.startTime === slot.startTime
                           const isAvailable = slot.status === 'available'
-                          const isYourBooking = slot.status === 'your-booking'
-                          const isUnavailable = slot.status === 'unavailable'
+                          const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
 
                           let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
-                          if (isYourBooking) bg = 'bg-gray-300 text-gray-600 cursor-default'
                           if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
                           if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
 

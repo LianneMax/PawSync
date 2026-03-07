@@ -56,21 +56,6 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ---- Generate mock slots when backend isn't connected ----
-function generateMockSlots(): TimeSlot[] {
-  const slots: TimeSlot[] = []
-  for (let h = 7; h < 17; h++) {
-    const hStr = h.toString().padStart(2, '0')
-    const nextH = (h + 1).toString().padStart(2, '0')
-    slots.push({ startTime: `${hStr}:00`, endTime: `${hStr}:30`, status: 'available' })
-    slots.push({ startTime: `${hStr}:30`, endTime: `${nextH}:00`, status: 'available' })
-  }
-  // Mark some as unavailable for demo
-  slots[0].status = 'unavailable'
-  slots[7].status = 'unavailable'
-  slots[12].status = 'unavailable'
-  return slots
-}
 
 // ---- Dropdown component ----
 function Dropdown({
@@ -231,6 +216,7 @@ export default function MyAppointmentsPage() {
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
           >
+            <Plus className="w-4 h-4" />
             Set an appointment
           </button>
         </div>
@@ -398,6 +384,7 @@ function ScheduleModal({
   })
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [slots, setSlots] = useState<TimeSlot[]>([])
+  const [isClosedDay, setIsClosedDay] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -443,19 +430,25 @@ function ScheduleModal({
 
   // Load slots when vet + date change
   useEffect(() => {
-    if (!selectedVetId || !selectedDate) { setSlots([]); return }
+    if (!selectedVetId || !selectedDate) { setSlots([]); setIsClosedDay(false); return }
     const load = async () => {
       setLoadingSlots(true)
+      setIsClosedDay(false)
       try {
         const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
         if (res.status === 'SUCCESS' && res.data) {
-          // Use real slots if available, otherwise fall back to mock
-          setSlots(res.data.slots && res.data.slots.length > 0 ? res.data.slots : generateMockSlots())
+          if (res.data.isClosed) {
+            setSlots([])
+            setIsClosedDay(true)
+          } else {
+            setSlots(res.data.slots || [])
+            setIsClosedDay(false)
+          }
         } else {
-          setSlots(generateMockSlots())
+          setSlots([])
         }
       } catch {
-        setSlots(generateMockSlots())
+        setSlots([])
       } finally {
         setLoadingSlots(false)
       }
@@ -489,6 +482,7 @@ function ScheduleModal({
       setSelectedTypes([])
       setSelectedSlot(null)
       setSlots([])
+      setIsClosedDay(false)
       setBranchVets([])
     }
   }, [open])
@@ -706,6 +700,14 @@ function ScheduleModal({
                 <div className="flex-1 flex items-center justify-center">
                   <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : isClosedDay ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">Vet is not available on this day</p>
+                </div>
+              ) : slots.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">No available slots for this date</p>
+                </div>
               ) : (
                 <>
                   <div className="flex-1 overflow-y-auto space-y-0.5 max-h-85 pr-1">
@@ -722,11 +724,9 @@ function ScheduleModal({
                           {hourSlots.map((slot) => {
                             const isSelected = selectedSlot?.startTime === slot.startTime
                             const isAvailable = slot.status === 'available'
-                            const isYourBooking = slot.status === 'your-booking'
-                            const isUnavailable = slot.status === 'unavailable'
+                            const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
 
                             let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
-                            if (isYourBooking) bg = 'bg-gray-300 text-gray-600 cursor-default'
                             if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
                             if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
 

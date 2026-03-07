@@ -221,33 +221,22 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       return res.status(200).json({ status: 'SUCCESS', data: { slots: [], isClosed: true } });
     }
 
-    const queryDate = new Date(date as string);
+    const [qy, qm, qd] = (date as string).split('-').map(Number);
+    const dayStart = new Date(Date.UTC(qy, qm - 1, qd, 0, 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(qy, qm - 1, qd, 23, 59, 59, 999));
 
     // Get all booked/confirmed slots for that vet on that date
     const booked = await Appointment.find({
       vetId: vetId as string,
-      date: queryDate,
-      status: { $in: ['pending', 'confirmed'] }
+      date: { $gte: dayStart, $lte: dayEnd },
+      status: { $in: ['pending', 'confirmed', 'in_progress'] }
     }).select('startTime endTime status ownerId');
-
-    // Get user's own bookings on that date with that vet
-    const userBookings = booked.filter(
-      (a) => a.ownerId.toString() === req.user!.userId
-    );
 
     const allSlots = generateTimeSlots(slotStart, slotEnd, slotBreakStart, slotBreakEnd);
 
     const slots = allSlots.map((slot) => {
       const bookedSlot = booked.find((b) => b.startTime === slot.startTime);
-      const isUserBooking = userBookings.some((b) => b.startTime === slot.startTime);
-
-      let status: 'available' | 'your-booking' | 'unavailable' = 'available';
-      if (isUserBooking) {
-        status = 'your-booking';
-      } else if (bookedSlot) {
-        status = 'unavailable';
-      }
-
+      const status: 'available' | 'unavailable' = bookedSlot ? 'unavailable' : 'available';
       return { ...slot, status };
     });
 
