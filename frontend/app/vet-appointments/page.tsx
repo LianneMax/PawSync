@@ -125,7 +125,12 @@ export default function VetAppointmentsPage() {
     try {
       const res = await authenticatedFetch('/appointments/vet', { method: 'GET' }, token)
       if (res.status === 'SUCCESS' && res.data?.appointments) {
-        setAppointments(res.data.appointments)
+        // Filter out grooming appointments - vets should not see grooming bookings
+        const filtered = res.data.appointments.filter((a: Appointment) => {
+          const hasGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+          return !hasGrooming
+        })
+        setAppointments(filtered)
       }
     } catch (err) {
       console.error('Failed to load appointments:', err)

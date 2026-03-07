@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
+import { authenticatedFetch } from '@/lib/auth'
 import { getMyPets, type Pet } from '@/lib/pets'
 import {
   getMyAppointments,
@@ -388,6 +389,9 @@ function ScheduleModal({
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  // Helper: Check if grooming is selected
+  const hasGrooming = selectedTypes.some(t => t === 'basic-grooming' || t === 'full-grooming')
+
   // Load pets + clinics/branches when modal opens
   useEffect(() => {
     if (!open) return
@@ -428,14 +432,28 @@ function ScheduleModal({
     load()
   }, [selectedBranchId, token])
 
-  // Load slots when vet + date change
+  // Load slots when vet + date change (or grooming + branch + date change)
   useEffect(() => {
-    if (!selectedVetId || !selectedDate) { setSlots([]); setIsClosedDay(false); return }
+    const shouldLoadSlots = hasGrooming ? (selectedBranchId && selectedDate) : (selectedVetId && selectedDate)
+    if (!shouldLoadSlots) { setSlots([]); setIsClosedDay(false); return }
+    
     const load = async () => {
       setLoadingSlots(true)
       setIsClosedDay(false)
       try {
-        const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
+        let res
+        if (hasGrooming) {
+          // Load grooming slots for the branch
+          res = await authenticatedFetch(
+            `/appointments/grooming-slots?branchId=${selectedBranchId}&date=${selectedDate}`,
+            { method: 'GET' },
+            token || undefined
+          )
+        } else {
+          // Load vet slots (existing logic)
+          res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
+        }
+        
         if (res.status === 'SUCCESS' && res.data) {
           if (res.data.isClosed) {
             setSlots([])
@@ -454,7 +472,7 @@ function ScheduleModal({
       }
     }
     load()
-  }, [selectedVetId, selectedDate, selectedBranchId, token])
+  }, [selectedVetId, selectedDate, selectedBranchId, token, hasGrooming])
 
   // Reset types when mode changes
   useEffect(() => {
@@ -505,7 +523,7 @@ function ScheduleModal({
   const handleSubmit = async () => {
     if (!selectedPetId) return toast.error('Please select a pet')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
-    if (!selectedVetId) return toast.error('Please select a veterinarian')
+    if (!hasGrooming && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
     if (!selectedSlot) return toast.error('Please select a time slot')
@@ -615,7 +633,14 @@ function ScheduleModal({
                 options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
                 onSelect={setMode}
               />
-              {!selectedBranchId ? (
+              {hasGrooming ? (
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Veterinarian</p>
+                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                    Not applicable for grooming
+                  </div>
+                </div>
+              ) : !selectedBranchId ? (
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
                   <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
@@ -684,7 +709,15 @@ function ScheduleModal({
           {/* Right: Time Table */}
           <div className="w-65 shrink-0">
             <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col">
-              {!selectedVetId ? (
+              {!selectedBranchId ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">Select a clinic branch to view available slots</p>
+                </div>
+              ) : hasGrooming && !selectedVetId ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">Select a date to view available grooming slots</p>
+                </div>
+              ) : !hasGrooming && !selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a veterinarian to view available slots</p>
                 </div>
@@ -694,7 +727,7 @@ function ScheduleModal({
                 </div>
               ) : isClosedDay ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-gray-400 text-center">Vet is not available on this day</p>
+                  <p className="text-sm text-gray-400 text-center">{hasGrooming ? 'Groomer' : 'Vet'} is not available on this day</p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
