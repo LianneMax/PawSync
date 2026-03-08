@@ -633,14 +633,7 @@ function ScheduleModal({
                 options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
                 onSelect={setMode}
               />
-              {hasGrooming ? (
-                <div>
-                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Veterinarian</p>
-                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
-                    Not applicable for grooming
-                  </div>
-                </div>
-              ) : !selectedBranchId ? (
+              {!selectedBranchId ? (
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
                   <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
@@ -716,6 +709,10 @@ function ScheduleModal({
               ) : !hasGrooming && !selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a veterinarian to view available slots</p>
+                </div>
+              ) : !selectedDate ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">Select a date to view available slots</p>
                 </div>
               ) : loadingSlots ? (
                 <div className="flex-1 flex items-center justify-center">
