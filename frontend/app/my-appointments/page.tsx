@@ -114,11 +114,19 @@ function Dropdown({
 export default function MyAppointmentsPage() {
   const { token } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
+  const [serviceType, setServiceType] = useState<'all' | 'medical' | 'grooming'>('all')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
+
+  // Filtered appointments based on service type
+  const filteredAppointments = appointments.filter((a) => {
+    if (serviceType === 'all') return true
+    const isGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+    return serviceType === 'grooming' ? isGrooming : !isGrooming
+  })
 
   // Load appointments
   const loadAppointments = useCallback(async () => {
@@ -190,7 +198,7 @@ export default function MyAppointmentsPage() {
         </div>
 
         {/* Tabs + Action */}
-        <div className="flex items-center justify-between mt-6 mb-6">
+        <div className="flex items-center justify-between mt-6 mb-4">
           <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
             <button
               onClick={() => setActiveTab('upcoming')}
@@ -222,14 +230,31 @@ export default function MyAppointmentsPage() {
           </button>
         </div>
 
+        {/* Service Type Filter */}
+        <div className="inline-flex bg-white rounded-full p-1 shadow-sm mb-6 border border-gray-100">
+          {(['all', 'medical', 'grooming'] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setServiceType(type)}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-all capitalize ${
+                serviceType === type
+                  ? 'bg-[#7FA5A3] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              {type === 'all' ? 'All' : type === 'medical' ? 'Medical Services' : 'Clinic Services'}
+            </button>
+          ))}
+        </div>
+
         {/* Appointments List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : appointments.length > 0 ? (
+        ) : filteredAppointments.length > 0 ? (
           <div className="space-y-4">
-            {appointments.map((appt) => (
+            {filteredAppointments.map((appt) => (
               <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {appt.petId?.photo ? (
@@ -286,7 +311,13 @@ export default function MyAppointmentsPage() {
               {activeTab === 'upcoming' ? (
                 <>
                   <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-6">No upcoming appointments</p>
+                  <p className="text-gray-500 mb-6">
+                    {serviceType === 'all'
+                      ? 'No upcoming appointments'
+                      : serviceType === 'medical'
+                      ? 'No upcoming medical service appointments'
+                      : 'No upcoming clinic service appointments'}
+                  </p>
                   <button
                     onClick={() => setModalOpen(true)}
                     className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
@@ -298,7 +329,13 @@ export default function MyAppointmentsPage() {
               ) : (
                 <>
                   <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No past appointments</p>
+                  <p className="text-gray-500">
+                    {serviceType === 'all'
+                      ? 'No past appointments'
+                      : serviceType === 'medical'
+                      ? 'No past medical service appointments'
+                      : 'No past clinic service appointments'}
+                  </p>
                 </>
               )}
             </div>
@@ -389,8 +426,10 @@ function ScheduleModal({
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Helper: Check if grooming is selected
+  // Helper: grooming/medical checks
   const hasGrooming = selectedTypes.some(t => t === 'basic-grooming' || t === 'full-grooming')
+  const hasMedical = selectedTypes.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+  const isGroomingOnly = hasGrooming && !hasMedical
 
   // Load pets + clinics/branches when modal opens
   useEffect(() => {
@@ -434,15 +473,15 @@ function ScheduleModal({
 
   // Load slots when vet + date change (or grooming + branch + date change)
   useEffect(() => {
-    const shouldLoadSlots = hasGrooming ? (selectedBranchId && selectedDate) : (selectedVetId && selectedDate)
+    const shouldLoadSlots = isGroomingOnly ? (selectedBranchId && selectedDate) : (selectedVetId && selectedDate)
     if (!shouldLoadSlots) { setSlots([]); setIsClosedDay(false); return }
-    
+
     const load = async () => {
       setLoadingSlots(true)
       setIsClosedDay(false)
       try {
         let res
-        if (hasGrooming) {
+        if (isGroomingOnly) {
           // Load grooming slots for the branch
           res = await authenticatedFetch(
             `/appointments/grooming-slots?branchId=${selectedBranchId}&date=${selectedDate}`,
@@ -450,7 +489,7 @@ function ScheduleModal({
             token || undefined
           )
         } else {
-          // Load vet slots (existing logic)
+          // Load vet slots (medical or mixed)
           res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
         }
         
@@ -472,7 +511,7 @@ function ScheduleModal({
       }
     }
     load()
-  }, [selectedVetId, selectedDate, selectedBranchId, token, hasGrooming])
+  }, [selectedVetId, selectedDate, selectedBranchId, token, isGroomingOnly])
 
   // Reset types when mode changes
   useEffect(() => {
@@ -584,7 +623,7 @@ function ScheduleModal({
   const handleSubmit = async () => {
     if (!selectedPetId) return toast.error('Please select a pet')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
-    if (!hasGrooming && !selectedVetId) return toast.error('Please select a veterinarian')
+    if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
     if (!selectedSlot) return toast.error('Please select a time slot')
@@ -701,11 +740,11 @@ function ScheduleModal({
                 options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
                 onSelect={setMode}
               />
-              {hasGrooming ? (
+              {isGroomingOnly ? (
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Veterinarian</p>
                   <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
-                    Not applicable for grooming
+                    Not applicable for grooming only
                   </div>
                 </div>
               ) : !selectedBranchId ? (
@@ -781,7 +820,7 @@ function ScheduleModal({
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a clinic branch to view available slots</p>
                 </div>
-              ) : !hasGrooming && !selectedVetId ? (
+              ) : !isGroomingOnly && !selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a veterinarian to view available slots</p>
                 </div>
@@ -795,7 +834,7 @@ function ScheduleModal({
                 </div>
               ) : isClosedDay ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-gray-400 text-center">{hasGrooming ? 'Groomer' : 'Vet'} is not available on this day</p>
+                  <p className="text-sm text-gray-400 text-center">{isGroomingOnly ? 'Groomer' : 'Vet'} is not available on this day</p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">

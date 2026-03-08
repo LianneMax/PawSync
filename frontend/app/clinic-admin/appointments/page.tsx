@@ -35,6 +35,8 @@ import {
   Check,
   Search,
   AlertTriangle,
+  Scissors,
+  Building2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -304,11 +306,11 @@ function CalendarGridView({
               <div className="w-20 shrink-0 px-3 py-3 bg-gray-50" />
               {/* Branch column */}
               <div className="flex-1 min-w-60 px-3 py-3 bg-gray-50 border-l border-gray-100 text-center">
-                <div className="w-10 h-10 rounded-full bg-[#E8D5B7]/30 flex items-center justify-center mx-auto mb-1.5">
-                  <span className="text-sm font-semibold text-[#B8860B]">🏥</span>
+                <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                  <Building2 className="w-4 h-4 text-[#5A7C7A] shrink-0" />
+                  <p className="text-sm font-medium text-[#4F4F4F]">{branchName}</p>
                 </div>
-                <p className="text-sm font-medium text-[#4F4F4F]">{branchName}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Grooming</p>
+                <p className="text-[10px] text-gray-400">Grooming</p>
               </div>
             </div>
 
@@ -660,28 +662,26 @@ export default function ClinicAdminAppointmentsPage() {
   // Load appointments (backend auto-filters by branch from JWT)
   const loadAppointments = useCallback(async () => {
     setLoading(true)
+    setAppointments([])
     try {
-      const params: { filter?: 'upcoming' | 'previous' } = {}
-      if (viewMode === 'calendar') {
-        params.filter = 'upcoming'
-      } else {
-        params.filter = activeTab
-      }
-      const res = await getClinicAppointments(params, token || undefined)
+      // Calendar view is only available for upcoming; activeTab is the source of truth for the filter
+      const res = await getClinicAppointments({ filter: activeTab }, token || undefined)
       if (res.status === 'SUCCESS' && res.data) {
         // Filter appointments based on schedule type
+        // Mixed appointments (grooming + medical) appear in both tabs
         const filtered = res.data.appointments.filter((a: Appointment) => {
-          const hasGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+          const apptHasGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+          const apptHasMedical = a.types?.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
           if (scheduleType === 'grooming') {
-            return hasGrooming
+            return apptHasGrooming
           } else {
-            return !hasGrooming
+            return apptHasMedical
           }
         })
         setAppointments(filtered)
 
         // On initial calendar load, auto-navigate to the first active appointment's date
-        if (viewMode === 'calendar' && filtered.length > 0) {
+        if (activeTab === 'upcoming' && viewMode === 'calendar' && filtered.length > 0) {
           const firstConfirmed = filtered.find((a) => ['confirmed', 'in_progress', 'pending'].includes(a.status))
           if (firstConfirmed) {
             const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
@@ -750,37 +750,47 @@ export default function ClinicAdminAppointmentsPage() {
           <p className="text-sm text-gray-500 mt-1">Manage and schedule appointments for your clinic</p>
         </div>
 
-        {/* Tabs + Actions */}
-        <div className="flex items-center justify-between mt-6 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
-              <button
-                onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}
-                className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
-                  activeTab === 'upcoming'
-                    ? 'bg-[#476B6B] text-white shadow-sm'
-                    : 'text-[#4F4F4F] hover:bg-gray-50'
-                }`}
-              >
-                Upcoming
-              </button>
-              <button
-                onClick={() => { setActiveTab('previous'); setViewMode('list') }}
-                className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
-                  activeTab === 'previous'
-                    ? 'bg-[#476B6B] text-white shadow-sm'
-                    : 'text-[#4F4F4F] hover:bg-gray-50'
-                }`}
-              >
-                Previous
-              </button>
-            </div>
+        {/* Row 1: Tabs + Action */}
+        <div className="flex items-center justify-between mt-6 mb-4">
+          <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+            <button
+              onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}
+              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'upcoming'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              Upcoming
+            </button>
+            <button
+              onClick={() => { setActiveTab('previous'); setViewMode('list') }}
+              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'previous'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              Previous
+            </button>
+          </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Set an appointment
+          </button>
+        </div>
 
+        {/* Row 2: Schedule type + view toggle */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
             {/* Schedule Type Toggle */}
-            <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+            <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-100">
               <button
                 onClick={() => setScheduleType('medical')}
-                className={`px-8 py-2.5 rounded-full text-sm font-medium transition-all ${
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                   scheduleType === 'medical'
                     ? 'bg-[#7FA5A3] text-white shadow-sm'
                     : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -790,52 +800,44 @@ export default function ClinicAdminAppointmentsPage() {
               </button>
               <button
                 onClick={() => setScheduleType('grooming')}
-                className={`px-8 py-2.5 rounded-full text-sm font-medium transition-all ${
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                   scheduleType === 'grooming'
                     ? 'bg-[#7FA5A3] text-white shadow-sm'
                     : 'text-[#4F4F4F] hover:bg-gray-50'
                 }`}
               >
-                Grooming
+                Clinic Services
               </button>
             </div>
 
             {/* Branch name indicator */}
             {branches.length > 0 && (
-              <span className="px-3 py-2 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium">
+              <span className="px-3 py-1.5 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium">
                 {branches[0]?.name || 'My Branch'}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            {activeTab === 'upcoming' && (
-              <div className="flex items-center bg-gray-100 rounded-xl p-0.5">
-                <button
-                  onClick={() => setViewMode('calendar')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    viewMode === 'calendar' ? 'bg-white shadow-sm text-[#4F4F4F]' : 'text-gray-500'
-                  }`}
-                >
-                  Calendar
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    viewMode === 'list' ? 'bg-white shadow-sm text-[#4F4F4F]' : 'text-gray-500'
-                  }`}
-                >
-                  List
-                </button>
-              </div>
-            )}
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
-            >
-              Set an appointment
-            </button>
-          </div>
+          {activeTab === 'upcoming' && (
+            <div className="flex items-center bg-gray-100 rounded-xl p-0.5">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  viewMode === 'calendar' ? 'bg-white shadow-sm text-[#4F4F4F]' : 'text-gray-500'
+                }`}
+              >
+                Calendar
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  viewMode === 'list' ? 'bg-white shadow-sm text-[#4F4F4F]' : 'text-gray-500'
+                }`}
+              >
+                List
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -1063,6 +1065,11 @@ function ClinicScheduleModal({
   const [isEmergency, setIsEmergency] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  // Helper: grooming/medical checks
+  const hasGrooming = selectedTypes.some(t => t === 'basic-grooming' || t === 'full-grooming')
+  const hasMedical = selectedTypes.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+  const isGroomingOnly = hasGrooming && !hasMedical
+
   // Load pets when owner changes
   useEffect(() => {
     if (!selectedOwner) { setOwnerPets([]); setSelectedPetId(''); return }
@@ -1099,13 +1106,23 @@ function ClinicScheduleModal({
     load()
   }, [selectedBranchId, token])
 
-  // Load slots when vet + date change
+  // Load slots when vet + date change (or grooming + branch + date change)
   useEffect(() => {
-    if (!selectedVetId || !selectedDate) { setSlots([]); setSlotsIsClosed(false); return }
+    const shouldLoadSlots = isGroomingOnly ? (selectedBranchId && selectedDate) : (selectedVetId && selectedDate)
+    if (!shouldLoadSlots) { setSlots([]); setSlotsIsClosed(false); return }
     const load = async () => {
       setLoadingSlots(true)
       try {
-        const res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
+        let res
+        if (isGroomingOnly) {
+          res = await authenticatedFetch(
+            `/appointments/grooming-slots?branchId=${selectedBranchId}&date=${selectedDate}`,
+            { method: 'GET' },
+            token || undefined
+          )
+        } else {
+          res = await getAvailableSlots(selectedVetId, selectedDate, token || undefined, selectedBranchId || undefined)
+        }
         if (res.status === 'SUCCESS' && res.data) {
           setSlotsIsClosed(res.data.isClosed ?? false)
           setSlots(res.data.slots ?? [])
@@ -1117,7 +1134,7 @@ function ClinicScheduleModal({
       finally { setLoadingSlots(false) }
     }
     load()
-  }, [selectedVetId, selectedDate, selectedBranchId, token])
+  }, [selectedVetId, selectedDate, selectedBranchId, token, isGroomingOnly])
 
   // Reset types when mode changes
   useEffect(() => {
@@ -1167,13 +1184,19 @@ function ClinicScheduleModal({
 
   const handleTypeChange = (types: string[]) => {
     setSelectedTypes(types)
+    const nowGroomingOnly = types.some(t => t === 'basic-grooming' || t === 'full-grooming') &&
+      !types.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+    if (nowGroomingOnly) {
+      setSelectedVetId('')
+      setSelectedSlot(null)
+    }
   }
 
   const handleSubmit = async () => {
     if (!selectedOwner) return toast.error('Please select a pet owner')
     if (!selectedPetId) return toast.error('Please select a pet')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
-    if (!selectedVetId) return toast.error('Please select a veterinarian')
+    if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
     if (!selectedSlot) return toast.error('Please select a time slot')
@@ -1255,10 +1278,10 @@ function ClinicScheduleModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-225 p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-225 max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-8 pb-2">
-          <h2 className="text-3xl font-bold text-[#2C3E2D]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+        <div className="flex items-center justify-between px-8 pt-8 pb-2 shrink-0">
+          <h2 className="text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
             Schedule Appointment
           </h2>
           <button
@@ -1269,7 +1292,7 @@ function ClinicScheduleModal({
           </button>
         </div>
 
-        <div className="flex px-8 pb-8 pt-4 gap-8">
+        <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
             {/* Owner Search (full width) */}
@@ -1330,7 +1353,14 @@ function ClinicScheduleModal({
                 options={branchOptions}
                 onSelect={setSelectedBranchId}
               />
-              {!selectedBranchId ? (
+              {isGroomingOnly ? (
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Veterinarian</p>
+                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                    Not applicable for grooming only
+                  </div>
+                </div>
+              ) : !selectedBranchId ? (
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
                   <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
@@ -1456,7 +1486,11 @@ function ClinicScheduleModal({
           {/* Right: Time Table */}
           <div className="w-65 shrink-0">
             <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col">
-              {!selectedVetId ? (
+              {!selectedBranchId ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">Select a clinic branch to view available slots</p>
+                </div>
+              ) : !isGroomingOnly && !selectedVetId ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a veterinarian to view available slots</p>
                 </div>
@@ -1466,7 +1500,7 @@ function ClinicScheduleModal({
                 </div>
               ) : slotsIsClosed ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-gray-400 text-center">Vet is not available on this date</p>
+                  <p className="text-sm text-gray-400 text-center">{isGroomingOnly ? 'Groomer' : 'Vet'} is not available on this date</p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -1540,7 +1574,7 @@ function ClinicScheduleModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-center gap-4 px-8 pb-8">
+        <div className="flex items-center justify-center gap-4 px-8 py-4 shrink-0 border-t border-gray-100">
           <button
             onClick={handleSubmit}
             disabled={submitting}

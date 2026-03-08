@@ -158,13 +158,13 @@ export default function AppointmentServiceSelector({
     } else {
       // Selecting a service
       if (isGroomingOption) {
-        // Selecting a grooming option: remove all medical services and other grooming options
-        const newValues = [serviceValue]
-        onChange(newValues)
+        // Selecting a grooming option: replace any other grooming type (only one at a time),
+        // but keep existing medical services
+        const withoutOtherGrooming = values.filter((v) => !groomingOptions.includes(v))
+        onChange([...withoutOtherGrooming, serviceValue])
       } else {
-        // Selecting a medical service: remove all grooming services
-        const medicalOnly = values.filter((v) => !groomingOptions.includes(v))
-        onChange([...medicalOnly, serviceValue])
+        // Selecting a medical service: just add it (grooming can coexist)
+        onChange([...values, serviceValue])
       }
     }
   }
