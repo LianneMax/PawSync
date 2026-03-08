@@ -762,26 +762,50 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 </div>
               </div>
 
-              {/* Service checkboxes */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Services Performed</p>
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { state: xray, set: setXray, label: 'X-Ray' },
-                    { state: ultrasound, set: setUltrasound, label: 'Ultrasound' },
-                    { state: availedProducts, set: setAvailedProducts, label: 'Availed Products' },
-                  ].map(({ state, set, label }) => (
-                    <label key={label} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={state}
-                        onChange={(e) => set(e.target.checked)}
-                        className="w-4 h-4 accent-[#476B6B]"
-                      />
-                      <span className="text-sm text-gray-600">{label}</span>
-                    </label>
-                  ))}
-                </div>
+              {/* Diagnostic Tests */}
+              <div className="border border-gray-100 rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setTestsOpen(!testsOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-sm font-semibold text-[#4F4F4F] flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4 text-[#7FA5A3]" />
+                    Diagnostic Tests <span className="text-xs font-normal text-gray-400 ml-1">({diagnosticTests.length})</span>
+                  </span>
+                  {testsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </button>
+                {testsOpen && (
+                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
+                    {diagnosticTests.map((test, i) => (
+                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-500">Test {i + 1}</span>
+                          <button onClick={() => setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select value={test.testType} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, testType: e.target.value as DiagnosticTest['testType'] } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
+                            <option value="blood_work">Blood Work</option>
+                            <option value="x_ray">X-Ray</option>
+                            <option value="ultrasound">Ultrasound</option>
+                            <option value="urinalysis">Urinalysis</option>
+                            <option value="ecg">ECG</option>
+                            <option value="other">Other</option>
+                          </select>
+                          <input type="text" placeholder="Test name" value={test.name} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <input type="date" value={test.date || ''} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, date: e.target.value || null } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <input type="text" placeholder="Normal range" value={test.normalRange} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, normalRange: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                        </div>
+                        <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
+                        <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                      </div>
+                    ))}
+                    <button onClick={() => setDiagnosticTests((prev) => [...prev, emptyDiagnosticTest()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
+                      <Plus className="w-3.5 h-3.5" /> Add Test
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Vet Notes */}
@@ -1004,52 +1028,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     ))}
                     <button onClick={() => setMedications((prev) => [...prev, emptyMedication()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add Medication
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Diagnostic Tests */}
-              <div className="border border-gray-100 rounded-2xl overflow-hidden">
-                <button
-                  onClick={() => setTestsOpen(!testsOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm font-semibold text-[#4F4F4F] flex items-center gap-2">
-                    <FlaskConical className="w-4 h-4 text-[#7FA5A3]" />
-                    Diagnostic Tests <span className="text-xs font-normal text-gray-400 ml-1">({diagnosticTests.length})</span>
-                  </span>
-                  {testsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                </button>
-                {testsOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
-                    {diagnosticTests.map((test, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-gray-500">Test {i + 1}</span>
-                          <button onClick={() => setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={test.testType} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, testType: e.target.value as DiagnosticTest['testType'] } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="blood_work">Blood Work</option>
-                            <option value="x_ray">X-Ray</option>
-                            <option value="ultrasound">Ultrasound</option>
-                            <option value="urinalysis">Urinalysis</option>
-                            <option value="ecg">ECG</option>
-                            <option value="other">Other</option>
-                          </select>
-                          <input type="text" placeholder="Test name" value={test.name} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="date" value={test.date || ''} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, date: e.target.value || null } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="text" placeholder="Normal range" value={test.normalRange} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, normalRange: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                        </div>
-                        <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
-                        <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                      </div>
-                    ))}
-                    <button onClick={() => setDiagnosticTests((prev) => [...prev, emptyDiagnosticTest()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
-                      <Plus className="w-3.5 h-3.5" /> Add Test
                     </button>
                   </div>
                 )}
