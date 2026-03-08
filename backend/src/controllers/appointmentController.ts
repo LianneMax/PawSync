@@ -51,6 +51,13 @@ function generateTimeSlots(
   return slots;
 }
 
+/** Add `minutes` minutes to a "HH:MM" string, returns "HH:MM" */
+function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+}
+
 /**
  * Create a new appointment
  */
@@ -818,20 +825,125 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       }
     }
 
-    // For emergency appointments, find all confirmed/pending appointments for this vet
-    // on the same date at or after the emergency start time (these will be delayed)
-    let displacedAppointments: any[] = [];
+    // For emergency appointments, push all overlapping/subsequent appointments down by 30 min.
+    // If pushed time exceeds vet's working hours, reschedule to the next available working day.
+    let rescheduledAppointments: any[] = [];
     if (isEmergency) {
-      displacedAppointments = await Appointment.find({
+      // Resolve vet working hours for this branch
+      let schedSlotStart = '07:00';
+      let schedSlotEnd = '17:00';
+      let schedBreakStart: string | null = null;
+      let schedBreakEnd: string | null = null;
+      let vetSchedDoc: any = null;
+      let branchFallbackDoc: any = null;
+
+      const vetSched = await VetSchedule.findOne({ vetId, branchId: clinicBranchId });
+      if (vetSched) {
+        vetSchedDoc = vetSched;
+        schedSlotStart = vetSched.startTime;
+        schedSlotEnd = vetSched.endTime;
+        schedBreakStart = vetSched.breakStart ?? null;
+        schedBreakEnd = vetSched.breakEnd ?? null;
+      } else {
+        const branch = await ClinicBranch.findById(clinicBranchId);
+        branchFallbackDoc = branch;
+        if (branch?.openingTime) schedSlotStart = branch.openingTime;
+        if (branch?.closingTime) schedSlotEnd = branch.closingTime;
+      }
+
+      const displaced = await Appointment.find({
         vetId,
         date: new Date(date),
         startTime: { $gte: startTime },
         status: { $in: ['pending', 'confirmed'] }
-      })
-      .populate('petId', 'name')
-      .populate('ownerId', 'firstName lastName')
-      .sort({ startTime: 1 })
-      .lean();
+      }).sort({ startTime: 1 });
+
+      for (const appt of displaced) {
+        const newStart = addMinutes(appt.startTime, 30);
+        const newEnd = addMinutes(appt.endTime, 30);
+
+        if (newEnd <= schedSlotEnd) {
+          // Still within working hours — shift by 30 min on the same day
+          appt.startTime = newStart;
+          appt.endTime = newEnd;
+          await appt.save();
+          rescheduledAppointments.push(appt);
+        } else {
+          // Exceeds working hours — find the next available working day slot
+          const apptYear = (appt.date as Date).getUTCFullYear();
+          const apptMonth = (appt.date as Date).getUTCMonth();
+          const apptDay = (appt.date as Date).getUTCDate();
+
+          let nextDate: Date | null = null;
+          let nextStart: string | null = null;
+          let nextEnd: string | null = null;
+
+          // Search up to 14 days ahead for a free slot on a working day
+          for (let i = 1; i <= 14; i++) {
+            const candidate = new Date(Date.UTC(apptYear, apptMonth, apptDay + i));
+            const candidateDayName = DAY_NAMES[candidate.getUTCDay()];
+
+            // Check vet works on this day
+            if (vetSchedDoc) {
+              if (!vetSchedDoc.workingDays.includes(candidateDayName)) continue;
+            } else if (branchFallbackDoc) {
+              if (branchFallbackDoc.operatingDays.length > 0 && !branchFallbackDoc.operatingDays.includes(candidateDayName)) continue;
+            }
+
+            // Generate all possible slots for this day
+            const candidateSlots = generateTimeSlots(schedSlotStart, schedSlotEnd, schedBreakStart, schedBreakEnd);
+
+            // Get already-booked slots on this candidate day
+            const candidateDayStart = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate(), 0, 0, 0));
+            const candidateDayEnd = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate(), 23, 59, 59, 999));
+
+            const bookedOnDay = await Appointment.find({
+              vetId,
+              date: { $gte: candidateDayStart, $lte: candidateDayEnd },
+              status: { $in: ['pending', 'confirmed', 'in_progress'] },
+              _id: { $ne: appt._id }
+            }).select('startTime');
+
+            const bookedTimes = new Set(bookedOnDay.map((b: any) => b.startTime));
+            const freeSlot = candidateSlots.find(s => !bookedTimes.has(s.startTime));
+
+            if (freeSlot) {
+              nextDate = candidate;
+              nextStart = freeSlot.startTime;
+              nextEnd = freeSlot.endTime;
+              break;
+            }
+          }
+
+          if (nextDate && nextStart && nextEnd) {
+            appt.date = nextDate;
+            appt.startTime = nextStart;
+            appt.endTime = nextEnd;
+            await appt.save();
+            rescheduledAppointments.push(appt);
+          }
+        }
+
+        // Notify the displaced appointment owner about the reschedule (fire-and-forget)
+        Promise.all([
+          User.findById(appt.ownerId).select('firstName email'),
+          Pet.findById(appt.petId).select('name'),
+          User.findById(appt.vetId).select('firstName lastName'),
+          ClinicBranch.findById(appt.clinicBranchId).select('name'),
+        ]).then(async ([apptOwner, apptPet, apptVet, apptBranch]) => {
+          if (!apptOwner || !apptPet || !apptVet || !apptBranch) return;
+          const newDateStr = (appt.date as Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          await createNotification(
+            appt.ownerId.toString(),
+            'appointment_rescheduled',
+            'Appointment Rescheduled',
+            `Your appointment for ${(apptPet as any).name} with Dr. ${(apptVet as any).firstName} ${(apptVet as any).lastName} at ${(apptBranch as any).name} has been rescheduled to ${newDateStr} at ${appt.startTime} due to an emergency patient.`,
+            { appointmentId: appt._id }
+          );
+        }).catch((err) => {
+          console.error('[Appointment] Reschedule notification error:', err);
+        });
+      }
     }
 
     const appointment = await Appointment.create({
@@ -889,7 +1001,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Appointment booked successfully',
-      data: { appointment, displacedAppointments }
+      data: { appointment, rescheduledAppointments }
     });
   } catch (error: any) {
     console.error('Create clinic appointment error:', error);
@@ -913,11 +1025,31 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    // Use clinicId from JWT if available, otherwise fallback to adminId lookup
+    // Resolve clinic — mirrors getClinicForAdmin in clinicController for consistency
     let clinic;
     if (req.user.clinicId) {
       clinic = await Clinic.findOne({ _id: req.user.clinicId, isActive: true });
-    } else {
+    }
+    if (!clinic && req.user.clinicBranchId) {
+      const branch = await ClinicBranch.findById(req.user.clinicBranchId).select('clinicId');
+      if (branch?.clinicId) {
+        clinic = await Clinic.findOne({ _id: branch.clinicId, isActive: true });
+      }
+    }
+    // Stale-JWT fallback: look up from the User document directly
+    if (!clinic) {
+      const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
+      if (dbUser?.clinicId) {
+        clinic = await Clinic.findOne({ _id: dbUser.clinicId, isActive: true });
+      } else if (dbUser?.branchId) {
+        const branch = await ClinicBranch.findById(dbUser.branchId).select('clinicId');
+        if (branch?.clinicId) {
+          clinic = await Clinic.findOne({ _id: branch.clinicId, isActive: true });
+        }
+      }
+    }
+    // Legacy fallback: clinic where this user is the adminId
+    if (!clinic) {
       clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
     }
     if (!clinic) {
@@ -927,9 +1059,19 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     const { date, branchId, filter } = req.query;
     const query: any = { clinicId: clinic._id };
 
-    // Auto-filter by branch from JWT, or allow explicit branchId query param
-    if (req.user.clinicBranchId) {
-      query.clinicBranchId = req.user.clinicBranchId;
+    // Branch filtering:
+    // - branch-admin: always restrict to their assigned branch
+    // - clinic-admin: sees all branches unless a specific branchId is passed as a query param
+    if (req.user.userType === 'branch-admin') {
+      // Prefer JWT branchId; fall back to User document if JWT is stale
+      let resolvedBranchId = req.user.branchId;
+      if (!resolvedBranchId) {
+        const dbUser = await User.findById(req.user.userId).select('branchId');
+        resolvedBranchId = dbUser?.branchId?.toString();
+      }
+      if (resolvedBranchId) {
+        query.clinicBranchId = resolvedBranchId;
+      }
     } else if (branchId) {
       query.clinicBranchId = branchId;
     }
@@ -945,7 +1087,7 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
 
     const now = new Date();
     if (filter === 'upcoming') {
-      query.status = { $in: ['pending', 'confirmed'] };
+      query.status = { $in: ['pending', 'confirmed', 'in_progress'] };
       if (!date) {
         query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
       }

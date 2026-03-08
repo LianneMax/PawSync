@@ -55,7 +55,8 @@ const appointmentModes = [
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500' },
-  completed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
+  in_progress: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
+  completed: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-l-gray-400' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-l-red-500' },
 }
 
@@ -266,9 +267,9 @@ function CalendarGridView({
     year: 'numeric',
   })
 
-  // Only show confirmed appointments for the selected date in the calendar view
+  // Show active appointments (pending, confirmed, in_progress) for the selected date in the calendar view
   const confirmedAppointments = appointments.filter((a) => {
-    if (a.status !== 'confirmed') return false
+    if (!['pending', 'confirmed', 'in_progress'].includes(a.status)) return false
     // Match by date (compare YYYY-MM-DD)
     const apptDate = new Date(a.date).toISOString().split('T')[0]
     return apptDate === selectedDate
@@ -557,8 +558,16 @@ function CalendarGridView({
       {/* Legend */}
       <div className="flex items-center justify-center gap-5 px-6 py-3 border-t border-gray-100 bg-gray-50">
         <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-amber-400" />
+          <span className="text-[10px] text-gray-500">Pending</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-green-500" />
           <span className="text-[10px] text-gray-500">Confirmed</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-blue-500" />
+          <span className="text-[10px] text-gray-500">In Progress</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-red-500" />
@@ -671,9 +680,9 @@ export default function ClinicAdminAppointmentsPage() {
         })
         setAppointments(filtered)
 
-        // On initial calendar load, auto-navigate to the first confirmed appointment's date
+        // On initial calendar load, auto-navigate to the first active appointment's date
         if (viewMode === 'calendar' && filtered.length > 0) {
-          const firstConfirmed = filtered.find((a) => a.status === 'confirmed')
+          const firstConfirmed = filtered.find((a) => ['confirmed', 'in_progress', 'pending'].includes(a.status))
           if (firstConfirmed) {
             const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
             setCalendarDate((prev) => {
