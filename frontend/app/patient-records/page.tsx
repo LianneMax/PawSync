@@ -1626,6 +1626,8 @@ function ViewRecordModal({
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [expandedFollowUps, setExpandedFollowUps] = useState<Set<string>>(new Set())
+  const [followUpsMinimized, setFollowUpsMinimized] = useState(false)
+  const [lightboxMedia, setLightboxMedia] = useState<{ src: string; contentType: string; description?: string } | null>(null)
 
   const toggleFollowUp = (id: string) => {
     setExpandedFollowUps((prev) => {
@@ -1790,15 +1792,160 @@ function ViewRecordModal({
     win.document.close()
   }
 
+  if (!open) return null
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-5xl h-[92vh] p-0 gap-0 [&>button]:hidden overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+
+      {/* Side-by-side container */}
+      <div className="relative flex items-start gap-2 w-[70vw] h-[80vh]">
+
+        {/* ===== FOLLOW-UPS PANEL (left, collapsible) ===== */}
+        {record && (
+          <div className={`bg-white rounded-xl shadow-xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${followUpsMinimized ? 'w-10' : 'w-[30rem]'}`}>
+            {followUpsMinimized ? (
+              <button
+                onClick={() => setFollowUpsMinimized(false)}
+                className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+              >
+                <ChevronRightIcon className="w-4 h-4 shrink-0" />
+                <span
+                  className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
+                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                >
+                  Follow-ups ({record.followUps?.length || 0})
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
+                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Follow-ups ({record.followUps?.length || 0})
+                  </h2>
+                  <button
+                    onClick={() => setFollowUpsMinimized(true)}
+                    className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
+                    title="Minimize panel"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {(!record.followUps || record.followUps.length === 0) ? (
+                    <div className="px-4 py-8 text-center flex items-center justify-center h-full">
+                      <p className="text-xs text-gray-400 leading-relaxed">No follow-up records for this visit yet.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      {[...(record.followUps)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((fu) => {
+                        const isExpanded = expandedFollowUps.has(fu._id)
+                        return (
+                          <div key={fu._id} className="border-b border-gray-100 last:border-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleFollowUp(fu._id)}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-gray-400 font-medium">
+                                  {new Date(fu.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  {fu.sharedWithOwner && (
+                                    <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">Shared</span>
+                                  )}
+                                  {isExpanded
+                                    ? <ChevronUp className="w-3 h-3 text-gray-400 shrink-0" />
+                                    : <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
+                                  }
+                                </div>
+                              </div>
+                              <p className="text-xs font-medium text-[#4F4F4F] mt-0.5">
+                                Dr. {fu.vetId?.firstName} {fu.vetId?.lastName}
+                              </p>
+                              {fu.media && fu.media.length > 0 && !isExpanded && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-purple-500 mt-0.5">
+                                  <ImageIcon className="w-3 h-3" />
+                                  {fu.media.length} attachment{fu.media.length !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {!isExpanded && (
+                                <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{fu.ownerObservations}</p>
+                              )}
+                            </button>
+                            {isExpanded && (
+                              <div className="px-4 pb-3 space-y-2">
+                                <div>
+                                  <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">Owner Observations</p>
+                                  <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{fu.ownerObservations}</p>
+                                </div>
+                                {fu.vetNotes && (
+                                  <div>
+                                    <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">Vet Notes</p>
+                                    <p className="text-xs text-gray-600 leading-relaxed italic whitespace-pre-wrap">{fu.vetNotes}</p>
+                                  </div>
+                                )}
+                                {fu.media && fu.media.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1.5">
+                                      Attachments ({fu.media.length})
+                                    </p>
+                                    <div className="grid grid-cols-5 gap-1">
+                                      {fu.media.map((m, mi) => {
+                                        const isVideo = m.contentType.startsWith('video/')
+                                        const src = m.data ? `data:${m.contentType};base64,${m.data}` : ''
+                                        return (
+                                          <button
+                                            key={m._id || mi}
+                                            type="button"
+                                            onClick={() => setLightboxMedia({ src, contentType: m.contentType, description: m.description })}
+                                            className="relative aspect-square rounded overflow-hidden border border-gray-200 bg-gray-100 hover:opacity-75 transition-opacity"
+                                            title={m.description || (isVideo ? `Video ${mi + 1}` : `Image ${mi + 1}`)}
+                                          >
+                                            {isVideo ? (
+                                              <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                                                <FileText className="w-3 h-3 text-purple-300" />
+                                              </div>
+                                            ) : src ? (
+                                              <img
+                                                src={src}
+                                                alt={m.description || `Image ${mi + 1}`}
+                                                className="w-full h-full object-cover"
+                                              />
+                                            ) : (
+                                              <div className="w-full h-full flex items-center justify-center">
+                                                <ImageIcon className="w-3 h-3 text-gray-400" />
+                                              </div>
+                                            )}
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ===== MAIN RECORD PANEL (right) ===== */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="bg-white rounded-xl shadow-xl flex items-center justify-center flex-1 h-full">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : record ? (
-          <div className="bg-white flex flex-col h-full overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl flex flex-col flex-1 h-full overflow-hidden">
             {/* ===== DOCUMENT HEADER ===== */}
             <div className="bg-[#476B6B] text-white px-8 py-6">
               <div className="flex items-start justify-between">
@@ -1847,124 +1994,8 @@ function ViewRecordModal({
               </div>
             )}
 
-            {/* ===== MAIN BODY: FOLLOW-UP SIDEBAR + CONTENT ===== */}
-            <div className="flex flex-1 overflow-hidden">
-
-              {/* Follow-up sidebar */}
-              <div className="w-64 shrink-0 border-r border-gray-100 overflow-y-auto bg-gray-50/40 flex flex-col">
-                <div className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />
-                    Follow-ups ({record.followUps?.length || 0})
-                  </h2>
-                </div>
-                {(!record.followUps || record.followUps.length === 0) ? (
-                  <div className="px-4 py-8 text-center flex-1 flex items-center justify-center">
-                    <p className="text-xs text-gray-400 leading-relaxed">No follow-up records for this visit yet.</p>
-                  </div>
-                ) : (
-                  <div>
-                    {[...(record.followUps)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((fu) => {
-                      const isExpanded = expandedFollowUps.has(fu._id)
-                      return (
-                        <div key={fu._id} className="border-b border-gray-100 last:border-0">
-                          {/* Header row — always visible, click to expand */}
-                          <button
-                            type="button"
-                            onClick={() => toggleFollowUp(fu._id)}
-                            className="w-full text-left px-4 py-3 hover:bg-white transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-gray-400 font-medium">
-                                {new Date(fu.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                {fu.sharedWithOwner && (
-                                  <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">Shared</span>
-                                )}
-                                {isExpanded
-                                  ? <ChevronUp className="w-3 h-3 text-gray-400 shrink-0" />
-                                  : <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
-                                }
-                              </div>
-                            </div>
-                            <p className="text-xs font-medium text-[#4F4F4F] mt-0.5">
-                              Dr. {fu.vetId?.firstName} {fu.vetId?.lastName}
-                            </p>
-                            {fu.media && fu.media.length > 0 && !isExpanded && (
-                              <span className="inline-flex items-center gap-1 text-[10px] text-purple-500 mt-0.5">
-                                <ImageIcon className="w-3 h-3" />
-                                {fu.media.length} attachment{fu.media.length !== 1 ? 's' : ''}
-                              </span>
-                            )}
-                            {!isExpanded && (
-                              <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{fu.ownerObservations}</p>
-                            )}
-                          </button>
-
-                          {/* Expanded body */}
-                          {isExpanded && (
-                            <div className="px-4 pb-3 space-y-2">
-                              <div>
-                                <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">Owner Observations</p>
-                                <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{fu.ownerObservations}</p>
-                              </div>
-                              {fu.vetNotes && (
-                                <div>
-                                  <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">Vet Notes</p>
-                                  <p className="text-xs text-gray-600 leading-relaxed italic whitespace-pre-wrap">{fu.vetNotes}</p>
-                                </div>
-                              )}
-                              {fu.media && fu.media.length > 0 && (
-                                <div>
-                                  <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1.5">
-                                    Attachments ({fu.media.length})
-                                  </p>
-                                  <div className="space-y-1.5">
-                                    {fu.media.map((m, mi) => {
-                                      const isVideo = m.contentType.startsWith('video/')
-                                      return (
-                                        <div key={m._id || mi}>
-                                          {isVideo ? (
-                                            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2.5 py-2">
-                                              <FileText className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                                              <span className="text-xs text-gray-500 truncate">{m.description || `Video ${mi + 1}`}</span>
-                                            </div>
-                                          ) : m.data ? (
-                                            <div className="rounded-lg overflow-hidden border border-gray-200">
-                                              <img
-                                                src={`data:${m.contentType};base64,${m.data}`}
-                                                alt={m.description || `Image ${mi + 1}`}
-                                                className="w-full h-24 object-cover"
-                                              />
-                                              {m.description && (
-                                                <p className="text-[10px] text-gray-400 px-2 py-1 bg-gray-50 truncate">{m.description}</p>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2.5 py-2">
-                                              <ImageIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                                              <span className="text-xs text-gray-500 truncate">{m.description || `Image ${mi + 1}`}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Right panel: main record content + action bar */}
-              <div className="flex-1 overflow-hidden flex flex-col">
-                <div className="flex-1 overflow-y-auto">
+            {/* ===== MAIN CONTENT ===== */}
+            <div className="flex-1 overflow-y-auto">
             <div className="px-8 py-6 space-y-6">
               {/* ===== PATIENT & VISIT INFO ===== */}
               <div className="grid grid-cols-2 gap-6">
@@ -2344,7 +2375,7 @@ function ViewRecordModal({
                 </div>
               </div>
             </div>
-                </div>
+            </div>
 
             {/* ===== ACTION BAR ===== */}
             <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shrink-0">
@@ -2375,12 +2406,44 @@ function ViewRecordModal({
                 Close
               </button>
             </div>
-              </div>
-            </div>
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* ===== LIGHTBOX ===== */}
+      {lightboxMedia && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/80"
+          onClick={() => setLightboxMedia(null)}
+        >
+          <div className="relative max-w-[85%] max-h-[85%] flex flex-col items-center" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setLightboxMedia(null)}
+              className="absolute -top-8 right-0 text-white/70 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            {lightboxMedia.contentType.startsWith('video/') ? (
+              <video
+                src={lightboxMedia.src}
+                controls
+                autoPlay
+                className="max-w-full max-h-[75vh] rounded-lg"
+              />
+            ) : (
+              <img
+                src={lightboxMedia.src}
+                alt={lightboxMedia.description || 'Attachment'}
+                className="max-w-full max-h-[75vh] rounded-lg object-contain"
+              />
+            )}
+            {lightboxMedia.description && (
+              <p className="text-white/70 text-xs text-center mt-2">{lightboxMedia.description}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
