@@ -895,22 +895,36 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
         if (branch?.closingTime) schedSlotEnd = branch.closingTime;
       }
 
-      const displaced = await Appointment.find({
+      // Fetch all appointments on the same day at or after the emergency slot.
+      // We'll cascade only those that actually collide, stopping at the first gap.
+      const emergencyDayStart = new Date(date);
+      emergencyDayStart.setUTCHours(0, 0, 0, 0);
+      const emergencyDayEnd = new Date(date);
+      emergencyDayEnd.setUTCHours(23, 59, 59, 999);
+      const sameDay = await Appointment.find({
         vetId,
-        date: new Date(date),
+        date: { $gte: emergencyDayStart, $lte: emergencyDayEnd },
         startTime: { $gte: startTime },
-        status: { $in: ['pending', 'confirmed'] }
+        status: { $in: ['pending', 'confirmed', 'in_progress'] }
       }).sort({ startTime: 1 });
 
-      for (const appt of displaced) {
-        const newStart = addMinutes(appt.startTime, 30);
-        const newEnd = addMinutes(appt.endTime, 30);
+      // pushTo: the earliest time that is occupied by the chain reaction.
+      // Starts at the emergency appointment's endTime.
+      let pushTo = endTime;
+
+      for (const appt of sameDay) {
+        // Gap found — this appointment starts at or after the filled boundary, no cascade needed
+        if (appt.startTime >= pushTo) break;
+
+        const newStart = pushTo;
+        const newEnd = addMinutes(pushTo, 30);
 
         if (newEnd <= schedSlotEnd) {
-          // Still within working hours — shift by 30 min on the same day
+          // Still within working hours — shift to fill the gap left by the cascade
           appt.startTime = newStart;
           appt.endTime = newEnd;
           await appt.save();
+          pushTo = newEnd; // advance the cascade pointer
           rescheduledAppointments.push(appt);
         } else {
           // Exceeds working hours — find the next available working day slot

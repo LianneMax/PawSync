@@ -1217,17 +1217,17 @@ function ClinicScheduleModal({
         )
 
         // If emergency, warn about displaced appointments
-        const displaced: any[] = res.data?.displacedAppointments ?? []
-        if (isEmergency && displaced.length > 0) {
-          const names = displaced
-            .map((a: any) => `${a.petId?.name || 'Pet'} (${a.ownerId?.firstName || ''} ${a.ownerId?.lastName || ''}) at ${formatSlotTime(a.startTime)}`)
+        const rescheduled: any[] = res.data?.rescheduledAppointments ?? []
+        if (isEmergency && rescheduled.length > 0) {
+          const names = rescheduled
+            .map((a: any) => `${a.petId?.name || 'Pet'} (${a.ownerId?.firstName || ''} ${a.ownerId?.lastName || ''})`)
             .join(', ')
           toast(
             <div className="flex gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-medium text-amber-800">Appointments may be delayed</p>
-                <p className="text-sm text-amber-700">{displaced.length} existing appointment{displaced.length > 1 ? 's' : ''} may be pushed back: {names}. Consider notifying the owners.</p>
+                <p className="font-medium text-amber-800">Appointments rescheduled</p>
+                <p className="text-sm text-amber-700">{rescheduled.length} appointment{rescheduled.length > 1 ? 's were' : ' was'} automatically rescheduled to accommodate the emergency: {names}. Owners have been notified.</p>
               </div>
             </div>,
             { duration: 10000 }
