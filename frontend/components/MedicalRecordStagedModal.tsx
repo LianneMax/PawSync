@@ -974,7 +974,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             <>
               {/* Visit Summary */}
               <div>
-                <label className="block text-sm font-semibold text-[#4F4F4F] mb-2">Visit Summary</label>
+                <label className="block text-sm font-semibold text-[#4F4F4F] mb-2">Visit Summary and Diagnosis</label>
                 <textarea
                   value={visitSummary}
                   onChange={(e) => setVisitSummary(e.target.value)}
