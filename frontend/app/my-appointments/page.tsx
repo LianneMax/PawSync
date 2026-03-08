@@ -520,6 +520,67 @@ function ScheduleModal({
     setSelectedTypes(types)
   }
 
+  // Check for conflicting appointments for the same pet
+  const checkForConflicts = async (): Promise<{ hasConflict: boolean; message?: string }> => {
+    if (!selectedPetId || !selectedSlot) return { hasConflict: false }
+
+    try {
+      // Fetch all appointments for the authenticated user
+      const res = await authenticatedFetch(
+        `/appointments/mine`,
+        { method: 'GET' },
+        token || undefined
+      )
+
+      if (res.status !== 'SUCCESS' || !res.data?.appointments) {
+        return { hasConflict: false }
+      }
+
+      // Filter to only appointments for this pet with pending/confirmed status
+      const petAppointments = res.data.appointments.filter(
+        (apt: any) => apt.petId._id === selectedPetId && (apt.status === 'pending' || apt.status === 'confirmed')
+      )
+
+      // Check if booking grooming appointment
+      const isGroomingOnly = selectedTypes.some((t) => t === 'basic-grooming' || t === 'full-grooming') &&
+        !selectedTypes.some((t) => t !== 'basic-grooming' && t !== 'full-grooming')
+
+      if (isGroomingOnly) {
+        // Check for existing grooming appointments on the same day
+        const existingGroomingOnDay = petAppointments.find((apt: any) => {
+          const aptDateStr = new Date(apt.date).toISOString().split('T')[0]
+          return aptDateStr === selectedDate &&
+            (apt.types.includes('basic-grooming') || apt.types.includes('full-grooming'))
+        })
+
+        if (existingGroomingOnDay) {
+          return {
+            hasConflict: true,
+            message: 'This dog already has a grooming appointment scheduled for this day. Only one grooming appointment per dog is allowed per day.'
+          }
+        }
+      }
+
+      // Check for appointments at the same time
+      const existingAtSameTime = petAppointments.find((apt: any) => {
+        const aptDateStr = new Date(apt.date).toISOString().split('T')[0]
+        return aptDateStr === selectedDate && apt.startTime === selectedSlot.startTime
+      })
+
+      if (existingAtSameTime) {
+        return {
+          hasConflict: true,
+          message: 'This dog already has an appointment scheduled at this time. Please choose a different time.'
+        }
+      }
+
+      return { hasConflict: false }
+    } catch (error) {
+      // If check fails, allow submission to proceed (backend will catch conflicts)
+      return { hasConflict: false }
+    }
+  }
+
   const handleSubmit = async () => {
     if (!selectedPetId) return toast.error('Please select a pet')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
@@ -530,6 +591,13 @@ function ScheduleModal({
 
     setSubmitting(true)
     try {
+      // Check for pet-specific conflicts
+      const conflictCheck = await checkForConflicts()
+      if (conflictCheck.hasConflict) {
+        setSubmitting(false)
+        return toast.error(conflictCheck.message || 'Appointment conflict detected')
+      }
+
       // Send full types array including grooming; backend will handle not creating medical records for grooming
       const res = await createAppointment({
         petId: selectedPetId,

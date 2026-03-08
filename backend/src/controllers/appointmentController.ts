@@ -94,6 +94,50 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for this appointment type' });
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────────
+    // Pet-specific conflict validation
+    // ─────────────────────────────────────────────────────────────────────────────────
+
+    const appointmentDate = new Date(date);
+    const startOfDay = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
+    const endOfDay = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate() + 1);
+
+    // 1. If grooming-only appointment, prevent multiple grooming appointments on the same day
+    if (hasGrooming && !hasOtherServices) {
+      const existingGroomingOnDay = await Appointment.findOne({
+        petId: petId,
+        date: { $gte: startOfDay, $lt: endOfDay },
+        types: { $in: ['basic-grooming', 'full-grooming'] },
+        status: { $in: ['pending', 'confirmed'] }
+      });
+
+      if (existingGroomingOnDay) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'This dog already has a grooming appointment scheduled for this day. Only one grooming appointment per dog is allowed per day.'
+        });
+      }
+    }
+
+    // 2. Prevent appointments (both grooming and medical) at the exact same time
+    const existingAtSameTime = await Appointment.findOne({
+      petId: petId,
+      date: { $gte: startOfDay, $lt: endOfDay },
+      startTime: startTime,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (existingAtSameTime) {
+      return res.status(409).json({
+        status: 'ERROR',
+        message: 'This dog already has an appointment scheduled at this time. Please choose a different time.'
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────
+    // Slot availability validation (clinic/vet level)
+    // ─────────────────────────────────────────────────────────────────────────────────
+
     // Check if the slot is already taken
     let existingQuery: any = {
       date: new Date(date),
@@ -110,9 +154,9 @@ export const createAppointment = async (req: Request, res: Response) => {
       existingQuery.vetId = vetId;
     }
 
-    const existing = await Appointment.findOne(existingQuery);
+    const slotExists = await Appointment.findOne(existingQuery);
 
-    if (existing) {
+    if (slotExists) {
       return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
     }
 

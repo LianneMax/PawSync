@@ -86,7 +86,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
       { value: 'basic-grooming', label: 'Basic Grooming' },
       { value: 'full-grooming', label: 'Full Grooming' },
     ],
-    note: 'Grooming starts at ₱500 and includes a free vet consultation. Grooming is first-come, first-served from 9AM–5PM.',
+    //note: 'Grooming starts at ₱500 and includes a free vet consultation. Grooming is first-come, first-served from 9AM–5PM.',
   },
 ]
 
