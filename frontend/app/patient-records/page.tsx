@@ -1625,6 +1625,15 @@ function ViewRecordModal({
   const [index, setIndex] = useState(initialIndex)
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [loading, setLoading] = useState(false)
+  const [expandedFollowUps, setExpandedFollowUps] = useState<Set<string>>(new Set())
+
+  const toggleFollowUp = (id: string) => {
+    setExpandedFollowUps((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   // Reset index when modal opens
   useEffect(() => {
@@ -1636,6 +1645,7 @@ function ViewRecordModal({
     if (!open || !recordIds[index] || !token) return
     setLoading(true)
     setRecord(null)
+    setExpandedFollowUps(new Set())
     getRecordById(recordIds[index], token).then((res) => {
       if (res.status === 'SUCCESS' && res.data?.record) setRecord(res.data.record)
     }).finally(() => setLoading(false))
@@ -1854,25 +1864,100 @@ function ViewRecordModal({
                   </div>
                 ) : (
                   <div>
-                    {[...(record.followUps)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((fu) => (
-                      <div key={fu._id} className="px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] text-gray-400 font-medium">
-                            {new Date(fu.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                          {fu.sharedWithOwner && (
-                            <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">Shared</span>
+                    {[...(record.followUps)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((fu) => {
+                      const isExpanded = expandedFollowUps.has(fu._id)
+                      return (
+                        <div key={fu._id} className="border-b border-gray-100 last:border-0">
+                          {/* Header row — always visible, click to expand */}
+                          <button
+                            type="button"
+                            onClick={() => toggleFollowUp(fu._id)}
+                            className="w-full text-left px-4 py-3 hover:bg-white transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                {new Date(fu.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {fu.sharedWithOwner && (
+                                  <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">Shared</span>
+                                )}
+                                {isExpanded
+                                  ? <ChevronUp className="w-3 h-3 text-gray-400 shrink-0" />
+                                  : <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
+                                }
+                              </div>
+                            </div>
+                            <p className="text-xs font-medium text-[#4F4F4F] mt-0.5">
+                              Dr. {fu.vetId?.firstName} {fu.vetId?.lastName}
+                            </p>
+                            {fu.media && fu.media.length > 0 && !isExpanded && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-purple-500 mt-0.5">
+                                <ImageIcon className="w-3 h-3" />
+                                {fu.media.length} attachment{fu.media.length !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {!isExpanded && (
+                              <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{fu.ownerObservations}</p>
+                            )}
+                          </button>
+
+                          {/* Expanded body */}
+                          {isExpanded && (
+                            <div className="px-4 pb-3 space-y-2">
+                              <div>
+                                <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">Owner Observations</p>
+                                <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{fu.ownerObservations}</p>
+                              </div>
+                              {fu.vetNotes && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">Vet Notes</p>
+                                  <p className="text-xs text-gray-600 leading-relaxed italic whitespace-pre-wrap">{fu.vetNotes}</p>
+                                </div>
+                              )}
+                              {fu.media && fu.media.length > 0 && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1.5">
+                                    Attachments ({fu.media.length})
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {fu.media.map((m, mi) => {
+                                      const isVideo = m.contentType.startsWith('video/')
+                                      return (
+                                        <div key={m._id || mi}>
+                                          {isVideo ? (
+                                            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2.5 py-2">
+                                              <FileText className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                              <span className="text-xs text-gray-500 truncate">{m.description || `Video ${mi + 1}`}</span>
+                                            </div>
+                                          ) : m.data ? (
+                                            <div className="rounded-lg overflow-hidden border border-gray-200">
+                                              <img
+                                                src={`data:${m.contentType};base64,${m.data}`}
+                                                alt={m.description || `Image ${mi + 1}`}
+                                                className="w-full h-24 object-cover"
+                                              />
+                                              {m.description && (
+                                                <p className="text-[10px] text-gray-400 px-2 py-1 bg-gray-50 truncate">{m.description}</p>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-2.5 py-2">
+                                              <ImageIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                              <span className="text-xs text-gray-500 truncate">{m.description || `Image ${mi + 1}`}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs font-medium text-[#4F4F4F] mb-0.5">
-                          Dr. {fu.vetId?.firstName} {fu.vetId?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">{fu.ownerObservations}</p>
-                        {fu.vetNotes && (
-                          <p className="text-[10px] text-gray-400 mt-1 italic line-clamp-2">{fu.vetNotes}</p>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -2318,15 +2403,36 @@ function FollowUpRecordModal({
   const [ownerObservations, setOwnerObservations] = useState('')
   const [vetNotes, setVetNotes] = useState('')
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
+  const [media, setMedia] = useState<{ data: string; contentType: string; description: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
       setOwnerObservations('')
       setVetNotes('')
       setSharedWithOwner(false)
+      setMedia([])
     }
   }, [open])
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(',')[1]
+        setMedia((prev) => [...prev, { data: base64, contentType: file.type, description: file.name }])
+      }
+      reader.readAsDataURL(file)
+    })
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeMedia = (index: number) => {
+    setMedia((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async () => {
     if (!token) return
@@ -2339,7 +2445,7 @@ function FollowUpRecordModal({
     try {
       const res = await createFollowUp(
         record._id,
-        { ownerObservations, vetNotes: vetNotes || undefined, sharedWithOwner },
+        { ownerObservations, vetNotes: vetNotes || undefined, sharedWithOwner, media: media.length > 0 ? media : undefined },
         token
       )
       if (res.status === 'SUCCESS') {
@@ -2396,6 +2502,50 @@ function FollowUpRecordModal({
               rows={4}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
             />
+          </div>
+
+          {/* Media Upload */}
+          <div>
+            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">Photos, Images & Videos</h3>
+            <p className="text-xs text-gray-400 mb-2">Attach images or videos shared during the consultation (e.g. lesion photos, movement videos).</p>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 rounded-xl p-5 text-center cursor-pointer hover:border-purple-300 hover:bg-purple-50/40 transition-colors"
+            >
+              <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
+              <p className="text-sm text-gray-500">Click to upload</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Images (JPG, PNG) and videos (MP4, MOV) supported</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaUpload}
+              className="hidden"
+            />
+            {media.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {media.map((item, idx) => {
+                  const isVideo = item.contentType.startsWith('video/')
+                  return (
+                    <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-1.5">
+                      {isVideo
+                        ? <FileText className="w-3 h-3 text-purple-400 shrink-0" />
+                        : <ImageIcon className="w-3 h-3 text-blue-400 shrink-0" />
+                      }
+                      <span className="truncate max-w-[140px]">{item.description || `File ${idx + 1}`}</span>
+                      <button
+                        onClick={() => removeMedia(idx)}
+                        className="absolute top-1 right-1 p-0.5 rounded-full hover:bg-gray-200 transition-colors"
+                      >
+                        <X className="w-3 h-3 text-gray-400" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Share with owner toggle */}

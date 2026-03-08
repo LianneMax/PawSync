@@ -40,6 +40,7 @@ export interface IFollowUp {
   ownerObservations: string;
   vetNotes: string;
   sharedWithOwner: boolean;
+  media: { data: Buffer; contentType: string; description: string }[];
   createdAt: Date;
 }
 
@@ -178,7 +179,8 @@ const FollowUpSchema = new Schema(
     sharedWithOwner: {
       type: Boolean,
       default: false
-    }
+    },
+    media: [ImageFragmentSchema]
   },
   { _id: true, timestamps: { createdAt: true, updatedAt: false } }
 );

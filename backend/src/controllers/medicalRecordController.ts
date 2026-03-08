@@ -349,6 +349,16 @@ export const getRecordById = async (req: Request, res: Response) => {
       description: img.description
     }));
 
+    recordObj.followUps = (recordObj.followUps || []).map((fu: any) => ({
+      ...fu,
+      media: (fu.media || []).map((m: any) => ({
+        _id: m._id,
+        data: m.data ? m.data.toString('base64') : null,
+        contentType: m.contentType,
+        description: m.description
+      }))
+    }));
+
     if (isOwner && !isRecordVet && !isAdmin) {
       delete recordObj.vetNotes;
     }
@@ -604,16 +614,23 @@ export const createFollowUp = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet or clinic admin can add follow-ups' });
     }
 
-    const { ownerObservations, vetNotes, sharedWithOwner } = req.body;
+    const { ownerObservations, vetNotes, sharedWithOwner, media } = req.body;
     if (!ownerObservations?.trim()) {
       return res.status(400).json({ status: 'ERROR', message: 'Owner observations are required' });
     }
+
+    const parsedMedia = (media || []).map((m: { data: string; contentType: string; description?: string }) => ({
+      data: Buffer.from(m.data, 'base64'),
+      contentType: m.contentType,
+      description: m.description || ''
+    }));
 
     (record.followUps as any[]).push({
       vetId: req.user.userId,
       ownerObservations: ownerObservations.trim(),
       vetNotes: (vetNotes || '').trim(),
       sharedWithOwner: sharedWithOwner === true,
+      media: parsedMedia,
     });
 
     await record.save();
@@ -621,10 +638,21 @@ export const createFollowUp = async (req: Request, res: Response) => {
     // Populate vetId on the follow-ups before returning
     await record.populate('followUps.vetId', 'firstName lastName');
 
+    // Serialize media buffers to base64 for the response
+    const serializedFollowUps = (record.followUps as any[]).map((fu) => ({
+      ...fu.toObject(),
+      media: (fu.media || []).map((m: any) => ({
+        _id: m._id,
+        data: m.data ? m.data.toString('base64') : null,
+        contentType: m.contentType,
+        description: m.description
+      }))
+    }));
+
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Follow-up record added successfully',
-      data: { followUps: record.followUps }
+      data: { followUps: serializedFollowUps }
     });
   } catch (error) {
     console.error('Create follow-up error:', error);
