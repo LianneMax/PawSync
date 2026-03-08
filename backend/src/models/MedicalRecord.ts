@@ -34,6 +34,15 @@ export interface IPreventiveCare {
   notes: string;
 }
 
+export interface IFollowUp {
+  _id: mongoose.Types.ObjectId;
+  vetId: mongoose.Types.ObjectId;
+  ownerObservations: string;
+  vetNotes: string;
+  sharedWithOwner: boolean;
+  createdAt: Date;
+}
+
 export interface IMedicalRecord extends Document {
   petId: mongoose.Types.ObjectId;
   vetId: mongoose.Types.ObjectId;
@@ -74,6 +83,7 @@ export interface IMedicalRecord extends Document {
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
   billingId: mongoose.Types.ObjectId | null;
+  followUps: IFollowUp[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -148,6 +158,29 @@ const PreventiveCareSchema = new Schema(
     notes: { type: String, default: '' }
   },
   { _id: true }
+);
+
+const FollowUpSchema = new Schema(
+  {
+    vetId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    ownerObservations: {
+      type: String,
+      default: ''
+    },
+    vetNotes: {
+      type: String,
+      default: ''
+    },
+    sharedWithOwner: {
+      type: Boolean,
+      default: false
+    }
+  },
+  { _id: true, timestamps: { createdAt: true, updatedAt: false } }
 );
 
 const MedicalRecordSchema = new Schema(
@@ -252,6 +285,10 @@ const MedicalRecordSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Billing',
       default: null,
+    },
+    followUps: {
+      type: [FollowUpSchema],
+      default: []
     },
   },
   {

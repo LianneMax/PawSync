@@ -10,6 +10,7 @@ import {
   getVetMedicalRecords,
   updateRecord,
   toggleShareRecord,
+  createFollowUp,
   getRecordImage
 } from '../controllers/medicalRecordController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
@@ -75,6 +76,12 @@ router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateRecord);
  * Toggle sharing a record with the pet owner
  */
 router.patch('/:id/share', authMiddleware, vetOrClinicAdminOnly, toggleShareRecord);
+
+/**
+ * POST /api/medical-records/:id/follow-ups
+ * Add a follow-up entry to an active medical record (vet or clinic-admin only).
+ */
+router.post('/:id/follow-ups', authMiddleware, vetOrClinicAdminOnly, createFollowUp);
 
 /**
  * GET /api/medical-records/:id/images/:imageId

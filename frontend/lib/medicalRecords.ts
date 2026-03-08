@@ -70,6 +70,16 @@ export interface PreventiveCare {
   notes: string;
 }
 
+export interface FollowUp {
+  _id: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  vetId: any;
+  ownerObservations: string;
+  vetNotes: string;
+  sharedWithOwner: boolean;
+  createdAt: string;
+}
+
 export interface MedicalRecord {
   _id: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,6 +109,7 @@ export interface MedicalRecord {
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
   billingId?: string;
+  followUps?: FollowUp[];
   createdAt: string;
   updatedAt: string;
 }
@@ -176,6 +187,21 @@ export const createMedicalRecord = async (recordData: {
   return authenticatedFetch('/medical-records', {
     method: 'POST',
     body: JSON.stringify(recordData)
+  }, token);
+};
+
+/**
+ * Add a follow-up to an active medical record.
+ * Only allowed when the record's isCurrent is true.
+ */
+export const createFollowUp = async (
+  recordId: string,
+  data: { ownerObservations: string; vetNotes?: string; sharedWithOwner?: boolean },
+  token?: string
+): Promise<{ status: string; message?: string; data?: { followUps: FollowUp[] } }> => {
+  return authenticatedFetch(`/medical-records/${recordId}/follow-ups`, {
+    method: 'POST',
+    body: JSON.stringify(data)
   }, token);
 };
 

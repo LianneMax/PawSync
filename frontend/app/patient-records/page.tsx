@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
   createMedicalRecord,
+  createFollowUp,
   getRecordsByPet,
   getCurrentRecord,
   getHistoricalRecords,
@@ -13,6 +14,7 @@ import {
   updateMedicalRecord,
   toggleShareRecord,
   type MedicalRecord,
+  type FollowUp,
   type Vitals,
   type VitalEntry,
   type Medication,
@@ -454,7 +456,9 @@ export default function PatientRecordsPage() {
                   </div>
                   <button
                     onClick={() => setFollowUpOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors"
+                    disabled={!currentRecord?.isCurrent}
+                    title={!currentRecord?.isCurrent ? 'Follow-ups can only be added to the active medical record' : 'Add a follow-up to the current record'}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#476B6B]"
                   >
                     <Plus className="w-4 h-4" />
                     New Follow-up Record
@@ -852,6 +856,7 @@ export default function PatientRecordsPage() {
           open={followUpOpen}
           onClose={() => setFollowUpOpen(false)}
           patient={selectedPatient}
+          record={currentRecord}
           onCreated={() => {
             setFollowUpOpen(false)
             loadRecords(selectedPatient._id)
@@ -1777,13 +1782,13 @@ function ViewRecordModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
+      <DialogContent className="max-w-5xl h-[92vh] p-0 gap-0 [&>button]:hidden overflow-hidden flex flex-col">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : record ? (
-          <div className="bg-white">
+          <div className="bg-white flex flex-col h-full overflow-hidden">
             {/* ===== DOCUMENT HEADER ===== */}
             <div className="bg-[#476B6B] text-white px-8 py-6">
               <div className="flex items-start justify-between">
@@ -1832,6 +1837,49 @@ function ViewRecordModal({
               </div>
             )}
 
+            {/* ===== MAIN BODY: FOLLOW-UP SIDEBAR + CONTENT ===== */}
+            <div className="flex flex-1 overflow-hidden">
+
+              {/* Follow-up sidebar */}
+              <div className="w-64 shrink-0 border-r border-gray-100 overflow-y-auto bg-gray-50/40 flex flex-col">
+                <div className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Follow-ups ({record.followUps?.length || 0})
+                  </h2>
+                </div>
+                {(!record.followUps || record.followUps.length === 0) ? (
+                  <div className="px-4 py-8 text-center flex-1 flex items-center justify-center">
+                    <p className="text-xs text-gray-400 leading-relaxed">No follow-up records for this visit yet.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {[...(record.followUps)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((fu) => (
+                      <div key={fu._id} className="px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-gray-400 font-medium">
+                            {new Date(fu.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          {fu.sharedWithOwner && (
+                            <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">Shared</span>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-[#4F4F4F] mb-0.5">
+                          Dr. {fu.vetId?.firstName} {fu.vetId?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">{fu.ownerObservations}</p>
+                        {fu.vetNotes && (
+                          <p className="text-[10px] text-gray-400 mt-1 italic line-clamp-2">{fu.vetNotes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right panel: main record content + action bar */}
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-y-auto">
             <div className="px-8 py-6 space-y-6">
               {/* ===== PATIENT & VISIT INFO ===== */}
               <div className="grid grid-cols-2 gap-6">
@@ -2211,9 +2259,10 @@ function ViewRecordModal({
                 </div>
               </div>
             </div>
+                </div>
 
             {/* ===== ACTION BAR ===== */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between">
+            <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onToggleShare(record._id, !!record.sharedWithOwner)}
@@ -2241,6 +2290,8 @@ function ViewRecordModal({
                 Close
               </button>
             </div>
+              </div>
+            </div>
           </div>
         ) : null}
       </DialogContent>
@@ -2254,66 +2305,41 @@ function FollowUpRecordModal({
   open,
   onClose,
   patient,
+  record,
   onCreated,
 }: {
   open: boolean
   onClose: () => void
   patient: PatientPet
+  record: MedicalRecord | null
   onCreated: () => void
 }) {
   const { token } = useAuthStore()
   const [ownerObservations, setOwnerObservations] = useState('')
   const [vetNotes, setVetNotes] = useState('')
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
-  const [media, setMedia] = useState<{ data: string; contentType: string; description: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
       setOwnerObservations('')
       setVetNotes('')
       setSharedWithOwner(false)
-      setMedia([])
     }
   }, [open])
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64 = (reader.result as string).split(',')[1]
-        setMedia((prev) => [...prev, { data: base64, contentType: file.type, description: file.name }])
-      }
-      reader.readAsDataURL(file)
-    })
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const removeMedia = (index: number) => {
-    setMedia((prev) => prev.filter((_, i) => i !== index))
-  }
-
   const handleSubmit = async () => {
     if (!token) return
+    if (!record) return
     if (!ownerObservations.trim()) {
       toast.error('Please enter the owner\'s observations before saving.')
       return
     }
     setSubmitting(true)
     try {
-      const res = await createMedicalRecord(
-        {
-          petId: patient._id,
-          clinicId: patient.clinicId,
-          clinicBranchId: patient.clinicBranchId,
-          subjective: ownerObservations,
-          overallObservation: vetNotes || undefined,
-          images: media.length > 0 ? media : undefined,
-          sharedWithOwner,
-        },
+      const res = await createFollowUp(
+        record._id,
+        { ownerObservations, vetNotes: vetNotes || undefined, sharedWithOwner },
         token
       )
       if (res.status === 'SUCCESS') {
@@ -2340,7 +2366,7 @@ function FollowUpRecordModal({
         </DialogHeader>
 
         <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-xs text-purple-700 mt-2">
-          This follow-up record is for online consultations. Record the pet owner's observations and any relevant media shared during the consultation.
+          Record the pet owner's observations and your clinical notes for this follow-up.
         </div>
 
         <div className="space-y-5 mt-4">
@@ -2370,52 +2396,6 @@ function FollowUpRecordModal({
               rows={4}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
             />
-          </div>
-
-          {/* Media Upload */}
-          <div>
-            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">Photos & Videos</h3>
-            <p className="text-xs text-gray-400 mb-2">Upload images or videos shared by the owner during the consultation.</p>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-purple-300 hover:bg-purple-50/40 transition-colors"
-            >
-              <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Click to upload photos or videos</p>
-              <p className="text-[10px] text-gray-400 mt-1">JPG, PNG, MP4, MOV and other formats supported</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              onChange={handleMediaUpload}
-              className="hidden"
-            />
-
-            {media.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {media.map((item, idx) => {
-                  const isVideo = item.contentType.startsWith('video/')
-                  return (
-                    <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-1.5">
-                      {isVideo ? (
-                        <FileText className="w-3 h-3 text-purple-400 shrink-0" />
-                      ) : (
-                        <ImageIcon className="w-3 h-3 text-blue-400 shrink-0" />
-                      )}
-                      <span className="truncate max-w-[120px]">{item.description || `File ${idx + 1}`}</span>
-                      <button
-                        onClick={() => removeMedia(idx)}
-                        className="absolute top-1 right-1 p-0.5 rounded-full hover:bg-gray-200 transition-colors"
-                      >
-                        <X className="w-3 h-3 text-gray-400" />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
           </div>
 
           {/* Share with owner toggle */}

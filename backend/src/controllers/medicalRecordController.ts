@@ -321,7 +321,8 @@ export const getRecordById = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName email')
       .populate('clinicId', 'name address phone email adminId')
       .populate('clinicBranchId', 'name address phone')
-      .populate('appointmentId', 'date startTime endTime types status');
+      .populate('appointmentId', 'date startTime endTime types status')
+      .populate('followUps.vetId', 'firstName lastName');
 
     if (!record) {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
@@ -575,6 +576,58 @@ export const toggleShareRecord = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Toggle share error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * Add a follow-up entry to an active (isCurrent=true) medical record.
+ * Only the attending vet or a clinic/branch admin can add follow-ups.
+ */
+export const createFollowUp = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const record = await MedicalRecord.findById(req.params.id);
+    if (!record) {
+      return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
+    }
+
+    if (!record.isCurrent) {
+      return res.status(400).json({ status: 'ERROR', message: 'Follow-up records can only be added to the active medical record' });
+    }
+
+    const isAdmin = isClinicAdminUser(req);
+    if (record.vetId.toString() !== req.user.userId && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet or clinic admin can add follow-ups' });
+    }
+
+    const { ownerObservations, vetNotes, sharedWithOwner } = req.body;
+    if (!ownerObservations?.trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Owner observations are required' });
+    }
+
+    (record.followUps as any[]).push({
+      vetId: req.user.userId,
+      ownerObservations: ownerObservations.trim(),
+      vetNotes: (vetNotes || '').trim(),
+      sharedWithOwner: sharedWithOwner === true,
+    });
+
+    await record.save();
+
+    // Populate vetId on the follow-ups before returning
+    await record.populate('followUps.vetId', 'firstName lastName');
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Follow-up record added successfully',
+      data: { followUps: record.followUps }
+    });
+  } catch (error) {
+    console.error('Create follow-up error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };
