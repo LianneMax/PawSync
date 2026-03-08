@@ -2463,7 +2463,51 @@ function FollowUpRecordModal({
   onCreated: () => void
 }) {
   const { token } = useAuthStore()
-  const [ownerObservations, setOwnerObservations] = useState('')
+
+  const emptyObs = {
+    appetite: '', waterIntake: '', energyLevel: '',
+    moodChanges: [] as string[], sleepChanges: '',
+    vomiting: '', vomitingDetails: '',
+    stoolChanges: '', stoolDetails: '',
+    urinationChanges: [] as string[],
+    coughing: '', coughingDetails: '',
+    breathingChanges: [] as string[],
+    weightChanges: '', limping: '', limpingDetails: '',
+    scratchingLicking: '', scratchingDetails: '',
+    woundAppearance: [] as string[],
+    medicationCompliance: '', medicationDifficulties: '',
+    sideEffects: '', sideEffectsDetails: '',
+    newSymptoms: '', newSymptomsDetails: '',
+    overallImpression: '',
+  }
+  const [obs, setObs] = useState({ ...emptyObs })
+  const setField = (key: keyof typeof emptyObs, value: string) => setObs(prev => ({ ...prev, [key]: value }))
+  const toggleCheck = (key: 'moodChanges' | 'urinationChanges' | 'breathingChanges' | 'woundAppearance', value: string) =>
+    setObs(prev => { const arr = prev[key] as string[]; return { ...prev, [key]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value] } })
+
+  const serializeObs = (o: typeof emptyObs): string => {
+    const lines: string[] = []
+    if (o.appetite) lines.push(`Appetite: ${o.appetite}`)
+    if (o.waterIntake) lines.push(`Water Intake: ${o.waterIntake}`)
+    if (o.energyLevel) lines.push(`Energy/Activity Level: ${o.energyLevel}`)
+    if (o.moodChanges.length) lines.push(`Mood/Behavior Changes: ${o.moodChanges.join(', ')}`)
+    if (o.sleepChanges) lines.push(`Sleep Pattern: ${o.sleepChanges}`)
+    if (o.vomiting) lines.push(`Vomiting: ${o.vomiting === 'yes' ? `Yes${o.vomitingDetails ? ` — ${o.vomitingDetails}` : ''}` : 'No'}`)
+    if (o.stoolChanges) lines.push(`Stool Changes: ${o.stoolChanges}${o.stoolDetails ? ` — ${o.stoolDetails}` : ''}`)
+    if (o.urinationChanges.length) lines.push(`Urination Changes: ${o.urinationChanges.join(', ')}`)
+    if (o.coughing) lines.push(`Coughing/Sneezing: ${o.coughing === 'yes' ? `Yes${o.coughingDetails ? ` — ${o.coughingDetails}` : ''}` : 'No'}`)
+    if (o.breathingChanges.length) lines.push(`Breathing Changes: ${o.breathingChanges.join(', ')}`)
+    if (o.weightChanges) lines.push(`Weight Changes: ${o.weightChanges}`)
+    if (o.limping) lines.push(`Limping/Difficulty Moving: ${o.limping === 'yes' ? `Yes${o.limpingDetails ? ` — ${o.limpingDetails}` : ''}` : 'No'}`)
+    if (o.scratchingLicking) lines.push(`Scratching/Licking/Biting: ${o.scratchingLicking === 'yes' ? `Yes${o.scratchingDetails ? ` — ${o.scratchingDetails}` : ''}` : 'No'}`)
+    if (o.woundAppearance.length) lines.push(`Wound/Incision: ${o.woundAppearance.join(', ')}`)
+    if (o.medicationCompliance) lines.push(`Medication Compliance: ${o.medicationCompliance}${o.medicationDifficulties ? ` — ${o.medicationDifficulties}` : ''}`)
+    if (o.sideEffects) lines.push(`Side Effects: ${o.sideEffects === 'yes' ? `Yes${o.sideEffectsDetails ? ` — ${o.sideEffectsDetails}` : ''}` : 'No'}`)
+    if (o.newSymptoms) lines.push(`New/Worsening Symptoms: ${o.newSymptoms === 'yes' ? `Yes${o.newSymptomsDetails ? ` — ${o.newSymptomsDetails}` : ''}` : 'No'}`)
+    if (o.overallImpression) lines.push(`Overall Impression: ${o.overallImpression}`)
+    return lines.join('\n')
+  }
+
   const [vetNotes, setVetNotes] = useState('')
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
   const [media, setMedia] = useState<{ data: string; contentType: string; description: string }[]>([])
@@ -2472,7 +2516,7 @@ function FollowUpRecordModal({
 
   useEffect(() => {
     if (open) {
-      setOwnerObservations('')
+      setObs({ ...emptyObs })
       setVetNotes('')
       setSharedWithOwner(false)
       setMedia([])
@@ -2500,10 +2544,11 @@ function FollowUpRecordModal({
   const handleSubmit = async () => {
     if (!token) return
     if (!record) return
-    if (!ownerObservations.trim()) {
-      toast.error('Please enter the owner\'s observations before saving.')
+    if (!obs.overallImpression) {
+      toast.error('Please select an overall impression before saving.')
       return
     }
+    const ownerObservations = serializeObs(obs)
     setSubmitting(true)
     try {
       const res = await createFollowUp(
@@ -2526,7 +2571,7 @@ function FollowUpRecordModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[#4F4F4F] flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-500" />
@@ -2539,19 +2584,224 @@ function FollowUpRecordModal({
         </div>
 
         <div className="space-y-5 mt-4">
-          {/* Owner Observations */}
-          <div>
-            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">
-              Owner's Observations <span className="text-red-400">*</span>
-            </h3>
-            <p className="text-xs text-gray-400 mb-2">What the pet owner reports about the pet's condition, symptoms, or behavior.</p>
-            <textarea
-              value={ownerObservations}
-              onChange={(e) => setOwnerObservations(e.target.value)}
-              placeholder="e.g. Owner reports pet has been lethargic for 2 days, reduced appetite, mild coughing..."
-              rows={5}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none"
-            />
+          {/* Owner Observations — structured */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-[#2C3E2D]">Owner's Observations <span className="text-red-400">*</span></h3>
+              <p className="text-xs text-gray-400 mt-0.5">Fill in what the pet owner reports since the last visit.</p>
+            </div>
+
+            {/* helper styles */}
+            {(() => {
+              const selectCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-white"
+              const textCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
+              const labelCls = "block text-xs font-medium text-[#4F4F4F] mb-1"
+              const rowCls = "grid grid-cols-2 gap-4"
+              const checkboxes = (key: 'moodChanges' | 'urinationChanges' | 'breathingChanges' | 'woundAppearance', options: string[]) => (
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {options.map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={(obs[key] as string[]).includes(opt)} onChange={() => toggleCheck(key, opt)} className="accent-purple-500 w-3.5 h-3.5" />
+                      <span className="text-xs text-gray-600">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              )
+              const yesNoRadio = (key: keyof typeof emptyObs) => (
+                <div className="flex gap-4 mt-1">
+                  {['yes', 'no'].map(v => (
+                    <label key={v} className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" name={key} value={v} checked={obs[key as keyof typeof obs] === v} onChange={() => setField(key, v)} className="accent-purple-500 w-3.5 h-3.5" />
+                      <span className="text-xs text-gray-600 capitalize">{v}</span>
+                    </label>
+                  ))}
+                </div>
+              )
+
+              return (
+                <div className="space-y-3 bg-gray-50/60 border border-gray-100 rounded-xl p-4">
+
+                  {/* Row 1: Appetite + Water Intake */}
+                  <div className={rowCls}>
+                    <div>
+                      <label className={labelCls}>Appetite</label>
+                      <select value={obs.appetite} onChange={e => setField('appetite', e.target.value)} className={selectCls}>
+                        <option value="">— Select —</option>
+                        <option>Normal</option>
+                        <option>Eating more</option>
+                        <option>Eating less</option>
+                        <option>Refusing food</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Water Intake</label>
+                      <select value={obs.waterIntake} onChange={e => setField('waterIntake', e.target.value)} className={selectCls}>
+                        <option value="">— Select —</option>
+                        <option>Normal</option>
+                        <option>Drinking more than usual</option>
+                        <option>Drinking less than usual</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Energy + Sleep */}
+                  <div className={rowCls}>
+                    <div>
+                      <label className={labelCls}>Energy / Activity Level</label>
+                      <select value={obs.energyLevel} onChange={e => setField('energyLevel', e.target.value)} className={selectCls}>
+                        <option value="">— Select —</option>
+                        <option>Normal</option>
+                        <option>Lethargic</option>
+                        <option>Hyperactive</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Sleep Pattern</label>
+                      <select value={obs.sleepChanges} onChange={e => setField('sleepChanges', e.target.value)} className={selectCls}>
+                        <option value="">— Select —</option>
+                        <option>Normal</option>
+                        <option>Sleeping more</option>
+                        <option>Sleeping less</option>
+                        <option>Restless / Disturbed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Mood/Behavior */}
+                  <div>
+                    <label className={labelCls}>Mood / Behavior Changes <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    {checkboxes('moodChanges', ['None', 'Anxious', 'Aggressive', 'Withdrawn', 'Clingy'])}
+                  </div>
+
+                  {/* Vomiting */}
+                  <div>
+                    <label className={labelCls}>Vomiting</label>
+                    {yesNoRadio('vomiting')}
+                    {obs.vomiting === 'yes' && (
+                      <textarea value={obs.vomitingDetails} onChange={e => setField('vomitingDetails', e.target.value)} placeholder="Frequency, appearance, timing..." rows={2} className={`${textCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* Stool */}
+                  <div>
+                    <label className={labelCls}>Diarrhea / Constipation</label>
+                    <select value={obs.stoolChanges} onChange={e => setField('stoolChanges', e.target.value)} className={selectCls}>
+                      <option value="">— Select —</option>
+                      <option>Normal</option>
+                      <option>Diarrhea</option>
+                      <option>Constipation</option>
+                    </select>
+                    {obs.stoolChanges && obs.stoolChanges !== 'Normal' && (
+                      <textarea value={obs.stoolDetails} onChange={e => setField('stoolDetails', e.target.value)} placeholder="Frequency, consistency, color..." rows={2} className={`${textCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* Urination */}
+                  <div>
+                    <label className={labelCls}>Urination Changes <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    {checkboxes('urinationChanges', ['Normal', 'More frequent', 'Less frequent', 'Unusual color', 'Straining', 'Accidents'])}
+                  </div>
+
+                  {/* Coughing / Sneezing */}
+                  <div>
+                    <label className={labelCls}>Coughing or Sneezing</label>
+                    {yesNoRadio('coughing')}
+                    {obs.coughing === 'yes' && (
+                      <textarea value={obs.coughingDetails} onChange={e => setField('coughingDetails', e.target.value)} placeholder="Frequency, severity (mild / moderate / severe)..." rows={2} className={`${textCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* Breathing */}
+                  <div>
+                    <label className={labelCls}>Breathing Changes <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    {checkboxes('breathingChanges', ['Normal', 'Labored', 'Rapid', 'Noisy'])}
+                  </div>
+
+                  {/* Row: Weight + Limping */}
+                  <div className={rowCls}>
+                    <div>
+                      <label className={labelCls}>Weight Changes (noticed at home)</label>
+                      <select value={obs.weightChanges} onChange={e => setField('weightChanges', e.target.value)} className={selectCls}>
+                        <option value="">— Select —</option>
+                        <option>No change</option>
+                        <option>Gained weight</option>
+                        <option>Lost weight</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Limping / Difficulty Moving</label>
+                      {yesNoRadio('limping')}
+                      {obs.limping === 'yes' && (
+                        <input type="text" value={obs.limpingDetails} onChange={e => setField('limpingDetails', e.target.value)} placeholder="Which limb, description..." className={`${selectCls} mt-2`} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Scratching / Licking */}
+                  <div>
+                    <label className={labelCls}>Scratching, Licking, or Biting a Specific Area</label>
+                    {yesNoRadio('scratchingLicking')}
+                    {obs.scratchingLicking === 'yes' && (
+                      <input type="text" value={obs.scratchingDetails} onChange={e => setField('scratchingDetails', e.target.value)} placeholder="Which area..." className={`${selectCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* Wound Appearance */}
+                  <div>
+                    <label className={labelCls}>Wound / Incision Appearance <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    {checkboxes('woundAppearance', ['Looks normal', 'Redness', 'Swelling', 'Discharge', 'Pet licking it'])}
+                  </div>
+
+                  {/* Medication */}
+                  <div>
+                    <label className={labelCls}>Medication Given as Directed</label>
+                    <div className="flex gap-4 mt-1">
+                      {['Yes, as directed', 'Had difficulties', 'Not on medication'].map(v => (
+                        <label key={v} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="radio" name="medicationCompliance" value={v} checked={obs.medicationCompliance === v} onChange={() => setField('medicationCompliance', v)} className="accent-purple-500 w-3.5 h-3.5" />
+                          <span className="text-xs text-gray-600">{v}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {obs.medicationCompliance === 'Had difficulties' && (
+                      <textarea value={obs.medicationDifficulties} onChange={e => setField('medicationDifficulties', e.target.value)} placeholder="Describe the difficulties..." rows={2} className={`${textCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* Side Effects */}
+                  <div>
+                    <label className={labelCls}>Side Effects Noticed After Medication</label>
+                    {yesNoRadio('sideEffects')}
+                    {obs.sideEffects === 'yes' && (
+                      <textarea value={obs.sideEffectsDetails} onChange={e => setField('sideEffectsDetails', e.target.value)} placeholder="Describe the side effects..." rows={2} className={`${textCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* New Symptoms */}
+                  <div>
+                    <label className={labelCls}>New or Worsening Symptoms Since Last Visit</label>
+                    {yesNoRadio('newSymptoms')}
+                    {obs.newSymptoms === 'yes' && (
+                      <textarea value={obs.newSymptomsDetails} onChange={e => setField('newSymptomsDetails', e.target.value)} placeholder="Describe the new or worsening symptoms..." rows={2} className={`${textCls} mt-2`} />
+                    )}
+                  </div>
+
+                  {/* Overall Impression — required */}
+                  <div className="border-t border-gray-200 pt-3">
+                    <label className={labelCls}>Overall Impression <span className="text-red-400">*</span></label>
+                    <div className="flex gap-6 mt-1">
+                      {['Better', 'Same', 'Worse'].map(v => (
+                        <label key={v} className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border transition-colors ${obs.overallImpression === v ? 'bg-purple-50 border-purple-300 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                          <input type="radio" name="overallImpression" value={v} checked={obs.overallImpression === v} onChange={() => setField('overallImpression', v)} className="accent-purple-500 w-3.5 h-3.5" />
+                          <span className="text-sm font-medium">{v}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              )
+            })()}
           </div>
 
           {/* Vet Notes */}
