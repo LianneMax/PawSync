@@ -33,6 +33,14 @@ import {
   StickyNote,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { getPetNotes, savePetNotes } from '@/lib/petNotes'
 
 interface Props {
@@ -156,6 +164,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [pet, setPet] = useState<Pet | null>(null)
   const [saving, setSaving] = useState(false)
   const [completing, setCompleting] = useState(false)
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [vitalsOpen, setVitalsOpen] = useState(true)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const [confined, setConfined] = useState(false)
@@ -528,6 +537,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         await updateAppointmentStatus(appointmentId, 'completed', token)
       }
       await handleSaveNotes()
+      setShowCompleteConfirm(false)
       toast.success('Visit completed!')
       onComplete()
     } catch {
@@ -535,6 +545,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     } finally {
       setCompleting(false)
     }
+  }
+
+  const handleCompleteClick = () => {
+    setShowCompleteConfirm(true)
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1417,7 +1431,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             )}
             {((step === 3 && !isVaccinationAppt) || step === 4) && (
               <button
-                onClick={handleCompleteRecord}
+                onClick={handleCompleteClick}
                 disabled={completing}
                 className="flex items-center gap-2 px-5 py-2 bg-[#35785C] text-white rounded-xl text-sm font-medium hover:bg-[#2a6049] transition-colors disabled:opacity-60"
               >
@@ -1428,6 +1442,35 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog for Complete & Finish Visit */}
+      <Dialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Complete Visit?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to complete this visit? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <button
+              onClick={() => setShowCompleteConfirm(false)}
+              disabled={completing}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCompleteRecord}
+              disabled={completing}
+              className="flex items-center gap-2 px-4 py-2 bg-[#35785C] text-white rounded-lg hover:bg-[#2a6049] transition-colors disabled:opacity-60 font-medium text-sm"
+            >
+              {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Continue
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
       <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-[22rem]'}`}>
