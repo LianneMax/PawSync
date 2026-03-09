@@ -1246,6 +1246,8 @@ function ViewRecordModal({
   const [expandedFollowUps, setExpandedFollowUps] = useState<Set<string>>(new Set())
   const [followUpsMinimized, setFollowUpsMinimized] = useState(false)
   const [lightboxMedia, setLightboxMedia] = useState<{ src: string; contentType: string; description?: string } | null>(null)
+  const [billingModalOpen, setBillingModalOpen] = useState(false)
+  const [billingModalMode, setBillingModalMode] = useState<'create' | 'view' | 'update'>('create')
 
   // Vet notepad (pet-level, same across all visits)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -1608,9 +1610,28 @@ function ViewRecordModal({
                     {branch?.name ? ` — ${branch.name}` : ''}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-white/60">Record ID</p>
-                  <p className="text-sm font-mono text-white/90">{record._id.slice(-8).toUpperCase()}</p>
+                <div className="text-right flex flex-col items-end gap-2">
+                  <div>
+                    <p className="text-xs text-white/60">Record ID</p>
+                    <p className="text-sm font-mono text-white/90">{record._id.slice(-8).toUpperCase()}</p>
+                  </div>
+                  {!record.billingId ? (
+                    <button
+                      onClick={() => { setBillingModalMode('create'); setBillingModalOpen(true) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                      Create Bill
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                      View Bill
+                    </button>
+                  )}
                 </div>
               </div>
               {(clinic?.address || branch?.address) && (
@@ -2118,6 +2139,26 @@ function ViewRecordModal({
           </div>
         )}
       </div>
+
+      {/* ===== BILLING MODAL ===== */}
+      <BillingFromRecordModal
+        open={billingModalOpen}
+        mode={billingModalMode}
+        onClose={() => setBillingModalOpen(false)}
+        patientName={typeof record?.petId === 'object' ? (record?.petId as any)?.name ?? '' : ''}
+        appointmentId={
+          record
+            ? typeof record.appointmentId === 'object'
+              ? (record.appointmentId as any)?._id ?? null
+              : record.appointmentId ?? null
+            : null
+        }
+        vetName={
+          record && typeof record.vetId === 'object' && record.vetId
+            ? `Dr. ${(record.vetId as any).firstName ?? ''} ${(record.vetId as any).lastName ?? ''}`.trim()
+            : '—'
+        }
+      />
 
       {/* ===== LIGHTBOX ===== */}
       {lightboxMedia && (
