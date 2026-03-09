@@ -462,6 +462,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
   const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const nfcWsRef = useRef<WebSocket | null>(null)
   const [scanError, setScanError] = useState<string>('')
+  const [isLookingUpPet, setIsLookingUpPet] = useState(false)
 
   // Cleanup function for QR scanner
   const stopQrScanner = async () => {
@@ -483,6 +484,30 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
       nfcWsRef.current = null
     }
   }
+
+  // Look up pet by NFC tag ID via API
+  const lookupPetByNfcId = useCallback(async (nfcTagId: string) => {
+    setIsLookingUpPet(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const response = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.status === 'SUCCESS' && data.data?.pet?._id) {
+          onScanComplete(data.data.pet._id)
+          return
+        }
+      }
+      
+      setScanError('Pet not found. This NFC tag may not be registered in the system.')
+    } catch (error) {
+      console.error('Error looking up pet by NFC tag:', error)
+      setScanError('Failed to look up pet. Please try again.')
+    } finally {
+      setIsLookingUpPet(false)
+    }
+  }, [onScanComplete])
 
   // Handle NFC scanning
   const startNfcScan = useCallback(() => {
@@ -511,8 +536,8 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
         ndef.onreading = (event) => {
           if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
           const tagId = event.serialNumber
-          // First, try to find pet by tag UID
-          onScanComplete(tagId)
+          // Look up pet by NFC tag ID via API
+          lookupPetByNfcId(tagId)
         }
       } catch {
         startBackendNfcScan()
@@ -520,7 +545,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
     } else {
       startBackendNfcScan()
     }
-  }, [onScanComplete])
+  }, [lookupPetByNfcId])
 
   // Start backend NFC scan via WebSocket
   const startBackendNfcScan = () => {
@@ -540,17 +565,13 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
-          if (msg.type === 'card' && (msg.data?.uid || msg.data?.url)) {
+          if (msg.type === 'card' && msg.data?.uid) {
             if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
             ws.close()
             nfcWsRef.current = null
             
-            const tagId = msg.data.uid || (msg.data.url && msg.data.url.split('/').pop())
-            if (tagId) {
-              onScanComplete(tagId)
-            } else {
-              setScanError('Pet tag not recognized.')
-            }
+            // Look up pet by NFC tag UID via API
+            lookupPetByNfcId(msg.data.uid)
           }
         } catch {
           // ignore parse errors
@@ -660,16 +681,16 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
         )}
 
         {/* Scanning State */}
-        {scanStatus === 'scanning' && (
+        {(scanStatus === 'scanning' || isLookingUpPet) && (
           <div className="text-center">
-            {scanMode === 'qr' && (
+            {scanMode === 'qr' && !isLookingUpPet && (
               <div
                 id="clinic-qr-reader"
                 className="mb-4 rounded-lg overflow-hidden"
                 style={{ width: '100%', height: '250px' }}
               />
             )}
-            {scanMode === 'nfc' && (
+            {(scanMode === 'nfc' || isLookingUpPet) && (
               <div className="mb-4">
                 <div className="relative w-24 h-24 mx-auto mb-4">
                   <div className="absolute inset-0 rounded-full border-2 border-[#4A8A87]/30 animate-pulse" />
@@ -680,7 +701,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
             )}
             <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
               <Loader className="w-4 h-4 animate-spin" />
-              Scanning...
+              {isLookingUpPet ? 'Looking up pet...' : 'Scanning...'}
             </div>
           </div>
         )}
@@ -710,7 +731,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
 
         {/* Footer Buttons */}
         <div className="flex gap-3">
-          {scanStatus === 'scanning' && (
+          {(scanStatus === 'scanning' || isLookingUpPet) && (
             <button
               onClick={handleClose}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-sm transition-colors"
@@ -730,6 +751,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
                 <button
                   onClick={() => {
                     setScanError('')
+                    setIsLookingUpPet(false)
                     if (scanMode === 'nfc') startNfcScan()
                     else startQrScan()
                   }}

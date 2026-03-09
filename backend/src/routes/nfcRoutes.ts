@@ -5,7 +5,8 @@ import {
   recordNFCTagWriting,
   checkNFCTagStatus,
   getNFCWritingInstructions,
-  startNFCTagWriting
+  startNFCTagWriting,
+  getPetByNfcTagId
 } from '../controllers/nfcController';
 import {
   requestPetTag,
@@ -53,6 +54,9 @@ router.get('/pet/:petId/status', checkNFCTagStatus);
 
 // GET /api/nfc/pet/:petId/instructions - Get NFC writing instructions
 router.get('/pet/:petId/instructions', getNFCWritingInstructions);
+
+// GET /api/nfc/by-tag-id/:nfcTagId - Get pet by NFC tag ID (clinic scanning)
+router.get('/by-tag-id/:nfcTagId', getPetByNfcTagId);
 
 // POST /api/nfc/pet/:petId/write - Start writing NFC tag (waits for tag placement)
 router.post('/pet/:petId/write', authMiddleware, startNFCTagWriting);

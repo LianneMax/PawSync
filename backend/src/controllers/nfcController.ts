@@ -276,3 +276,45 @@ export const getNFCWritingInstructions = async (req: Request, res: Response) => 
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };
+
+/**
+ * Get pet by NFC tag ID.
+ * Used by clinics when scanning an NFC tag to retrieve the associated pet.
+ * This lookup is used in the patient management page when a pet tag is scanned.
+ */
+export const getPetByNfcTagId = async (req: Request, res: Response) => {
+  try {
+    const { nfcTagId } = req.params;
+
+    if (!nfcTagId) {
+      return res.status(400).json({ status: 'ERROR', message: 'NFC Tag ID is required' });
+    }
+
+    const pet = await Pet.findOne({ nfcTagId }).populate('ownerId', 'firstName lastName email mobileNumber');
+
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found with this NFC tag' });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        pet: {
+          _id: pet._id,
+          name: pet.name,
+          species: pet.species,
+          breed: pet.breed,
+          photo: pet.photo,
+          sex: pet.sex,
+          dateOfBirth: pet.dateOfBirth,
+          weight: pet.weight,
+          microchipNumber: pet.microchipNumber,
+          owner: pet.ownerId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get pet by NFC tag ID error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while retrieving pet data' });
+  }
+};
