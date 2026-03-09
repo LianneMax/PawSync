@@ -1033,28 +1033,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     )
                   })()}
 
-                  {/* Age eligibility validation */}
-                  {vaccineTypeId && pet?.dateOfBirth && (
-                    <div className={`flex items-start gap-3 p-3 rounded-xl ${
-                      vaccineAgeValid
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-red-50 border border-red-200'
-                    }`}>
-                      {vaccineAgeValid ? (
-                        <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${
-                          vaccineAgeValid ? 'text-green-700' : 'text-red-700'
-                        }`}>
-                          {vaccineAgeError}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Min/Max Age Display */}
                   {vaccineTypeId && (() => {
                     const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
@@ -1076,6 +1054,28 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                     )
                   })()}
+
+                  {/* Age eligibility validation */}
+                  {vaccineTypeId && pet?.dateOfBirth && (
+                    <div className={`flex items-start gap-3 p-3 rounded-xl ${
+                      vaccineAgeValid
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                    }`}>
+                      {vaccineAgeValid ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${
+                          vaccineAgeValid ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {vaccineAgeError}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Date Administered */}
                   <div>

@@ -5,6 +5,7 @@ import {
   getPublicVaccinationsByPet,
   getVaccinationById,
   updateVaccination,
+  deleteVaccination,
   declineVaccination,
   getVetVaccinations,
   getClinicVaccinations,
@@ -73,6 +74,10 @@ router.post('/', authMiddleware, vetOrClinicAdminOnly, createVaccination);
 // Update vaccination (vet or clinic-admin)
 // PUT /api/vaccinations/:id
 router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateVaccination);
+
+// Delete vaccination (vet or clinic-admin)
+// DELETE /api/vaccinations/:id
+router.delete('/:id', authMiddleware, vetOrClinicAdminOnly, deleteVaccination);
 
 // Decline vaccination (vet or clinic-admin)
 // POST /api/vaccinations/:id/decline

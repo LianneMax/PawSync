@@ -3,6 +3,7 @@ import {
   listVaccineTypes,
   createVaccineType,
   updateVaccineType,
+  deleteVaccineType,
 } from '../controllers/vaccineTypeController';
 import { authMiddleware, clinicOrBranchAdminOnly, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -18,5 +19,8 @@ router.post('/', authMiddleware, vetOrClinicAdminOnly, createVaccineType);
 
 // PUT /api/vaccine-types/:id
 router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateVaccineType);
+
+// DELETE /api/vaccine-types/:id
+router.delete('/:id', authMiddleware, vetOrClinicAdminOnly, deleteVaccineType);
 
 export default router;

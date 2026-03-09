@@ -15,6 +15,7 @@ import {
   X,
   CheckCircle2,
   ClipboardList,
+  Trash2,
 } from 'lucide-react'
 import {
   getVetVaccinations,
@@ -23,6 +24,8 @@ import {
   getAllVaccineTypes,
   createVaccineType,
   updateVaccineType,
+  deleteVaccination,
+  deleteVaccineType,
   type Vaccination,
   type VaccineType,
 } from '@/lib/vaccinations'
@@ -174,6 +177,42 @@ export default function VetVaccinationsPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  // ── Delete vaccination state ──
+  const [deleteTarget, setDeleteTarget] = useState<Vaccination | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteVaccination = async () => {
+    if (!token || !deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteVaccination(deleteTarget._id, token)
+      setVaccinations((prev) => prev.filter((v) => v._id !== deleteTarget._id))
+      setDeleteTarget(null)
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete vaccination')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // ── Delete vaccine type state ──
+  const [deleteTypeTarget, setDeleteTypeTarget] = useState<VaccineType | null>(null)
+  const [deletingType, setDeletingType] = useState(false)
+
+  const handleDeleteVaccineType = async () => {
+    if (!token || !deleteTypeTarget) return
+    setDeletingType(true)
+    try {
+      await deleteVaccineType(deleteTypeTarget._id, token)
+      setTypes((prev) => prev.filter((t) => t._id !== deleteTypeTarget._id))
+      setDeleteTypeTarget(null)
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete vaccine type')
+    } finally {
+      setDeletingType(false)
+    }
+  }
 
   const loadTypes = useCallback(async () => {
     if (!token) return
@@ -366,35 +405,46 @@ export default function VetVaccinationsPage() {
             ) : (
               <div className="space-y-2">
                 {filtered.map((vax) => (
-                  <button
+                  <div
                     key={vax._id}
-                    onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${vax._id}`)}
-                    className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#7FA5A3]/40 hover:bg-[#F8F6F2] transition-all text-left"
+                    className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#7FA5A3]/40 hover:bg-[#F8F6F2] transition-all"
                   >
-                    {getPetPhoto(vax) ? (
-                      <img src={getPetPhoto(vax)!} alt={getPetName(vax)} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
-                        <span className="text-[#476B6B] font-bold text-sm">{getPetName(vax).charAt(0).toUpperCase()}</span>
+                    <button
+                      className="flex items-center gap-4 flex-1 min-w-0 text-left"
+                      onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${vax._id}`)}
+                    >
+                      {getPetPhoto(vax) ? (
+                        <img src={getPetPhoto(vax)!} alt={getPetName(vax)} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
+                          <span className="text-[#476B6B] font-bold text-sm">{getPetName(vax).charAt(0).toUpperCase()}</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-semibold text-[#4F4F4F] text-sm truncate">{vax.vaccineName}</p>
+                          <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full shrink-0 ${getStatusClasses(vax.status)}`}>
+                            {getStatusLabel(vax.status)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate capitalize">
+                          {getPetName(vax)}{getPetSpecies(vax) ? ` · ${getPetSpecies(vax)}` : ''}
+                        </p>
+                        <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
+                          <span>Given: {formatDate(vax.dateAdministered)}</span>
+                          {vax.expiryDate && <span>Expires: {formatDate(vax.expiryDate)}</span>}
+                        </div>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-semibold text-[#4F4F4F] text-sm truncate">{vax.vaccineName}</p>
-                        <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full shrink-0 ${getStatusClasses(vax.status)}`}>
-                          {getStatusLabel(vax.status)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate capitalize">
-                        {getPetName(vax)}{getPetSpecies(vax) ? ` · ${getPetSpecies(vax)}` : ''}
-                      </p>
-                      <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
-                        <span>Given: {formatDate(vax.dateAdministered)}</span>
-                        {vax.expiryDate && <span>Expires: {formatDate(vax.expiryDate)}</span>}
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(vax)}
+                      className="p-2 rounded-xl hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                      title="Delete vaccination"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -451,6 +501,13 @@ export default function VetVaccinationsPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
+                        onClick={() => setDeleteTypeTarget(vt)}
+                        className="p-2 rounded-xl hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => openEdit(vt)}
                         className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-[#476B6B] transition-colors"
                         title="Edit"
@@ -479,6 +536,80 @@ export default function VetVaccinationsPage() {
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#4F4F4F]">Delete Vaccination</h2>
+                <p className="text-sm text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete the <span className="font-semibold">{deleteTarget.vaccineName}</span> record for <span className="font-semibold">{getPetName(deleteTarget)}</span>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteVaccination}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deleting && <Loader className="w-4 h-4 animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Vaccine Type Confirmation Modal */}
+      {deleteTypeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#4F4F4F]">Delete Vaccine Type</h2>
+                <p className="text-sm text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete <span className="font-semibold">{deleteTypeTarget.name}</span>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTypeTarget(null)}
+                disabled={deletingType}
+                className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteVaccineType}
+                disabled={deletingType}
+                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingType && <Loader className="w-4 h-4 animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       {showModal && (
@@ -527,17 +658,17 @@ export default function VetVaccinationsPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
+                  Validity (days) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number" min="1" value={form.validityDays}
+                  onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                    Validity (days) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number" min="1" value={form.validityDays}
-                    onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Min Age (months)</label>
                   <input

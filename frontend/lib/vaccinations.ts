@@ -106,6 +106,16 @@ export async function createVaccineType(data: VaccineTypeInput, token: string): 
   return json.data.vaccineType;
 }
 
+/** Delete a vaccine type (vet or clinic-admin). */
+export async function deleteVaccineType(id: string, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/vaccine-types/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to delete vaccine type');
+}
+
 /** Update a vaccine type (vet or clinic-admin). */
 export async function updateVaccineType(id: string, data: Partial<VaccineTypeInput> & { isActive?: boolean }, token: string): Promise<VaccineType> {
   const res = await fetch(`${API_BASE_URL}/vaccine-types/${id}`, {
@@ -196,6 +206,16 @@ export async function updateVaccination(
   const json = await res.json();
   if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to update vaccination');
   return json.data.vaccination;
+}
+
+/** Delete a vaccination record (vet or clinic-admin). */
+export async function deleteVaccination(id: string, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/vaccinations/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to delete vaccination');
 }
 
 /** Mark a vaccination as declined (vet only). */

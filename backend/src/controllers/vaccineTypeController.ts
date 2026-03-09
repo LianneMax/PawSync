@@ -44,6 +44,7 @@ export const createVaccineType = async (req: Request, res: Response) => {
       requiresBooster,
       boosterIntervalDays,
       minAgeMonths,
+      maxAgeMonths,
       route,
       defaultManufacturer,
       defaultBatchNumber,
@@ -65,6 +66,7 @@ export const createVaccineType = async (req: Request, res: Response) => {
       requiresBooster: requiresBooster || false,
       boosterIntervalDays: boosterIntervalDays || null,
       minAgeMonths: minAgeMonths || 0,
+      maxAgeMonths: maxAgeMonths ?? null,
       route: route || null,
       defaultManufacturer: defaultManufacturer || null,
       defaultBatchNumber: defaultBatchNumber || null,
@@ -81,6 +83,30 @@ export const createVaccineType = async (req: Request, res: Response) => {
       return res.status(409).json({ status: 'ERROR', message: 'A vaccine type with this name already exists' });
     }
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the vaccine type' });
+  }
+};
+
+/**
+ * DELETE /api/vaccine-types/:id
+ * Vet or clinic admin only — permanently delete a vaccine type.
+ */
+export const deleteVaccineType = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const vaccineType = await VaccineType.findById(req.params.id);
+    if (!vaccineType) {
+      return res.status(404).json({ status: 'ERROR', message: 'Vaccine type not found' });
+    }
+
+    await vaccineType.deleteOne();
+
+    return res.status(200).json({ status: 'SUCCESS', message: 'Vaccine type deleted' });
+  } catch (error) {
+    console.error('Delete vaccine type error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the vaccine type' });
   }
 };
 
@@ -106,6 +132,7 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       requiresBooster,
       boosterIntervalDays,
       minAgeMonths,
+      maxAgeMonths,
       route,
       pricePerDose,
       defaultManufacturer,
@@ -119,6 +146,7 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (requiresBooster !== undefined) vaccineType.requiresBooster = requiresBooster;
     if (boosterIntervalDays !== undefined) vaccineType.boosterIntervalDays = boosterIntervalDays;
     if (minAgeMonths !== undefined) vaccineType.minAgeMonths = minAgeMonths;
+    if (maxAgeMonths !== undefined) vaccineType.maxAgeMonths = maxAgeMonths ?? null;
     if (route !== undefined) vaccineType.route = route;
     if (pricePerDose !== undefined) vaccineType.pricePerDose = pricePerDose;
     if (defaultManufacturer !== undefined) vaccineType.defaultManufacturer = defaultManufacturer || null;

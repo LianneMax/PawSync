@@ -432,29 +432,29 @@ export default function VaccineTypesPage() {
                 </div>
               )}
 
-              {/* Min Age */}
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Minimum Age (months)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.minAgeMonths}
-                  onChange={(e) => setForm((f) => ({ ...f, minAgeMonths: e.target.value }))}
-                  className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-              </div>
-
-              {/* Max Age */}
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Maximum Age (months)</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Leave empty for no maximum"
-                  value={form.maxAgeMonths}
-                  onChange={(e) => setForm((f) => ({ ...f, maxAgeMonths: e.target.value }))}
-                  className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
+              {/* Min Age / Max Age */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Min Age (months)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.minAgeMonths}
+                    onChange={(e) => setForm((f) => ({ ...f, minAgeMonths: e.target.value }))}
+                    className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Max Age (months)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="No maximum"
+                    value={form.maxAgeMonths}
+                    onChange={(e) => setForm((f) => ({ ...f, maxAgeMonths: e.target.value }))}
+                    className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
               </div>
 
               {/* Route */}

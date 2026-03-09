@@ -522,6 +522,30 @@ export const declineVaccination = async (req: Request, res: Response) => {
 };
 
 /**
+ * DELETE /api/vaccinations/:id
+ * Vet or clinic-admin only — permanently delete a vaccination record.
+ */
+export const deleteVaccination = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const vaccination = await Vaccination.findById(req.params.id);
+    if (!vaccination) {
+      return res.status(404).json({ status: 'ERROR', message: 'Vaccination record not found' });
+    }
+
+    await vaccination.deleteOne();
+
+    return res.status(200).json({ status: 'SUCCESS', message: 'Vaccination record deleted' });
+  } catch (error) {
+    console.error('Delete vaccination error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
  * GET /api/vaccinations/search/owners?q=
  * Vet / clinic admin — search pet owners by name for the vaccination form.
  */
