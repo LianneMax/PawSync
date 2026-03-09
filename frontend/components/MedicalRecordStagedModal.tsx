@@ -42,6 +42,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { getPetNotes, savePetNotes } from '@/lib/petNotes'
+import { Switch } from '@/components/ui/switch'
 
 interface Props {
   recordId: string
@@ -1290,12 +1291,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           {confined ? 'Pet is confined' : 'Pet will be confined'}
                         </p>
                       </div>
-                      <button
-                        onClick={() => setConfined(!confined)}
-                        className={`relative w-10 h-6 rounded-full transition-colors ${confined ? 'bg-amber-500' : 'bg-gray-300'}`}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${confined ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                      </button>
+                      <Switch
+                        checked={confined}
+                        onCheckedChange={setConfined}
+                        className="data-checked:bg-amber-500"
+                      />
                     </div>
 
                     {/* Discharge Toggle */}
@@ -1308,12 +1308,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           {discharge ? 'Pet approved for discharge' : 'Mark for at-home care'}
                         </p>
                       </div>
-                      <button
-                        onClick={() => setDischarge(!discharge)}
-                        className={`relative w-10 h-6 rounded-full transition-colors ${discharge ? 'bg-green-500' : 'bg-gray-300'}`}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${discharge ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                      </button>
+                      <Switch
+                        checked={discharge}
+                        onCheckedChange={setDischarge}
+                        className="data-checked:bg-green-500"
+                      />
                     </div>
 
                     {/* Referral Toggle */}
@@ -1326,12 +1325,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           {referral ? 'Specialist referral needed' : 'Refer to another veterinarian'}
                         </p>
                       </div>
-                      <button
-                        onClick={() => setReferral(!referral)}
-                        className={`relative w-10 h-6 rounded-full transition-colors ${referral ? 'bg-blue-500' : 'bg-gray-300'}`}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${referral ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                      </button>
+                      <Switch
+                        checked={referral}
+                        onCheckedChange={setReferral}
+                        className="data-checked:bg-blue-500"
+                      />
                     </div>
 
                     {/* Surgery Toggle */}
@@ -1344,12 +1342,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           {surgery ? 'Surgery scheduled' : 'Schedule surgical procedure'}
                         </p>
                       </div>
-                      <button
-                        onClick={() => setSurgery(!surgery)}
-                        className={`relative w-10 h-6 rounded-full transition-colors ${surgery ? 'bg-red-500' : 'bg-gray-300'}`}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${surgery ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                      </button>
+                      <Switch
+                        checked={surgery}
+                        onCheckedChange={setSurgery}
+                        className="data-checked:bg-red-500"
+                      />
                     </div>
                   </div>
                 )}
@@ -1361,12 +1358,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   <p className="text-sm font-semibold text-[#4F4F4F]">Share with Owner</p>
                   <p className="text-xs text-gray-500">{sharedWithOwner ? 'Owner can view this record' : 'Record is private'}</p>
                 </div>
-                <button
-                  onClick={() => setSharedWithOwner(!sharedWithOwner)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${sharedWithOwner ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sharedWithOwner ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
+                <Switch
+                  checked={sharedWithOwner}
+                  onCheckedChange={setSharedWithOwner}
+                  className="data-checked:bg-[#476B6B]"
+                />
               </div>
             </>
           )}
