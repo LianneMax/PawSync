@@ -74,7 +74,7 @@ export const createAppointment = async (req: Request, res: Response) => {
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
-    if (pet.ownerId.toString() !== req.user.userId) {
+    if (pet.ownerId.toString() !== req.user.userId && req.user.userType !== 'veterinarian') {
       return res.status(403).json({ status: 'ERROR', message: 'You can only book appointments for your own pets' });
     }
 
