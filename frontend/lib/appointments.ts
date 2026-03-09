@@ -63,6 +63,13 @@ export const getAvailableSlots = async (
 };
 
 /**
+ * Get appointments for the authenticated vet
+ */
+export const getVetAppointments = async (token?: string): Promise<{ status: string; data?: { appointments: Appointment[] } }> => {
+  return authenticatedFetch('/appointments/vet', { method: 'GET' }, token);
+};
+
+/**
  * Get my appointments
  */
 export const getMyAppointments = async (filter?: 'upcoming' | 'previous', token?: string): Promise<{ status: string; data?: { appointments: Appointment[] } }> => {

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { checkInAppointment } from '@/lib/appointments'
+import { checkInAppointment, getVetAppointments } from '@/lib/appointments'
 import { getRecordByAppointment } from '@/lib/medicalRecords'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import {
@@ -80,13 +80,9 @@ export default function VetAppointmentsPage() {
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/appointments/vet`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      const data = await res.json()
+      const data = await getVetAppointments(token)
       if (data.status === 'SUCCESS') {
-        setAppointments(data.data.appointments || [])
+        setAppointments(data.data?.appointments || [])
       }
     } finally {
       setLoading(false)
