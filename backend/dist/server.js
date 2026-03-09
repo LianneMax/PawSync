@@ -24,6 +24,7 @@ const vaccineTypeRoutes_1 = __importDefault(require("./routes/vaccineTypeRoutes"
 const confinementRoutes_1 = __importDefault(require("./routes/confinementRoutes"));
 const billingRoutes_1 = __importDefault(require("./routes/billingRoutes"));
 const productServiceRoutes_1 = __importDefault(require("./routes/productServiceRoutes"));
+const paymentQRRoutes_1 = __importDefault(require("./routes/paymentQRRoutes"));
 const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const petNotesRoutes_1 = __importDefault(require("./routes/petNotesRoutes"));
 const nfcService_1 = require("./services/nfcService");
@@ -77,6 +78,8 @@ app.use('/api/confinement', confinementRoutes_1.default);
 app.use('/api/billings', billingRoutes_1.default);
 // Product/service catalog routes
 app.use('/api/product-services', productServiceRoutes_1.default);
+// Payment QR code routes
+app.use('/api/payment-qr', paymentQRRoutes_1.default);
 // Notification routes
 app.use('/api/notifications', notificationRoutes_1.default);
 // Pet notes (vet notepad) routes
