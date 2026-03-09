@@ -75,7 +75,6 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" />, badge: '12' },
     { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccinations', href: '/clinic-admin/vaccinations', icon: <Syringe className="w-5 h-5" /> },
-    { label: 'Vaccine Types', href: '/clinic-admin/vaccine-types', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Analytics', href: '/clinic-admin/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
