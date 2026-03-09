@@ -57,7 +57,7 @@ export default function SurgeryAppointmentModal({
   const [date, setDate] = useState('')
   const [selectedVetId, setSelectedVetId] = useState(vetId || '')
   const [selectedBranchId, setSelectedBranchId] = useState(clinicBranchId || '')
-  const [mode, setMode] = useState<'face-to-face' | 'online'>('face-to-face')
+  const [mode, setMode] = useState<'face-to-face'>('face-to-face')
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [selectedSlot, setSelectedSlot] = useState<{ startTime: string; endTime: string } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -217,11 +217,28 @@ export default function SurgeryAppointmentModal({
               <label className="block text-sm font-semibold text-gray-800 mb-2">Mode of Appointment</label>
               <select
                 value={mode}
-                onChange={(e) => setMode(e.target.value as 'face-to-face' | 'online')}
+                onChange={(e) => setMode(e.target.value as 'face-to-face')}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
               >
                 <option value="face-to-face">Face to Face</option>
                 <option value="online">Online</option>
+              </select>
+            </div>
+
+            {/* Vet Clinic Branch */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Vet Clinic Branch</label>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+              >
+                <option value="">Select a branch</option>
+                {branches.map((branch) => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -239,23 +256,6 @@ export default function SurgeryAppointmentModal({
                 {vets.map((vet) => (
                   <option key={vet._id} value={vet._id}>
                     {vet.firstName} {vet.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Vet Clinic Branch */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Vet Clinic Branch</label>
-              <select
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-              >
-                <option value="">Select a branch</option>
-                {branches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name}
                   </option>
                 ))}
               </select>
