@@ -15,6 +15,8 @@ import {
   getClinicAppointments,
   getNextAppointment,
   getAppointmentById,
+  getClinicBranches,
+  getVetsByBranchId,
 } from '../controllers/appointmentController';
 import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly, clinicOrBranchAdminOnly } from '../middleware/auth';
 
@@ -37,6 +39,18 @@ router.get('/slots', authMiddleware, getAvailableSlots);
  * Get available time slots for grooming based on clinic branch hours
  */
 router.get('/grooming-slots', authMiddleware, getGroomingSlots);
+
+/**
+ * GET /api/appointments/clinic-branches
+ * Get all clinic branches for the authenticated user's clinic
+ */
+router.get('/clinic-branches', authMiddleware, getClinicBranches);
+
+/**
+ * GET /api/appointments/clinic-branches/:branchId/vets
+ * Get approved vets for a specific clinic branch
+ */
+router.get('/clinic-branches/:branchId/vets', authMiddleware, getVetsByBranchId);
 
 /**
  * GET /api/appointments/branch-vets?branchId=...

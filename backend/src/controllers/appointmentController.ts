@@ -1287,3 +1287,120 @@ export const getAppointmentById = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the appointment' });
   }
 };
+/**
+ * Get all clinic branches for the authenticated user's clinic
+ */
+export const getClinicBranches = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    let clinicId: string;
+
+    // If user is a veterinarian, get their clinic from VetApplication
+    if (req.user.userType === 'veterinarian') {
+      const vetApp = await VetApplication.findOne({ vetId: req.user.userId });
+      if (!vetApp) {
+        return res.status(403).json({ status: 'ERROR', message: 'Veterinarian has no clinic assignment' });
+      }
+      const branch = await ClinicBranch.findById(vetApp.branchId);
+      if (!branch) {
+        return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
+      }
+      clinicId = (branch.clinicId as any).toString();
+    } else if (req.user.clinicId) {
+      // If user is a clinic admin or pet owner, use their clinicId
+      clinicId = req.user.clinicId;
+    } else {
+      return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with user' });
+    }
+
+    // Fetch all active branches for this clinic
+    const branches = await ClinicBranch.find({
+      clinicId: clinicId,
+      isActive: true
+    })
+      .select('_id name')
+      .sort({ isMain: -1, name: 1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: branches
+    });
+  } catch (error) {
+    console.error('Get clinic branches error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching clinic branches' });
+  }
+};
+
+/**
+ * Get assigned (approved) vets for a specific clinic branch
+ */
+export const getVetsByBranchId = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { branchId } = req.params;
+
+    if (!branchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'branchId is required' });
+    }
+
+    // Verify branch exists and is active
+    const branch = await ClinicBranch.findOne({ _id: branchId, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    // Verify user has access to this branch's clinic
+    let userClinicId: string;
+    if (req.user.userType === 'veterinarian') {
+      const vetApp = await VetApplication.findOne({ vetId: req.user.userId });
+      if (!vetApp) {
+        return res.status(403).json({ status: 'ERROR', message: 'No clinic assignment' });
+      }
+      const userBranch = await ClinicBranch.findById(vetApp.branchId);
+      if (!userBranch) {
+        return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
+      }
+      userClinicId = (userBranch.clinicId as any).toString();
+    } else if (req.user.clinicId) {
+      userClinicId = req.user.clinicId;
+    } else {
+      return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with user' });
+    }
+
+    if ((branch.clinicId as any).toString() !== userClinicId) {
+      return res.status(403).json({ status: 'ERROR', message: 'You do not have access to this branch' });
+    }
+
+    // Find approved vet applications for this branch
+    const approvedApplications = await VetApplication.find({
+      branchId: branchId,
+      status: 'approved'
+    }).populate('vetId', 'firstName lastName email');
+
+    const vets = approvedApplications
+      .filter((app) => app.vetId)
+      .map((app) => {
+        const vet = app.vetId as any;
+        return {
+          _id: vet._id,
+          firstName: vet.firstName,
+          lastName: vet.lastName,
+          email: vet.email,
+        };
+      });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: vets
+    });
+  } catch (error) {
+    console.error('Get vets by branch error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
+  }
+};

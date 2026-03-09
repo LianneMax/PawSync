@@ -27,6 +27,18 @@ export interface Appointment {
   updatedAt: string;
 }
 
+export interface ClinicBranch {
+  _id: string;
+  name: string;
+}
+
+export interface AssignedVet {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 /**
  * Book a new appointment
  */
@@ -46,6 +58,20 @@ export const createAppointment = async (data: {
     method: 'POST',
     body: JSON.stringify(data)
   }, token);
+};
+
+/**
+ * Get clinic branches for the authenticated user's clinic
+ */
+export const getClinicBranches = async (token?: string): Promise<{ status: string; data?: ClinicBranch[] }> => {
+  return authenticatedFetch('/appointments/clinic-branches', { method: 'GET' }, token);
+};
+
+/**
+ * Get assigned vets for a specific clinic branch
+ */
+export const getAssignedVets = async (branchId: string, token?: string): Promise<{ status: string; data?: AssignedVet[] }> => {
+  return authenticatedFetch(`/appointments/clinic-branches/${branchId}/vets`, { method: 'GET' }, token);
 };
 
 /**

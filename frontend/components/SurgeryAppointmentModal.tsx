@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
-import { getAvailableSlots, createAppointment } from '@/lib/appointments'
+import { getAvailableSlots, createAppointment, getClinicBranches, getAssignedVets, type ClinicBranch, type AssignedVet } from '@/lib/appointments'
 import { toast } from 'sonner'
-import { X, ChevronDown, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { Clock, AlertCircle, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -23,17 +23,6 @@ interface SurgeryAppointmentModalProps {
   clinicId?: string
   clinicBranchId?: string
   vetId?: string
-}
-
-interface Vet {
-  _id: string
-  firstName: string
-  lastName: string
-}
-
-interface ClinicBranch {
-  _id: string
-  name: string
 }
 
 interface TimeSlot {
@@ -57,13 +46,14 @@ export default function SurgeryAppointmentModal({
   const [date, setDate] = useState('')
   const [selectedVetId, setSelectedVetId] = useState(vetId || '')
   const [selectedBranchId, setSelectedBranchId] = useState(clinicBranchId || '')
-  const [mode, setMode] = useState<'face-to-face'>('face-to-face')
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [selectedSlot, setSelectedSlot] = useState<{ startTime: string; endTime: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [vets, setVets] = useState<Vet[]>([])
+  const [vets, setVets] = useState<AssignedVet[]>([])
   const [branches, setBranches] = useState<ClinicBranch[]>([])
+  const [branchesLoading, setBranchesLoading] = useState(false)
+  const [loadingVets, setLoadingVets] = useState(false)
 
   // Load surgery services on mount
   useEffect(() => {
@@ -99,20 +89,46 @@ export default function SurgeryAppointmentModal({
     fetchSlots()
   }, [date, selectedVetId, selectedBranchId, token])
 
-  // Mock data for vets and branches (replace with actual API calls if needed)
+  // Load clinic branches when modal opens
   useEffect(() => {
-    if (open) {
-      // TODO: Replace with actual API calls to fetch vets and branches
-      setVets([
-        { _id: '1', firstName: 'Dr.', lastName: 'Gino Bailon' },
-        { _id: '2', firstName: 'Dr.', lastName: 'Maria Santos' },
-      ])
-      setBranches([
-        { _id: '1', name: 'Baivet - Baivet - Main Branch' },
-        { _id: '2', name: 'Baivet - Branch 2' },
-      ])
+    if (!open || !token) return
+    const loadBranches = async () => {
+      setBranchesLoading(true)
+      try {
+        const res = await getClinicBranches(token as string)
+        if (res.status === 'SUCCESS' && res.data) {
+          setBranches(res.data)
+        }
+      } catch (error) {
+        toast.error('Failed to load branches')
+      } finally {
+        setBranchesLoading(false)
+      }
     }
-  }, [open])
+    loadBranches()
+  }, [open, token])
+
+  // Fetch vets when branch is selected
+  useEffect(() => {
+    if (!selectedBranchId || !token) {
+      setVets([])
+      return
+    }
+    const loadVets = async () => {
+      setLoadingVets(true)
+      try {
+        const res = await getAssignedVets(selectedBranchId, token as string)
+        if (res.status === 'SUCCESS' && res.data) {
+          setVets(res.data)
+        }
+      } catch (error) {
+        toast.error('Failed to load vets')
+      } finally {
+        setLoadingVets(false)
+      }
+    }
+    loadVets()
+  }, [selectedBranchId, token])
 
   const handleSubmit = async () => {
     if (!selectedServices.length || !date || !selectedVetId || !selectedSlot) {
@@ -133,7 +149,7 @@ export default function SurgeryAppointmentModal({
           vetId: selectedVetId,
           clinicId: clinicId || '',
           clinicBranchId: selectedBranchId || '',
-          mode,
+          mode: 'face-to-face',
           types: selectedServices,
           date,
           startTime: selectedSlot.startTime,
@@ -215,14 +231,9 @@ export default function SurgeryAppointmentModal({
             {/* Mode of Appointment */}
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">Mode of Appointment</label>
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value as 'face-to-face')}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-              >
-                <option value="face-to-face">Face to Face</option>
-                <option value="online">Online</option>
-              </select>
+              <div className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-700 font-medium">
+                Face to Face
+              </div>
             </div>
 
             {/* Vet Clinic Branch */}
@@ -243,23 +254,36 @@ export default function SurgeryAppointmentModal({
             </div>
 
             {/* Chosen Veterinarian */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Chosen Veterinarian <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedVetId}
-                onChange={(e) => setSelectedVetId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-              >
-                <option value="">Select a veterinarian</option>
-                {vets.map((vet) => (
-                  <option key={vet._id} value={vet._id}>
-                    {vet.firstName} {vet.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {selectedBranchId ? (
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  Chosen Veterinarian <span className="text-red-500">*</span>
+                </label>
+                {loadingVets ? (
+                  <div className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 flex items-center justify-center gap-2 text-gray-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading vets...</span>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedVetId}
+                    onChange={(e) => setSelectedVetId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+                  >
+                    <option value="">Select a veterinarian</option>
+                    {vets.map((vet) => (
+                      <option key={vet._id} value={vet._id}>
+                        {vet.firstName} {vet.lastName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">Please select a branch first to see available veterinarians</p>
+              </div>
+            )}
 
             {/* Date */}
             <div>
