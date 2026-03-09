@@ -159,6 +159,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vitalsOpen, setVitalsOpen] = useState(true)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const [confined, setConfined] = useState(false)
+  const [discharge, setDischarge] = useState(false)
+  const [referral, setReferral] = useState(false)
+  const [surgery, setSurgery] = useState(false)
+  const [carePlanOpen, setCarePlanOpen] = useState(true)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
   const [preventiveCareServices, setPreventiveCareServices] = useState<ProductService[]>([])
@@ -1248,24 +1252,93 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 )}
               </div>
 
-              {/* Pet confinement */}
-              <div className={`flex items-center justify-between p-4 rounded-2xl border ${confined ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-transparent'}`}>
-                <div>
-                  <p className="text-sm font-semibold text-[#4F4F4F]">
-                    {confined ? 'Release Pet from Confinement' : 'Mark Pet as Confined'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {confined
-                      ? 'Toggle off to release this pet from confinement after saving'
-                      : 'Toggle to mark this pet as confined after saving'}
-                  </p>
-                </div>
+              {/* Care Plan */}
+              <div className="border border-gray-100 rounded-2xl overflow-hidden">
                 <button
-                  onClick={() => setConfined(!confined)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${confined ? 'bg-amber-500' : 'bg-gray-200'}`}
+                  onClick={() => setCarePlanOpen(!carePlanOpen)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
                 >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${confined ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <span className="text-sm font-semibold text-[#4F4F4F] flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-[#7FA5A3]" />
+                    Care Plan
+                  </span>
+                  {carePlanOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
+                {carePlanOpen && (
+                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
+                    {/* Confinement Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div>
+                        <p className="text-xs font-semibold text-[#4F4F4F]">
+                          {confined ? 'Release from Confinement' : 'Mark as Confined'}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {confined ? 'Pet is confined' : 'Pet will be confined'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setConfined(!confined)}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${confined ? 'bg-amber-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${confined ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+
+                    {/* Discharge Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div>
+                        <p className="text-xs font-semibold text-[#4F4F4F]">
+                          {discharge ? 'Discharge Approved' : 'Discharge for At Home Care'}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {discharge ? 'Pet approved for discharge' : 'Mark for at-home care'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setDischarge(!discharge)}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${discharge ? 'bg-green-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${discharge ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+
+                    {/* Referral Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div>
+                        <p className="text-xs font-semibold text-[#4F4F4F]">
+                          {referral ? 'Referral Required' : 'Referral to Another Vet'}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {referral ? 'Specialist referral needed' : 'Refer to another veterinarian'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setReferral(!referral)}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${referral ? 'bg-blue-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${referral ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+
+                    {/* Surgery Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div>
+                        <p className="text-xs font-semibold text-[#4F4F4F]">
+                          {surgery ? 'Proceed to Surgery' : 'Schedule Surgery'}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {surgery ? 'Surgery scheduled' : 'Schedule surgical procedure'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSurgery(!surgery)}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${surgery ? 'bg-red-500' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${surgery ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Share with owner */}
