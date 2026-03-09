@@ -29,54 +29,31 @@ interface ServiceCategory {
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
   {
     id: 'general',
-    label: 'General Consultation & Preventive Care',
+    label: 'General Consultation',
     services: [
       { value: 'consultation', label: 'Consultation' },
       { value: 'general-checkup', label: 'General Checkup' },
-      { value: 'primary-treatment', label: 'Primary Treatment' },
       { value: 'vaccination', label: 'Vaccination / Immunization' },
-      { value: 'puppy-litter-vaccination', label: 'Puppy Litter Vaccination' },
+      { value: 'flea-tick-prevention', label: 'Flea & Tick Prevention' },
+      { value: 'rabies', label: 'Rabies Vaccination' },
       { value: 'deworming', label: 'Deworming' },
     ],
   },
   {
-    id: 'diagnostic',
-    label: 'Diagnostic Services',
-    subGroups: [
-      {
-        label: 'Laboratory Tests',
-        services: [
-          { value: 'cbc', label: 'CBC (Complete Blood Count)' },
-          { value: 'blood-chemistry-16', label: 'Blood Chemistry – 16 Panel' },
-          { value: 'pcr-test', label: 'PCR Test' },
-        ],
-      },
-      {
-        label: 'Imaging',
-        services: [
-          { value: 'x-ray', label: 'X-ray' },
-          { value: 'ultrasound', label: 'Ultrasound (Preliminary AFAST)' },
-        ],
-      },
+    id: 'preventive',
+    label: 'Preventive Care',
+    services: [
+      { value: 'vaccination', label: 'Vaccination / Immunization' },
+      { value: 'flea-tick-prevention', label: 'Flea & Tick Prevention' },
+      { value: 'rabies', label: 'Rabies Vaccination' },
+      { value: 'deworming', label: 'Deworming' },
     ],
   },
   {
     id: 'surgery',
     label: 'Surgery & Advanced Procedures',
     services: [
-      { value: 'abdominal-surgery', label: 'Abdominal Surgery' },
-      { value: 'orthopedic-surgery', label: 'Orthopedic Surgery' },
-      { value: 'dental-scaling', label: 'Dental Scaling' },
-      { value: 'laser-therapy', label: 'Laser Therapy' },
-    ],
-  },
-  {
-    id: 'medical-care',
-    label: 'Medical Care & Monitoring',
-    services: [
-      { value: 'inpatient-care', label: 'Inpatient Care / Confinement' },
-      { value: 'outpatient-treatment', label: 'Outpatient Treatment' },
-      { value: 'point-of-care-diagnostic', label: 'Point-of-Care Diagnostic Procedures' },
+      { value: 'sterilization', label: 'Sterilization' },
     ],
   },
   {
@@ -86,7 +63,6 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
       { value: 'basic-grooming', label: 'Basic Grooming' },
       { value: 'full-grooming', label: 'Full Grooming' },
     ],
-    //note: 'Grooming starts at ₱500 and includes a free vet consultation. Grooming is first-come, first-served from 9AM–5PM.',
   },
 ]
 
