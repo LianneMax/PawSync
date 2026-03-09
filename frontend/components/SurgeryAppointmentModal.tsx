@@ -5,15 +5,15 @@ import { useAuthStore } from '@/store/authStore'
 import { getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
 import { getAvailableSlots, createAppointment, getClinicBranches, getAssignedVets, type ClinicBranch, type AssignedVet } from '@/lib/appointments'
 import { toast } from 'sonner'
-import { Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { Clock, AlertCircle, Loader2, Check, ChevronDown, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface SurgeryAppointmentModalProps {
   open: boolean
@@ -29,6 +29,83 @@ interface TimeSlot {
   startTime: string
   endTime: string
   status: 'available' | 'your-booking' | 'unavailable'
+}
+
+function Dropdown({
+  label,
+  value,
+  placeholder,
+  options,
+  onSelect,
+  disabledOptions = [],
+}: {
+  label: string
+  value: string
+  placeholder: string
+  options: { value: string; label: string }[]
+  onSelect: (val: string) => void
+  disabledOptions?: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((o) => o.value === value)
+
+  return (
+    <div>
+      <p className="text-sm font-semibold text-[#2C3E2D] mb-2">{label}</p>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-300 rounded-xl bg-white hover:border-[#7FA5A3] transition-colors text-left text-sm"
+        >
+          <span className={selected ? 'text-[#4F4F4F]' : 'text-gray-400'}>
+            {selected ? selected.label : placeholder}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto">
+            {options.map((opt) => {
+              const isDisabled = disabledOptions.includes(opt.value)
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => {
+                    if (!isDisabled) {
+                      onSelect(opt.value)
+                      setOpen(false)
+                    }
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                    isDisabled
+                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : opt.value === value
+                        ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium hover:bg-[#F8F6F2]'
+                        : 'text-[#4F4F4F] hover:bg-[#F8F6F2]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>{opt.label}</span>
+                    {opt.value === value && <Check className="w-4 h-4" />}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function formatSlotTime(time: string) {
+  const [h, m] = time.split(':')
+  const hour = parseInt(h)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const display = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+  return `${display}:${m}${ampm}`
 }
 
 export default function SurgeryAppointmentModal({
@@ -54,6 +131,7 @@ export default function SurgeryAppointmentModal({
   const [branches, setBranches] = useState<ClinicBranch[]>([])
   const [branchesLoading, setBranchesLoading] = useState(false)
   const [loadingVets, setLoadingVets] = useState(false)
+  const [surgeryAccordionOpen, setSurgeryAccordionOpen] = useState(true)
 
   // Load surgery services on mount
   useEffect(() => {
@@ -175,203 +253,278 @@ export default function SurgeryAppointmentModal({
     }
   }
 
-  const minDate = new Date().toISOString().split('T')[0]
+  const minDate = new Date(new Date().setHours(0, 0, 0, 0))
+
+  // Group time slots by hour
+  const slotsByHour: Record<number, TimeSlot[]> = {}
+  timeSlots.forEach((s) => {
+    const hour = parseInt(s.startTime.split(':')[0])
+    if (!slotsByHour[hour]) slotsByHour[hour] = []
+    slotsByHour[hour].push(s)
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold">✓</span>
-            </div>
-            <div>
-              <DialogTitle className="text-2xl">Schedule Surgery</DialogTitle>
-              <DialogDescription>Set up a surgical appointment for {petName}</DialogDescription>
-            </div>
-          </div>
+      <DialogContent className="max-w-7xl max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
+        <DialogHeader className="px-8 py-6 border-b border-gray-200">
+          <DialogTitle className="text-2xl text-[#2C3E2D]">Schedule Surgery</DialogTitle>
         </DialogHeader>
 
-        <div className="flex gap-6 py-6">
-          {/* Left side: Form fields */}
-          <div className="flex-1 space-y-6">
-            {/* Surgery Services */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Surgery Type <span className="text-red-500">*</span>
-              </label>
-              <div className="border border-gray-200 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
-                {surgeryServices.length === 0 ? (
-                  <p className="text-sm text-gray-500">No surgery services available</p>
-                ) : (
-                  surgeryServices.map((service) => (
-                    <label key={service._id} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg">
-                      <input
-                        type="checkbox"
-                        checked={selectedServices.includes(service._id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedServices([...selectedServices, service._id])
-                          } else {
-                            setSelectedServices(selectedServices.filter((id) => id !== service._id))
-                          }
-                        }}
-                        className="w-4 h-4 accent-[#476B6B]"
-                      />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-700">{service.name}</p>
-                        {service.price && <p className="text-xs text-gray-500">₱{service.price}</p>}
-                      </div>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Mode of Appointment */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Mode of Appointment</label>
-              <div className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-700 font-medium">
-                Face to Face
-              </div>
-            </div>
-
-            {/* Vet Clinic Branch */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Vet Clinic Branch</label>
-              <select
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-              >
-                <option value="">Select a branch</option>
-                {branches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Chosen Veterinarian */}
-            {selectedBranchId ? (
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">
-                  Chosen Veterinarian <span className="text-red-500">*</span>
-                </label>
-                {loadingVets ? (
-                  <div className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 flex items-center justify-center gap-2 text-gray-600">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading vets...</span>
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="flex gap-8">
+            {/* Left side: Form fields */}
+            <div className="flex-1 space-y-6">
+              {/* First row: Pet info and Branch */}
+              <div className="grid grid-cols-2 gap-8">
+                {/* Pet Info (read-only display) */}
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Pet</p>
+                  <div className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-50 text-gray-700">
+                    {petName}
                   </div>
+                </div>
+
+                {/* Vet Clinic Branch */}
+                <Dropdown
+                  label="Vet Clinic Branch"
+                  value={selectedBranchId}
+                  placeholder="Select a branch"
+                  options={branches.map((b) => ({
+                    value: b._id,
+                    label: b.name,
+                  }))}
+                  onSelect={(val) => {
+                    setSelectedBranchId(val)
+                    setSelectedVetId('')
+                    setSelectedSlot(null)
+                    setDate('')
+                  }}
+                />
+              </div>
+
+              {/* Second row: Mode and Vet */}
+              <div className="grid grid-cols-2 gap-8">
+                {/* Mode of Appointment */}
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Mode of Appointment</p>
+                  <div className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-50 text-gray-700">
+                    Face to Face
+                  </div>
+                </div>
+
+                {/* Chosen Veterinarian */}
+                {selectedBranchId ? (
+                  loadingVets ? (
+                    <div>
+                      <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
+                      <div className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-50 flex items-center justify-center gap-2 text-gray-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Loading...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <Dropdown
+                      label="Chosen Veterinarian"
+                      value={selectedVetId}
+                      placeholder="Select a veterinarian"
+                      options={vets.map((v) => ({
+                        value: v._id,
+                        label: `${v.firstName} ${v.lastName}`,
+                      }))}
+                      onSelect={(val) => {
+                        setSelectedVetId(val)
+                        setSelectedSlot(null)
+                      }}
+                    />
+                  )
                 ) : (
-                  <select
-                    value={selectedVetId}
-                    onChange={(e) => setSelectedVetId(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-                  >
-                    <option value="">Select a veterinarian</option>
-                    {vets.map((vet) => (
-                      <option key={vet._id} value={vet._id}>
-                        {vet.firstName} {vet.lastName}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chosen Veterinarian</p>
+                    <div className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-50 text-gray-600 text-sm">
+                      Select a branch first
+                    </div>
+                  </div>
                 )}
               </div>
-            ) : (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-700">Please select a branch first to see available veterinarians</p>
-              </div>
-            )}
 
-            {/* Date */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
+              {/* Type of Appointment - Accordion */}
+              <div>
+                <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Type of Appointment</p>
+                <div className="border border-gray-300 rounded-xl overflow-hidden">
+                  {/* Accordion header */}
+                  <button
+                    type="button"
+                    onClick={() => setSurgeryAccordionOpen(!surgeryAccordionOpen)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 text-left transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[#2C3E2D]">Surgery & Advanced Procedures</span>
+                      {selectedServices.length > 0 && !surgeryAccordionOpen && (
+                        <span className="flex items-center gap-1 text-[10px] font-medium text-[#5A7C7A] bg-[#7FA5A3]/15 px-2 py-0.5 rounded-full">
+                          <Check className="w-2.5 h-2.5" />
+                          {selectedServices.length} selected
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                        surgeryAccordionOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {/* Accordion body */}
+                  {surgeryAccordionOpen && (
+                    <div className="px-3 pb-3 pt-1 bg-white space-y-1 border-t border-gray-200">
+                      {surgeryServices.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-4">No surgery services available</p>
+                      ) : (
+                        surgeryServices.map((service) => (
+                          <button
+                            key={service._id}
+                            type="button"
+                            onClick={() => {
+                              if (selectedServices.includes(service._id)) {
+                                setSelectedServices(selectedServices.filter((id) => id !== service._id))
+                              } else {
+                                setSelectedServices([...selectedServices, service._id])
+                              }
+                            }}
+                            className={`w-full px-3 py-2 rounded-lg text-sm text-left flex items-center gap-2.5 transition-colors ${
+                              selectedServices.includes(service._id)
+                                ? 'bg-[#7FA5A3]/10 text-[#5A7C7A]'
+                                : 'text-[#4F4F4F] hover:bg-gray-100'
+                            }`}
+                          >
+                            <span
+                              className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                selectedServices.includes(service._id)
+                                  ? 'border-[#5A7C7A] bg-[#7FA5A3]'
+                                  : 'border-gray-300'
+                              }`}
+                            >
+                              {selectedServices.includes(service._id) && <Check className="w-3 h-3 text-white" />}
+                            </span>
+                            <div className="flex-1 text-left">
+                              <p className="text-sm font-medium">{service.name}</p>
+                              {service.price && <p className="text-xs text-gray-500">₱{service.price}</p>}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Date */}
+              <DatePicker
                 value={date}
-                onChange={(e) => {
-                  setDate(e.target.value)
+                onChange={(value) => {
+                  setDate(value)
                   setSelectedSlot(null)
                 }}
-                min={minDate}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                placeholder="Select a date"
+                allowFutureDates={true}
+                minDate={minDate}
               />
             </div>
-          </div>
 
-          {/* Right side: Time slots */}
-          <div className="w-56">
-            <div className="sticky top-0">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-800">Available Times</h3>
+            {/* Right side: Time slots */}
+            <div className="w-80 flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-5 h-5 text-[#5A7C7A]" />
+                <h3 className="text-sm font-semibold text-[#2C3E2D]">Available Times</h3>
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
                 </div>
               ) : date && selectedVetId ? (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {timeSlots.length === 0 ? (
-                    <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <AlertCircle className="w-4 h-4 text-yellow-600 shrink-0" />
-                      <p className="text-xs text-yellow-700">No slots available on this date</p>
-                    </div>
-                  ) : (
-                    timeSlots.map((slot, idx) => {
-                      const isAvailable = slot.status === 'available'
-                      const isYourBooking = slot.status === 'your-booking'
-                      const isSelected =
-                        selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime
+                timeSlots.length === 0 ? (
+                  <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-yellow-600 shrink-0" />
+                    <p className="text-xs text-yellow-700">No slots available</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 overflow-y-auto space-y-0.5 max-h-80 pr-1">
+                      {Object.entries(slotsByHour)
+                        .sort(([hourA], [hourB]) => parseInt(hourA) - parseInt(hourB))
+                        .map(([hour, hourSlots]) => (
+                          <div key={hour} className="flex gap-2">
+                            {/* Hour label */}
+                            <div className="w-10 shrink-0 text-right pt-1">
+                              <span className="text-[10px] font-medium text-gray-400">
+                                {parseInt(hour) > 12 ? parseInt(hour) - 12 : parseInt(hour)}{parseInt(hour) >= 12 ? 'PM' : 'AM'}
+                              </span>
+                            </div>
+                            {/* Slot blocks */}
+                            <div className="flex-1 space-y-0.5">
+                              {hourSlots.map((slot) => {
+                                const isSelected = selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime
+                                const isAvailable = slot.status === 'available'
+                                const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
 
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            if (isAvailable) {
-                              setSelectedSlot({ startTime: slot.startTime, endTime: slot.endTime })
-                            }
-                          }}
-                          disabled={!isAvailable}
-                          className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                            isSelected
-                              ? 'bg-[#476B6B] text-white border-2 border-[#476B6B]'
-                              : isAvailable
-                              ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-[#7FA5A3]'
-                              : isYourBooking
-                              ? 'bg-[#7FA5A3]/10 border-2 border-[#7FA5A3] text-[#476B6B]'
-                              : 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {slot.startTime} - {slot.endTime}
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
+                                let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
+                                if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
+                                if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
+
+                                return (
+                                  <button
+                                    key={slot.startTime}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isAvailable) setSelectedSlot({ startTime: slot.startTime, endTime: slot.endTime })
+                                    }}
+                                    disabled={!isAvailable}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bg}`}
+                                  >
+                                    {formatSlotTime(slot.startTime)} – {formatSlotTime(slot.endTime)}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex items-center justify-center gap-3 mt-3 pt-2 border-t border-gray-200 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#7FA5A3]" />
+                        <span className="text-[10px] text-gray-500">Available</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                        <span className="text-[10px] text-gray-500">Your Booking</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#900B09]" />
+                        <span className="text-[10px] text-gray-500">Unavailable</span>
+                      </div>
+                    </div>
+                  </>
+                )
               ) : (
-                <p className="text-xs text-gray-500 py-6 text-center">Select date and vet to see available times</p>
+                <p className="text-xs text-gray-500 py-8 text-center">Select vet and date to view times</p>
               )}
             </div>
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="border-t border-gray-200 px-8 py-4 flex gap-2 justify-center">
           <button
             onClick={() => onOpenChange(false)}
-            className="px-6 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="px-8 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting || !selectedServices.length || !date || !selectedVetId || !selectedSlot}
-            className="flex items-center gap-2 px-6 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-8 py-2.5 bg-[#5A7C7A] text-white rounded-full text-sm font-medium hover:bg-[#4a6a6a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Set an appointment
