@@ -12,6 +12,7 @@ type Tab = 'Products' | 'Services' | 'Vaccines'
 interface ProductItem {
   id: string
   name: string
+  category: string
   price: number
   lastUpdateDate: string
 }
@@ -31,12 +32,16 @@ interface AddModalProps {
   onSaved: (item: ProductItem) => void
 }
 
+const PRODUCT_CATEGORIES = ['Medication', 'Others'] as const
+const SERVICE_CATEGORIES = ['Diagnostic Tests', 'Preventive Care', 'Others'] as const
+
 function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
-  const [form, setForm] = useState({ name: '', price: '', description: '' })
+  const categories = tab === 'Products' ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES
+  const [form, setForm] = useState({ name: '', price: '', description: '', category: categories[0] })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
@@ -66,6 +71,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
         body: JSON.stringify({
           name: form.name.trim(),
           type: tab === 'Products' ? 'Product' : 'Service',
+          category: form.category,
           price: parsed,
           description: form.description.trim(),
         }),
@@ -77,6 +83,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
         const newItem: ProductItem = {
           id: data.data.item._id,
           name: data.data.item.name,
+          category: data.data.item.category ?? 'Others',
           price: data.data.item.price,
           lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -127,6 +134,186 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
               placeholder="Enter name"
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
+            <input
+              type="number"
+              name="price"
+              value={form.price}
+              onChange={handleChange}
+              placeholder="0.00"
+              min="0"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
+            <input
+              type="text"
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Enter description"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+            />
+          </div>
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-7">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+          >
+            {saving ? 'Saving...' : `Save ${label}`}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== EDIT MODAL ====================
+
+interface EditModalProps {
+  tab: 'Products' | 'Services'
+  item: ProductItem
+  token: string | null
+  onClose: () => void
+  onSaved: (updated: ProductItem) => void
+}
+
+function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
+  const categories = tab === 'Products' ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES
+  const [form, setForm] = useState({
+    name: item.name,
+    price: String(item.price),
+    description: '',
+    category: item.category,
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.price) {
+      setError('Name and price are required.')
+      return
+    }
+    const parsed = parseFloat(form.price)
+    if (isNaN(parsed) || parsed < 0) {
+      setError('Please enter a valid price.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const res = await fetch(`${apiUrl}/product-services/${item.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          category: form.category,
+          price: parsed,
+          description: form.description.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        onSaved({
+          id: item.id,
+          name: data.data.item.name,
+          category: data.data.item.category ?? 'Others',
+          price: data.data.item.price,
+          lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }),
+        })
+        onClose()
+      } else {
+        setError(data.message || 'Failed to update item.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const label = tab === 'Products' ? 'Product' : 'Service'
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="text-center mb-7">
+          <h2 className="text-2xl font-bold text-gray-900 mb-1.5">Edit {label}</h2>
+          <p className="text-sm text-gray-500">Update the details for this {label.toLowerCase()}</p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Enter name"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
@@ -307,6 +494,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<ProductItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -324,6 +512,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
           const items = result.data.items.map((item: any) => ({
             id: item._id,
             name: item.name,
+            category: item.category ?? 'Others',
             price: item.price,
             lastUpdateDate: new Date(item.updatedAt).toLocaleDateString('en-US', {
               year: 'numeric',
@@ -407,9 +596,22 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
     setData((prev) => [newItem, ...prev])
   }
 
+  const handleUpdated = (updated: ProductItem) => {
+    setData((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
+  }
+
   return (
     <>
       {showModal && <AddModal tab={tab} token={token} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
+      {editingItem && (
+        <EditModal
+          tab={tab}
+          item={editingItem}
+          token={token}
+          onClose={() => setEditingItem(null)}
+          onSaved={handleUpdated}
+        />
+      )}
 
       <div className="flex justify-center mb-6">
         <button
@@ -468,6 +670,9 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                     <SortHeader label="Name" colKey="name" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-left">
+                    <SortHeader label="Category" colKey="category" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                  </th>
+                  <th className="px-4 py-3 text-left">
                     <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
                   <th className="px-4 py-3 text-left">
@@ -498,11 +703,16 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                         {item.name}
                       </span>
                     </td>
+                    <td className="px-4 py-3.5">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#EAF1F1] text-[#3D5E5C]">
+                        {item.category}
+                      </span>
+                    </td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
                     <td className="px-4 py-3.5">
                       <button
-                        onClick={() => alert(`Edit ${item.name} — backend to be connected`)}
+                        onClick={() => setEditingItem(item)}
                         className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
                       >
                         <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
@@ -512,7 +722,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                 ))}
                 {sorted.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
                       No {tab.toLowerCase()} found.
                     </td>
                   </tr>

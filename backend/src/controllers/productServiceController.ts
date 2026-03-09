@@ -36,7 +36,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description } = req.body;
+    const { name, type, price, description, category } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -46,6 +46,11 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'type must be "Service" or "Product"' });
     }
 
+    const validProductCategories = ['Medication', 'Others'];
+    const validServiceCategories = ['Diagnostic Tests', 'Preventive Care', 'Others'];
+    const validCategories = type === 'Product' ? validProductCategories : validServiceCategories;
+    const resolvedCategory = category && validCategories.includes(category) ? category : 'Others';
+
     const existing = await ProductService.findOne({ name: name.trim() });
     if (existing) {
       return res.status(409).json({ status: 'ERROR', message: 'A product/service with this name already exists' });
@@ -54,6 +59,7 @@ export const createProductService = async (req: Request, res: Response) => {
     const item = await ProductService.create({
       name: name.trim(),
       type,
+      category: resolvedCategory,
       price,
       description: description || '',
     });
@@ -87,10 +93,11 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, isActive } = req.body;
+    const { name, type, price, description, category, isActive } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
+    if (category !== undefined) item.category = category;
     if (price !== undefined) item.price = price;
     if (description !== undefined) item.description = description;
     if (isActive !== undefined) item.isActive = isActive;
