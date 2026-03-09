@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Search, Pencil, PawPrint, Stethoscope, Hash } from 'lucide-react'
+import { X, Pencil, PawPrint, Stethoscope, Hash } from 'lucide-react'
 
 interface BillingItem {
   id: string
@@ -37,12 +37,9 @@ export default function BillingFromRecordModal({
   vetName,
 }: BillingFromRecordModalProps) {
   const [items, setItems] = useState<BillingItem[]>([])
-  const [search, setSearch] = useState('')
-  const [discount] = useState(0)
 
   const isReadOnly = mode === 'view'
-  const subtotal = items.reduce((sum, item) => sum + item.price, 0)
-  const total = Math.max(0, subtotal - discount)
+  const total = items.reduce((sum, item) => sum + item.price, 0)
 
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id))
@@ -82,20 +79,6 @@ export default function BillingFromRecordModal({
               Billing pulled from medical Record
             </p>
           </div>
-
-          {/* Search */}
-          {!isReadOnly && (
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search Product/Service to Add"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#476B6B] bg-gray-50 placeholder:text-gray-400"
-              />
-            </div>
-          )}
 
           {/* Items Table */}
           <div className="border border-gray-100 rounded-xl overflow-hidden mb-4">
@@ -162,21 +145,7 @@ export default function BillingFromRecordModal({
             <div className="flex-1 border border-gray-100 rounded-xl p-4">
               <p className="text-sm font-bold text-[#476B6B]">Order Summary</p>
               <p className="text-xs text-gray-400 mb-3">Amount Due</p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-xs">Services / Products Fee</span>
-                  <span className="font-medium text-[#4F4F4F] text-xs">
-                    {formatCurrency(subtotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-xs">Discount</span>
-                  <span className="font-medium text-red-400 text-xs">
-                    -{formatCurrency(discount)}
-                  </span>
-                </div>
-              </div>
-              <div className="border-t border-gray-100 mt-3 pt-3 flex justify-between items-center">
+              <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
                 <span className="text-xs font-semibold text-[#4F4F4F]">Total Amount Due</span>
                 <span className="text-sm font-bold text-[#476B6B]">
                   {formatCurrency(total)}

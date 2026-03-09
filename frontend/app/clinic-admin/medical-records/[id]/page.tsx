@@ -17,8 +17,10 @@ import {
   Pill,
   FlaskConical,
   ShieldCheck,
+  Receipt,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 
 const vitalsConfig: { key: string; label: string; type: 'number' | 'yesno'; unit?: string }[] = [
   { key: 'weight',             label: 'Weight',               type: 'number', unit: 'kg' },
@@ -57,6 +59,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
   const params = useParams()
   const recordId = params.id as string
   const { token } = useAuthStore()
+  const [showCreateBilling, setShowCreateBilling] = useState(false)
 
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -156,6 +159,13 @@ export default function ClinicAdminMedicalRecordViewPage() {
               <div className="text-right">
                 <p className="text-white/70 text-xs">Record ID</p>
                 <p className="text-sm font-mono font-medium">{record._id.slice(-8).toUpperCase()}</p>
+                <button
+                  onClick={() => setShowCreateBilling(true)}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors print:hidden"
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  Create Billing
+                </button>
               </div>
             </div>
           </div>
@@ -524,6 +534,15 @@ export default function ClinicAdminMedicalRecordViewPage() {
           </div>
         </div>
       </div>
+
+      <BillingFromRecordModal
+        open={showCreateBilling}
+        mode="create"
+        onClose={() => setShowCreateBilling(false)}
+        patientName={pet.name || ''}
+        appointmentId={record.appointmentId?._id || record.appointmentId || null}
+        vetName={`${vet.firstName || ''} ${vet.lastName || ''}`.trim()}
+      />
     </DashboardLayout>
   )
 }
