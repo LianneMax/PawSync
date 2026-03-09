@@ -78,6 +78,14 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'You can only book appointments for your own pets' });
     }
 
+    // Check if pet is marked as lost
+    if (pet.isLost) {
+      return res.status(403).json({ 
+        status: 'ERROR', 
+        message: `Cannot schedule an appointment for ${pet.name} as they are marked as lost. Please update their status once they are found.` 
+      });
+    }
+
     // Validate types based on mode
     if (mode === 'online') {
       if (types.length !== 1 || types[0] !== 'consultation') {

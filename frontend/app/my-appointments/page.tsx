@@ -65,12 +65,14 @@ function Dropdown({
   placeholder,
   options,
   onSelect,
+  disabledOptions = [],
 }: {
   label: string
   value: string
   placeholder: string
   options: { value: string; label: string }[]
   onSelect: (val: string) => void
+  disabledOptions?: string[]
 }) {
   const [open, setOpen] = useState(false)
   const selected = options.find((o) => o.value === value)
@@ -91,18 +93,34 @@ function Dropdown({
         </button>
         {open && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto">
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { onSelect(opt.value); setOpen(false) }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#F8F6F2] transition-colors ${
-                  opt.value === value ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium' : 'text-[#4F4F4F]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {options.map((opt) => {
+              const isDisabled = disabledOptions.includes(opt.value)
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => { 
+                    if (!isDisabled) {
+                      onSelect(opt.value)
+                      setOpen(false)
+                    }
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                    isDisabled
+                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : opt.value === value 
+                        ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium hover:bg-[#F8F6F2]'
+                        : 'text-[#4F4F4F] hover:bg-[#F8F6F2]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>{opt.label}</span>
+                    {isDisabled && <span className="text-xs text-gray-400">(Lost Pet)</span>}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
@@ -713,6 +731,14 @@ function ScheduleModal({
         <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
+            {/* Lost Pet Warning */}
+            {selectedPetId && pets.find(p => p._id === selectedPetId)?.isLost && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 font-medium">⚠️ This pet is marked as lost</p>
+                <p className="text-xs text-yellow-700 mt-1">Appointments cannot be scheduled for lost pets. Please update their status once they are found.</p>
+              </div>
+            )}
+
             {/* Row 1: Pet + Branch */}
             <div className="grid grid-cols-2 gap-4">
               <Dropdown
@@ -720,6 +746,7 @@ function ScheduleModal({
                 value={selectedPetId}
                 placeholder="Menu Label"
                 options={pets.map((p) => ({ value: p._id, label: p.name }))}
+                disabledOptions={pets.filter(p => p.isLost).map(p => p._id)}
                 onSelect={setSelectedPetId}
               />
               <Dropdown
