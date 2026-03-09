@@ -4,14 +4,15 @@ import ProductService from '../models/ProductService';
 /**
  * GET /api/product-services
  * All authenticated clinic staff — search the global catalog.
- * Optional query params: ?search=&type=Service|Product
+ * Optional query params: ?search=&type=Service|Product&category=Diagnostic Tests|Preventive Care|Medication|Others
  */
 export const listProductServices = async (req: Request, res: Response) => {
   try {
-    const { search, type } = req.query;
+    const { search, type, category } = req.query;
 
     const query: any = { isActive: true };
     if (type) query.type = type;
+    if (category) query.category = category;
     if (search) query.name = { $regex: search, $options: 'i' };
 
     const items = await ProductService.find(query).sort({ type: 1, name: 1 });

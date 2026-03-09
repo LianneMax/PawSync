@@ -300,3 +300,28 @@ export const toggleShareRecord = async (id: string, shared: boolean, token?: str
 export const getVaccinationsByPet = async (petId: string, token?: string): Promise<VaccinationsResponse> => {
   return authenticatedFetch(`/medical-records/pet/${petId}/vaccinations`, { method: 'GET' }, token);
 };
+
+/**
+ * Fetch diagnostic test services from the product-services catalog
+ */
+export interface ProductService {
+  _id: string;
+  name: string;
+  type: 'Service' | 'Product';
+  category: string;
+  price: number;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductServicesResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: { items: ProductService[] };
+}
+
+export const getDiagnosticTestServices = async (token?: string): Promise<ProductServicesResponse> => {
+  return authenticatedFetch(`/product-services?type=Service&category=Diagnostic Tests`, { method: 'GET' }, token);
+};

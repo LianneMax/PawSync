@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getRecordById, updateMedicalRecord, emptyVitals } from '@/lib/medicalRecords'
+import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, type ProductService } from '@/lib/medicalRecords'
 import { getPetById, updatePetConfinement } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
@@ -122,6 +122,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vitalsOpen, setVitalsOpen] = useState(true)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const [confined, setConfined] = useState(false)
+  const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
 
   // Vet notepad (pet-level)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -199,9 +200,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const loadData = useCallback(async () => {
     if (!token) return
-    const [recordRes, petRes] = await Promise.all([
+    const [recordRes, petRes, servicesRes] = await Promise.all([
       getRecordById(recordId, token),
       getPetById(petId, token),
+      getDiagnosticTestServices(token),
     ])
     if (recordRes.status === 'SUCCESS' && recordRes.data?.record) {
       const r = recordRes.data.record
@@ -231,6 +233,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         const vts = await getVaccineTypes(loadedPet.species)
         setVaccineTypes(vts.filter((vt) => vt.isActive))
       }
+    }
+    if (servicesRes.status === 'SUCCESS' && servicesRes.data?.items) {
+      setDiagnosticTestServices(servicesRes.data.items)
     }
   }, [recordId, petId, token, isVaccinationAppt])
 
@@ -821,16 +826,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <select value={test.testType} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, testType: e.target.value as DiagnosticTest['testType'] } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="blood_work">Blood Work</option>
-                            <option value="x_ray">X-Ray</option>
-                            <option value="ultrasound">Ultrasound</option>
-                            <option value="urinalysis">Urinalysis</option>
-                            <option value="ecg">ECG</option>
-                            <option value="other">Other</option>
+                          <select value={test.name} onChange={(e) => {
+                            const selectedService = diagnosticTestServices.find((s) => s.name === e.target.value)
+                            setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name: e.target.value, testType: 'other' } : t))
+                          }} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
+                            <option value="">Select a diagnostic test service</option>
+                            {diagnosticTestServices.map((service) => (
+                              <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
+                            ))}
                           </select>
-                          <input type="text" placeholder="Test name" value={test.name} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="date" value={test.date || ''} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, date: e.target.value || null } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <input type="date" value={test.date || ''} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, date: e.target.value || null } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" placeholder="Test date" />
                           <input type="text" placeholder="Normal range" value={test.normalRange} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, normalRange: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                         </div>
                         <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
