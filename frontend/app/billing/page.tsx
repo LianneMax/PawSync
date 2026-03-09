@@ -12,6 +12,9 @@ import {
   Receipt,
   Download,
   Eye,
+  QrCode,
+  X,
+  Upload,
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -1231,6 +1234,136 @@ function EditBillingModal({
   )
 }
 
+// ==================== UPLOAD QR MODAL ====================
+
+function UploadQRModal({ onClose }: { onClose: () => void }) {
+  const [label, setLabel] = useState('')
+  const [imageData, setImageData] = useState<string | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file.')
+      return
+    }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setImageData(result)
+      setPreview(result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSave = async () => {
+    if (!label.trim()) { setError('Label is required.'); return }
+    if (!imageData) { setError('Please upload a QR code image.'); return }
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`${API_BASE}/payment-qr`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ label: label.trim(), imageData }),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        onClose()
+      } else {
+        setError(data.message || 'Failed to save QR code.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="text-center mb-7">
+          <div className="w-12 h-12 bg-[#EAF1F1] rounded-full flex items-center justify-center mx-auto mb-3">
+            <QrCode className="w-6 h-6 text-[#3D5E5C]" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Upload Payment QR</h2>
+          <p className="text-sm text-gray-500">Add a QR code for payment collection</p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Label</label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. GCash, Maya, Bank Transfer"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">QR Code Image</label>
+            <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#7FA5A3] hover:bg-gray-50 transition-all p-5">
+              {preview ? (
+                <img src={preview} alt="QR Preview" className="max-h-48 object-contain rounded-lg" />
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 text-gray-300 mb-2" />
+                  <span className="text-sm text-gray-400">Click to upload image</span>
+                  <span className="text-xs text-gray-300 mt-1">PNG, JPG, WEBP</span>
+                </>
+              )}
+              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            </label>
+            {preview && (
+              <button
+                onClick={() => { setImageData(null); setPreview(null) }}
+                className="mt-2 text-xs text-gray-400 hover:text-red-400 transition-colors"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
+
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-7">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+          >
+            {saving ? 'Saving...' : 'Save QR Code'}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== CLINIC ADMIN VIEW ====================
 
 function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string; clinicBranchId?: string } | null }) {
@@ -1241,6 +1374,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingBilling, setEditingBilling] = useState<ApiBilling | null>(null)
+  const [showQRModal, setShowQRModal] = useState(false)
 
   const fetchBillings = useCallback(async () => {
     setLoading(true)
@@ -1305,7 +1439,18 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-[#4F4F4F] mb-8">Billing and Invoicing</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-[#4F4F4F]">Billing and Invoicing</h1>
+        <button
+          onClick={() => setShowQRModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white text-sm font-medium rounded-xl shadow-sm transition-colors"
+        >
+          <QrCode className="w-4 h-4" />
+          Upload QR
+        </button>
+      </div>
+
+      {showQRModal && <UploadQRModal onClose={() => setShowQRModal(false)} />}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-6">

@@ -19,6 +19,7 @@ import vaccineTypeRoutes from './routes/vaccineTypeRoutes';
 import confinementRoutes from './routes/confinementRoutes';
 import billingRoutes from './routes/billingRoutes';
 import productServiceRoutes from './routes/productServiceRoutes';
+import paymentQRRoutes from './routes/paymentQRRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import petNotesRoutes from './routes/petNotesRoutes';
 import { nfcService } from './services/nfcService';
@@ -92,6 +93,9 @@ app.use('/api/billings', billingRoutes);
 
 // Product/service catalog routes
 app.use('/api/product-services', productServiceRoutes);
+
+// Payment QR code routes
+app.use('/api/payment-qr', paymentQRRoutes);
 
 // Notification routes
 app.use('/api/notifications', notificationRoutes);
