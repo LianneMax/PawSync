@@ -9,17 +9,24 @@ import { getRecordsByPet, getVaccinationsByPet, type MedicalRecord, type Vaccina
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet'
 import {
   Smartphone, Search, FileText, Calendar, PawPrint,
   ChevronRight, Info, Clock, User, Syringe, Stethoscope,
-  Pill, FolderOpen, Printer, Share2, Edit, Upload, X, CheckCircle, AlertCircle
+  Pill, FolderOpen, Printer, Share2, Edit, Upload, X, CheckCircle, AlertCircle,
+  QrCode, Loader
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Html5Qrcode } from 'html5-qrcode'
 
 // ==================== TYPES ====================
 
 type PatientTab = 'overview' | 'vaccine' | 'medical' | 'medications' | 'files'
+type ScanMode = 'nfc' | 'qr' | null
+type ScanStatus = 'idle' | 'scanning' | 'success' | 'error'
 
 // ==================== HELPERS ====================
 
@@ -439,6 +446,306 @@ function FilesTab() {
   )
 }
 
+// ==================== SCAN MODAL ====================
+
+interface ScanModalProps {
+  open: boolean
+  onClose: () => void
+  scanMode: ScanMode
+  scanStatus: ScanStatus
+  onScanComplete: (petId: string) => void
+}
+
+function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: ScanModalProps) {
+  const qrContainerRef = useRef<HTMLDivElement | null>(null)
+  const qrScannerRef = useRef<Html5Qrcode | null>(null)
+  const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const nfcWsRef = useRef<WebSocket | null>(null)
+  const [scanError, setScanError] = useState<string>('')
+
+  // Cleanup function for QR scanner
+  const stopQrScanner = async () => {
+    if (qrScannerRef.current) {
+      try {
+        await qrScannerRef.current.stop()
+      } catch {
+        /* ignore */
+      }
+      qrScannerRef.current = null
+    }
+  }
+
+  // Cleanup function for NFC
+  const stopNfcScanning = () => {
+    if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+    if (nfcWsRef.current) {
+      nfcWsRef.current.close()
+      nfcWsRef.current = null
+    }
+  }
+
+  // Handle NFC scanning
+  const startNfcScan = useCallback(() => {
+    setScanError('')
+    stopNfcScanning()
+
+    // Try browser Web NFC API first (mobile devices)
+    if ('NDEFReader' in window) {
+      try {
+        const ndef = new (window as unknown as {
+          NDEFReader: new () => {
+            scan: () => Promise<void>
+            onreading: ((event: { serialNumber: string }) => void) | null
+          }
+        }).NDEFReader()
+
+        ndef.scan().catch(() => {
+          // User cancelled, try backend NFC
+          startBackendNfcScan()
+        })
+
+        nfcTimeoutRef.current = setTimeout(() => {
+          setScanError('No NFC tag detected. Please try again.')
+        }, 15000)
+
+        ndef.onreading = (event) => {
+          if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+          const tagId = event.serialNumber
+          // First, try to find pet by tag UID
+          onScanComplete(tagId)
+        }
+      } catch {
+        startBackendNfcScan()
+      }
+    } else {
+      startBackendNfcScan()
+    }
+  }, [onScanComplete])
+
+  // Start backend NFC scan via WebSocket
+  const startBackendNfcScan = () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const backendHost = apiUrl.replace(/\/api$/, '')
+      const wsUrl = backendHost.replace(/^http/, 'ws') + '/ws/nfc'
+      const ws = new WebSocket(wsUrl)
+      nfcWsRef.current = ws
+
+      nfcTimeoutRef.current = setTimeout(() => {
+        ws.close()
+        nfcWsRef.current = null
+        setScanError('No NFC tag detected. Please try again.')
+      }, 15000)
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data)
+          if (msg.type === 'card' && (msg.data?.uid || msg.data?.url)) {
+            if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+            ws.close()
+            nfcWsRef.current = null
+            
+            const tagId = msg.data.uid || (msg.data.url && msg.data.url.split('/').pop())
+            if (tagId) {
+              onScanComplete(tagId)
+            } else {
+              setScanError('Pet tag not recognized.')
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      ws.onerror = () => {
+        if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+        nfcWsRef.current = null
+        setScanError('NFC reader not available. Please try QR code instead.')
+      }
+    } catch {
+      setScanError('NFC scanning not supported on this device.')
+    }
+  }
+
+  // Handle QR code scanning
+  const startQrScan = useCallback(async () => {
+    setScanError('')
+    const container = document.getElementById('clinic-qr-reader')
+    if (!container) {
+      setScanError('QR reader not available')
+      return
+    }
+
+    try {
+      const scanner = new Html5Qrcode('clinic-qr-reader')
+      qrScannerRef.current = scanner
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          // QR code detected
+          stopQrScanner()
+          const petId = decodedText.includes('/') ? decodedText.split('/').pop() : decodedText
+          if (petId) {
+            onScanComplete(petId)
+          } else {
+            setScanError('Invalid QR code format.')
+          }
+        },
+        () => {
+          // No match yet, do nothing
+        },
+      )
+    } catch {
+      setScanError('QR code reader not supported on this device.')
+    }
+  }, [onScanComplete])
+
+  // Start scanning when modal opens
+  useEffect(() => {
+    if (open && scanMode === 'nfc' && scanStatus === 'scanning') {
+      startNfcScan()
+    }
+    if (open && scanMode === 'qr' && scanStatus === 'scanning') {
+      startQrScan()
+    }
+
+    return () => {
+      stopQrScanner()
+      stopNfcScanning()
+    }
+  }, [open, scanMode, scanStatus, startNfcScan, startQrScan])
+
+  const handleClose = () => {
+    stopQrScanner()
+    stopNfcScanning()
+    onClose()
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-lg max-w-md w-full mx-4 p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-[#4F4F4F]">
+            {scanMode === 'nfc' ? 'Scan Pet Tag (NFC)' : 'Scan QR Code'}
+          </h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Idle State */}
+        {scanStatus === 'idle' && (
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              {scanMode === 'nfc' ? (
+                <Smartphone className="w-8 h-8 text-[#4A8A87]" />
+              ) : (
+                <QrCode className="w-8 h-8 text-[#4A8A87]" />
+              )}
+            </div>
+            <p className="text-gray-600 text-sm mb-6">
+              {scanMode === 'nfc'
+                ? 'Tap the pet tag on the NFC reader.'
+                : 'Align the QR code within the camera frame.'}
+            </p>
+          </div>
+        )}
+
+        {/* Scanning State */}
+        {scanStatus === 'scanning' && (
+          <div className="text-center">
+            {scanMode === 'qr' && (
+              <div
+                id="clinic-qr-reader"
+                className="mb-4 rounded-lg overflow-hidden"
+                style={{ width: '100%', height: '250px' }}
+              />
+            )}
+            {scanMode === 'nfc' && (
+              <div className="mb-4">
+                <div className="relative w-24 h-24 mx-auto mb-4">
+                  <div className="absolute inset-0 rounded-full border-2 border-[#4A8A87]/30 animate-pulse" />
+                  <div className="absolute inset-0 rounded-full border-2 border-[#4A8A87]/20 animate-pulse" style={{ animationDelay: '0.6s' }} />
+                  <Smartphone className="w-12 h-12 text-[#4A8A87] mx-auto mt-6" />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+              <Loader className="w-4 h-4 animate-spin" />
+              Scanning...
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {scanStatus === 'error' && scanError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-red-900 text-sm">Scan Failed</h3>
+                <p className="text-red-700 text-xs mt-1">{scanError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success State */}
+        {scanStatus === 'success' && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <p className="text-green-700 text-sm font-medium">Pet found! Opening profile...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Buttons */}
+        <div className="flex gap-3">
+          {scanStatus === 'scanning' && (
+            <button
+              onClick={handleClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-sm transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+          {(scanStatus === 'error' || scanStatus === 'idle') && (
+            <>
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              {scanStatus === 'error' && (
+                <button
+                  onClick={() => {
+                    setScanError('')
+                    if (scanMode === 'nfc') startNfcScan()
+                    else startQrScan()
+                  }}
+                  className="flex-1 px-4 py-2 bg-[#4A8A87] hover:bg-[#3d7370] text-white rounded-lg font-medium text-sm transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== PATIENT DRAWER ====================
 
 const DRAWER_MIN_WIDTH = 380
@@ -660,6 +967,13 @@ export default function PatientManagementPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<ClinicPatient | null>(null)
 
+  // Scan states
+  const [scanModalOpen, setScanModalOpen] = useState(false)
+  const [scanMode, setScanMode] = useState<ScanMode>(null)
+  const [scanStatus, setScanStatus] = useState<ScanStatus>('idle')
+  const [scanningPetId, setScanningPetId] = useState<string | null>(null)
+  const [scanError, setScanError] = useState<string>('')
+
   // Fetch patients — backend derives clinic/branch from the JWT directly
   const fetchPatients = useCallback(async () => {
     if (!token) {
@@ -713,6 +1027,43 @@ export default function PatientManagementPage() {
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     applyFilters(patients, speciesFilter, query)
+  }
+
+  // Handle NFC scan completion
+  const handleNfcScanComplete = (petId: string) => {
+    const pet = patients.find(p => p._id === petId || p.microchipNumber === petId)
+    if (pet) {
+      setSelectedPatient(pet)
+      setScanModalOpen(false)
+      setScanMode(null)
+      setScanStatus('idle')
+      toast.success(`Found ${pet.name}!`)
+    } else {
+      setScanStatus('error')
+      toast.error('Pet not found. Please check the tag and try again.')
+    }
+  }
+
+  // Handle QR scan completion
+  const handleQrScanComplete = (petId: string) => {
+    const pet = patients.find(p => p._id === petId || p.microchipNumber === petId)
+    if (pet) {
+      setSelectedPatient(pet)
+      setScanModalOpen(false)
+      setScanMode(null)
+      setScanStatus('idle')
+      toast.success(`Found ${pet.name}!`)
+    } else {
+      setScanStatus('error')
+      toast.error('Pet not found. Please check the QR code and try again.')
+    }
+  }
+
+  // Open scan modal
+  const handleStartScan = (mode: ScanMode) => {
+    setScanMode(mode)
+    setScanStatus('scanning')
+    setScanModalOpen(true)
   }
 
   useEffect(() => { fetchPatients() }, [fetchPatients])
@@ -780,6 +1131,24 @@ export default function PatientManagementPage() {
             onChange={(e) => handleSearch(e.target.value)}
             className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
           />
+        </div>
+
+        {/* Scan Buttons */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => handleStartScan('nfc')}
+            className="flex items-center gap-2 px-5 py-3 bg-[#4A8A87] hover:bg-[#3d7370] text-white rounded-lg font-medium text-sm transition-colors"
+          >
+            <Smartphone className="w-4 h-4" />
+            Scan Pet Tag
+          </button>
+          <button
+            onClick={() => handleStartScan('qr')}
+            className="flex items-center gap-2 px-5 py-3 border border-[#4A8A87] text-[#4A8A87] hover:bg-[#4A8A87]/5 rounded-lg font-medium text-sm transition-colors"
+          >
+            <QrCode className="w-4 h-4" />
+            Scan QR Code
+          </button>
         </div>
 
         {/* Patients List */}
@@ -882,6 +1251,19 @@ export default function PatientManagementPage() {
         open={!!selectedPatient}
         onClose={() => setSelectedPatient(null)}
         token={token}
+      />
+
+      {/* Scan Modal */}
+      <ScanModal
+        open={scanModalOpen}
+        onClose={() => {
+          setScanModalOpen(false)
+          setScanMode(null)
+          setScanStatus('idle')
+        }}
+        scanMode={scanMode}
+        scanStatus={scanStatus}
+        onScanComplete={scanMode === 'nfc' ? handleNfcScanComplete : handleQrScanComplete}
       />
     </DashboardLayout>
   )
