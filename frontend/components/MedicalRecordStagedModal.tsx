@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, type ProductService } from '@/lib/medicalRecords'
+import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, type ProductService } from '@/lib/medicalRecords'
 import { getPetById, updatePetConfinement } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
@@ -124,6 +124,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [confined, setConfined] = useState(false)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
+  const [preventiveCareServices, setPreventiveCareServices] = useState<ProductService[]>([])
 
   // Vet notepad (pet-level)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -201,11 +202,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const loadData = useCallback(async () => {
     if (!token) return
-    const [recordRes, petRes, diagServicesRes, medServicesRes] = await Promise.all([
+    const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes] = await Promise.all([
       getRecordById(recordId, token),
       getPetById(petId, token),
       getDiagnosticTestServices(token),
       getMedicationServices(token),
+      getPreventiveCareServices(token),
     ])
     if (recordRes.status === 'SUCCESS' && recordRes.data?.record) {
       const r = recordRes.data.record
@@ -241,6 +243,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
     if (medServicesRes.status === 'SUCCESS' && medServicesRes.data?.items) {
       setMedicationServices(medServicesRes.data.items)
+    }
+    if (prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items) {
+      setPreventiveCareServices(prevCareServicesRes.data.items)
     }
   }, [recordId, petId, token, isVaccinationAppt])
 
@@ -1086,20 +1091,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     {preventiveCare.map((care, i) => (
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-gray-500">Item {i + 1}</span>
+                          <span className="text-xs font-semibold text-gray-500">Preventive Care {i + 1}</span>
                           <button onClick={() => setPreventiveCare((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <select value={care.careType} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, careType: e.target.value as PreventiveCare['careType'] } : c))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="flea">Flea Prevention</option>
-                            <option value="tick">Tick Prevention</option>
-                            <option value="heartworm">Heartworm</option>
-                            <option value="deworming">Deworming</option>
-                            <option value="other">Other</option>
+                          <select value={care.product} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, product: e.target.value, careType: 'other' } : c))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
+                            <option value="">Select a preventive care service</option>
+                            {preventiveCareServices.map((service) => (
+                              <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
+                            ))}
                           </select>
-                          <input type="text" placeholder="Product name" value={care.product} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, product: e.target.value } : c))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <div>
                             <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
                             <input type="date" value={care.dateAdministered || ''} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, dateAdministered: e.target.value || null } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />

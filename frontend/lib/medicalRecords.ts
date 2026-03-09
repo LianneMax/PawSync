@@ -332,3 +332,10 @@ export const getDiagnosticTestServices = async (token?: string): Promise<Product
 export const getMedicationServices = async (token?: string): Promise<ProductServicesResponse> => {
   return authenticatedFetch(`/product-services?type=Product&category=Medication`, { method: 'GET' }, token);
 };
+
+/**
+ * Fetch preventive care services from the product-services catalog
+ */
+export const getPreventiveCareServices = async (token?: string): Promise<ProductServicesResponse> => {
+  return authenticatedFetch(`/product-services?type=Service&category=Preventive Care`, { method: 'GET' }, token);
+};
