@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export type ProductCategory = 'Medication' | 'Others';
-export type ServiceCategory = 'Diagnostic Tests' | 'Preventive Care' | 'Others';
+export type ServiceCategory = 'Diagnostic Tests' | 'Preventive Care' | 'Surgeries' | 'Others';
 export type AdministrationRoute = 'oral' | 'topical' | 'injection';
 export type AdministrationMethod =
   | 'pills' | 'capsules' | 'tablets' | 'liquid' | 'suspension'  // oral
@@ -29,7 +29,7 @@ const ProductServiceSchema: Schema = new Schema(
     category: {
       type: String,
       required: true,
-      enum: ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Others'],
+      enum: ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Others'],
       default: 'Others',
     },
     price: { type: Number, required: true, min: 0 },
