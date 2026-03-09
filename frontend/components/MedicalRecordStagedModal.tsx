@@ -113,6 +113,43 @@ function calcAge(dob: string): string {
   return rem > 0 ? `${years}yr ${rem}mo` : `${years}yr`
 }
 
+function calculateAgeInMonths(dob: string): number {
+  const d = new Date(dob)
+  const now = new Date()
+  const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth())
+  return months < 0 ? 0 : months
+}
+
+function monthsToWeeks(months: number): number {
+  return Math.round(months * 4.3)
+}
+
+function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: number | null): { isValid: boolean; message: string } {
+  const petAgeMonths = calculateAgeInMonths(petDob)
+  const petAgeWeeks = monthsToWeeks(petAgeMonths)
+  const minWeeks = monthsToWeeks(minAgeMonths)
+  const maxWeeks = maxAgeMonths ? monthsToWeeks(maxAgeMonths) : null
+
+  if (petAgeMonths < minAgeMonths) {
+    return {
+      isValid: false,
+      message: `Pet is ${petAgeWeeks} weeks old. This vaccine requires minimum ${minWeeks} weeks.`,
+    }
+  }
+
+  if (maxWeeks && petAgeMonths > (maxAgeMonths || 0)) {
+    return {
+      isValid: false,
+      message: `Pet is ${petAgeWeeks} weeks old. This vaccine is only for ${minWeeks}-${maxWeeks} weeks old pets.`,
+    }
+  }
+
+  return {
+    isValid: true,
+    message: `Pet is ${petAgeWeeks} weeks old - eligible for this vaccine.`,
+  }
+}
+
 export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
   const [step, setStep] = useState<StepKey>(1)
@@ -172,6 +209,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vaccineSubmitting, setVaccineSubmitting] = useState(false)
   const [vaccineCreated, setVaccineCreated] = useState(false)
   const [createdVaccineId, setCreatedVaccineId] = useState<string | null>(null)
+  const [vaccineAgeError, setVaccineAgeError] = useState<string | null>(null)
+  const [vaccineAgeValid, setVaccineAgeValid] = useState(true)
 
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
@@ -254,14 +293,32 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }, [loadData])
 
   // Auto-fill manufacturer and batch number from vaccine type defaults
+  // Also validate pet age against vaccine type age requirements
   useEffect(() => {
-    if (!vaccineTypeId) return
+    if (!vaccineTypeId) {
+      setVaccineAgeError(null)
+      setVaccineAgeValid(true)
+      return
+    }
     const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
     if (!vt) return
+    
+    // Auto-fill defaults
     if (vt.defaultManufacturer) setVaccineManufacturer(vt.defaultManufacturer)
     if (vt.defaultBatchNumber) setVaccineBatchNumber(vt.defaultBatchNumber)
     if (vt.route) setVaccineRoute(vt.route)
-  }, [vaccineTypeId, vaccineTypes])
+    
+    // Validate pet age
+    if (pet?.dateOfBirth) {
+      const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
+      setVaccineAgeValid(validation.isValid)
+      if (!validation.isValid) {
+        setVaccineAgeError(validation.message)
+      } else {
+        setVaccineAgeError(null)
+      }
+    }
+  }, [vaccineTypeId, vaccineTypes, pet?.dateOfBirth])
 
   const buildExtraObservation = () => {
     const extras: string[] = []
@@ -934,6 +991,50 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     )
                   })()}
 
+                  {/* Age eligibility validation */}
+                  {vaccineTypeId && pet?.dateOfBirth && (
+                    <div className={`flex items-start gap-3 p-3 rounded-xl ${
+                      vaccineAgeValid
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                    }`}>
+                      {vaccineAgeValid ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${
+                          vaccineAgeValid ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {vaccineAgeError}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Min/Max Age Display */}
+                  {vaccineTypeId && (() => {
+                    const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
+                    if (!vt) return null
+                    const minWeeks = monthsToWeeks(vt.minAgeMonths || 0)
+                    const maxWeeks = vt.maxAgeMonths ? monthsToWeeks(vt.maxAgeMonths) : null
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-[#f0f7f7] border border-[#7FA5A3] rounded-xl p-3">
+                          <p className="text-[10px] font-bold text-[#476B6B] uppercase tracking-wide">Min Age</p>
+                          <p className="font-bold text-[#476B6B] text-sm mt-0.5">{minWeeks} weeks</p>
+                        </div>
+                        {maxWeeks && (
+                          <div className="bg-[#f0f7f7] border border-[#7FA5A3] rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-[#476B6B] uppercase tracking-wide">Max Age</p>
+                            <p className="font-bold text-[#476B6B] text-sm mt-0.5">{maxWeeks} weeks</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
                   {/* Date Administered */}
                   <div>
                     <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
@@ -1232,8 +1333,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             {step === 3 && isVaccinationAppt && (
               <button
                 onClick={handleProceedStep3Vaccination}
-                disabled={saving}
-                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
+                disabled={saving || !vaccineAgeValid || !vaccineTypeId}
+                title={!vaccineAgeValid ? 'Pet age is outside the allowed range for this vaccine' : !vaccineTypeId ? 'Please select a vaccine type' : undefined}
+                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Proceed to Post-Procedure

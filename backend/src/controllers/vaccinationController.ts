@@ -477,7 +477,7 @@ export const getPetsForOwner = async (req: Request, res: Response) => {
     }
 
     const pets = await Pet.find({ ownerId: ownerId as string })
-      .select('name species breed photo')
+      .select('name species breed photo dateOfBirth')
       .sort({ name: 1 });
 
     return res.status(200).json({ status: 'SUCCESS', data: { pets } });

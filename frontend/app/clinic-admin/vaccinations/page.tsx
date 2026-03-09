@@ -16,8 +16,6 @@ import {
   CheckCircle2,
   Pencil,
   ClipboardList,
-  ToggleLeft,
-  ToggleRight,
 } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -55,6 +53,7 @@ interface TypeFormState {
   requiresBooster: boolean
   boosterIntervalDays: string
   minAgeMonths: string
+  maxAgeMonths: string
   route: string
   defaultManufacturer: string
   defaultBatchNumber: string
@@ -67,6 +66,7 @@ const emptyTypeForm = (): TypeFormState => ({
   requiresBooster: false,
   boosterIntervalDays: '',
   minAgeMonths: '0',
+  maxAgeMonths: '',
   route: '',
   defaultManufacturer: '',
   defaultBatchNumber: '',
@@ -217,6 +217,7 @@ export default function ClinicAdminVaccinationsPage() {
       requiresBooster: vt.requiresBooster,
       boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
+      maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
       route: vt.route || '',
       defaultManufacturer: (vt as any).defaultManufacturer || '',
       defaultBatchNumber: (vt as any).defaultBatchNumber || '',
@@ -259,6 +260,7 @@ export default function ClinicAdminVaccinationsPage() {
         requiresBooster: form.requiresBooster,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
+        maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
         route: form.route || null,
         defaultManufacturer: form.defaultManufacturer.trim() || null,
         defaultBatchNumber: form.defaultBatchNumber.trim() || null,
@@ -582,22 +584,32 @@ export default function ClinicAdminVaccinationsPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
+                  Validity (days) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number" min="1" value={form.validityDays}
+                  onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                    Validity (days) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number" min="1" value={form.validityDays}
-                    onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Min Age (months)</label>
                   <input
                     type="number" min="0" value={form.minAgeMonths}
                     onChange={(e) => setForm((p) => ({ ...p, minAgeMonths: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Max Age (months)</label>
+                  <input
+                    type="number" min="0" value={form.maxAgeMonths}
+                    onChange={(e) => setForm((p) => ({ ...p, maxAgeMonths: e.target.value }))}
+                    placeholder="Leave empty for no maximum"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                   />
                 </div>
@@ -611,12 +623,9 @@ export default function ClinicAdminVaccinationsPage() {
                 <button
                   type="button"
                   onClick={() => setForm((p) => ({ ...p, requiresBooster: !p.requiresBooster }))}
-                  className="text-gray-400 hover:text-[#476B6B] transition-colors"
+                  className="relative w-11 h-6 rounded-full transition-colors bg-gray-200 overflow-hidden hover:bg-gray-300"
                 >
-                  {form.requiresBooster
-                    ? <ToggleRight className="w-6 h-6 text-green-500" />
-                    : <ToggleLeft className="w-6 h-6" />
-                  }
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5 !bg-[#476B6B]' : 'translate-x-0'}`} />
                 </button>
               </div>
 

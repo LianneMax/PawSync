@@ -81,6 +81,7 @@ interface FormState {
   requiresBooster: boolean
   boosterIntervalDays: string
   minAgeMonths: string
+  maxAgeMonths: string
   route: string
   defaultManufacturer: string
   defaultBatchNumber: string
@@ -93,6 +94,7 @@ const emptyForm = (): FormState => ({
   requiresBooster: false,
   boosterIntervalDays: '',
   minAgeMonths: '0',
+  maxAgeMonths: '',
   route: '',
   defaultManufacturer: '',
   defaultBatchNumber: '',
@@ -205,6 +207,7 @@ export default function VetVaccinationsPage() {
       requiresBooster: vt.requiresBooster,
       boosterIntervalDays: vt.boosterIntervalDays != null ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
+      maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
       route: vt.route || '',
       defaultManufacturer: vt.defaultManufacturer || '',
       defaultBatchNumber: vt.defaultBatchNumber || '',
@@ -235,6 +238,7 @@ export default function VetVaccinationsPage() {
         requiresBooster: form.requiresBooster,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
+        maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
         route: form.route || null,
         defaultManufacturer: form.defaultManufacturer.trim() || null,
         defaultBatchNumber: form.defaultBatchNumber.trim() || null,
@@ -539,6 +543,15 @@ export default function VetVaccinationsPage() {
                   <input
                     type="number" min="0" value={form.minAgeMonths}
                     onChange={(e) => setForm((p) => ({ ...p, minAgeMonths: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Max Age (months)</label>
+                  <input
+                    type="number" min="0" value={form.maxAgeMonths}
+                    onChange={(e) => setForm((p) => ({ ...p, maxAgeMonths: e.target.value }))}
+                    placeholder="Leave empty for no max age"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                   />
                 </div>

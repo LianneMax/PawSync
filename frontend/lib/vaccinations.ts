@@ -8,6 +8,7 @@ export interface VaccineType {
   requiresBooster: boolean;
   boosterIntervalDays: number | null;
   minAgeMonths: number;
+  maxAgeMonths: number | null;
   route: string | null;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
@@ -87,6 +88,7 @@ export interface VaccineTypeInput {
   requiresBooster: boolean;
   boosterIntervalDays?: number | null;
   minAgeMonths?: number;
+  maxAgeMonths?: number | null;
   route?: string | null;
   defaultManufacturer?: string | null;
   defaultBatchNumber?: string | null;

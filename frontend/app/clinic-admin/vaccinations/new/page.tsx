@@ -23,12 +23,15 @@ import {
   type Vaccination,
   type CreateVaccinationInput,
 } from '@/lib/vaccinations'
+
 import {
   ArrowLeft,
   Search,
   Save,
   AlertTriangle,
   ChevronDown,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react'
 
 interface Owner {
@@ -43,6 +46,7 @@ interface Pet {
   name: string
   species: 'dog' | 'cat' | string
   breed: string
+  dateOfBirth?: string
   photo?: string
 }
 
@@ -80,6 +84,8 @@ function ClinicVaccinationFormInner() {
   // Vaccine types
   const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([])
   const [selectedVaccineType, setSelectedVaccineType] = useState<VaccineType | null>(null)
+
+
 
   // Form fields
   const [dateAdministered, setDateAdministered] = useState(
@@ -122,7 +128,13 @@ function ClinicVaccinationFormInner() {
         setBatchNumber(vax.batchNumber || '')
         setNotes(vax.notes || '')
         if (typeof vax.petId === 'object') {
-          setSelectedPet({ _id: vax.petId._id, name: vax.petId.name, species: vax.petId.species, breed: vax.petId.breed })
+          setSelectedPet({
+            _id: vax.petId._id,
+            name: vax.petId.name,
+            species: vax.petId.species,
+            breed: vax.petId.breed,
+            dateOfBirth: vax.petId.dateOfBirth,
+          })
         }
         if (typeof vax.vetId === 'object') {
           setSelectedVet({ _id: vax.vetId._id, firstName: vax.vetId.firstName, lastName: vax.vetId.lastName, email: '' })
@@ -154,6 +166,8 @@ function ClinicVaccinationFormInner() {
       setRoute(selectedVaccineType.route)
     }
   }, [selectedVaccineType])
+
+
 
   // Owner search debounce
   useEffect(() => {
@@ -435,6 +449,8 @@ function ClinicVaccinationFormInner() {
                 </div>
               </div>
             )}
+
+
 
             {/* Date administered */}
             <div>
