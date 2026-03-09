@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, type ProductService } from '@/lib/medicalRecords'
+import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, type ProductService } from '@/lib/medicalRecords'
 import { getPetById, updatePetConfinement } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
@@ -123,6 +123,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const [confined, setConfined] = useState(false)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
+  const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
 
   // Vet notepad (pet-level)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -200,10 +201,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const loadData = useCallback(async () => {
     if (!token) return
-    const [recordRes, petRes, servicesRes] = await Promise.all([
+    const [recordRes, petRes, diagServicesRes, medServicesRes] = await Promise.all([
       getRecordById(recordId, token),
       getPetById(petId, token),
       getDiagnosticTestServices(token),
+      getMedicationServices(token),
     ])
     if (recordRes.status === 'SUCCESS' && recordRes.data?.record) {
       const r = recordRes.data.record
@@ -234,8 +236,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setVaccineTypes(vts.filter((vt) => vt.isActive))
       }
     }
-    if (servicesRes.status === 'SUCCESS' && servicesRes.data?.items) {
-      setDiagnosticTestServices(servicesRes.data.items)
+    if (diagServicesRes.status === 'SUCCESS' && diagServicesRes.data?.items) {
+      setDiagnosticTestServices(diagServicesRes.data.items)
+    }
+    if (medServicesRes.status === 'SUCCESS' && medServicesRes.data?.items) {
+      setMedicationServices(medServicesRes.data.items)
     }
   }, [recordId, petId, token, isVaccinationAppt])
 
@@ -1033,7 +1038,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <input type="text" placeholder="Drug name *" value={med.name} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <select value={med.name} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
+                            <option value="">Select a medication</option>
+                            {medicationServices.map((service) => (
+                              <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
+                            ))}
+                          </select>
                           <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <select value={med.route} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, route: e.target.value as Medication['route'] } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
                             <option value="oral">Oral</option>

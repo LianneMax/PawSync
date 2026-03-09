@@ -325,3 +325,10 @@ export interface ProductServicesResponse {
 export const getDiagnosticTestServices = async (token?: string): Promise<ProductServicesResponse> => {
   return authenticatedFetch(`/product-services?type=Service&category=Diagnostic Tests`, { method: 'GET' }, token);
 };
+
+/**
+ * Fetch medication services from the product-services catalog
+ */
+export const getMedicationServices = async (token?: string): Promise<ProductServicesResponse> => {
+  return authenticatedFetch(`/product-services?type=Product&category=Medication`, { method: 'GET' }, token);
+};
