@@ -15,12 +15,33 @@ interface ProductItem {
   category: string
   price: number
   lastUpdateDate: string
+  administrationRoute?: string
+  administrationMethod?: string
 }
 
 interface VaccineItem {
   id: string
   name: string
   pricePerDose: number
+}
+
+// ==================== CONSTANTS ====================
+
+const PRODUCT_CATEGORIES = ['Medication', 'Others'] as const
+const SERVICE_CATEGORIES = ['Diagnostic Tests', 'Preventive Care', 'Others'] as const
+const ORAL_METHODS = ['Pills', 'Capsules', 'Tablets', 'Liquid', 'Suspension'] as const
+const TOPICAL_METHODS = ['Skin', 'Eyes', 'Ears'] as const
+
+type AdmRoute = 'oral' | 'topical' | 'injection'
+
+// ==================== HELPERS ====================
+
+function formatAdministration(route?: string, method?: string): string {
+  if (!route) return '—'
+  if (route === 'injection') return 'Injection'
+  const routeLabel = route.charAt(0).toUpperCase() + route.slice(1)
+  const methodLabel = method ? method.charAt(0).toUpperCase() + method.slice(1) : ''
+  return methodLabel ? `${routeLabel} · ${methodLabel}` : routeLabel
 }
 
 // ==================== ADD MODAL ====================
@@ -32,34 +53,94 @@ interface AddModalProps {
   onSaved: (item: ProductItem) => void
 }
 
-const PRODUCT_CATEGORIES = ['Medication', 'Others'] as const
-const SERVICE_CATEGORIES = ['Diagnostic Tests', 'Preventive Care', 'Others'] as const
-
 function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
-  const categories = tab === 'Products' ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES
-  const [form, setForm] = useState({ name: '', price: '', description: '', category: categories[0] })
+  const isProducts = tab === 'Products'
+
+  // --- Simple form state (Services tab + Products "Others") ---
+  const [simpleForm, setSimpleForm] = useState({
+    name: '',
+    price: '',
+    description: '',
+    category: (isProducts ? 'Others' : SERVICE_CATEGORIES[0]) as string,
+  })
+
+  // --- Products: type selection ---
+  const [productType, setProductType] = useState<'medication' | 'others' | null>(null)
+
+  // --- Medication sub-flow ---
+  const [variantMode, setVariantMode] = useState<'new' | 'variant'>('new')
+  const [existingMeds, setExistingMeds] = useState<string[]>([])
+  const [loadingMeds, setLoadingMeds] = useState(false)
+  const [medName, setMedName] = useState('')
+  const [admRoute, setAdmRoute] = useState<AdmRoute | null>(null)
+  const [admMethod, setAdmMethod] = useState('')
+  const [medPrice, setMedPrice] = useState('')
+  const [medDesc, setMedDesc] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  // Fetch existing medication names for variant dropdown
+  useEffect(() => {
+    if (isProducts && productType === 'medication') {
+      setLoadingMeds(true)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      fetch(`${apiUrl}/product-services?type=Product&category=Medication`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.status === 'SUCCESS') {
+            const names = [...new Set<string>(data.data.items.map((i: any) => i.name as string))].sort()
+            setExistingMeds(names)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingMeds(false))
+    }
+  }, [isProducts, productType, token])
+
+  // Reset method when route changes
+  useEffect(() => { setAdmMethod('') }, [admRoute])
+
+  const handleVariantModeChange = (mode: 'new' | 'variant') => {
+    setVariantMode(mode)
+    setMedName('')
+    setAdmRoute(null)
+    setAdmMethod('')
   }
 
-  const handleSave = async () => {
-    if (!form.name.trim() || !form.price) {
+  const handleExistingMedSelect = (name: string) => {
+    setMedName(name)
+    setAdmRoute(null)
+    setAdmMethod('')
+  }
+
+  const handleProductTypeChange = (type: 'medication' | 'others') => {
+    setProductType(type)
+    setError('')
+    // Reset medication state when switching
+    setVariantMode('new')
+    setMedName('')
+    setAdmRoute(null)
+    setAdmMethod('')
+    setMedPrice('')
+    setMedDesc('')
+  }
+
+  // ---- SAVE: simple form (Services tab or Products "Others") ----
+  const handleSaveSimple = async () => {
+    if (!simpleForm.name.trim() || !simpleForm.price) {
       setError('Name and price are required.')
       return
     }
-
-    const parsed = parseFloat(form.price)
+    const parsed = parseFloat(simpleForm.price)
     if (isNaN(parsed) || parsed < 0) {
       setError('Please enter a valid price.')
       return
     }
-
     setSaving(true)
     setError('')
-
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
       const res = await fetch(`${apiUrl}/product-services`, {
@@ -69,29 +150,24 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          name: form.name.trim(),
-          type: tab === 'Products' ? 'Product' : 'Service',
-          category: form.category,
+          name: simpleForm.name.trim(),
+          type: isProducts ? 'Product' : 'Service',
+          category: simpleForm.category,
           price: parsed,
-          description: form.description.trim(),
+          description: simpleForm.description.trim(),
         }),
       })
-
       const data = await res.json()
-
       if (data.status === 'SUCCESS') {
-        const newItem: ProductItem = {
+        onSaved({
           id: data.data.item._id,
           name: data.data.item.name,
           category: data.data.item.category ?? 'Others',
           price: data.data.item.price,
           lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
+            year: 'numeric', month: 'short', day: 'numeric',
           }),
-        }
-        onSaved(newItem)
+        })
         onClose()
       } else {
         setError(data.message || 'Failed to create item.')
@@ -103,14 +179,76 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
     }
   }
 
-  const label = tab === 'Products' ? 'Product' : 'Service'
+  // ---- SAVE: medication ----
+  const handleSaveMedication = async () => {
+    if (!medName.trim()) { setError('Medication name is required.'); return }
+    if (!admRoute) { setError('Please select an administration route.'); return }
+    if ((admRoute === 'oral' || admRoute === 'topical') && !admMethod) {
+      setError('Please select an administration method.'); return
+    }
+    if (!medPrice) { setError('Price is required.'); return }
+    const parsed = parseFloat(medPrice)
+    if (isNaN(parsed) || parsed < 0) { setError('Please enter a valid price.'); return }
+
+    setSaving(true)
+    setError('')
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const body: any = {
+        name: medName.trim(),
+        type: 'Product',
+        category: 'Medication',
+        administrationRoute: admRoute,
+        price: parsed,
+        description: medDesc.trim(),
+      }
+      if (admRoute !== 'injection') {
+        body.administrationMethod = admMethod.toLowerCase()
+      }
+      const res = await fetch(`${apiUrl}/product-services`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        onSaved({
+          id: data.data.item._id,
+          name: data.data.item.name,
+          category: 'Medication',
+          price: data.data.item.price,
+          lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric',
+          }),
+          administrationRoute: data.data.item.administrationRoute,
+          administrationMethod: data.data.item.administrationMethod,
+        })
+        onClose()
+      } else {
+        setError(data.message || 'Failed to create medication.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isMedMode = isProducts && productType === 'medication'
+  const isOthersMode = !isProducts || productType === 'others'
+  const methodOptions = admRoute === 'oral' ? ORAL_METHODS : admRoute === 'topical' ? TOPICAL_METHODS : []
+
+  const canSave = isProducts ? productType !== null : true
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -119,68 +257,229 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
         </button>
 
         <div className="text-center mb-7">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1.5">Add {label}</h2>
-          <p className="text-sm text-gray-500">Add a new {label.toLowerCase()} to billing</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1.5">Add {tab === 'Products' ? 'Product' : 'Service'}</h2>
+          <p className="text-sm text-gray-500">Add a new {tab === 'Products' ? 'product' : 'service'} to billing</p>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Enter name"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
-            <input
-              type="number"
-              name="price"
-              value={form.price}
-              onChange={handleChange}
-              placeholder="0.00"
-              min="0"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
-            <input
-              type="text"
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Enter description"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-            />
-          </div>
+        <div className="space-y-5">
+
+          {/* PRODUCTS: Type selector — Medication or Others */}
+          {isProducts && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['medication', 'others'] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => handleProductTypeChange(type)}
+                    className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      productType === type
+                        ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                    }`}
+                  >
+                    {type === 'medication' ? 'Medication' : 'Others'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* MEDICATION FLOW */}
+          {isMedMode && (
+            <>
+              {/* New vs Variant */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Medication Entry</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['new', 'variant'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => handleVariantModeChange(mode)}
+                      className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                        variantMode === mode
+                          ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      {mode === 'new' ? 'New Medication' : 'New Variant'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Existing Med Dropdown — variant only */}
+              {variantMode === 'variant' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Select Existing Medication</label>
+                  {loadingMeds ? (
+                    <p className="text-xs text-gray-400 py-2">Loading medications...</p>
+                  ) : (
+                    <select
+                      value={medName}
+                      onChange={(e) => handleExistingMedSelect(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                    >
+                      <option value="">— Select medication —</option>
+                      {existingMeds.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {/* Medication Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Medication Name</label>
+                <input
+                  type="text"
+                  value={medName}
+                  onChange={(e) => setMedName(e.target.value)}
+                  placeholder="e.g. Amoxicillin"
+                  readOnly={variantMode === 'variant' && !!medName}
+                  className={`w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all ${
+                    variantMode === 'variant' && medName ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+                  }`}
+                />
+              </div>
+
+              {/* Administration Route — show once name is set (or always for 'new') */}
+              {(variantMode === 'new' || medName) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Administration Route</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['oral', 'topical', 'injection'] as const).map((route) => (
+                      <button
+                        key={route}
+                        onClick={() => { setAdmRoute(route); setAdmMethod('') }}
+                        className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          admRoute === route
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {route.charAt(0).toUpperCase() + route.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Administration Method — Oral or Topical only */}
+              {admRoute && admRoute !== 'injection' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Method</label>
+                  <div className="flex flex-wrap gap-2">
+                    {methodOptions.map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setAdmMethod(method)}
+                        className={`px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                          admMethod === method
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
+                <input
+                  type="number"
+                  value={medPrice}
+                  onChange={(e) => setMedPrice(e.target.value)}
+                  placeholder="0.00"
+                  min="0"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
+                <input
+                  type="text"
+                  value={medDesc}
+                  onChange={(e) => setMedDesc(e.target.value)}
+                  placeholder="Enter description"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                />
+              </div>
+            </>
+          )}
+
+          {/* SIMPLE FORM — Services tab or Products "Others" */}
+          {isOthersMode && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+                <input
+                  type="text"
+                  value={simpleForm.name}
+                  onChange={(e) => setSimpleForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter name"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                />
+              </div>
+
+              {/* Category selector — Services tab only (Products "Others" is always 'Others') */}
+              {!isProducts && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+                  <select
+                    value={simpleForm.category}
+                    onChange={(e) => setSimpleForm((prev) => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                  >
+                    {SERVICE_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
+                <input
+                  type="number"
+                  value={simpleForm.price}
+                  onChange={(e) => setSimpleForm((prev) => ({ ...prev, price: e.target.value }))}
+                  placeholder="0.00"
+                  min="0"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
+                <input
+                  type="text"
+                  value={simpleForm.description}
+                  onChange={(e) => setSimpleForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter description"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                />
+              </div>
+            </>
+          )}
+
           {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-7">
           <button
-            onClick={handleSave}
-            disabled={saving}
+            onClick={isMedMode ? handleSaveMedication : handleSaveSimple}
+            disabled={saving || !canSave}
             className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
           >
-            {saving ? 'Saving...' : `Save ${label}`}
+            {saving ? 'Saving...' : `Save ${tab === 'Products' ? 'Product' : 'Service'}`}
           </button>
           <button
             onClick={onClose}
@@ -205,15 +504,27 @@ interface EditModalProps {
 }
 
 function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
+  const isMedication = item.category === 'Medication'
   const categories = tab === 'Products' ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES
+
   const [form, setForm] = useState({
     name: item.name,
     price: String(item.price),
     description: '',
     category: item.category,
   })
+
+  const [admRoute, setAdmRoute] = useState<AdmRoute | null>((item.administrationRoute as AdmRoute) || null)
+  const [admMethod, setAdmMethod] = useState(item.administrationMethod || '')
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Reset method when route changes
+  useEffect(() => {
+    if (!isMedication) return
+    setAdmMethod('')
+  }, [admRoute, isMedication])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -229,22 +540,33 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
       setError('Please enter a valid price.')
       return
     }
+    if (isMedication) {
+      if (!admRoute) { setError('Please select an administration route.'); return }
+      if ((admRoute === 'oral' || admRoute === 'topical') && !admMethod) {
+        setError('Please select an administration method.'); return
+      }
+    }
     setSaving(true)
     setError('')
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const body: any = {
+        name: form.name.trim(),
+        category: form.category,
+        price: parsed,
+        description: form.description.trim(),
+      }
+      if (isMedication) {
+        body.administrationRoute = admRoute
+        body.administrationMethod = admRoute !== 'injection' ? admMethod.toLowerCase() : null
+      }
       const res = await fetch(`${apiUrl}/product-services/${item.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          category: form.category,
-          price: parsed,
-          description: form.description.trim(),
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (data.status === 'SUCCESS') {
@@ -254,10 +576,10 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
           category: data.data.item.category ?? 'Others',
           price: data.data.item.price,
           lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
+            year: 'numeric', month: 'short', day: 'numeric',
           }),
+          administrationRoute: data.data.item.administrationRoute,
+          administrationMethod: data.data.item.administrationMethod,
         })
         onClose()
       } else {
@@ -271,13 +593,14 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
   }
 
   const label = tab === 'Products' ? 'Product' : 'Service'
+  const methodOptions = admRoute === 'oral' ? ORAL_METHODS : admRoute === 'topical' ? TOPICAL_METHODS : []
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -302,19 +625,74 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
+
+          {/* Category — locked for Medication; editable for Services/Others */}
+          {isMedication ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+              <div className="px-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-500">Medication</div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+              <select
+                name="category"
+                value={form.category}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Administration Route — Medications only */}
+          {isMedication && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Administration Route</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['oral', 'topical', 'injection'] as const).map((route) => (
+                    <button
+                      key={route}
+                      onClick={() => setAdmRoute(route)}
+                      className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                        admRoute === route
+                          ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      {route.charAt(0).toUpperCase() + route.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {admRoute && admRoute !== 'injection' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Method</label>
+                  <div className="flex flex-wrap gap-2">
+                    {methodOptions.map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setAdmMethod(method)}
+                        className={`px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                          admMethod.toLowerCase() === method.toLowerCase()
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
             <input
@@ -327,6 +705,7 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
             <input
@@ -338,6 +717,7 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
+
           {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
 
@@ -498,11 +878,13 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const isProducts = tab === 'Products'
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-        const typeParam = tab === 'Products' ? 'Product' : 'Service'
+        const typeParam = isProducts ? 'Product' : 'Service'
         const res = await fetch(`${apiUrl}/product-services?type=${typeParam}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
@@ -519,6 +901,8 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
               month: 'short',
               day: 'numeric',
             }),
+            administrationRoute: item.administrationRoute,
+            administrationMethod: item.administrationMethod,
           }))
           setData(items)
         } else {
@@ -600,6 +984,9 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
     setData((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
   }
 
+  // Columns: Products tab has Administration column; Services tab does not
+  const colSpan = isProducts ? 7 : 6
+
   return (
     <>
       {showModal && <AddModal tab={tab} token={token} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
@@ -619,7 +1006,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
           className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all shadow-sm"
         >
           <Plus className="w-4 h-4 text-gray-500" />
-          Add New {tab === 'Products' ? 'Product' : 'Service'}
+          Add New {isProducts ? 'Product' : 'Service'}
         </button>
       </div>
 
@@ -672,6 +1059,9 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Category" colKey="category" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
+                  {isProducts && (
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Administration</th>
+                  )}
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
@@ -708,6 +1098,17 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                         {item.category}
                       </span>
                     </td>
+                    {isProducts && (
+                      <td className="px-4 py-3.5">
+                        {item.administrationRoute ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                            {formatAdministration(item.administrationRoute, item.administrationMethod)}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
                     <td className="px-4 py-3.5">
@@ -722,7 +1123,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                 ))}
                 {sorted.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={colSpan} className="px-5 py-12 text-center text-sm text-gray-400">
                       No {tab.toLowerCase()} found.
                     </td>
                   </tr>

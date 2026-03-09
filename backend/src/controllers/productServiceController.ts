@@ -4,7 +4,7 @@ import ProductService from '../models/ProductService';
 /**
  * GET /api/product-services
  * All authenticated clinic staff — search the global catalog.
- * Optional query params: ?search=&type=Service|Product&category=Diagnostic Tests|Preventive Care|Medication|Others
+ * Optional query params: ?search=&type=Service|Product&category=
  */
 export const listProductServices = async (req: Request, res: Response) => {
   try {
@@ -37,7 +37,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, category } = req.body;
+    const { name, type, price, description, category, administrationRoute, administrationMethod } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -52,9 +52,48 @@ export const createProductService = async (req: Request, res: Response) => {
     const validCategories = type === 'Product' ? validProductCategories : validServiceCategories;
     const resolvedCategory = category && validCategories.includes(category) ? category : 'Others';
 
-    const existing = await ProductService.findOne({ name: name.trim() });
-    if (existing) {
-      return res.status(409).json({ status: 'ERROR', message: 'A product/service with this name already exists' });
+    // Validate administration fields for medications
+    let resolvedRoute: string | null = null;
+    let resolvedMethod: string | null = null;
+
+    if (resolvedCategory === 'Medication') {
+      if (!administrationRoute || !['oral', 'topical', 'injection'].includes(administrationRoute)) {
+        return res.status(400).json({ status: 'ERROR', message: 'administrationRoute is required for medications (oral, topical, or injection)' });
+      }
+      resolvedRoute = administrationRoute;
+
+      if (administrationRoute === 'oral') {
+        const validOral = ['pills', 'capsules', 'tablets', 'liquid', 'suspension'];
+        if (!administrationMethod || !validOral.includes(administrationMethod)) {
+          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for oral medications (pills, capsules, tablets, liquid, or suspension)' });
+        }
+        resolvedMethod = administrationMethod;
+      } else if (administrationRoute === 'topical') {
+        const validTopical = ['skin', 'eyes', 'ears'];
+        if (!administrationMethod || !validTopical.includes(administrationMethod)) {
+          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for topical medications (skin, eyes, or ears)' });
+        }
+        resolvedMethod = administrationMethod;
+      }
+      // injection has no sub-method
+
+      // Uniqueness check for medications: name + route + method
+      const existing = await ProductService.findOne({
+        isActive: true,
+        name: name.trim(),
+        category: 'Medication',
+        administrationRoute: resolvedRoute,
+        administrationMethod: resolvedMethod,
+      });
+      if (existing) {
+        return res.status(409).json({ status: 'ERROR', message: 'A medication with this name and administration method already exists' });
+      }
+    } else {
+      // Uniqueness check for non-medication products/services: name only
+      const existing = await ProductService.findOne({ name: name.trim(), category: resolvedCategory, isActive: true });
+      if (existing) {
+        return res.status(409).json({ status: 'ERROR', message: 'A product/service with this name already exists' });
+      }
     }
 
     const item = await ProductService.create({
@@ -63,7 +102,9 @@ export const createProductService = async (req: Request, res: Response) => {
       category: resolvedCategory,
       price,
       description: description || '',
-    });
+      administrationRoute: resolvedRoute,
+      administrationMethod: resolvedMethod,
+    } as any);
 
     return res.status(201).json({
       status: 'SUCCESS',
@@ -94,7 +135,7 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, category, isActive } = req.body;
+    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
@@ -102,6 +143,12 @@ export const updateProductService = async (req: Request, res: Response) => {
     if (price !== undefined) item.price = price;
     if (description !== undefined) item.description = description;
     if (isActive !== undefined) item.isActive = isActive;
+
+    // Update administration fields for medications
+    if (item.category === 'Medication' || category === 'Medication') {
+      if (administrationRoute !== undefined) item.administrationRoute = administrationRoute || null;
+      if (administrationMethod !== undefined) item.administrationMethod = administrationMethod || null;
+    }
 
     await item.save();
 
