@@ -88,7 +88,12 @@ export const createAppointment = async (req: Request, res: Response) => {
     // Check if appointment is grooming-only (no vet required) or requires vet
     const hasGrooming = types.some((t: string) => t === 'basic-grooming' || t === 'full-grooming');
     const hasOtherServices = types.some((t: string) => t !== 'basic-grooming' && t !== 'full-grooming');
-    
+
+    // Grooming cannot be combined with medical services
+    if (hasGrooming && hasOtherServices) {
+      return res.status(400).json({ status: 'ERROR', message: 'Grooming services cannot be combined with medical services in one appointment' });
+    }
+
     // If it's grooming-only, vetId can be null; if it has other services, vetId is required
     if (hasOtherServices && !vetId) {
       return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for this appointment type' });
@@ -853,6 +858,13 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       if (types.length !== 1 || types[0] !== 'consultation') {
         return res.status(400).json({ status: 'ERROR', message: 'Online appointments can only be for consultation' });
       }
+    }
+
+    // Grooming cannot be combined with medical services
+    const hasClinicGrooming = types.some((t: string) => t === 'basic-grooming' || t === 'full-grooming');
+    const hasClinicMedical = types.some((t: string) => t !== 'basic-grooming' && t !== 'full-grooming');
+    if (hasClinicGrooming && hasClinicMedical) {
+      return res.status(400).json({ status: 'ERROR', message: 'Grooming services cannot be combined with medical services in one appointment' });
     }
 
     // Check if the slot is already taken (skip for emergency appointments)

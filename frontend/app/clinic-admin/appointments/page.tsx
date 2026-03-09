@@ -1183,12 +1183,17 @@ function ClinicScheduleModal({
   }))
 
   const handleTypeChange = (types: string[]) => {
+    const prevGroomingOnly = isGroomingOnly
     setSelectedTypes(types)
     const nowGroomingOnly = types.some(t => t === 'basic-grooming' || t === 'full-grooming') &&
       !types.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+    // Clear slot whenever switching between grooming and medical (different slot sources)
+    if (nowGroomingOnly !== prevGroomingOnly) {
+      setSelectedSlot(null)
+      setSlots([])
+    }
     if (nowGroomingOnly) {
       setSelectedVetId('')
-      setSelectedSlot(null)
     }
   }
 

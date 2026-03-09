@@ -696,10 +696,10 @@ function ScheduleModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-225 p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-225 max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-8 pb-2">
-          <h2 className="text-3xl font-bold text-[#2C3E2D]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+        <div className="flex items-center justify-between px-8 pt-8 pb-2 shrink-0">
+          <h2 className="text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
             Schedule Appointment
           </h2>
           <button
@@ -710,7 +710,7 @@ function ScheduleModal({
           </button>
         </div>
 
-        <div className="flex px-8 pb-8 pt-4 gap-8">
+        <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
             {/* Row 1: Pet + Branch */}
@@ -903,7 +903,7 @@ function ScheduleModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-center gap-4 px-8 pb-8">
+        <div className="flex items-center justify-center gap-4 px-8 pb-8 shrink-0">
           <button
             onClick={handleSubmit}
             disabled={submitting}
