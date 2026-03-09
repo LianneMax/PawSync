@@ -11,7 +11,6 @@ import {
   getCurrentRecord,
   getHistoricalRecords,
   getRecordById,
-  updateMedicalRecord,
   toggleShareRecord,
   type MedicalRecord,
   type FollowUp,
@@ -44,12 +43,12 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  EyeOff,
   Printer,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Receipt,
   Syringe,
+  StickyNote,
 } from 'lucide-react'
 import { getVaccinationsByPet, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 import { toast } from 'sonner'
@@ -60,6 +59,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import BillingFromRecordModal from '@/components/BillingFromRecordModal'
+import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
+import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 
 
 // ==================== TYPES ====================
@@ -155,8 +156,8 @@ export default function PatientRecordsPage() {
   // Create modal
   const [createOpen, setCreateOpen] = useState(false)
 
-  // Edit modal
-  const [editRecord, setEditRecord] = useState<MedicalRecord | null>(null)
+  // Edit modal (staged visit)
+  const [stagedEdit, setStagedEdit] = useState<{ recordId: string; appointmentId?: string; petId: string; appointmentTypes: string[] } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [currentRecordEdited, setCurrentRecordEdited] = useState(false)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
@@ -278,14 +279,20 @@ export default function PatientRecordsPage() {
     setViewOpen(true)
   }
 
-  // Edit record - load full record data then open edit modal
+  // Edit record - load record data then open staged visit modal
   const handleEditRecord = async (recordId: string) => {
     if (!token) return
     setEditLoading(true)
     try {
       const res = await getRecordById(recordId, token)
       if (res.status === 'SUCCESS' && res.data?.record) {
-        setEditRecord(res.data.record)
+        const rec = res.data.record
+        setStagedEdit({
+          recordId: rec._id,
+          appointmentId: rec.appointmentId?._id || (typeof rec.appointmentId === 'string' ? rec.appointmentId : undefined),
+          petId: rec.petId?._id || rec.petId,
+          appointmentTypes: rec.appointmentId?.types || [],
+        })
       } else {
         toast.error('Failed to load record for editing')
       }
@@ -864,17 +871,19 @@ export default function PatientRecordsPage() {
         />
       )}
 
-      {/* Edit Record Modal */}
-      {selectedPatient && (
-        <EditRecordModal
-          record={editRecord}
-          loading={editLoading}
-          onClose={() => setEditRecord(null)}
-          onUpdated={() => {
-            if (editRecord?._id === currentRecord?._id) setCurrentRecordEdited(true)
-            setEditRecord(null)
-            loadRecords(selectedPatient._id)
+      {/* Edit Record Modal (Staged Visit) */}
+      {stagedEdit && (
+        <MedicalRecordStagedModal
+          recordId={stagedEdit.recordId}
+          appointmentId={stagedEdit.appointmentId}
+          petId={stagedEdit.petId}
+          appointmentTypes={stagedEdit.appointmentTypes}
+          onComplete={() => {
+            if (stagedEdit?.recordId === currentRecord?._id) setCurrentRecordEdited(true)
+            setStagedEdit(null)
+            if (selectedPatient) loadRecords(selectedPatient._id)
           }}
+          onClose={() => setStagedEdit(null)}
         />
       )}
 
@@ -1194,397 +1203,6 @@ function CreateRecordModal({
   )
 }
 
-// ==================== EDIT RECORD MODAL ====================
-
-function EditRecordModal({
-  record,
-  loading,
-  onClose,
-  onUpdated,
-}: {
-  record: MedicalRecord | null
-  loading: boolean
-  onClose: () => void
-  onUpdated: () => void
-}) {
-  const { token } = useAuthStore()
-  const [vitals, setVitals] = useState<Vitals>(emptyVitals())
-  const [extraCheckboxes, setExtraCheckboxes] = useState<ExtraCheckboxState>(emptyExtraCheckboxes())
-  const [overallObservation, setOverallObservation] = useState('')
-  const [chiefComplaint, setChiefComplaint] = useState('')
-  const [visitSummary, setVisitSummary] = useState('')
-  const [subjective, setSubjective] = useState('')
-  const [assessment, setAssessment] = useState('')
-  const [plan, setPlan] = useState('')
-  const [vetNotes, setVetNotes] = useState('')
-  const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
-  const [diagnosticTests, setDiagnosticTests] = useState<Omit<DiagnosticTest, '_id'>[]>([])
-  const [preventiveCare, setPreventiveCare] = useState<Omit<PreventiveCare, '_id'>[]>([])
-  const [sharedWithOwner, setSharedWithOwner] = useState(false)
-  const [medsOpen, setMedsOpen] = useState(false)
-  const [testsOpen, setTestsOpen] = useState(false)
-  const [preventiveOpen, setPreventiveOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-
-  const emptyMed = (): Omit<Medication, '_id'> => ({ name: '', dosage: '', route: 'oral', frequency: '', duration: '', startDate: null, endDate: null, notes: '', status: 'active' })
-  const emptyTest = (): Omit<DiagnosticTest, '_id'> => ({ testType: 'other', name: '', date: null, result: '', normalRange: '', notes: '' })
-  const emptyPC = (): Omit<PreventiveCare, '_id'> => ({ careType: 'other', product: '', dateAdministered: null, nextDueDate: null, notes: '' })
-
-  // Populate form when record loads
-  useEffect(() => {
-    if (record) {
-      setVitals(record.vitals || emptyVitals())
-      setOverallObservation(record.overallObservation || '')
-      setChiefComplaint(record.chiefComplaint || '')
-      setVisitSummary(record.visitSummary || '')
-      setSubjective(record.subjective || '')
-      setAssessment(record.assessment || '')
-      setPlan(record.plan || '')
-      setVetNotes(record.vetNotes || '')
-      setMedications((record.medications || []).map(({ _id: _, ...rest }) => rest))
-      setDiagnosticTests((record.diagnosticTests || []).map(({ _id: _, ...rest }) => rest))
-      setPreventiveCare((record.preventiveCare || []).map(({ _id: _, ...rest }) => rest))
-      setSharedWithOwner(record.sharedWithOwner || false)
-      setExtraCheckboxes(emptyExtraCheckboxes())
-    }
-  }, [record])
-
-  const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
-    setVitals((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], [field]: val },
-    }))
-  }
-
-  const toggleCheckboxVital = (key: keyof Vitals) => {
-    setVitals((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], value: prev[key].value === 'Yes' ? 'No' : 'Yes' },
-    }))
-  }
-
-  const toggleExtraCheckbox = (key: typeof extraCheckboxKeys[number]) => {
-    setExtraCheckboxes((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const handleSave = async () => {
-    if (!token || !record) return
-    setSubmitting(true)
-    try {
-      const checkedExtras = extraCheckboxKeys.filter((k) => extraCheckboxes[k]).map((k) => extraCheckboxLabels[k])
-      const extraNote = checkedExtras.length > 0 ? `\n\nServices availed: ${checkedExtras.join(', ')}` : ''
-      const finalObservation = overallObservation + extraNote
-
-      const res = await updateMedicalRecord(
-        record._id,
-        {
-          vitals,
-          overallObservation: finalObservation,
-          chiefComplaint,
-          visitSummary,
-          subjective,
-          assessment,
-          plan,
-          vetNotes,
-          medications,
-          diagnosticTests,
-          preventiveCare,
-          sharedWithOwner,
-        },
-        token
-      )
-      if (res.status === 'SUCCESS') {
-        toast.success('Medical record updated successfully!')
-        onUpdated()
-      } else {
-        toast.error(res.message || 'Failed to update record')
-      }
-    } catch {
-      toast.error('An error occurred')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <Dialog open={!!record || loading} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : record ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="text-[#4F4F4F] flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-amber-500" />
-                Edit Medical Record
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-6 mt-2">
-              {/* Chief Complaint */}
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint</h3>
-                <textarea
-                  value={chiefComplaint}
-                  onChange={(e) => setChiefComplaint(e.target.value)}
-                  rows={2}
-                  placeholder="Reason for visit, owner's complaint…"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
-                />
-              </div>
-
-              {/* Vitals Section */}
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-3">Vitals</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(Object.keys(vitalLabels) as (keyof Vitals)[]).map((key) => {
-                    const { label, unit, placeholder } = vitalLabels[key]
-                    return (
-                      <div key={key} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <label className="block text-xs font-medium text-[#4F4F4F] mb-1">
-                          {label} {unit && <span className="text-gray-400">({unit})</span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={vitals[key].value}
-                          onChange={(e) => updateVital(key, 'value', e.target.value)}
-                          placeholder={placeholder}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
-                        />
-                        <input
-                          type="text"
-                          value={vitals[key].notes}
-                          onChange={(e) => updateVital(key, 'notes', e.target.value)}
-                          placeholder="Notes (optional)"
-                          className="w-full px-3 py-1.5 mt-1.5 border border-gray-100 rounded-lg text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Checkbox Vitals + Extra Services */}
-              <CheckboxVitalsSection
-                vitals={vitals}
-                onToggle={toggleCheckboxVital}
-                extraCheckboxes={extraCheckboxes}
-                onExtraToggle={toggleExtraCheckbox}
-              />
-
-              {/* SOAP Notes */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-[#2C3E2D]">SOAP Notes</h3>
-                {[
-                  { label: 'S — Subjective', placeholder: 'Patient history, owner complaint…', val: subjective, set: setSubjective, rows: 2 },
-                  { label: 'O — Objective', placeholder: 'Physical exam findings, clinical impression…', val: overallObservation, set: setOverallObservation, rows: 3 },
-                  { label: 'A — Assessment', placeholder: 'Diagnosis, differential diagnosis…', val: assessment, set: setAssessment, rows: 2 },
-                  { label: 'P — Plan', placeholder: 'Treatment plan, next steps…', val: plan, set: setPlan, rows: 2 },
-                ].map(({ label, placeholder, val, set, rows }) => (
-                  <div key={label}>
-                    <label className="block text-xs font-medium text-[#476B6B] mb-1">{label}</label>
-                    <textarea
-                      value={val}
-                      onChange={(e) => set(e.target.value)}
-                      rows={rows}
-                      placeholder={placeholder}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Visit Summary */}
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2">Visit Summary</h3>
-                <textarea
-                  value={visitSummary}
-                  onChange={(e) => setVisitSummary(e.target.value)}
-                  rows={2}
-                  placeholder="Brief summary of visit outcome…"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
-                />
-              </div>
-
-              {/* Vet Notes */}
-              <div>
-                <h3 className="text-sm font-semibold text-[#2C3E2D] mb-2 flex items-center gap-2">
-                  <EyeOff className="w-4 h-4 text-gray-400" /> Vet Notes <span className="font-normal text-gray-400 text-xs">(private)</span>
-                </h3>
-                <textarea
-                  value={vetNotes}
-                  onChange={(e) => setVetNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Private notes not visible to owner…"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none bg-gray-50"
-                />
-              </div>
-
-              {/* Medications */}
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setMedsOpen(!medsOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm font-semibold text-[#2C3E2D] flex items-center gap-2">
-                    <Pill className="w-4 h-4 text-[#7FA5A3]" /> Medications ({medications.length})
-                  </span>
-                  {medsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                </button>
-                {medsOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
-                    {medications.map((med, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-semibold text-gray-400">Medication {i + 1}</span>
-                          <button type="button" onClick={() => setMedications((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <input type="text" placeholder="Name *" value={med.name} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="text" placeholder="Dosage" value={med.dosage} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <select value={med.route} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, route: e.target.value as Medication['route'] } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="oral">Oral</option><option value="topical">Topical</option><option value="injection">Injection</option><option value="other">Other</option>
-                          </select>
-                          <input type="text" placeholder="Frequency" value={med.frequency} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="text" placeholder="Duration" value={med.duration} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <select value={med.status} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, status: e.target.value as Medication['status'] } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="active">Active</option><option value="completed">Completed</option><option value="discontinued">Discontinued</option>
-                          </select>
-                        </div>
-                        <input type="text" placeholder="Notes" value={med.notes} onChange={(e) => setMedications((p) => p.map((m, j) => j === i ? { ...m, notes: e.target.value } : m))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setMedications((p) => [...p, emptyMed()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium">
-                      <Plus className="w-3.5 h-3.5" /> Add Medication
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Diagnostic Tests */}
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setTestsOpen(!testsOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm font-semibold text-[#2C3E2D] flex items-center gap-2">
-                    <FlaskConical className="w-4 h-4 text-[#7FA5A3]" /> Diagnostic Tests ({diagnosticTests.length})
-                  </span>
-                  {testsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                </button>
-                {testsOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
-                    {diagnosticTests.map((test, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-semibold text-gray-400">Test {i + 1}</span>
-                          <button type="button" onClick={() => setDiagnosticTests((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={test.testType} onChange={(e) => setDiagnosticTests((p) => p.map((t, j) => j === i ? { ...t, testType: e.target.value as DiagnosticTest['testType'] } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="blood_work">Blood Work</option><option value="x_ray">X-Ray</option><option value="ultrasound">Ultrasound</option><option value="urinalysis">Urinalysis</option><option value="ecg">ECG</option><option value="other">Other</option>
-                          </select>
-                          <input type="text" placeholder="Name" value={test.name} onChange={(e) => setDiagnosticTests((p) => p.map((t, j) => j === i ? { ...t, name: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="date" value={test.date || ''} onChange={(e) => setDiagnosticTests((p) => p.map((t, j) => j === i ? { ...t, date: e.target.value || null } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="text" placeholder="Normal range" value={test.normalRange} onChange={(e) => setDiagnosticTests((p) => p.map((t, j) => j === i ? { ...t, normalRange: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                        </div>
-                        <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((p) => p.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
-                        <input type="text" placeholder="Notes" value={test.notes} onChange={(e) => setDiagnosticTests((p) => p.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setDiagnosticTests((p) => [...p, emptyTest()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium">
-                      <Plus className="w-3.5 h-3.5" /> Add Test
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Preventive Care */}
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setPreventiveOpen(!preventiveOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm font-semibold text-[#2C3E2D] flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-[#7FA5A3]" /> Preventive Care ({preventiveCare.length})
-                  </span>
-                  {preventiveOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                </button>
-                {preventiveOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
-                    {preventiveCare.map((care, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-semibold text-gray-400">Item {i + 1}</span>
-                          <button type="button" onClick={() => setPreventiveCare((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={care.careType} onChange={(e) => setPreventiveCare((p) => p.map((c, j) => j === i ? { ...c, careType: e.target.value as PreventiveCare['careType'] } : c))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="flea">Flea</option><option value="tick">Tick</option><option value="heartworm">Heartworm</option><option value="deworming">Deworming</option><option value="other">Other</option>
-                          </select>
-                          <input type="text" placeholder="Product" value={care.product} onChange={(e) => setPreventiveCare((p) => p.map((c, j) => j === i ? { ...c, product: e.target.value } : c))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
-                            <input type="date" value={care.dateAdministered || ''} onChange={(e) => setPreventiveCare((p) => p.map((c, j) => j === i ? { ...c, dateAdministered: e.target.value || null } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Next Due</label>
-                            <input type="date" value={care.nextDueDate || ''} onChange={(e) => setPreventiveCare((p) => p.map((c, j) => j === i ? { ...c, nextDueDate: e.target.value || null } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          </div>
-                        </div>
-                        <input type="text" placeholder="Notes" value={care.notes} onChange={(e) => setPreventiveCare((p) => p.map((c, j) => j === i ? { ...c, notes: e.target.value } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setPreventiveCare((p) => [...p, emptyPC()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium">
-                      <Plus className="w-3.5 h-3.5" /> Add Item
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Share with Owner */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <p className="text-sm font-semibold text-[#4F4F4F]">Share with Owner</p>
-                  <p className="text-xs text-gray-500">{sharedWithOwner ? 'Owner can view this record' : 'Record is private'}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSharedWithOwner(!sharedWithOwner)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${sharedWithOwner ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sharedWithOwner ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={submitting}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
-              >
-                {submitting ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </>
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 // ==================== VIEW RECORD MODAL ====================
 
@@ -1629,6 +1247,12 @@ function ViewRecordModal({
   const [followUpsMinimized, setFollowUpsMinimized] = useState(false)
   const [lightboxMedia, setLightboxMedia] = useState<{ src: string; contentType: string; description?: string } | null>(null)
 
+  // Vet notepad (pet-level, same across all visits)
+  const [petNotesDraft, setPetNotesDraft] = useState('')
+  const [petNotesSaving, setPetNotesSaving] = useState(false)
+  const [petNotesSaved, setPetNotesSaved] = useState(false)
+  const [notesMinimized, setNotesMinimized] = useState(false)
+
   const toggleFollowUp = (id: string) => {
     setExpandedFollowUps((prev) => {
       const next = new Set(prev)
@@ -1652,6 +1276,34 @@ function ViewRecordModal({
       if (res.status === 'SUCCESS' && res.data?.record) setRecord(res.data.record)
     }).finally(() => setLoading(false))
   }, [open, index, recordIds, token])
+
+  // Load pet-level vet notes when pet changes
+  useEffect(() => {
+    const petId = record?.petId?._id
+    if (!petId || !token) return
+    getPetNotesApi(petId, token).then((res) => {
+      if (res.status === 'SUCCESS') setPetNotesDraft(res.data?.notes || '')
+    })
+  }, [record?.petId?._id, token])
+
+  const handleSaveNotes = async () => {
+    const petId = record?.petId?._id
+    if (!token || !petId) return
+    setPetNotesSaving(true)
+    try {
+      const res = await savePetNotesApi(petId, petNotesDraft, token)
+      if (res.status === 'SUCCESS') {
+        setPetNotesSaved(true)
+        setTimeout(() => setPetNotesSaved(false), 2000)
+      } else {
+        toast.error(res.message || 'Failed to save vet notes')
+      }
+    } catch {
+      toast.error('Failed to save vet notes')
+    } finally {
+      setPetNotesSaving(false)
+    }
+  }
 
   const total = recordIds.length
   const pet = record?.petId
@@ -1800,7 +1452,7 @@ function ViewRecordModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Side-by-side container */}
-      <div className="relative flex items-start gap-2 w-[70vw] h-[80vh]">
+      <div className="relative flex items-stretch gap-2 w-[90vw] h-[85vh]">
 
         {/* ===== FOLLOW-UPS PANEL (left, collapsible) ===== */}
         {record && (
@@ -2408,6 +2060,63 @@ function ViewRecordModal({
             </div>
           </div>
         ) : null}
+
+        {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
+        {record && (
+          <div className={`bg-white rounded-xl shadow-xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-[22rem]'}`}>
+            {notesMinimized ? (
+              <button
+                onClick={() => setNotesMinimized(false)}
+                className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+              >
+                <ChevronLeftIcon className="w-4 h-4 shrink-0" />
+                <span
+                  className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
+                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                >
+                  Vet Notes
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
+                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
+                    <StickyNote className="w-3.5 h-3.5" />
+                    Vet Notes
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {petNotesSaving && <span className="text-[10px] text-gray-400">Saving…</span>}
+                    {petNotesSaved && !petNotesSaving && <span className="text-[10px] text-green-500 font-medium">Saved</span>}
+                    <button
+                      onClick={() => setNotesMinimized(true)}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
+                      title="Minimize panel"
+                    >
+                      <ChevronRightIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2">
+                  <p className="text-[10px] text-gray-400 leading-relaxed">Private notepad for this patient — same across all visits.</p>
+                  <textarea
+                    value={petNotesDraft}
+                    onChange={(e) => setPetNotesDraft(e.target.value)}
+                    onBlur={handleSaveNotes}
+                    placeholder="Write your notes about this patient here…"
+                    className="flex-1 w-full text-sm text-[#4F4F4F] resize-none focus:outline-none bg-white border border-gray-200 rounded-lg p-2.5 leading-relaxed focus:ring-1 focus:ring-[#7FA5A3]"
+                  />
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={petNotesSaving}
+                    className="px-3 py-1.5 text-xs font-medium bg-[#476B6B] text-white rounded-lg hover:bg-[#3a5858] disabled:opacity-50 transition-colors self-end"
+                  >
+                    {petNotesSaving ? 'Saving…' : 'Save Notes'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ===== LIGHTBOX ===== */}

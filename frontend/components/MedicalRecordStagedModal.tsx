@@ -13,9 +13,9 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
   Plus,
   Trash2,
-  EyeOff,
   CheckCircle,
   Stethoscope,
   ClipboardList,
@@ -30,12 +30,14 @@ import {
   Upload,
   AlertCircle,
   Lock,
+  StickyNote,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getPetNotes, savePetNotes } from '@/lib/petNotes'
 
 interface Props {
   recordId: string
-  appointmentId: string
+  appointmentId?: string
   petId: string
   appointmentTypes?: string[]
   onComplete: () => void
@@ -121,8 +123,40 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const [confined, setConfined] = useState(false)
 
+  // Vet notepad (pet-level)
+  const [petNotesDraft, setPetNotesDraft] = useState('')
+  const [petNotesSaving, setPetNotesSaving] = useState(false)
+  const [petNotesSaved, setPetNotesSaved] = useState(false)
+  const [notesMinimized, setNotesMinimized] = useState(false)
+
   // Whether this appointment includes vaccination/booster
   const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination')
+
+  // Load pet-level vet notes on mount
+  useEffect(() => {
+    if (!petId || !token) return
+    getPetNotes(petId, token).then((res) => {
+      if (res.status === 'SUCCESS') setPetNotesDraft(res.data?.notes || '')
+    })
+  }, [petId, token])
+
+  const handleSaveNotes = async () => {
+    if (!token || !petId) return
+    setPetNotesSaving(true)
+    try {
+      const res = await savePetNotes(petId, petNotesDraft, token)
+      if (res.status === 'SUCCESS') {
+        setPetNotesSaved(true)
+        setTimeout(() => setPetNotesSaved(false), 2000)
+      } else {
+        toast.error(res.message || 'Failed to save vet notes')
+      }
+    } catch {
+      toast.error('Failed to save vet notes')
+    } finally {
+      setPetNotesSaving(false)
+    }
+  }
 
   // Vaccine form state (step 3 for vaccination appointments)
   const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([])
@@ -146,7 +180,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [objective, setObjective] = useState('') // maps to overallObservation
   const [assessment, setAssessment] = useState('')
   const [plan, setPlan] = useState('')
-  const [vetNotes, setVetNotes] = useState('')
   const [xray, setXray] = useState(false)
   const [ultrasound, setUltrasound] = useState(false)
   const [availedProducts, setAvailedProducts] = useState(false)
@@ -178,7 +211,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setObjective(r.overallObservation || '')
       setAssessment(r.assessment || '')
       setPlan(r.plan || '')
-      setVetNotes(r.vetNotes || '')
       setVisitSummary(r.visitSummary || '')
       setMedications((r.medications || []).map(({ _id: _, ...rest }) => rest))
       setDiagnosticTests((r.diagnosticTests || []).map(({ _id: _, ...rest }) => rest))
@@ -256,7 +288,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         overallObservation: buildExtraObservation(),
         assessment,
         plan,
-        vetNotes,
         visitSummary,
         medications,
         diagnosticTests,
@@ -265,6 +296,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         confinementAction,
         confinementDays,
       }, token)
+      await handleSaveNotes()
       toast.success('Progress saved')
       onClose()
     } catch {
@@ -317,7 +349,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           dateAdministered: vaccineDateAdministered,
           notes: vaccineNotes || undefined,
           medicalRecordId: recordId,
-          appointmentId,
+          appointmentId: appointmentId || undefined,
         }, token)
         toast.success('Vaccination record saved')
         setVaccineCreated(true)
@@ -339,11 +371,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         overallObservation: buildExtraObservation(),
         assessment,
         plan,
-        vetNotes,
         // Only advance stage to post_procedure if not a vaccination appointment
         // (vaccination appointments have an intermediate step)
         ...(!isVaccinationAppt ? { stage: 'post_procedure' } : {}),
       }, token)
+      await handleSaveNotes()
       setStep(isVaccinationAppt ? 3 : 3)
     } catch {
       toast.error('Failed to save notes')
@@ -376,7 +408,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           dateAdministered: vaccineDateAdministered,
           notes: vaccineNotes || undefined,
           medicalRecordId: recordId,
-          appointmentId,
+          appointmentId: appointmentId || undefined,
         }, token)
         setVaccineCreated(true)
         setCreatedVaccineId(res._id)
@@ -416,9 +448,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         confinementAction,
         confinementDays,
       }, token)
-      if (!alreadyCompleted) {
+      if (!alreadyCompleted && appointmentId) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
       }
+      await handleSaveNotes()
       toast.success('Visit completed!')
       onComplete()
     } catch {
@@ -458,7 +491,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="flex items-stretch gap-3 w-full max-w-[88vw] h-[92vh]">
+
+      {/* ===== MAIN MODAL ===== */}
+      <div className="bg-white rounded-3xl shadow-2xl flex-1 min-w-0 h-full flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
@@ -806,21 +842,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     </button>
                   </div>
                 )}
-              </div>
-
-              {/* Vet Notes */}
-              <div>
-                <label className="block text-sm font-semibold text-[#4F4F4F] mb-1 flex items-center gap-2">
-                  <EyeOff className="w-4 h-4 text-gray-400" />
-                  Vet Notes <span className="font-normal text-gray-400 text-xs">(private — not visible to owner)</span>
-                </label>
-                <textarea
-                  value={vetNotes}
-                  onChange={(e) => setVetNotes(e.target.value)}
-                  rows={2}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none bg-gray-50"
-                  placeholder="Private notes, reminders, follow-up instructions…"
-                />
               </div>
 
             </>
@@ -1213,6 +1234,63 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             )}
           </div>
         </div>
+      </div>
+
+      {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-[22rem]'}`}>
+        {notesMinimized ? (
+          <button
+            onClick={() => setNotesMinimized(false)}
+            className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+          >
+            <ChevronLeft className="w-4 h-4 shrink-0" />
+            <span
+              className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
+              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            >
+              Vet Notes
+            </span>
+          </button>
+        ) : (
+          <>
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
+                <StickyNote className="w-3.5 h-3.5" />
+                Vet Notes
+              </h2>
+              <div className="flex items-center gap-2">
+                {petNotesSaving && <span className="text-[10px] text-gray-400">Saving…</span>}
+                {petNotesSaved && !petNotesSaving && <span className="text-[10px] text-green-500 font-medium">Saved</span>}
+                <button
+                  onClick={() => setNotesMinimized(true)}
+                  className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
+                  title="Minimize"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2">
+              <p className="text-[10px] text-gray-400 leading-relaxed">Private notepad for this patient — same across all visits.</p>
+              <textarea
+                value={petNotesDraft}
+                onChange={(e) => setPetNotesDraft(e.target.value)}
+                onBlur={handleSaveNotes}
+                placeholder="Write your notes about this patient here…"
+                className="flex-1 w-full text-sm text-[#4F4F4F] resize-none focus:outline-none bg-white border border-gray-200 rounded-xl p-2.5 leading-relaxed focus:ring-1 focus:ring-[#7FA5A3]"
+              />
+              <button
+                onClick={handleSaveNotes}
+                disabled={petNotesSaving}
+                className="px-3 py-1.5 text-xs font-medium bg-[#476B6B] text-white rounded-lg hover:bg-[#3a5858] disabled:opacity-50 transition-colors self-end"
+              >
+                {petNotesSaving ? 'Saving…' : 'Save Notes'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       </div>
     </div>
   )

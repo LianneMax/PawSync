@@ -20,6 +20,7 @@ import confinementRoutes from './routes/confinementRoutes';
 import billingRoutes from './routes/billingRoutes';
 import productServiceRoutes from './routes/productServiceRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import petNotesRoutes from './routes/petNotesRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { seedVaccineTypes } from './utils/seedVaccineTypes';
@@ -94,6 +95,9 @@ app.use('/api/product-services', productServiceRoutes);
 
 // Notification routes
 app.use('/api/notifications', notificationRoutes);
+
+// Pet notes (vet notepad) routes
+app.use('/api/pet-notes', petNotesRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);
