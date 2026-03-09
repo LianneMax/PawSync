@@ -98,6 +98,11 @@ function ClinicVaccinationFormInner() {
   const [declineReason, setDeclineReason] = useState('')
   const [showDecline, setShowDecline] = useState(false)
 
+  // Age validation state
+  const [ageValid, setAgeValid] = useState(true)
+  const [ageMessage, setAgeMessage] = useState<string | null>(null)
+  const [boosterInfo, setBoosterInfo] = useState<string | null>(null)
+
   // Computed preview
   const computedExpiry = selectedVaccineType && dateAdministered
     ? (() => {
@@ -160,12 +165,36 @@ function ClinicVaccinationFormInner() {
       .catch(() => { /* ignore */ })
   }, [selectedPet])
 
-  // Auto-set route from vaccine type
+  // Auto-set route from vaccine type + validate pet age
   useEffect(() => {
     if (selectedVaccineType?.route && !route) {
       setRoute(selectedVaccineType.route)
     }
-  }, [selectedVaccineType])
+    if (selectedVaccineType && selectedPet?.dateOfBirth) {
+      const dob = selectedPet.dateOfBirth
+      const now = new Date()
+      const d = new Date(dob)
+      const ageMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth())
+      const ageWeeks = Math.round(ageMonths * 4.3)
+      const minMonths = selectedVaccineType.minAgeMonths || 0
+      const maxMonths = selectedVaccineType.maxAgeMonths || null
+      if (ageMonths < minMonths) {
+        const minWeeks = Math.round(minMonths * 4.3)
+        setAgeValid(false)
+        setAgeMessage(`Pet is ${ageWeeks} weeks old. This vaccine requires a minimum of ${minWeeks} weeks (${minMonths} months).`)
+      } else if (maxMonths && ageMonths > maxMonths) {
+        const maxWeeks = Math.round(maxMonths * 4.3)
+        setAgeValid(false)
+        setAgeMessage(`Pet is ${ageWeeks} weeks old. This vaccine is only for pets up to ${maxWeeks} weeks (${maxMonths} months).`)
+      } else {
+        setAgeValid(true)
+        setAgeMessage(`Pet is ${ageWeeks} weeks old — eligible for this vaccine.`)
+      }
+    } else {
+      setAgeValid(true)
+      setAgeMessage(null)
+    }
+  }, [selectedVaccineType, selectedPet?.dateOfBirth])
 
 
 
@@ -219,8 +248,10 @@ function ClinicVaccinationFormInner() {
     if (!selectedPet) return setError('Please select a patient')
     if (!selectedVaccineType) return setError('Please select a vaccine type')
     if (!dateAdministered) return setError('Date administered is required')
+    if (!ageValid) return setError(ageMessage || 'Pet does not meet the age requirements for this vaccine.')
 
     setSaving(true)
+    setBoosterInfo(null)
     try {
       const payload: CreateVaccinationInput = {
         petId: selectedPet._id,
@@ -235,11 +266,17 @@ function ClinicVaccinationFormInner() {
 
       if (editId) {
         await updateVaccination(editId, payload, token!)
+        setSuccess(true)
+        setTimeout(() => router.push('/clinic-admin/vaccinations'), 1500)
       } else {
-        await createVaccination(payload, token!)
+        const res = await createVaccination(payload, token!)
+        setSuccess(true)
+        if (res.boosterDate) {
+          const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          setBoosterInfo(`Next booster automatically scheduled for ${d}.`)
+        }
+        setTimeout(() => router.push('/clinic-admin/vaccinations'), 2000)
       }
-      setSuccess(true)
-      setTimeout(() => router.push('/clinic-admin/vaccinations'), 1500)
     } catch (err: any) {
       setError(err.message || 'Failed to save vaccination')
     } finally {
@@ -294,8 +331,16 @@ function ClinicVaccinationFormInner() {
           </div>
         )}
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
-            Saved successfully! Redirecting…
+          <div className="mb-4 space-y-2">
+            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+              Saved successfully! Redirecting…
+            </div>
+            {boosterInfo && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                {boosterInfo}
+              </div>
+            )}
           </div>
         )}
 
@@ -444,9 +489,24 @@ function ClinicVaccinationFormInner() {
                   <p className="font-medium text-[#476B6B]">{computedExpiry ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Next Booster Due</p>
+                  <p className="text-xs text-gray-500 mb-0.5">Next Booster Due {computedNextDue ? '(auto-schedules)' : ''}</p>
                   <p className="font-medium text-[#476B6B]">{computedNextDue ?? 'No booster required'}</p>
                 </div>
+              </div>
+            )}
+
+            {/* Age eligibility */}
+            {ageMessage && selectedVaccineType && (
+              <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium ${
+                ageValid
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}>
+                {ageValid
+                  ? <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                }
+                {ageMessage}
               </div>
             )}
 
@@ -556,8 +616,9 @@ function ClinicVaccinationFormInner() {
           <div className="flex gap-3">
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#476B6B] text-white rounded-xl font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
+              disabled={saving || !ageValid}
+              title={!ageValid ? (ageMessage || 'Pet does not meet age requirements') : undefined}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#476B6B] text-white rounded-xl font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving…' : editId ? 'Save Changes' : 'Record Vaccination'}

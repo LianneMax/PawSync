@@ -325,11 +325,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (pet?.dateOfBirth) {
       const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
       setVaccineAgeValid(validation.isValid)
-      if (!validation.isValid) {
-        setVaccineAgeError(validation.message)
-      } else {
-        setVaccineAgeError(null)
-      }
+      setVaccineAgeError(validation.message)
     }
   }, [vaccineTypeId, vaccineTypes, pet?.dateOfBirth])
 
@@ -411,6 +407,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleSubmitVaccine = async () => {
     if (!token || !vaccineTypeId) return
+    if (!vaccineAgeValid) {
+      toast.error('Cannot save: pet does not meet the age requirements for this vaccine.')
+      return
+    }
     setVaccineSubmitting(true)
     try {
       if (vaccineCreated && createdVaccineId) {
@@ -436,12 +436,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           medicalRecordId: recordId,
           appointmentId: appointmentId || undefined,
         }, token)
-        toast.success('Vaccination record saved')
         setVaccineCreated(true)
         setCreatedVaccineId(res._id)
+        if (res.boosterDate) {
+          const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          toast.success(`Vaccination saved! Next booster auto-scheduled for ${d}.`)
+        } else {
+          toast.success('Vaccination record saved')
+        }
       }
-    } catch {
-      toast.error('Failed to save vaccination')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save vaccination')
     } finally {
       setVaccineSubmitting(false)
     }
@@ -473,6 +478,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Save & Close, X, and Back so progress is never lost.
   const trySaveVaccination = async () => {
     if (!token || !vaccineTypeId) return
+    if (!vaccineAgeValid) return // do not persist an ineligible vaccination
     try {
       if (vaccineCreated && createdVaccineId) {
         await updateVaccination(createdVaccineId, {
@@ -497,6 +503,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         }, token)
         setVaccineCreated(true)
         setCreatedVaccineId(res._id)
+        if (res.boosterDate) {
+          const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          toast.success(`Vaccination saved! Next booster auto-scheduled for ${d}.`)
+        }
       }
     } catch {
       // silent — don't block close/back on a vaccination save error
