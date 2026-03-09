@@ -8,6 +8,7 @@ import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
+import SurgeryAppointmentModal from './SurgeryAppointmentModal'
 import {
   X,
   ChevronRight,
@@ -172,10 +173,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [discharge, setDischarge] = useState(false)
   const [referral, setReferral] = useState(false)
   const [surgery, setSurgery] = useState(false)
+  const [showSurgeryModal, setShowSurgeryModal] = useState(false)
   const [carePlanOpen, setCarePlanOpen] = useState(true)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
   const [preventiveCareServices, setPreventiveCareServices] = useState<ProductService[]>([])
+  
+  // Clinic and vet info for surgery appointment modal
+  const [clinicId, setClinicId] = useState<string>('')
+  const [clinicBranchId, setClinicBranchId] = useState<string>('')
+  const [vetId, setVetId] = useState<string>('')
 
   // Vet notepad (pet-level)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -275,6 +282,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setDiagnosticTests((r.diagnosticTests || []).map(({ _id: _, ...rest }) => rest))
       setPreventiveCare((r.preventiveCare || []).map(({ _id: _, ...rest }) => rest))
       setSharedWithOwner(r.sharedWithOwner || false)
+      
+      // Store clinic and vet info for surgery appointment modal
+      if (r.clinicId?._id) setClinicId(r.clinicId._id)
+      if (r.clinicBranchId?._id) setClinicBranchId(r.clinicBranchId._id)
+      if (r.vetId?._id) setVetId(r.vetId._id)
+      
       const stageToStep: Record<string, StepKey> = isVaccinationAppt
         ? { pre_procedure: 1, in_procedure: 2, post_procedure: 4, completed: 4 }
         : { pre_procedure: 1, in_procedure: 2, post_procedure: 3, completed: 3 }
@@ -1344,7 +1357,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <Switch
                         checked={surgery}
-                        onCheckedChange={setSurgery}
+                        onCheckedChange={(checked) => {
+                          setSurgery(checked)
+                          if (checked) {
+                            setShowSurgeryModal(true)
+                          }
+                        }}
                         className="data-checked:bg-red-500"
                       />
                     </div>
@@ -1522,6 +1540,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           </>
         )}
       </div>
+
+      {/* Surgery Appointment Modal */}
+      <SurgeryAppointmentModal
+        open={showSurgeryModal}
+        onOpenChange={setShowSurgeryModal}
+        petId={petId}
+        petName={pet?.name || 'Pet'}
+        clinicId={clinicId}
+        clinicBranchId={clinicBranchId}
+        vetId={vetId}
+      />
 
       </div>
     </div>
