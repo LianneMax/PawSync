@@ -838,7 +838,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn, isEmergency } = req.body;
+    let { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn, isEmergency } = req.body;
 
     if (!ownerId) {
       return res.status(400).json({ status: 'ERROR', message: 'Owner is required' });
@@ -867,17 +867,29 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Grooming services cannot be combined with medical services in one appointment' });
     }
 
+    // Validate vet requirements: medical appointments need a vet, grooming-only does not
+    if (hasClinicMedical && !vetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for medical appointments' });
+    }
+    // For grooming-only appointments, clear vetId to null
+    if (hasClinicGrooming && !hasClinicMedical) {
+      vetId = null;
+    }
+
     // Check if the slot is already taken (skip for emergency appointments)
     if (!isEmergency) {
-      const existing = await Appointment.findOne({
-        vetId,
-        date: new Date(date),
-        startTime,
-        status: { $in: ['pending', 'confirmed'] }
-      });
+      // For grooming appointments, we don't need a vet, so skip the vetId-based check
+      if (hasClinicMedical && vetId) {
+        const existing = await Appointment.findOne({
+          vetId,
+          date: new Date(date),
+          startTime,
+          status: { $in: ['pending', 'confirmed'] }
+        });
 
-      if (existing) {
-        return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+        if (existing) {
+          return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+        }
       }
     }
 

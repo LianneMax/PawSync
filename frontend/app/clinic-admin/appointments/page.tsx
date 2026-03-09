@@ -1183,16 +1183,13 @@ function ClinicScheduleModal({
   }))
 
   const handleTypeChange = (types: string[]) => {
-    const prevGroomingOnly = isGroomingOnly
     setSelectedTypes(types)
+    // When types change, always clear slot (user must reselect time)
+    setSelectedSlot(null)
+    // If switching to grooming-only, clear vet selection since grooming doesn't require a vet
     const nowGroomingOnly = types.some(t => t === 'basic-grooming' || t === 'full-grooming') &&
       !types.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
-    // Clear slot whenever switching between grooming and medical (different slot sources)
-    if (nowGroomingOnly !== prevGroomingOnly) {
-      setSelectedSlot(null)
-      setSlots([])
-    }
-    if (nowGroomingOnly) {
+    if (nowGroomingOnly && selectedVetId) {
       setSelectedVetId('')
     }
   }
@@ -1209,10 +1206,10 @@ function ClinicScheduleModal({
     setSubmitting(true)
     try {
       // Send full types array including grooming; backend will handle not creating medical records for grooming
-      const res = await createClinicAppointment({
+      // For grooming-only, don't send vetId; backend will set it to null
+      const appointmentData: any = {
         ownerId: selectedOwner._id,
         petId: selectedPetId,
-        vetId: selectedVetId,
         clinicId: clinic?._id || '',
         clinicBranchId: selectedBranchId,
         mode: mode as 'online' | 'face-to-face',
@@ -1222,7 +1219,14 @@ function ClinicScheduleModal({
         endTime: selectedSlot.endTime,
         isWalkIn,
         isEmergency,
-      }, token || undefined)
+      }
+      
+      // Only include vetId if it has a value (medical appointments)
+      if (selectedVetId) {
+        appointmentData.vetId = selectedVetId
+      }
+
+      const res = await createClinicAppointment(appointmentData, token || undefined)
 
       if (res.status === 'SUCCESS') {
         // Get pet name and branch info for toast
