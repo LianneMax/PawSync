@@ -22,6 +22,7 @@ import {
   type Vaccination,
 } from '@/lib/vaccinations'
 
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
 interface PetOption {
@@ -30,6 +31,7 @@ interface PetOption {
   species: 'dog' | 'cat'
   breed: string
   photo?: string | null
+  dateOfBirth?: string
 }
 
 interface OwnerOption {
@@ -103,6 +105,11 @@ export default function VaccinationFormClient() {
   const [loadingEdit, setLoadingEdit] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [boosterInfo, setBoosterInfo] = useState<string | null>(null)
+
+  // Age validation state
+  const [ageValid, setAgeValid] = useState(true)
+  const [ageMessage, setAgeMessage] = useState<string | null>(null)
 
   // Load vaccine types
   useEffect(() => {
@@ -110,14 +117,38 @@ export default function VaccinationFormClient() {
     getVaccineTypes(species).then(setVaccineTypes).catch(() => {})
   }, [selectedPet?.species])
 
-  // Sync selected vaccine type for computed preview
+  // Sync selected vaccine type for computed preview + validate pet age
   useEffect(() => {
     const vt = vaccineTypes.find((v) => v._id === vaccineTypeId) || null
     setSelectedVaccineType(vt)
     if (vt?.route && !route) {
       setRoute(vt.route)
     }
-  }, [vaccineTypeId, vaccineTypes, route])
+    if (vt && selectedPet?.dateOfBirth) {
+      const dob = selectedPet.dateOfBirth
+      const now = new Date()
+      const d = new Date(dob)
+      const ageMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth())
+      const ageWeeks = Math.round(ageMonths * 4.3)
+      const minMonths = vt.minAgeMonths || 0
+      const maxMonths = vt.maxAgeMonths || null
+      if (ageMonths < minMonths) {
+        const minWeeks = Math.round(minMonths * 4.3)
+        setAgeValid(false)
+        setAgeMessage(`Pet is ${ageWeeks} weeks old. This vaccine requires a minimum of ${minWeeks} weeks (${minMonths} months).`)
+      } else if (maxMonths && ageMonths > maxMonths) {
+        const maxWeeks = Math.round(maxMonths * 4.3)
+        setAgeValid(false)
+        setAgeMessage(`Pet is ${ageWeeks} weeks old. This vaccine is only for pets up to ${maxWeeks} weeks (${maxMonths} months).`)
+      } else {
+        setAgeValid(true)
+        setAgeMessage(`Pet is ${ageWeeks} weeks old — eligible for this vaccine.`)
+      }
+    } else {
+      setAgeValid(true)
+      setAgeMessage(null)
+    }
+  }, [vaccineTypeId, vaccineTypes, route, selectedPet?.dateOfBirth])
 
   // Load pet from URL param
   useEffect(() => {
@@ -224,9 +255,14 @@ export default function VaccinationFormClient() {
       setError('Please select a pet and vaccine type.')
       return
     }
+    if (!ageValid) {
+      setError(ageMessage || 'Pet does not meet the age requirements for this vaccine.')
+      return
+    }
 
     setLoading(true)
     setError(null)
+    setBoosterInfo(null)
     try {
       if (editId) {
         await updateVaccination(
@@ -234,8 +270,10 @@ export default function VaccinationFormClient() {
           { vaccineTypeId, manufacturer, batchNumber, route, dateAdministered, notes },
           token
         )
+        setSuccess(true)
+        setTimeout(() => router.push('/vet-dashboard/vaccinations'), 1500)
       } else {
-        await createVaccination(
+        const res = await createVaccination(
           {
             petId: selectedPet._id,
             vaccineTypeId,
@@ -247,9 +285,13 @@ export default function VaccinationFormClient() {
           },
           token
         )
+        setSuccess(true)
+        if (res.boosterDate) {
+          const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          setBoosterInfo(`Next booster automatically scheduled for ${d}.`)
+        }
+        setTimeout(() => router.push('/vet-dashboard/vaccinations'), 2000)
       }
-      setSuccess(true)
-      setTimeout(() => router.push('/vet-dashboard/vaccinations'), 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save vaccination')
     } finally {
@@ -286,9 +328,17 @@ export default function VaccinationFormClient() {
       </div>
 
       {success && (
-        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4 text-green-700 text-sm mb-5">
-          <CheckCircle2 className="w-5 h-5 shrink-0" />
-          Vaccination saved! Redirecting...
+        <div className="space-y-2 mb-5">
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4 text-green-700 text-sm">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            Vaccination saved! Redirecting...
+          </div>
+          {boosterInfo && (
+            <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 text-blue-700 text-sm">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              {boosterInfo}
+            </div>
+          )}
         </div>
       )}
 
@@ -472,10 +522,25 @@ export default function VaccinationFormClient() {
                 )}
                 {computedNextDueDate && (
                   <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-[#4569B1] uppercase tracking-wide font-semibold mb-0.5">Next Due</p>
+                    <p className="text-[10px] text-[#4569B1] uppercase tracking-wide font-semibold mb-0.5">Next Due (auto-schedules)</p>
                     <p className="text-xs font-bold text-[#4569B1]">{computedNextDueDate}</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Age eligibility */}
+            {ageMessage && vaccineTypeId && (
+              <div className={`mt-2 flex items-start gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium ${
+                ageValid
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}>
+                {ageValid
+                  ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                }
+                {ageMessage}
               </div>
             )}
           </div>
@@ -553,8 +618,9 @@ export default function VaccinationFormClient() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading || success || !selectedPet || !vaccineTypeId}
-          className="w-full py-3.5 bg-[#476B6B] text-white rounded-2xl font-semibold text-sm hover:bg-[#3d5c5c] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          disabled={loading || success || !selectedPet || !vaccineTypeId || !ageValid}
+          title={!ageValid ? (ageMessage || 'Pet does not meet age requirements') : undefined}
+          className="w-full py-3.5 bg-[#476B6B] text-white rounded-2xl font-semibold text-sm hover:bg-[#3d5c5c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (
             <>

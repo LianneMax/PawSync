@@ -160,11 +160,18 @@ export async function getVaccinationById(id: string, token: string): Promise<Vac
   return json.data.vaccination;
 }
 
+export interface CreateVaccinationResult extends Vaccination {
+  /** ISO date string of the auto-scheduled booster appointment, if any. */
+  boosterDate?: string;
+  /** ID of the auto-created booster appointment, if any. */
+  boosterAppointmentId?: string;
+}
+
 /** Create a new vaccination record (vet only). */
 export async function createVaccination(
   data: CreateVaccinationInput,
   token: string
-): Promise<Vaccination> {
+): Promise<CreateVaccinationResult> {
   const res = await fetch(`${API_BASE_URL}/vaccinations`, {
     method: 'POST',
     headers: authHeaders(token),
@@ -172,7 +179,7 @@ export async function createVaccination(
   });
   const json = await res.json();
   if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to create vaccination');
-  return json.data.vaccination;
+  return { ...json.data.vaccination, boosterDate: json.data.boosterDate, boosterAppointmentId: json.data.boosterAppointmentId };
 }
 
 /** Update a vaccination record (vet only). */
@@ -229,4 +236,111 @@ export function getStatusClasses(status: Vaccination['status']): string {
     declined: 'bg-gray-100 text-gray-600 border-gray-200',
   };
   return classes[status] ?? 'bg-gray-100 text-gray-600 border-gray-200';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upcoming Vaccine Schedule APIs
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface UpcomingVaccine {
+  _id: string;
+  petId: string;
+  vaccineName: string;
+  nextDueDate: string; // ISO date string - either booster due or expiry date
+  expiryDate: string | null; // Actual expiry date
+  lastAdministeredDate: string | null;
+  status: string;
+  dateType: 'booster_due' | 'expires'; // What the nextDueDate represents
+  vaccineType: {
+    _id: string;
+    name: string;
+    requiresBooster: boolean;
+    boosterIntervalDays: number | null;
+  } | null;
+}
+
+export interface VetUpcomingSchedule {
+  _id: string;
+  pet: {
+    _id: string;
+    name: string;
+    species: string;
+    breed: string;
+    photo?: string;
+    ownerId: string;
+  };
+  vaccineName: string;
+  nextDueDate: string; // Either booster due or expiry date
+  expiryDate: string | null; // Actual expiry date
+  lastAdministeredDate: string | null;
+  status: string;
+  dateType: 'booster_due' | 'expires';
+  vaccineType: {
+    _id: string;
+    name: string;
+    requiresBooster: boolean;
+    boosterIntervalDays: number | null;
+  } | null;
+  clinic: {
+    _id: string;
+    name: string;
+  } | null;
+}
+
+export interface ClinicUpcomingSchedule {
+  _id: string;
+  pet: {
+    _id: string;
+    name: string;
+    species: string;
+    breed: string;
+    photo?: string;
+    ownerId: string;
+  };
+  vet: {
+    _id: string;
+    name: string;
+  };
+  vaccineName: string;
+  nextDueDate: string; // Either booster due or expiry date
+  expiryDate: string | null; // Actual expiry date
+  lastAdministeredDate: string | null;
+  status: string;
+  dateType: 'booster_due' | 'expires';
+  vaccineType: {
+    _id: string;
+    name: string;
+    requiresBooster: boolean;
+    boosterIntervalDays: number | null;
+  } | null;
+}
+
+/** Get upcoming vaccine due dates for a pet. */
+export async function getUpcomingVaccineDates(petId: string, token: string): Promise<UpcomingVaccine[]> {
+  const res = await fetch(`${API_BASE_URL}/vaccinations/pet/${petId}/upcoming`, {
+    headers: authHeaders(token),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch upcoming vaccines');
+  return json.data.upcomingVaccines;
+}
+
+/** Get upcoming vaccine schedules for a vet. */
+export async function getVetUpcomingSchedule(vetId: string, token: string): Promise<VetUpcomingSchedule[]> {
+  const res = await fetch(`${API_BASE_URL}/vaccinations/vet/${vetId}/upcoming-schedule`, {
+    headers: authHeaders(token),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch vet upcoming schedule');
+  return json.data.upcomingSchedule;
+}
+
+/** Get upcoming vaccine schedules for a clinic (admin only). */
+export async function getClinicUpcomingSchedule(clinicId: string, token: string): Promise<ClinicUpcomingSchedule[]> {
+  const res = await fetch(`${API_BASE_URL}/vaccinations/clinic/${clinicId}/upcoming-schedule`, {
+    headers: authHeaders(token),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch clinic upcoming schedule');
+  return json.data.upcomingSchedule;
 }

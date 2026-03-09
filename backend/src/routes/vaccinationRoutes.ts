@@ -11,6 +11,9 @@ import {
   searchOwners,
   getPetsForOwner,
   verifyVaccinationByToken,
+  getUpcomingVaccineDates,
+  getVetUpcomingVaccineSchedule,
+  getClinicUpcomingVaccineSchedule,
 } from '../controllers/vaccinationController';
 import {
   authMiddleware,
@@ -20,6 +23,18 @@ import {
 } from '../middleware/auth';
 
 const router = express.Router();
+
+// Upcoming vaccine schedules
+// GET /api/vaccinations/pet/:petId/upcoming
+router.get('/pet/:petId/upcoming', authMiddleware, getUpcomingVaccineDates);
+
+// Vet's upcoming vaccine schedule
+// GET /api/vaccinations/vet/:vetId/upcoming-schedule
+router.get('/vet/:vetId/upcoming-schedule', authMiddleware, getVetUpcomingVaccineSchedule);
+
+// Clinic's upcoming vaccine schedule
+// GET /api/vaccinations/clinic/:clinicId/upcoming-schedule
+router.get('/clinic/:clinicId/upcoming-schedule', authMiddleware, clinicOrBranchAdminOnly, getClinicUpcomingVaccineSchedule);
 
 // Vet's own vaccination records (list view / filter)
 // GET /api/vaccinations/vet/my-records

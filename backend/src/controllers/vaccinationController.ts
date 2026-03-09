@@ -6,6 +6,8 @@ import Pet from '../models/Pet';
 import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
+import Appointment from '../models/Appointment';
+import { createNotification } from '../services/notificationService';
 
 /**
  * Helper: add days to a date, returns a new Date.
@@ -14,6 +16,24 @@ function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
+}
+
+/**
+ * Helper: add minutes to a "HH:MM" time string.
+ */
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+}
+
+/**
+ * Helper: compute pet age in months from dateOfBirth.
+ */
+function petAgeInMonths(dateOfBirth: Date): number {
+  const now = new Date();
+  return (now.getFullYear() - dateOfBirth.getFullYear()) * 12 +
+    (now.getMonth() - dateOfBirth.getMonth());
 }
 
 /**
@@ -86,6 +106,27 @@ export const createVaccination = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccine type not found' });
     }
 
+    // BR-VAX-AGE: Validate pet age against vaccine type age requirements
+    if (pet.dateOfBirth) {
+      const ageMonths = petAgeInMonths(pet.dateOfBirth);
+      if (vaccineType.minAgeMonths && ageMonths < vaccineType.minAgeMonths) {
+        const ageWeeks = Math.round(ageMonths * 4.3);
+        const minWeeks = Math.round(vaccineType.minAgeMonths * 4.3);
+        return res.status(400).json({
+          status: 'ERROR',
+          message: `Pet is too young for this vaccine (${ageWeeks} weeks old). Minimum age required: ${minWeeks} weeks (${vaccineType.minAgeMonths} months).`,
+        });
+      }
+      if (vaccineType.maxAgeMonths && ageMonths > vaccineType.maxAgeMonths) {
+        const ageWeeks = Math.round(ageMonths * 4.3);
+        const maxWeeks = Math.round(vaccineType.maxAgeMonths * 4.3);
+        return res.status(400).json({
+          status: 'ERROR',
+          message: `Pet exceeds maximum age for this vaccine (${ageWeeks} weeks old). Maximum age allowed: ${maxWeeks} weeks (${vaccineType.maxAgeMonths} months).`,
+        });
+      }
+    }
+
     // BR-VAX-03: date cannot be in the future
     const adminDate = dateAdministered ? new Date(dateAdministered) : new Date();
     if (adminDate > new Date()) {
@@ -130,10 +171,64 @@ export const createVaccination = async (req: Request, res: Response) => {
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name');
 
+    // Auto-schedule the next booster appointment if a nextDueDate was computed
+    let boosterAppointmentId: string | undefined;
+    if (nextDueDate) {
+      const boosterDate = new Date(nextDueDate);
+      boosterDate.setHours(0, 0, 0, 0);
+      const resolvedClinicId = clinicId || req.user.clinicId;
+      const resolvedBranchId = clinicBranchId || req.user.clinicBranchId || null;
+
+      // Try several time slots to avoid double-booking
+      const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+      for (const startTime of candidateSlots) {
+        const endTime = addMinutesToTime(startTime, 30);
+        try {
+          const boosterAppt = await Appointment.create({
+            petId,
+            ownerId: pet.ownerId,
+            vetId,
+            clinicId: resolvedClinicId,
+            clinicBranchId: resolvedBranchId,
+            mode: 'face-to-face',
+            types: ['vaccination'],
+            date: boosterDate,
+            startTime,
+            endTime,
+            status: 'pending',
+            notes: `Auto-scheduled booster for ${vaccineType.name}`,
+          });
+          boosterAppointmentId = boosterAppt._id.toString();
+          break;
+        } catch (_slotErr) {
+          // Slot taken — try the next one
+          continue;
+        }
+      }
+
+      // Notify the pet owner about the scheduled booster
+      if (boosterAppointmentId) {
+        try {
+          await createNotification(
+            pet.ownerId.toString(),
+            'appointment_scheduled',
+            'Booster Appointment Scheduled',
+            `A booster appointment for ${vaccineType.name} has been automatically scheduled for ${boosterDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Please confirm with the clinic.`,
+            { appointmentId: boosterAppointmentId, vaccineName: vaccineType.name }
+          );
+        } catch (notifErr) {
+          console.error('[Notification] Booster appointment notification error:', notifErr);
+        }
+      }
+    }
+
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Vaccination recorded successfully',
-      data: { vaccination: populated },
+      data: {
+        vaccination: populated,
+        ...(boosterAppointmentId ? { boosterAppointmentId, boosterDate: nextDueDate } : {}),
+      },
     });
   } catch (error: any) {
     console.error('Create vaccination error:', error);
@@ -597,6 +692,260 @@ export const verifyVaccinationByToken = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Verify vaccination error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * GET /api/vaccinations/pet/:petId/upcoming
+ * Returns upcoming vaccine due dates (next appointments) for a pet.
+ * Includes both booster due dates AND expiry dates.
+ * Auth required — accessible by pet owner, assigned vet, clinic staff.
+ */
+export const getUpcomingVaccineDates = async (req: Request, res: Response) => {
+  try {
+    const pet = await Pet.findById(req.params.petId);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    // Auth check
+    if (req.user) {
+      const isOwner = pet.ownerId.toString() === req.user.userId;
+      const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+      let isAuthorizedVet = false;
+
+      if (req.user.userType === 'veterinarian') {
+        const assignment = await AssignedVet.findOne({
+          vetId: req.user.userId,
+          petId: pet._id,
+          isActive: true,
+        });
+        if (assignment) {
+          isAuthorizedVet = true;
+        } else {
+          const hasRecords = await MedicalRecord.exists({
+            vetId: req.user.userId,
+            petId: pet._id,
+          });
+          isAuthorizedVet = !!hasRecords;
+          if (!isAuthorizedVet) {
+            const hasVaxRecords = await Vaccination.exists({
+              vetId: req.user.userId,
+              petId: pet._id,
+            });
+            isAuthorizedVet = !!hasVaxRecords;
+          }
+        }
+      }
+
+      if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+        return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this data' });
+      }
+    }
+
+    // Get vaccinations with either nextDueDate OR expiryDate approaching
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // Look ahead 1 year
+
+    const vaccinations = await Vaccination.find({
+      petId: req.params.petId,
+      status: { $ne: 'declined' },
+      $or: [
+        {
+          nextDueDate: { $exists: true, $ne: null, $gt: now },
+        },
+        {
+          expiryDate: { $exists: true, $ne: null, $gt: now, $lt: futureDate },
+          nextDueDate: { $in: [null, undefined] }, // Only if no booster scheduled
+        },
+      ],
+    })
+      .populate('vaccineTypeId', 'name requiresBooster boosterIntervalDays validityDays')
+      .sort({ nextDueDate: 1, expiryDate: 1 });
+
+    const upcomingDates = vaccinations.map((v) => {
+      // Use nextDueDate if available (booster), otherwise use expiryDate
+      const importantDate = v.nextDueDate || v.expiryDate;
+      const dateType = v.nextDueDate ? 'booster_due' : 'expires';
+
+      return {
+        _id: v._id,
+        petId: v.petId,
+        vaccineName: v.vaccineName,
+        nextDueDate: importantDate,
+        expiryDate: v.expiryDate,
+        lastAdministeredDate: v.dateAdministered,
+        status: v.status,
+        dateType, // 'booster_due' or 'expires'
+        vaccineType: v.vaccineTypeId,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { upcomingVaccines: upcomingDates },
+    });
+  } catch (error) {
+    console.error('Get upcoming vaccines error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * GET /api/vaccinations/vet/:vetId/upcoming-schedule
+ * Returns upcoming vaccine schedules for all pets under a vet's care.
+ * Includes both booster due dates AND expiry dates.
+ * Auth required — accessible by the vet or clinic admins.
+ */
+export const getVetUpcomingVaccineSchedule = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const vetId = req.params.vetId;
+    
+    // Auth check: only the vet or clinic admins can view this
+    const isRequestingVet = req.user.userId === vetId;
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+
+    if (!isRequestingVet && !isClinicAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized' });
+    }
+
+    // Get all active vaccinations for this vet (with nextDueDate or approaching expiryDate)
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // Look ahead 1 year
+
+    const vaccinations = await Vaccination.find({
+      vetId: vetId,
+      status: { $ne: 'declined' },
+      $or: [
+        {
+          nextDueDate: { $exists: true, $ne: null, $gt: now },
+        },
+        {
+          expiryDate: { $exists: true, $ne: null, $gt: now, $lt: futureDate },
+          nextDueDate: { $in: [null, undefined] },
+        },
+      ],
+    })
+      .populate('petId', 'name species breed photo ownerId')
+      .populate('vaccineTypeId', 'name requiresBooster boosterIntervalDays validityDays')
+      .populate('clinicId', 'name')
+      .sort({ nextDueDate: 1, expiryDate: 1 });
+
+    const upcomingSchedule = vaccinations.map((v) => {
+      const importantDate = v.nextDueDate || v.expiryDate;
+      const dateType = v.nextDueDate ? 'booster_due' : 'expires';
+
+      return {
+        _id: v._id,
+        pet: {
+          _id: v.petId._id,
+          name: (v.petId as any).name,
+          species: (v.petId as any).species,
+          breed: (v.petId as any).breed,
+          photo: (v.petId as any).photo,
+          ownerId: (v.petId as any).ownerId,
+        },
+        vaccineName: v.vaccineName,
+        nextDueDate: importantDate,
+        expiryDate: v.expiryDate,
+        lastAdministeredDate: v.dateAdministered,
+        status: v.status,
+        dateType,
+        vaccineType: v.vaccineTypeId,
+        clinic: v.clinicId,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { upcomingSchedule },
+    });
+  } catch (error) {
+    console.error('Get vet upcoming schedule error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * GET /api/vaccinations/clinic/:clinicId/upcoming-schedule
+ * Returns upcoming vaccine schedules for all pets in a clinic.
+ * Includes both booster due dates AND expiry dates.
+ * Auth required — clinic admin or branch admin only.
+ */
+export const getClinicUpcomingVaccineSchedule = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    if (!isClinicAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only clinic admins can access this' });
+    }
+
+    const clinicId = req.params.clinicId;
+
+    // Get all active vaccinations for this clinic (with nextDueDate or approaching expiryDate)
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // Look ahead 1 year
+
+    const vaccinations = await Vaccination.find({
+      clinicId: clinicId,
+      status: { $ne: 'declined' },
+      $or: [
+        {
+          nextDueDate: { $exists: true, $ne: null, $gt: now },
+        },
+        {
+          expiryDate: { $exists: true, $ne: null, $gt: now, $lt: futureDate },
+          nextDueDate: { $in: [null, undefined] },
+        },
+      ],
+    })
+      .populate('petId', 'name species breed photo ownerId')
+      .populate('vetId', 'firstName lastName')
+      .populate('vaccineTypeId', 'name requiresBooster boosterIntervalDays validityDays')
+      .sort({ nextDueDate: 1, expiryDate: 1 });
+
+    const upcomingSchedule = vaccinations.map((v) => {
+      const importantDate = v.nextDueDate || v.expiryDate;
+      const dateType = v.nextDueDate ? 'booster_due' : 'expires';
+
+      return {
+        _id: v._id,
+        pet: {
+          _id: v.petId._id,
+          name: (v.petId as any).name,
+          species: (v.petId as any).species,
+          breed: (v.petId as any).breed,
+          photo: (v.petId as any).photo,
+          ownerId: (v.petId as any).ownerId,
+        },
+        vet: {
+          _id: v.vetId._id,
+          name: `${(v.vetId as any).firstName} ${(v.vetId as any).lastName}`,
+        },
+        vaccineName: v.vaccineName,
+        nextDueDate: importantDate,
+        expiryDate: v.expiryDate,
+        lastAdministeredDate: v.dateAdministered,
+        status: v.status,
+        dateType,
+        vaccineType: v.vaccineTypeId,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { upcomingSchedule },
+    });
+  } catch (error) {
+    console.error('Get clinic upcoming schedule error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };
