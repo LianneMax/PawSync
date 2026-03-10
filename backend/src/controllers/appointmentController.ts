@@ -563,7 +563,9 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
 
     const { status } = req.body;
     const validTransitions: Record<string, string[]> = {
-      'confirmed': ['in_progress', 'cancelled'],
+      'pending': ['confirmed', 'cancelled'],
+      'confirmed': ['in_clinic', 'in_progress', 'cancelled'],
+      'in_clinic': ['in_progress', 'cancelled'],
       'in_progress': ['completed', 'cancelled']
     };
 

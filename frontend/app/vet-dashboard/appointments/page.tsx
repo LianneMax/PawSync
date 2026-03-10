@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { checkInAppointment, getVetAppointments } from '@/lib/appointments'
+import { checkInAppointment, getVetAppointments, type Appointment } from '@/lib/appointments'
 import { getRecordByAppointment } from '@/lib/medicalRecords'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import {
@@ -19,26 +19,10 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-interface Appointment {
-  _id: string
-  petId: { _id: string; name: string; species: string; breed: string }
-  ownerId: { _id: string; firstName: string; lastName: string }
-  vetId: string
-  clinicId: string
-  clinicBranchId: string
-  date: string
-  startTime: string
-  endTime: string
-  mode: 'online' | 'face-to-face'
-  types: string[]
-  status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed'
-  notes?: string
-  medicalRecordId?: string | null
-}
-
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
   confirmed: 'bg-blue-100 text-blue-700 border-blue-300',
+  in_clinic: 'bg-cyan-100 text-cyan-700 border-cyan-300',
   in_progress: 'bg-indigo-100 text-indigo-700 border-indigo-300',
   cancelled: 'bg-red-100 text-red-700 border-red-300',
   completed: 'bg-green-100 text-green-700 border-green-300',
@@ -47,6 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
+  in_clinic: 'In Clinic',
   in_progress: 'In Progress',
   cancelled: 'Cancelled',
   completed: 'Completed',
@@ -183,7 +168,7 @@ export default function VetAppointmentsPage() {
   }
 
   const filtered = appointments.filter((a) => {
-    if (filter === 'upcoming') return a.status === 'pending' || a.status === 'confirmed' || a.status === 'in_progress'
+    if (filter === 'upcoming') return a.status === 'pending' || a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress'
     if (filter === 'completed') return a.status === 'completed'
     return true
   })

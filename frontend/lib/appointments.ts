@@ -18,7 +18,7 @@ export interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
   isWalkIn: boolean;
   isEmergency: boolean;
@@ -195,6 +195,19 @@ export const checkInAppointment = async (
   return authenticatedFetch(`/appointments/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status: 'in_progress' })
+  }, token);
+};
+
+/**
+ * Check in a patient to the clinic (clinic admin)
+ */
+export const clinicCheckInAppointment = async (
+  id: string,
+  token?: string
+): Promise<{ status: string; message?: string; data?: { appointment?: Appointment } }> => {
+  return authenticatedFetch(`/appointments/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'in_clinic' })
   }, token);
 };
 

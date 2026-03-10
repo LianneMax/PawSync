@@ -12,6 +12,7 @@ import {
   getPetsForOwner,
   cancelAppointment,
   rescheduleAppointment,
+  clinicCheckInAppointment,
   type Appointment,
   type TimeSlot,
   type PetOwner,
@@ -37,6 +38,8 @@ import {
   AlertTriangle,
   Scissors,
   Building2,
+  LogIn,
+  Smartphone,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -58,7 +61,8 @@ const appointmentModes = [
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500' },
-  in_progress: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
+  in_clinic: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
+  in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-l-purple-500' },
   completed: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-l-gray-400' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-l-red-500' },
 }
@@ -242,6 +246,7 @@ function CalendarGridView({
   vets,
   onReschedule,
   onCancel,
+  onCheckIn,
   scheduleType,
   branches,
 }: {
@@ -251,6 +256,7 @@ function CalendarGridView({
   vets: BranchVet[]
   onReschedule: (appt: Appointment) => void
   onCancel: (id: string) => void
+  onCheckIn: (id: string) => void
   scheduleType: 'medical' | 'grooming'
   branches: ClinicBranchItem[]
 }) {
@@ -372,19 +378,27 @@ function CalendarGridView({
                               </span>
                             ))}
                           </div>
-                          <div className="flex items-center justify-end gap-1.5 mt-1">
+                          <div className="flex items-center justify-end gap-2 mt-2">
+                            {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                              <button
+                                type="button"
+                                onClick={() => onCheckIn(appt._id)}
+                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                              >
+                                Check-in
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => onReschedule(appt)}
-                              className="text-[10px] font-medium text-[#7FA5A3] hover:text-[#5A8280] leading-none"
+                              className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
                             >
                               Reschedule
                             </button>
-                            <span className="text-[10px] text-gray-300">·</span>
                             <button
                               type="button"
                               onClick={() => onCancel(appt._id)}
-                              className="text-[10px] font-medium text-red-400 hover:text-red-600 leading-none"
+                              className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
                             >
                               Cancel
                             </button>
@@ -529,19 +543,27 @@ function CalendarGridView({
                                 </span>
                               ))}
                             </div>
-                            <div className="flex items-center justify-end gap-1.5 mt-1">
+                            <div className="flex items-center justify-end gap-2 mt-2">
+                              {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                                <button
+                                  type="button"
+                                  onClick={() => onCheckIn(appt._id)}
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                                >
+                                  Check-in
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => onReschedule(appt)}
-                                className="text-[10px] font-medium text-[#7FA5A3] hover:text-[#5A8280] leading-none"
+                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
                               >
                                 Reschedule
                               </button>
-                              <span className="text-[10px] text-gray-300">·</span>
                               <button
                                 type="button"
                                 onClick={() => onCancel(appt._id)}
-                                className="text-[10px] font-medium text-red-400 hover:text-red-600 leading-none"
+                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
                               >
                                 Cancel
                               </button>
@@ -611,6 +633,12 @@ export default function ClinicAdminAppointmentsPage() {
 
   // Reschedule modal
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
+
+  // Check-in functionality
+  const [appointmentToCheckIn, setAppointmentToCheckIn] = useState<string | null>(null)
+  const [checkInSubmitting, setCheckInSubmitting] = useState(false)
+  const [nfcScanModalOpen, setNfcScanModalOpen] = useState(false)
+  const [nfcScanningActive, setNfcScanningActive] = useState(false)
 
   // Clinic data
   const [clinic, setClinic] = useState<ClinicInfo | null>(null)
@@ -737,6 +765,166 @@ export default function ClinicAdminAppointmentsPage() {
     }
   }
 
+  const handleCheckIn = (id: string) => {
+    setAppointmentToCheckIn(id)
+  }
+
+  const confirmCheckIn = async () => {
+    if (!appointmentToCheckIn) return
+    setCheckInSubmitting(true)
+    try {
+      const res = await clinicCheckInAppointment(appointmentToCheckIn, token || undefined)
+      if (res.status === 'SUCCESS') {
+        // Get appointment details for toast
+        const appointment = appointments.find(a => a._id === appointmentToCheckIn)
+        const petName = appointment?.petId?.name || 'Pet'
+        
+        toast(
+          <div className="flex gap-2">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <LogIn className="w-4 h-4 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">Patient Checked In</p>
+              <p className="text-sm text-gray-600">{petName} is now in the clinic.</p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        )
+        loadAppointments()
+        setAppointmentToCheckIn(null)
+      } else {
+        toast.error(res.message || 'Failed to check in')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setCheckInSubmitting(false)
+    }
+  }
+
+  // Handle NFC/QR scan check-in
+  const nfcWsRef = useRef<WebSocket | null>(null)
+  const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [scanError, setScanError] = useState<string>('')
+  const [isCheckingInFromScan, setIsCheckingInFromScan] = useState(false)
+
+  const stopNfcScanning = () => {
+    if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+    if (nfcWsRef.current) {
+      nfcWsRef.current.close()
+      nfcWsRef.current = null
+    }
+  }
+
+  const checkInByNfcTagId = useCallback(async (nfcTagId: string) => {
+    setIsCheckingInFromScan(true)
+    setScanError('')
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const petResponse = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`)
+      
+      if (!petResponse.ok) {
+        setScanError('Pet not found. This NFC tag may not be registered.')
+        setIsCheckingInFromScan(false)
+        return
+      }
+
+      const petData = await petResponse.json()
+      if (!petData.data?.pet?._id) {
+        setScanError('Unable to identify pet from NFC tag.')
+        setIsCheckingInFromScan(false)
+        return
+      }
+
+      const petId = petData.data.pet._id
+      // Find appointments for this pet that are confirmed or pending
+      const selectedDate = new Date().toISOString().split('T')[0]
+      const appointmentForPet = appointments.find(
+        appt => appt.petId?._id === petId && 
+                (appt.status === 'confirmed' || appt.status === 'pending') &&
+                new Date(appt.date).toISOString().split('T')[0] === selectedDate
+      )
+
+      if (!appointmentForPet) {
+        setScanError('No active appointment found for this pet today.')
+        setIsCheckingInFromScan(false)
+        return
+      }
+
+      // Check in the appointment
+      const checkInRes = await clinicCheckInAppointment(appointmentForPet._id, token || undefined)
+      if (checkInRes.status === 'SUCCESS') {
+        const petName = petData.data.pet.name || 'Pet'
+        toast(
+          <div className="flex gap-2">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <Check className="w-4 h-4 text-green-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">Patient Checked In</p>
+              <p className="text-sm text-gray-600">{petName} has been checked in via NFC scan.</p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        )
+        loadAppointments()
+        // Continue scanning for more patients
+        setIsCheckingInFromScan(false)
+        setScanError('')
+        // Auto-restart scanning
+        setTimeout(() => startNfcScan(), 1000)
+      } else {
+        setScanError(checkInRes.message || 'Failed to check in patient.')
+        setIsCheckingInFromScan(false)
+      }
+    } catch (error) {
+      console.error('Error checking in by NFC tag:', error)
+      setScanError('Failed to check in patient. Please try again.')
+      setIsCheckingInFromScan(false)
+    }
+  }, [appointments, token, loadAppointments])
+
+  const startNfcScan = useCallback(() => {
+    setScanError('')
+    stopNfcScanning()
+
+    // Try backend NFC scan via WebSocket
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const backendHost = apiUrl.replace(/\/api$/, '')
+      const wsUrl = backendHost.replace(/^http/, 'ws') + '/ws/nfc'
+      const ws = new WebSocket(wsUrl)
+      nfcWsRef.current = ws
+
+      nfcTimeoutRef.current = setTimeout(() => {
+        ws.close()
+        nfcWsRef.current = null
+        setScanError('No NFC tag detected. Please try again.')
+      }, 30000)
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data)
+          if (msg.type === 'card' && msg.data?.uid) {
+            if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+            checkInByNfcTagId(msg.data.uid)
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      ws.onerror = () => {
+        if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
+        nfcWsRef.current = null
+        setScanError('NFC reader not available.')
+      }
+    } catch {
+      setScanError('NFC scanning not supported on this device.')
+    }
+  }, [checkInByNfcTagId])
+
   return (
     <DashboardLayout userType="clinic-admin">
       <div className="p-8">
@@ -775,13 +963,22 @@ export default function ClinicAdminAppointmentsPage() {
               Previous
             </button>
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Set an appointment
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNfcScanModalOpen(true)}
+              className="flex items-center gap-2 border border-[#7FA5A3] text-[#7FA5A3] px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all"
+            >
+              <LogIn className="w-4 h-4" />
+              Scan Check-in
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Set an appointment
+            </button>
+          </div>
         </div>
 
         {/* Row 2: Schedule type + view toggle */}
@@ -855,6 +1052,7 @@ export default function ClinicAdminAppointmentsPage() {
             vets={allVets}
             onReschedule={setRescheduleTarget}
             onCancel={handleCancel}
+            onCheckIn={handleCheckIn}
             scheduleType={scheduleType}
             branches={branches}
           />
@@ -908,21 +1106,26 @@ export default function ClinicAdminAppointmentsPage() {
                     {appt.status}
                   </span>
                   {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
-                    <>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleCheckIn(appt._id)}
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                      >
+                        Check-in
+                      </button>
                       <button
                         onClick={() => setRescheduleTarget(appt)}
-                        className="text-xs text-[#7FA5A3] hover:text-[#5A8280] font-medium"
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
                       >
                         Reschedule
                       </button>
                       <button
                         onClick={() => handleCancel(appt._id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
                       >
                         Cancel
                       </button>
-                    </>
-                  )}
+                    </div>                  )}
                 </div>
               </div>
             ))}
@@ -1017,6 +1220,120 @@ export default function ClinicAdminAppointmentsPage() {
                   'Cancel Appointment'
                 )}
               </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-in Confirmation Modal */}
+      <Dialog open={appointmentToCheckIn !== null} onOpenChange={(open) => { if (!open) setAppointmentToCheckIn(null) }}>
+        <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+          <div className="p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <LogIn className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Check Patient In?</DialogTitle>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Confirm that this patient has arrived and is now in the clinic.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAppointmentToCheckIn(null)}
+                disabled={checkInSubmitting}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-[#2C3E2D] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmCheckIn}
+                disabled={checkInSubmitting}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {checkInSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Checking In...
+                  </>
+                ) : (
+                  'Check In'
+                )}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* NFC/QR Scan Check-in Modal */}
+      <Dialog open={nfcScanModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          stopNfcScanning()
+          setNfcScanModalOpen(false)
+        } else {
+          setNfcScanningActive(true)
+          startNfcScan()
+        }
+      }}>
+        <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+          <div className="p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Smartphone className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Scan Pet Check-in</DialogTitle>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Tap the NFC tag to automatically check the patient in. You can scan multiple patients.
+            </p>
+
+            {nfcScanningActive ? (
+              <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="animate-pulse">
+                    <Smartphone className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-medium text-blue-700">Ready to scan...</p>
+                  <p className="text-xs text-blue-600 text-center">Hold pet tag near the NFC reader</p>
+                </div>
+              </div>
+            ) : null}
+
+            {scanError && (
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
+                <p className="text-sm font-medium text-red-700 mb-1">Scan Failed</p>
+                <p className="text-xs text-red-600">{scanError}</p>
+              </div>
+            )}
+
+            {isCheckingInFromScan && (
+              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <p className="text-sm font-medium text-amber-700">Processing scan...</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  stopNfcScanning()
+                  setNfcScanModalOpen(false)
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-[#2C3E2D] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm"
+              >
+                Close
+              </button>
+              {!nfcScanningActive ? (
+                <button
+                  onClick={() => {
+                    setNfcScanningActive(true)
+                    setScanError('')
+                    startNfcScan()
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Retry Scan
+                </button>
+              ) : null}
             </div>
           </div>
         </DialogContent>

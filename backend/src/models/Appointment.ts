@@ -11,7 +11,7 @@ export interface IAppointment extends Document {
   date: Date;
   startTime: string; // e.g. "07:00"
   endTime: string;   // e.g. "07:30"
-  status: 'pending' | 'confirmed' | 'in_progress' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
   isWalkIn: boolean;
   isEmergency: boolean;
@@ -88,7 +88,7 @@ const AppointmentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'in_progress', 'cancelled', 'completed'],
+      enum: ['pending', 'confirmed', 'in_clinic', 'in_progress', 'cancelled', 'completed'],
       default: 'pending'
     },
     notes: {
