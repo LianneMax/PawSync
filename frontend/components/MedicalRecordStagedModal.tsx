@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, type ProductService } from '@/lib/medicalRecords'
+import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
 import { getPetById, updatePetConfinement } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
@@ -32,6 +32,7 @@ import {
   AlertCircle,
   Lock,
   StickyNote,
+  Scissors,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -82,6 +83,21 @@ const REG_STEP_ICONS: Record<1 | 2 | 3, React.ReactNode> = {
   1: <Stethoscope className="w-4 h-4" />,
   2: <ClipboardList className="w-4 h-4" />,
   3: <FileCheck className="w-4 h-4" />,
+}
+
+// Steps for surgery appointments (4 steps)
+const SURG_STEP_LABELS: Record<StepKey, string> = {
+  1: 'Pre-Procedure',
+  2: 'During Procedure',
+  3: 'Surgery',
+  4: 'Post-Procedure',
+}
+
+const SURG_STEP_ICONS: Record<StepKey, React.ReactNode> = {
+  1: <Stethoscope className="w-4 h-4" />,
+  2: <ClipboardList className="w-4 h-4" />,
+  3: <Scissors className="w-4 h-4" />,
+  4: <FileCheck className="w-4 h-4" />,
 }
 
 const emptyMedication = (): Omit<Medication, '_id'> => ({
@@ -195,6 +211,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Whether this appointment includes vaccination/booster
   const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination')
 
+  // Whether this appointment is a surgery appointment
+  const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) =>
+    t === 'sterilization' || t === 'Sterilization' ||
+    t === 'abdominal-surgery' || t === 'orthopedic-surgery' ||
+    t === 'dental-scaling' || t === 'laser-therapy'
+  )
+
   // Load pet-level vet notes on mount
   useEffect(() => {
     if (!petId || !token) return
@@ -220,6 +243,21 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setPetNotesSaving(false)
     }
   }
+
+  // Surgery form state (step 3 for surgery appointments)
+  const [surgeryServices, setSurgeryServices] = useState<ProductService[]>([])
+  const [surgeryServicesLoading, setSurgeryServicesLoading] = useState(false)
+  const [surgeryTypeId, setSurgeryTypeId] = useState('')
+  const [surgeryVetRemarks, setSurgeryVetRemarks] = useState('')
+  const [surgeryImages, setSurgeryImages] = useState<{
+    type: 'before' | 'during' | 'after'
+    file: File | null
+    preview: string | null
+  }[]>([
+    { type: 'before', file: null, preview: null },
+    { type: 'during', file: null, preview: null },
+    { type: 'after', file: null, preview: null },
+  ])
 
   // Vaccine form state (step 3 for vaccination appointments)
   const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([])
@@ -290,7 +328,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (r.clinicBranchId?._id) setClinicBranchId(r.clinicBranchId._id)
       if (r.vetId?._id) setVetId(r.vetId._id)
       
-      const stageToStep: Record<string, StepKey> = isVaccinationAppt
+      const stageToStep: Record<string, StepKey> = (isVaccinationAppt || isSurgeryAppt)
         ? { pre_procedure: 1, in_procedure: 2, post_procedure: 4, completed: 4 }
         : { pre_procedure: 1, in_procedure: 2, post_procedure: 3, completed: 3 }
       const currentStep = stageToStep[r.stage] || 1
@@ -304,6 +342,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (isVaccinationAppt) {
         const vts = await getVaccineTypes(loadedPet.species)
         setVaccineTypes(vts.filter((vt) => vt.isActive))
+      }
+      if (isSurgeryAppt) {
+        setSurgeryServicesLoading(true)
+        const sres = await getSurgeryServices(token as string)
+        if (sres.status === 'SUCCESS' && sres.data?.items) {
+          setSurgeryServices(sres.data.items)
+        }
+        setSurgeryServicesLoading(false)
       }
     }
     if (diagServicesRes.status === 'SUCCESS' && diagServicesRes.data?.items) {
@@ -477,9 +523,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         overallObservation: buildExtraObservation(),
         assessment,
         plan,
-        // Only advance stage to post_procedure if not a vaccination appointment
-        // (vaccination appointments have an intermediate step)
-        ...(!isVaccinationAppt ? { stage: 'post_procedure' } : {}),
+        // Only advance stage to post_procedure if not a vaccination or surgery appointment
+        // (those have an intermediate step 3)
+        ...(!isVaccinationAppt && !isSurgeryAppt ? { stage: 'post_procedure' } : {}),
       }, token)
       await handleSaveNotes()
       setStep(isVaccinationAppt ? 3 : 3)
@@ -543,6 +589,38 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }
 
+  const handleProceedStep3Surgery = async () => {
+    if (!token) return
+    setSaving(true)
+    try {
+      // Convert surgery images to { data, contentType, description } format
+      const surgImageData: { data: string; contentType: string; description: string }[] = []
+      for (const img of surgeryImages) {
+        if (img.preview) {
+          const base64 = img.preview.split(',')[1] ?? img.preview
+          surgImageData.push({
+            data: base64,
+            contentType: img.file?.type || 'image/jpeg',
+            description: `${img.type} surgery image`,
+          })
+        }
+      }
+      // Populate images state so they're included when completing the record
+      setImages(surgImageData)
+      // Prefill visit summary with surgery name if not already set
+      const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
+      if (selectedSurgery && !visitSummary) {
+        setVisitSummary(`Surgical procedure: ${selectedSurgery.name}`)
+      }
+      await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
+      setStep(4)
+    } catch {
+      toast.error('Failed to save surgery record')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleCompleteRecord = async () => {
     if (!token) return
     setCompleting(true)
@@ -558,6 +636,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         images,
         confinementAction,
         confinementDays,
+        ...(isSurgeryAppt && surgeryVetRemarks ? { vetNotes: surgeryVetRemarks } : {}),
       }, token)
       if (!alreadyCompleted && appointmentId) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
@@ -635,9 +714,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         {/* Step progress */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
-            {(isVaccinationAppt ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
-              const labels = isVaccinationAppt ? VACC_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
-              const icons = isVaccinationAppt ? VACC_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, React.ReactNode>
+            {((isVaccinationAppt || isSurgeryAppt) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
+              const labels = isVaccinationAppt ? VACC_STEP_LABELS : isSurgeryAppt ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
+              const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, React.ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
                   <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
@@ -1151,8 +1230,137 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             </div>
           )}
 
-          {/* ── STEP 3 (regular) / STEP 4 (vaccination): POST-PROCEDURE ── */}
-          {((step === 3 && !isVaccinationAppt) || step === 4) && (
+          {/* ── STEP 3: SURGERY (surgery appointments only) ── */}
+          {step === 3 && isSurgeryAppt && (
+            <div className="space-y-5">
+              {/* Patient card */}
+              {pet && (
+                <div className="bg-[#f0f7f7] rounded-2xl p-4">
+                  <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <PawPrint className="w-4 h-4" /> Patient
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {pet.photo ? (
+                      <img src={pet.photo} alt={pet.name} className="w-12 h-12 rounded-xl object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-[#7FA5A3]/20 flex items-center justify-center">
+                        <PawPrint className="w-6 h-6 text-[#476B6B]" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-[#4F4F4F]">{pet.name}</p>
+                      <p className="text-xs text-gray-400 capitalize">{pet.species} · {pet.breed}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Surgery Details */}
+              <div>
+                <p className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide mb-4">Surgery Details</p>
+
+                <div className="space-y-4">
+                  {/* Surgery Type */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
+                      Surgery Type <span className="text-red-500">*</span>
+                    </label>
+                    {surgeryServicesLoading ? (
+                      <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-400">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading surgery types…
+                      </div>
+                    ) : (
+                      <select
+                        value={surgeryTypeId}
+                        onChange={(e) => setSurgeryTypeId(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+                      >
+                        <option value="">Select surgery type…</option>
+                        {surgeryServices.map((s) => (
+                          <option key={s._id} value={s._id}>{s.name}{s.price ? ` — ₱${s.price}` : ''}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Surgery Images */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-3">Surgery Images</label>
+                    <div className="grid grid-cols-3 gap-4">
+                      {surgeryImages.map((img) => (
+                        <div key={img.type} className="flex flex-col gap-2">
+                          <p className="text-xs font-medium text-gray-600 capitalize">{img.type} Surgery</p>
+                          {img.preview ? (
+                            <div className="relative rounded-xl overflow-hidden border-2 border-[#7FA5A3] bg-gray-50">
+                              <img
+                                src={img.preview}
+                                alt={`${img.type} surgery`}
+                                className="w-full h-28 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setSurgeryImages((prev) =>
+                                  prev.map((i) => i.type === img.type ? { type: img.type, file: null, preview: null } : i)
+                                )}
+                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                              <div className="absolute bottom-1 left-1 bg-green-500 text-white px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" />
+                                Uploaded
+                              </div>
+                            </div>
+                          ) : (
+                            <label className="w-full h-28 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#7FA5A3] bg-gray-50 hover:bg-[#7FA5A3]/5 transition-colors flex flex-col items-center justify-center cursor-pointer gap-1.5">
+                              <Upload className="w-5 h-5 text-gray-400" />
+                              <span className="text-xs text-gray-500">Upload image</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (!file) return
+                                  if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+                                  const reader = new FileReader()
+                                  reader.onloadend = () => {
+                                    setSurgeryImages((prev) =>
+                                      prev.map((i) => i.type === img.type
+                                        ? { type: img.type, file, preview: reader.result as string }
+                                        : i
+                                      )
+                                    )
+                                  }
+                                  reader.readAsDataURL(file)
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Vet Remarks */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Vet Remarks</label>
+                    <textarea
+                      value={surgeryVetRemarks}
+                      onChange={(e) => setSurgeryVetRemarks(e.target.value)}
+                      rows={4}
+                      placeholder="Observations, surgical findings, post-operative instructions…"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3 (regular) / STEP 4 (vaccination or surgery): POST-PROCEDURE ── */}
+          {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
             <>
               {/* Visit Summary */}
               <div>
@@ -1440,7 +1648,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isVaccinationAppt ? 'Proceed to Vaccination' : 'Proceed to Post-Procedure'}
+                {isVaccinationAppt ? 'Proceed to Vaccination' : isSurgeryAppt ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
@@ -1449,6 +1657,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 onClick={handleProceedStep3Vaccination}
                 disabled={saving || !vaccineAgeValid || !vaccineTypeId}
                 title={!vaccineAgeValid ? 'Pet age is outside the allowed range for this vaccine' : !vaccineTypeId ? 'Please select a vaccine type' : undefined}
+                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Proceed to Post-Procedure
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+            {step === 3 && isSurgeryAppt && (
+              <button
+                onClick={handleProceedStep3Surgery}
+                disabled={saving || !surgeryTypeId}
+                title={!surgeryTypeId ? 'Please select a surgery type' : undefined}
                 className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
