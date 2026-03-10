@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { authenticatedFetch } from '@/lib/auth'
 import { Building2, Clock, MapPin, Save, CheckCircle, X, Coffee } from 'lucide-react'
 import { toast } from 'sonner'
@@ -362,7 +362,7 @@ export default function WorkingHoursModal({ open, onClose, token }: WorkingHours
       <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-[#2C3E2D]">Working Hours</h2>
+          <DialogTitle className="text-lg font-semibold text-[#2C3E2D]">Working Hours</DialogTitle>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
