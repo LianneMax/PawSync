@@ -59,7 +59,8 @@ export default function ClinicAdminMedicalRecordViewPage() {
   const params = useParams()
   const recordId = params.id as string
   const { token } = useAuthStore()
-  const [showCreateBilling, setShowCreateBilling] = useState(false)
+  const [showBillingModal, setShowBillingModal] = useState(false)
+  const [billingStatus, setBillingStatus] = useState<'awaiting_approval' | 'pending_payment' | 'paid' | null>(null)
 
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,7 +70,26 @@ export default function ClinicAdminMedicalRecordViewPage() {
       try {
         const res = await getRecordById(recordId, token || undefined)
         if (res.status === 'SUCCESS' && res.data) {
-          setRecord(res.data.record)
+          const rec = res.data.record
+          setRecord(rec)
+
+          if (rec.billingId) {
+            try {
+              const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+              const billingRes = await fetch(`${apiBase}/billings/${rec.billingId}`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              })
+              const billingData = await billingRes.json()
+              if (billingData?.data?.billing?.status) {
+                setBillingStatus(billingData.data.billing.status)
+              }
+            } catch {
+              // non-fatal, fallback to create
+            }
+          }
         } else {
           toast.error(res.message || 'Failed to load record')
         }
@@ -160,11 +180,15 @@ export default function ClinicAdminMedicalRecordViewPage() {
                 <p className="text-white/70 text-xs">Record ID</p>
                 <p className="text-sm font-mono font-medium">{record._id.slice(-8).toUpperCase()}</p>
                 <button
-                  onClick={() => setShowCreateBilling(true)}
+                  onClick={() => setShowBillingModal(true)}
                   className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors print:hidden"
                 >
                   <Receipt className="w-3.5 h-3.5" />
-                  Create Billing
+                  {billingStatus === 'paid'
+                    ? 'View Billing'
+                    : billingStatus != null
+                    ? 'Edit Billing'
+                    : 'Create Billing'}
                 </button>
               </div>
             </div>
@@ -536,14 +560,15 @@ export default function ClinicAdminMedicalRecordViewPage() {
       </div>
 
       <BillingFromRecordModal
-        open={showCreateBilling}
-        mode="create"
-        onClose={() => setShowCreateBilling(false)}
+        open={showBillingModal}
+        mode={billingStatus === 'paid' ? 'view' : billingStatus != null ? 'update' : 'create'}
+        onClose={() => setShowBillingModal(false)}
         patientName={pet.name || ''}
         appointmentId={record.appointmentId?._id || record.appointmentId || null}
         vetName={`${vet.firstName || ''} ${vet.lastName || ''}`.trim()}
         record={record}
         token={token || undefined}
+        onBillingCreated={(billingId) => setBillingStatus('awaiting_approval')}
       />
     </DashboardLayout>
   )
