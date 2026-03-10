@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { DatePicker } from '@/components/ui/date-picker'
 import ProgressUpload from '@/components/progress-upload'
+import AvatarUpload from '@/components/avatar-upload'
 
 interface ApiBranch {
   _id: string
@@ -38,6 +39,9 @@ export default function VetOnboardingPage() {
     const t = setTimeout(() => setMounted(true), 50)
     return () => clearTimeout(t)
   }, [])
+
+  // Profile photo state
+  const [profilePhotoBase64, setProfilePhotoBase64] = useState('')
 
   // PRC License state (Step 2)
   const [firstName, setFirstName] = useState('')
@@ -229,6 +233,15 @@ export default function VetOnboardingPage() {
         return
       }
 
+      // Save profile photo if provided
+      if (profilePhotoBase64) {
+        await fetch(`${API_URL}/users/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ photo: profilePhotoBase64 })
+        })
+      }
+
       const selectedClinicObj = clinics.find(c => c._id === selectedClinic)
       const selectedBranchObj = selectedClinicObj?.branches.find(b => b._id === selectedBranch)
 
@@ -355,6 +368,35 @@ export default function VetOnboardingPage() {
             </div>
 
             <form onSubmit={handleContinueToClinic} noValidate>
+              {/* Profile Photo Section */}
+              <div className="bg-gray-50 rounded-2xl p-8 mb-8">
+                <AvatarUpload
+                  className="w-full"
+                  maxSize={5 * 1024 * 1024}
+                  onFileChange={(file) => {
+                    if (file?.file instanceof File) {
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        setProfilePhotoBase64(reader.result as string)
+                      }
+                      reader.readAsDataURL(file.file)
+                    } else {
+                      setProfilePhotoBase64('')
+                    }
+                  }}
+                >
+                  <div className="flex-1 pt-2">
+                    <h3 className="font-semibold text-[#4F4F4F] mb-2">Upload a profile photo</h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      This helps pet owners and your clinic identify you on the platform.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      You can also skip this and add a photo later!
+                    </p>
+                  </div>
+                </AvatarUpload>
+              </div>
+
               {/* Full Name Section */}
               <div className="mb-8">
                 <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">

@@ -33,6 +33,7 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react'
+import VaccineCardPreview from '@/components/VaccineCardPreview'
 
 interface Owner {
   _id: string
@@ -68,6 +69,7 @@ function ClinicVaccinationFormInner() {
   const [declining, setDeclining] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
 
   // Owner search
   const [ownerSearch, setOwnerSearch] = useState('')
@@ -268,10 +270,12 @@ function ClinicVaccinationFormInner() {
       if (editId) {
         await updateVaccination(editId, payload, token!)
         setSuccess(true)
+        setPreviewRefreshKey((k) => k + 1)
         setTimeout(() => router.push('/clinic-admin/vaccinations'), 1500)
       } else {
         const res = await createVaccination(payload, token!)
         setSuccess(true)
+        setPreviewRefreshKey((k) => k + 1)
         if (res.boosterDate) {
           const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
           setBoosterInfo(`Next booster automatically scheduled for ${d}.`)
@@ -314,7 +318,7 @@ function ClinicVaccinationFormInner() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-2xl mx-auto">
+      <div className="p-6 lg:p-8 max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
@@ -345,6 +349,8 @@ function ClinicVaccinationFormInner() {
           </div>
         )}
 
+        <div className={`grid gap-8 ${selectedPet ? 'xl:grid-cols-[1fr_360px]' : ''}`}>
+        {/* ── Left: Form ──────────────────────────────── */}
         <div className="space-y-5">
           {/* Administering Vet */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -631,7 +637,19 @@ function ClinicVaccinationFormInner() {
               Cancel
             </button>
           </div>
-        </div>
+        </div>{/* end left */}
+
+        {/* ── Right: Vaccine Card Preview ─────────────── */}
+        {selectedPet && token && (
+          <div className="hidden xl:block">
+            <VaccineCardPreview
+              petId={selectedPet._id}
+              token={token}
+              refreshKey={previewRefreshKey}
+            />
+          </div>
+        )}
+        </div>{/* end grid */}
       </div>
     </DashboardLayout>
   )

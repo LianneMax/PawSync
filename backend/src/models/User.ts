@@ -7,6 +7,7 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   contactNumber: string;
+  photo?: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
   clinicId: mongoose.Types.ObjectId | null;
   clinicBranchId: mongoose.Types.ObjectId | null;
@@ -84,6 +85,10 @@ const UserSchema = new Schema(
     isVerified: {
       type: Boolean,
       default: false // For veterinarians, this tracks PRC license verification
+    },
+    photo: {
+      type: String,
+      default: null
     },
     googleId: {
       type: String,

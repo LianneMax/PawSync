@@ -21,6 +21,7 @@ import {
   type VaccineType,
   type Vaccination,
 } from '@/lib/vaccinations'
+import VaccineCardPreview from '@/components/VaccineCardPreview'
 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -106,6 +107,7 @@ export default function VaccinationFormClient() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [boosterInfo, setBoosterInfo] = useState<string | null>(null)
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
 
   // Age validation state
   const [ageValid, setAgeValid] = useState(true)
@@ -272,6 +274,7 @@ export default function VaccinationFormClient() {
           token
         )
         setSuccess(true)
+        setPreviewRefreshKey((k) => k + 1)
         setTimeout(() => router.push('/vet-dashboard/vaccinations'), 1500)
       } else {
         const res = await createVaccination(
@@ -287,6 +290,7 @@ export default function VaccinationFormClient() {
           token
         )
         setSuccess(true)
+        setPreviewRefreshKey((k) => k + 1)
         if (res.boosterDate) {
           const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
           setBoosterInfo(`Next booster automatically scheduled for ${d}.`)
@@ -309,7 +313,7 @@ export default function VaccinationFormClient() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-2xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
       {/* Back */}
       <button
         onClick={() => router.push('/vet-dashboard/vaccinations')}
@@ -327,6 +331,10 @@ export default function VaccinationFormClient() {
           {editId ? 'Edit Vaccination Record' : 'New Vaccination Record'}
         </h1>
       </div>
+
+      <div className={`grid gap-8 ${selectedPet ? 'xl:grid-cols-[1fr_360px]' : ''}`}>
+      {/* ── Left: Form ────────────────────────────────── */}
+      <div>
 
       {success && (
         <div className="space-y-2 mb-5">
@@ -636,6 +644,19 @@ export default function VaccinationFormClient() {
           )}
         </button>
       </form>
+      </div>{/* end left */}
+
+      {/* ── Right: Vaccine Card Preview ───────────────── */}
+      {selectedPet && token && (
+        <div className="hidden xl:block">
+          <VaccineCardPreview
+            petId={selectedPet._id}
+            token={token}
+            refreshKey={previewRefreshKey}
+          />
+        </div>
+      )}
+      </div>{/* end grid */}
     </div>
   )
 }

@@ -127,6 +127,9 @@ export interface Vaccination {
   dateAdministered: string;
   expiryDate: string | null;
   nextDueDate: string | null;
+  manufacturer?: string;
+  batchNumber?: string;
+  route?: string | null;
   status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
   isUpToDate: boolean;
   createdAt: string;

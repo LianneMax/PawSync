@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -193,6 +193,31 @@ function PetDetailModal({
   onNavigateToMedicalRecords: () => void
 }) {
   const router = useRouter()
+  const { token } = useAuthStore()
+  const [recentVet, setRecentVet] = useState<{ name: string; clinic: string } | null>(null)
+  const fetchedPetId = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!open) { fetchedPetId.current = null; return }
+    if (!pet || !token || fetchedPetId.current === pet.id) return
+    fetchedPetId.current = pet.id
+    setRecentVet(null)
+
+    getMyAppointments('previous', token).then((res) => {
+      if (res.status !== 'SUCCESS' || !res.data?.appointments) return
+      const match = res.data.appointments.find((appt) => {
+        const apptPetId = typeof appt.petId === 'object' ? appt.petId?._id : appt.petId
+        return apptPetId === pet.id && appt.vetId && appt.status === 'completed'
+      })
+      if (match?.vetId) {
+        const v = match.vetId
+        const name = `Dr. ${v.firstName} ${v.lastName}`
+        const clinic = match.clinicId?.name ?? ''
+        setRecentVet({ name, clinic })
+      }
+    }).catch(() => {})
+  }, [open, pet?.id, token])
+
   if (!pet) return null
 
   return (
@@ -279,21 +304,19 @@ function PetDetailModal({
             </div>
 
             {/* Vet Info - separate card with shadow */}
-            {pet.vet.name !== '-' ? (
-              <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_4px_24px_rgba(0,0,0,0.1)]">
-                <div className="w-10 h-10 bg-white/20 rounded-full shrink-0 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">{pet.vet.name.charAt(0)}</span>
+            {recentVet ? (
+              <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_8px_32px_rgba(71,107,107,0.35)]">
+                <div className="w-12 h-12 bg-white rounded-full shrink-0 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+                  <span className="text-[#476B6B] font-bold text-base">{recentVet.name.charAt(4)}</span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-white font-semibold text-sm">{pet.vet.name}</p>
-                  <p className="text-white/70 text-xs">{pet.vet.clinic}</p>
+                  <p className="text-white font-bold text-sm">{recentVet.name}</p>
+                  <p className="text-white/80 text-xs">Most Recent Vet Assigned</p>
                 </div>
-                {pet.vet.verified && (
-                  <span className="bg-[#9EC4C8] text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-[#679D82] rounded-full animate-pulse" />
-                    PRC Verified
-                  </span>
-                )}
+                <span className="bg-[#9EC4C8] text-white text-[10px] font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-[#679D82] rounded-full animate-pulse" />
+                  PRC Verified
+                </span>
               </div>
             ) : (
               <div className="bg-gray-100 border border-dashed border-gray-300 rounded-2xl p-4 flex items-center gap-3">

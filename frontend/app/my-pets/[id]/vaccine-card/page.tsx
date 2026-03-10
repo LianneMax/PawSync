@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { ArrowLeft, CheckCircle2, XCircle, ShieldCheck, X, Loader, AlertCircle } from 'lucide-react'
-import { getVaccinationsByPet, getStatusLabel, getStatusClasses, type Vaccination } from '@/lib/vaccinations'
+import { ArrowLeft, CheckCircle2, ShieldCheck, X, Loader, AlertCircle } from 'lucide-react'
+import { getVaccinationsByPet, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -31,34 +31,28 @@ function isExpired(expiryDate: string | null): boolean {
 }
 
 function VaccineStatus({ vax }: { vax: Vaccination }) {
-  const expiry = vax.expiryDate
-  if (!expiry) {
-    return (
-      <div className="text-right">
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
-        <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full ${getStatusClasses(vax.status)}`}>
-          {getStatusLabel(vax.status)}
-        </span>
-      </div>
-    )
-  }
+  const expiry = vax.expiryDate ?? vax.nextDueDate ?? null
+  const expired = expiry ? isExpired(expiry) : false
 
-  const expired = isExpired(expiry)
   return (
-    <div className="text-right">
-      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-        {expired ? 'EXPIRED:' : 'VALID UNTIL:'}
-      </p>
-      <div className="flex items-center gap-1 justify-end">
-        <p className={`text-sm font-bold ${expired ? 'text-red-500' : 'text-green-600'}`}>
-          {formatMonthYear(expiry)}
-        </p>
-        {expired ? (
-          <XCircle className="w-4 h-4 text-red-500" />
-        ) : (
-          <CheckCircle2 className="w-4 h-4 text-green-500" />
-        )}
-      </div>
+    <div className="text-right shrink-0">
+      {expiry ? (
+        <>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+            {expired ? 'Expired' : 'Valid Until'}
+          </p>
+          <p className={`text-xs font-bold ${expired ? 'text-[#983232]' : 'text-[#1a1a1a]'}`}>
+            {formatMonthYear(expiry)}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
+          <p className={`text-xs font-bold ${vax.status === 'overdue' ? 'text-[#983232]' : 'text-blue-500'}`}>
+            {getStatusLabel(vax.status)}
+          </p>
+        </>
+      )}
     </div>
   )
 }
@@ -165,44 +159,31 @@ export default function VaccineCardPage() {
           </div>
         )}
 
-        <div className="max-w-lg mx-auto">
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+        <div className="max-w-sm mx-auto">
+          {/* Card — no overflow-hidden so cutout circles can escape the edges */}
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100">
 
-            {/* Card Header */}
-            <div className="px-6 py-4 flex items-center justify-between bg-linear-to-r from-[#476B6B] to-[#5A8A8A]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 14.5c-2.5 0-4.5 1.5-4.5 3.5 0 1.1.9 2 2 2h5c1.1 0 2-.9 2-2 0-2-2-3.5-4.5-3.5z"/>
-                    <ellipse cx="7.5" cy="10.5" rx="1.75" ry="2.5"/>
-                    <ellipse cx="16.5" cy="10.5" rx="1.75" ry="2.5"/>
-                    <ellipse cx="4.5" cy="14" rx="1.5" ry="2"/>
-                    <ellipse cx="19.5" cy="14" rx="1.5" ry="2"/>
-                  </svg>
-                </div>
-                <span className="text-white font-black text-lg tracking-wide">PawSync</span>
+            {/* Card Header — clip rounded top separately */}
+            <div className="rounded-t-3xl overflow-hidden">
+              <div className="px-6 py-4 flex items-center justify-center bg-[#476B6B]">
+                <img src="/images/pawsync-logo-white.png" alt="PawSync" className="h-8" style={{ fontFamily: 'var(--font-outfit)' }} />
               </div>
-              <span className="text-white/90 font-bold text-sm tracking-wider uppercase">
-                Vaccination Card
-              </span>
             </div>
 
             {/* Pet Info */}
-            <div className="px-6 pt-5 pb-4 flex items-start gap-4">
+            <div className="px-6 pt-5 pb-5 flex items-start gap-4">
               <div className="flex-1">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Pet&apos;s Name</p>
-                <p className="text-2xl font-black text-[#1a1a1a] uppercase mb-3">{pet?.name ?? '—'}</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Microchip No.</p>
-                <p className="text-sm font-bold text-[#333]">{pet?.microchipNumber ?? 'Not registered'}</p>
+                <p className="text-[8px] font-medium text-gray-400 uppercase tracking-wider mb-1" style={{ fontFamily: 'var(--font-outfit)' }}>Pet&apos;s Name</p>
+                <p className="text-sm font-bold text-[#476B6B] mb-3 leading-tight tracking-wide" style={{ fontFamily: 'var(--font-outfit)' }}>{pet?.name ?? '—'}</p>
+                <p className="text-[8px] font-medium text-gray-400 uppercase tracking-wider mb-1" style={{ fontFamily: 'var(--font-outfit)' }}>NFC Tag No.</p>
+                <p className="text-xs font-semibold text-[#476B6B]" style={{ fontFamily: 'var(--font-outfit)' }}>{pet?.microchipNumber ?? 'Not registered'}</p>
               </div>
-
-              {/* Pet Photo */}
-              <div className="w-24 h-24 rounded-2xl overflow-hidden bg-[#E8F0EF] shrink-0 border-2 border-[#C8DADA] flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#5A8A8A] shrink-0 flex items-center justify-center">
                 {pet?.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
                 ) : (
-                  <svg viewBox="0 0 24 24" className="w-10 h-10 fill-[#7FA5A3]" xmlns="http://www.w3.org/2000/svg">
+                  <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white/60" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 14.5c-2.5 0-4.5 1.5-4.5 3.5 0 1.1.9 2 2 2h5c1.1 0 2-.9 2-2 0-2-2-3.5-4.5-3.5z"/>
                     <ellipse cx="7.5" cy="10.5" rx="1.75" ry="2.5"/>
                     <ellipse cx="16.5" cy="10.5" rx="1.75" ry="2.5"/>
@@ -213,51 +194,58 @@ export default function VaccineCardPage() {
               </div>
             </div>
 
-            {/* Dashed divider */}
-            <div className="mx-6 border-t-2 border-dashed border-gray-200 mb-1" />
+            {/* Dashed divider with half-circle cutouts */}
+            <div className="relative flex items-center h-5 mx-0">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 bg-[#F8F6F2] rounded-r-full z-10" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 bg-[#F8F6F2] rounded-l-full z-10" />
+              <div className="w-full border-t-2 border-dashed border-gray-200" />
+            </div>
 
-            {/* Vaccine list */}
-            {vaccinations.length === 0 ? (
-              <div className="px-6 py-8 text-center">
-                <p className="text-gray-400 text-sm">No vaccination records on file yet.</p>
-              </div>
-            ) : (
-              <div className="px-6 py-2">
-                {vaccinations.map((vax, idx) => (
-                  <button
-                    key={vax._id}
-                    onClick={() => setSelectedVax(vax)}
-                    className={`w-full flex items-center justify-between py-3.5 text-left hover:bg-[#F8F6F2] transition-colors rounded-lg px-2 -mx-2 ${
-                      idx < vaccinations.length - 1 ? 'border-b border-gray-100' : ''
-                    }`}
-                  >
-                    <p className="font-semibold text-[#1a1a1a] text-sm">{vax.vaccineName}</p>
-                    <VaccineStatus vax={vax} />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Footer */}
-            {latestVax && (
-              <div className="mx-6 mt-2 mb-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-0.5">Last Administered By</p>
-                  <p className="text-xs font-semibold text-[#333]">{getVetName(latestVax)}</p>
+            {/* Vaccine section — white background */}
+            <div className="px-6 py-4 space-y-3">
+              {vaccinations.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-gray-400 text-sm" style={{ fontFamily: 'var(--font-outfit)' }}>No vaccination records on file yet.</p>
                 </div>
-                <div>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-0.5">Veterinary Clinic</p>
-                  <p className="text-xs font-semibold text-[#333]">{getClinicName(latestVax)}</p>
-                </div>
-              </div>
-            )}
+              ) : (
+                <>
+                  {vaccinations.map((vax) => (
+                    <button
+                      key={vax._id}
+                      onClick={() => setSelectedVax(vax)}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <p className="font-medium text-[#1a1a1a] text-sm pr-2" style={{ fontFamily: 'var(--font-outfit)' }}>{vax.vaccineName}</p>
+                      <VaccineStatus vax={vax} />
+                    </button>
+                  ))}
 
-            {/* Bottom accent strip */}
-            <div className="h-2 w-full bg-linear-to-r from-[#476B6B] to-[#5A8A8A]" />
+                </>
+              )}
+              {/* Footer */}
+              {latestVax && (
+                <div className="border-t border-gray-200 pt-3 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[8px] font-medium text-gray-400 uppercase tracking-wider mb-0.5" style={{ fontFamily: 'var(--font-outfit)' }}>Administered</p>
+                    <p className="text-sm font-semibold text-[#333]" style={{ fontFamily: 'var(--font-outfit)' }}>{getVetName(latestVax)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-medium text-gray-400 uppercase tracking-wider mb-0.5" style={{ fontFamily: 'var(--font-outfit)' }}>Veterinary Clinic</p>
+                    <p className="text-sm font-semibold text-[#333]" style={{ fontFamily: 'var(--font-outfit)' }}>{getClinicName(latestVax)}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Verified badge */}
+            <div className="mx-6 mb-6 flex items-center justify-center gap-2 bg-[#E8F5E9] border border-[#A5D6A7] rounded-xl py-3 px-4">
+              <ShieldCheck className="w-4 h-4 text-[#2E7D32] shrink-0" />
+              <span className="text-xs font-semibold text-[#2E7D32]" style={{ fontFamily: 'var(--font-outfit)' }}>Vet Verified — Linked to Medical Records</span>
+            </div>
           </div>
 
           <p className="text-center text-xs text-gray-400 mt-4 px-4">
-            Vaccinations are linked to your pet&apos;s medical records. Tap any vaccine to view details.
+            Tap any vaccine to view full details.
           </p>
         </div>
       </div>
