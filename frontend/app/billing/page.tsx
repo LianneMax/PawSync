@@ -1379,9 +1379,13 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const fetchBillings = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/billings`, { headers: authHeaders() })
+      const res = await fetch(`${API_BASE}/billings?limit=1000`, { headers: authHeaders() })
       const data = await res.json()
-      if (data.status === 'SUCCESS') setBillings(data.data.billings || [])
+      if (data.status === 'SUCCESS') {
+        setBillings(data.data.billings || [])
+      } else {
+        console.error('Fetch billings error:', data.message)
+      }
     } catch (e) {
       console.error('Failed to fetch billings:', e)
     } finally {
@@ -1506,7 +1510,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                     className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
                   />
                 </th>
-                {['Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Amount Due', 'Status', 'Action'].map((col) => (
+                {['Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Service', 'Date', 'Amount Due', 'Status', 'Action'].map((col) => (
                   <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center gap-1">{col} <ChevronDown className="w-3 h-3" /></div>
                   </th>
@@ -1516,7 +1520,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
                 </tr>
               )}
               {!loading && filteredData.map((b) => {
@@ -1541,6 +1545,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                       Dr. {b.vetId?.firstName} {b.vetId?.lastName}
                     </td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.clinicBranchId?.name || '-'}</td>
+                    <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.serviceLabel || '-'}</td>
+                    <td className="px-4 py-4 text-sm text-[#4F4F4F]">{formatDate(b.serviceDate || b.createdAt)}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{formatCurrency(b.totalAmountDue)}</td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAdminStatusStyle(status)}`}>
@@ -1567,6 +1573,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
               <p className="text-sm text-gray-400">Try adjusting your search or create a new billing record.</p>
             </div>
           )}
+
         </div>
       </div>
 

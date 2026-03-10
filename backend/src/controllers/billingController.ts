@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Billing from '../models/Billing';
 import User from '../models/User';
+import Clinic from '../models/Clinic';
 import MedicalRecord from '../models/MedicalRecord';
 import { sendBillingPendingPayment, sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
@@ -58,6 +59,12 @@ export const createBilling = async (req: Request, res: Response) => {
       clinicId = (linkedRecord as any)?.clinicId?.toString();
     }
 
+    // Fall back 3: legacy clinic-admin linked via Clinic.adminId
+    if (!clinicId) {
+      const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true }).select('_id').lean();
+      clinicId = (clinic as any)?._id?.toString();
+    }
+
     if (!clinicId) {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
     }
@@ -109,7 +116,19 @@ export const listBillingsForClinic = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinicId = req.user.clinicId;
+    let clinicId = req.user.clinicId;
+    console.log('[listBillingsForClinic] userId:', req.user.userId, 'userType:', req.user.userType, 'clinicId from JWT:', clinicId);
+    if (!clinicId) {
+      const dbUser = await User.findById(req.user.userId).select('clinicId').lean();
+      clinicId = (dbUser as any)?.clinicId?.toString();
+      console.log('[listBillingsForClinic] clinicId from DB:', clinicId);
+    }
+    // Legacy fallback: clinic-admin may be linked via Clinic.adminId instead of User.clinicId
+    if (!clinicId) {
+      const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true }).select('_id').lean();
+      clinicId = (clinic as any)?._id?.toString();
+      console.log('[listBillingsForClinic] clinicId from Clinic.adminId lookup:', clinicId);
+    }
     if (!clinicId) {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
     }
@@ -120,6 +139,7 @@ export const listBillingsForClinic = async (req: Request, res: Response) => {
     const query: any = { clinicId };
     if (status) query.status = status;
 
+    console.log('[listBillingsForClinic] querying with:', JSON.stringify(query));
     const [billings, total] = await Promise.all([
       Billing.find(query)
         .populate(POPULATE_BILLING)
@@ -128,6 +148,7 @@ export const listBillingsForClinic = async (req: Request, res: Response) => {
         .limit(parseInt(limit as string)),
       Billing.countDocuments(query),
     ]);
+    console.log('[listBillingsForClinic] found:', total, 'total,', billings.length, 'returned');
 
     // Apply search filter on populated fields (client/patient name)
     const filtered = search

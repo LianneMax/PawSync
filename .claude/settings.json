@@ -4,7 +4,10 @@
       "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")",
       "Bash(grep -A 10 \"BillingFromRecordModal\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/clinic-admin/medical-records/[id]/page.tsx)",
       "Bash(grep -n \"import.*Billing\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/clinic-admin/medical-records/*/page.tsx)",
-      "Bash(ls -la /Users/juliannalammoglia/Desktop/PawSync/frontend/components/*.tsx)"
+      "Bash(ls -la /Users/juliannalammoglia/Desktop/PawSync/frontend/components/*.tsx)",
+      "Bash(pgrep -f \"ts-node\\\\|nodemon\\\\|node.*dist\")",
+      "Bash(lsof -i :5001)",
+      "Bash(curl -s http://localhost:5001/api/billings)"
     ]
   }
 }
