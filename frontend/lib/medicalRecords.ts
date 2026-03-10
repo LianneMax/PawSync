@@ -109,6 +109,7 @@ export interface MedicalRecord {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  surgeryRecord?: { surgeryType: string; vetRemarks: string } | null;
   billingId?: string;
   followUps?: FollowUp[];
   createdAt: string;
@@ -280,6 +281,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   sharedWithOwner: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  surgeryRecord: { surgeryType: string; vetRemarks: string } | null;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

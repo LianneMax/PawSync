@@ -34,6 +34,11 @@ export interface IPreventiveCare {
   notes: string;
 }
 
+export interface ISurgeryRecord {
+  surgeryType: string;
+  vetRemarks: string;
+}
+
 export interface IFollowUp {
   _id: mongoose.Types.ObjectId;
   vetId: mongoose.Types.ObjectId;
@@ -83,6 +88,7 @@ export interface IMedicalRecord extends Document {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  surgeryRecord?: ISurgeryRecord | null;
   billingId: mongoose.Types.ObjectId | null;
   followUps: IFollowUp[];
   createdAt: Date;
@@ -159,6 +165,14 @@ const PreventiveCareSchema = new Schema(
     notes: { type: String, default: '' }
   },
   { _id: true }
+);
+
+const SurgeryRecordSchema = new Schema(
+  {
+    surgeryType: { type: String, default: '' },
+    vetRemarks: { type: String, default: '' },
+  },
+  { _id: false }
 );
 
 const FollowUpSchema = new Schema(
@@ -282,6 +296,10 @@ const MedicalRecordSchema = new Schema(
       type: Boolean,
       default: true,
       index: true
+    },
+    surgeryRecord: {
+      type: SurgeryRecordSchema,
+      default: null,
     },
     billingId: {
       type: Schema.Types.ObjectId,

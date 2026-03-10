@@ -334,6 +334,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       const currentStep = stageToStep[r.stage] || 1
       setStep(currentStep)
       setAlreadyCompleted(r.stage === 'completed')
+      if (isSurgeryAppt && r.surgeryRecord) {
+        setSurgeryVetRemarks(r.surgeryRecord.vetRemarks || '')
+      }
+      if (isSurgeryAppt && r.images && r.images.length > 0) {
+        setSurgeryImages((prev) =>
+          prev.map((slot) => {
+            const saved = r.images.find(
+              (img: any) => img.description === `${slot.type} surgery image` && img.data
+            )
+            if (!saved) return slot
+            return { ...slot, preview: `data:${saved.contentType};base64,${saved.data}`, file: null }
+          })
+        )
+      }
     }
     if (petRes.status === 'SUCCESS' && petRes.data?.pet) {
       const loadedPet = petRes.data.pet
@@ -348,15 +362,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         const sres = await getSurgeryServices(token as string)
         if (sres.status === 'SUCCESS' && sres.data?.items) {
           setSurgeryServices(sres.data.items)
-          // Auto-select surgery type based on appointmentTypes
-          if (appointmentTypes.length > 0 && sres.data.items.length > 0) {
-            const surgeryType = appointmentTypes.find(t => 
+          // Restore saved surgery type from surgeryRecord if available
+          if (recordRes.data?.record?.surgeryRecord?.surgeryType) {
+            const saved = sres.data.items.find((s: ProductService) =>
+              s.name.toLowerCase() === recordRes.data!.record!.surgeryRecord!.surgeryType.toLowerCase()
+            )
+            if (saved) setSurgeryTypeId(saved._id)
+          } else if (appointmentTypes.length > 0 && sres.data.items.length > 0) {
+            // Auto-select surgery type based on appointmentTypes
+            const surgeryType = appointmentTypes.find(t =>
               t === 'sterilization' || t === 'Sterilization' ||
               t === 'abdominal-surgery' || t === 'orthopedic-surgery' ||
               t === 'dental-scaling' || t === 'laser-therapy'
             )
             if (surgeryType) {
-              // Map appointment type to surgery service name
               const typeMap: Record<string, string> = {
                 'sterilization': 'Sterilization',
                 'Sterilization': 'Sterilization',
@@ -366,12 +385,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 'laser-therapy': 'Laser Therapy',
               }
               const surgeryName = typeMap[surgeryType]
-              const matchedService = sres.data.items.find((s: ProductService) => 
+              const matchedService = sres.data.items.find((s: ProductService) =>
                 s.name.toLowerCase() === surgeryName.toLowerCase()
               )
-              if (matchedService) {
-                setSurgeryTypeId(matchedService._id)
-              }
+              if (matchedService) setSurgeryTypeId(matchedService._id)
             }
           }
         }
@@ -417,6 +434,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }, [vaccineTypeId, vaccineTypes, pet?.dateOfBirth])
 
+  // Convert surgery images state into the base64 payload for updateMedicalRecord
+  const buildSurgeryImagesPayload = () =>
+    surgeryImages
+      .filter((img) => img.preview !== null)
+      .map((img) => ({
+        data: img.preview!.split(',')[1] ?? img.preview!,
+        contentType: img.file?.type || 'image/jpeg',
+        description: `${img.type} surgery image`,
+      }))
+
   const buildExtraObservation = () => {
     const extras: string[] = []
     if (xray) extras.push('X-Ray')
@@ -450,6 +477,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     try {
       if (step === 3 && isVaccinationAppt) await trySaveVaccination()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
+      const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
+      const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       await updateMedicalRecord(recordId, {
         chiefComplaint,
         vitals,
@@ -464,6 +493,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         sharedWithOwner,
         confinementAction,
         confinementDays,
+        ...(isSurgeryAppt ? {
+          ...(surgImgs && surgImgs.length > 0 ? { images: surgImgs } : {}),
+          surgeryRecord: {
+            surgeryType: selectedSurgery?.name || '',
+            vetRemarks: surgeryVetRemarks,
+          },
+        } : {}),
       }, token)
       await handleSaveNotes()
       toast.success('Progress saved')
@@ -619,26 +655,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setSaving(true)
     try {
-      // Convert surgery images to { data, contentType, description } format
-      const surgImageData: { data: string; contentType: string; description: string }[] = []
-      for (const img of surgeryImages) {
-        if (img.preview) {
-          const base64 = img.preview.split(',')[1] ?? img.preview
-          surgImageData.push({
-            data: base64,
-            contentType: img.file?.type || 'image/jpeg',
-            description: `${img.type} surgery image`,
-          })
-        }
-      }
-      // Populate images state so they're included when completing the record
+      const surgImageData = buildSurgeryImagesPayload()
+      const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
+      // Populate images state so they're included if completing later
       setImages(surgImageData)
       // Prefill visit summary with surgery name if not already set
-      const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
       if (selectedSurgery && !visitSummary) {
         setVisitSummary(`Surgical procedure: ${selectedSurgery.name}`)
       }
-      await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
+      await updateMedicalRecord(recordId, {
+        stage: 'post_procedure',
+        ...(surgImageData.length > 0 ? { images: surgImageData } : {}),
+        surgeryRecord: {
+          surgeryType: selectedSurgery?.name || '',
+          vetRemarks: surgeryVetRemarks,
+        },
+      }, token)
       setStep(4)
     } catch {
       toast.error('Failed to save surgery record')
@@ -662,7 +694,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         images,
         confinementAction,
         confinementDays,
-        ...(isSurgeryAppt && surgeryVetRemarks ? { vetNotes: surgeryVetRemarks } : {}),
+        ...(isSurgeryAppt ? {
+          surgeryRecord: {
+            surgeryType: surgeryServices.find((s) => s._id === surgeryTypeId)?.name || '',
+            vetRemarks: surgeryVetRemarks,
+          },
+        } : {}),
       }, token)
       if (!alreadyCompleted && appointmentId) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
@@ -730,7 +767,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             </div>
           </div>
           <button
-            onClick={async () => { if (step === 3 && isVaccinationAppt) await trySaveVaccination(); onClose() }}
+            onClick={async () => {
+              if (step === 3 && isVaccinationAppt) await trySaveVaccination()
+              if (isSurgeryAppt && token) {
+                const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
+                const xImgs = buildSurgeryImagesPayload()
+                await updateMedicalRecord(recordId, {
+                  ...(xImgs.length > 0 ? { images: xImgs } : {}),
+                  surgeryRecord: { surgeryType: selectedSurgery?.name || '', vetRemarks: surgeryVetRemarks },
+                }, token).catch(() => {})
+              }
+              onClose()
+            }}
             className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />

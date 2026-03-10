@@ -500,13 +500,15 @@ export const updateRecord = async (req: Request, res: Response) => {
     const {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
-      medications, diagnosticTests, preventiveCare, confinementAction, confinementDays
+      medications, diagnosticTests, preventiveCare, confinementAction, confinementDays,
+      surgeryRecord
     } = req.body;
 
     if (vitals) record.vitals = vitals;
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;
+    if (surgeryRecord !== undefined) (record as any).surgeryRecord = surgeryRecord;
     if (sharedWithOwner !== undefined) record.sharedWithOwner = sharedWithOwner;
     if (stage !== undefined) record.stage = stage;
     if (chiefComplaint !== undefined) record.chiefComplaint = chiefComplaint;
