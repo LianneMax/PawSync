@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { DatePicker } from '@/components/ui/date-picker'
+import SurgeryMedicalRecordModal from '@/components/SurgeryMedicalRecordModal'
 
 interface SurgeryAppointmentModalProps {
   open: boolean
@@ -132,6 +133,8 @@ export default function SurgeryAppointmentModal({
   const [branchesLoading, setBranchesLoading] = useState(false)
   const [loadingVets, setLoadingVets] = useState(false)
   const [surgeryAccordionOpen, setSurgeryAccordionOpen] = useState(true)
+  const [createdAppointmentId, setCreatedAppointmentId] = useState('')
+  const [showMedicalRecordModal, setShowMedicalRecordModal] = useState(false)
 
   // Load surgery services on mount
   useEffect(() => {
@@ -236,8 +239,11 @@ export default function SurgeryAppointmentModal({
         token as string
       )
 
-      if (res.status === 'SUCCESS') {
+      if (res.status === 'SUCCESS' && res.data?.appointment?._id) {
         toast.success('Surgery appointment scheduled successfully')
+        setCreatedAppointmentId(res.data.appointment._id)
+        setShowMedicalRecordModal(true)
+        // Close the appointment modal but keep it in memory
         onOpenChange(false)
         // Reset form
         setSelectedServices([])
@@ -283,7 +289,8 @@ export default function SurgeryAppointmentModal({
   })
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
         <DialogHeader className="px-8 py-6 border-b border-gray-200">
           <DialogTitle className="text-2xl text-[#2C3E2D]">Schedule Surgery</DialogTitle>
@@ -551,5 +558,18 @@ export default function SurgeryAppointmentModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <SurgeryMedicalRecordModal
+      open={showMedicalRecordModal}
+      onOpenChange={setShowMedicalRecordModal}
+      appointmentId={createdAppointmentId}
+      petId={petId}
+      petName={petName}
+      onSaved={() => {
+        setShowMedicalRecordModal(false)
+        setCreatedAppointmentId('')
+      }}
+    />
+    </>
   )
 }

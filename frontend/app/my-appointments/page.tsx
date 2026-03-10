@@ -35,6 +35,7 @@ import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog'
 import { DatePicker } from '@/components/ui/date-picker'
 
@@ -300,7 +301,7 @@ export default function MyAppointmentsPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex flex-wrap gap-1">
                     {appt.types.map((t) => (
-                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t.replace('-', ' ')}</span>
+                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t ? t.replace('-', ' ') : ''}</span>
                     ))}
                   </div>
                   <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
@@ -377,7 +378,7 @@ export default function MyAppointmentsPage() {
                 <X className="w-6 h-6 text-[#900B09]" />
               </div>
             </div>
-            <h2 className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Cancel Appointment?</h2>
+            <DialogTitle className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Cancel Appointment?</DialogTitle>
             <p className="text-sm text-gray-600 text-center mb-6">
               Are you sure you want to cancel this appointment? This action cannot be undone.
             </p>
@@ -489,7 +490,7 @@ function ScheduleModal({
             id: 'general',
             label: 'General Consultation',
             services: (categoryMap['General Consultation'] || []).map((item: any) => ({
-              value: item.id,
+              value: item.name,
               label: item.name,
             })),
           },
@@ -497,7 +498,7 @@ function ScheduleModal({
             id: 'preventive',
             label: 'Preventive Care',
             services: (categoryMap['Preventive Care'] || []).map((item: any) => ({
-              value: item.id,
+              value: item.name,
               label: item.name,
             })),
           },
@@ -507,7 +508,7 @@ function ScheduleModal({
             services: (categoryMap['Surgeries'] || [])
               .filter((item: any) => item.name === 'Sterilization')
               .map((item: any) => ({
-                value: item.id,
+                value: item.name,
                 label: item.name,
               })),
           },
@@ -515,7 +516,7 @@ function ScheduleModal({
             id: 'grooming',
             label: 'Grooming',
             services: (categoryMap['Grooming'] || []).map((item: any) => ({
-              value: item.id,
+              value: item.name,
               label: item.name,
             })),
           },

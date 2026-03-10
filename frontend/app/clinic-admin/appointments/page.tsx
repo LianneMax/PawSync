@@ -42,6 +42,7 @@ import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog'
 import { DatePicker } from '@/components/ui/date-picker'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
@@ -367,7 +368,7 @@ function CalendarGridView({
                             )}
                             {appt.types.map((t) => (
                               <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
-                                {t.replace('-', ' ')}
+                                {t ? t.replace('-', ' ') : ''}
                               </span>
                             ))}
                           </div>
@@ -524,7 +525,7 @@ function CalendarGridView({
                               )}
                               {appt.types.map((t) => (
                                 <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
-                                  {t.replace('-', ' ')}
+                                  {t ? t.replace('-', ' ') : ''}
                                 </span>
                               ))}
                             </div>
@@ -894,7 +895,7 @@ export default function ClinicAdminAppointmentsPage() {
                       <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
                     )}
                     {appt.types.map((t) => (
-                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t.replace('-', ' ')}</span>
+                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t ? t.replace('-', ' ') : ''}</span>
                     ))}
                   </div>
                   <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
@@ -990,7 +991,7 @@ export default function ClinicAdminAppointmentsPage() {
                 <X className="w-6 h-6 text-[#900B09]" />
               </div>
             </div>
-            <h2 className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Cancel Appointment?</h2>
+            <DialogTitle className="text-xl font-bold text-center text-[#2C3E2D] mb-2">Cancel Appointment?</DialogTitle>
             <p className="text-sm text-gray-600 text-center mb-6">
               Are you sure you want to cancel this appointment? This action cannot be undone.
             </p>
@@ -1200,7 +1201,7 @@ function ClinicScheduleModal({
               id: 'general',
               label: 'General Consultation',
               services: (categoryMap['General Consultation'] || []).map((item: any) => ({
-                value: item.id,
+                value: item.name,
                 label: item.name,
               })),
             },
@@ -1208,7 +1209,7 @@ function ClinicScheduleModal({
               id: 'preventive',
               label: 'Preventive Care',
               services: (categoryMap['Preventive Care'] || []).map((item: any) => ({
-                value: item.id,
+                value: item.name,
                 label: item.name,
               })),
             },
@@ -1218,7 +1219,7 @@ function ClinicScheduleModal({
               services: (categoryMap['Surgeries'] || [])
                 .filter((item: any) => item.name === 'Sterilization')
                 .map((item: any) => ({
-                  value: item.id,
+                  value: item.name,
                   label: item.name,
                 })),
             },
@@ -1226,7 +1227,7 @@ function ClinicScheduleModal({
               id: 'grooming',
               label: 'Grooming',
               services: (categoryMap['Grooming'] || []).map((item: any) => ({
-                value: item.id,
+                value: item.name,
                 label: item.name,
               })),
             },

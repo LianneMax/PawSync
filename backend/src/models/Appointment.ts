@@ -62,9 +62,10 @@ const AppointmentSchema = new Schema(
         'vaccination', 'puppy-litter-vaccination', 'deworming',
         'cbc', 'blood-chemistry-16', 'pcr-test',
         'x-ray', 'ultrasound',
-        'abdominal-surgery', 'orthopedic-surgery', 'dental-scaling', 'laser-therapy',
+        'abdominal-surgery', 'orthopedic-surgery', 'dental-scaling', 'laser-therapy', 'Sterilization',
         'inpatient-care', 'outpatient-treatment', 'point-of-care-diagnostic',
-        'basic-grooming', 'full-grooming',
+        'basic-grooming', 'full-grooming', 'Basic Grooming', 'Full Grooming',
+        'General Consultation', 'Preventive Care', 'Grooming',
       ],
       required: [true, 'At least one appointment type is required'],
       validate: {
