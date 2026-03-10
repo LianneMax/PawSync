@@ -160,6 +160,13 @@ export default function VetVaccinationsPage() {
 
   useEffect(() => { if (tab === 'records') loadVaccinations() }, [loadVaccinations, tab])
 
+  // Reload records when the window regains focus (e.g. after navigating back from the new vaccination form)
+  useEffect(() => {
+    const onFocus = () => { if (tab === 'records') loadVaccinations() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [tab, loadVaccinations])
+
   const filtered = vaccinations.filter((vax) => {
     if (!search.trim()) return true
     const term = search.toLowerCase()

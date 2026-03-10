@@ -178,17 +178,18 @@ function ClinicVaccinationFormInner() {
       const ageWeeks = Math.round(ageMonths * 4.3)
       const minMonths = selectedVaccineType.minAgeMonths || 0
       const maxMonths = selectedVaccineType.maxAgeMonths || null
+      const ageLabel = `${ageMonths} months (${ageWeeks} weeks)`
       if (ageMonths < minMonths) {
         const minWeeks = Math.round(minMonths * 4.3)
         setAgeValid(false)
-        setAgeMessage(`Pet is ${ageWeeks} weeks old. This vaccine requires a minimum of ${minWeeks} weeks (${minMonths} months).`)
+        setAgeMessage(`Pet is ${ageLabel} old. This vaccine requires a minimum of ${minMonths} months (${minWeeks} weeks).`)
       } else if (maxMonths && ageMonths > maxMonths) {
         const maxWeeks = Math.round(maxMonths * 4.3)
         setAgeValid(false)
-        setAgeMessage(`Pet is ${ageWeeks} weeks old. This vaccine is only for pets up to ${maxWeeks} weeks (${maxMonths} months).`)
+        setAgeMessage(`Pet is ${ageLabel} old. This vaccine is only for pets up to ${maxMonths} months (${maxWeeks} weeks).`)
       } else {
         setAgeValid(true)
-        setAgeMessage(`Pet is ${ageWeeks} weeks old — eligible for this vaccine.`)
+        setAgeMessage(`Pet is ${ageLabel} old — eligible for this vaccine.`)
       }
     } else {
       setAgeValid(true)

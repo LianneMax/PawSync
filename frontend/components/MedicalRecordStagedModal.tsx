@@ -140,23 +140,25 @@ function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: 
   const minWeeks = monthsToWeeks(minAgeMonths)
   const maxWeeks = maxAgeMonths ? monthsToWeeks(maxAgeMonths) : null
 
+  const ageLabel = `${petAgeMonths} months (${petAgeWeeks} weeks)`
+
   if (petAgeMonths < minAgeMonths) {
     return {
       isValid: false,
-      message: `Pet is ${petAgeWeeks} weeks old. This vaccine requires minimum ${minWeeks} weeks.`,
+      message: `Pet is ${ageLabel} old. This vaccine requires minimum ${minAgeMonths} months (${minWeeks} weeks).`,
     }
   }
 
   if (maxWeeks && petAgeMonths > (maxAgeMonths || 0)) {
     return {
       isValid: false,
-      message: `Pet is ${petAgeWeeks} weeks old. This vaccine is only for ${minWeeks}-${maxWeeks} weeks old pets.`,
+      message: `Pet is ${ageLabel} old. This vaccine is only for ${minAgeMonths}-${maxAgeMonths} months (${minWeeks}-${maxWeeks} weeks) old pets.`,
     }
   }
 
   return {
     isValid: true,
-    message: `Pet is ${petAgeWeeks} weeks old - eligible for this vaccine.`,
+    message: `Pet is ${ageLabel} old - eligible for this vaccine.`,
   }
 }
 
@@ -1037,18 +1039,19 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {vaccineTypeId && (() => {
                     const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
                     if (!vt) return null
-                    const minWeeks = monthsToWeeks(vt.minAgeMonths || 0)
+                    const minMonths = vt.minAgeMonths || 0
+                    const minWeeks = monthsToWeeks(minMonths)
                     const maxWeeks = vt.maxAgeMonths ? monthsToWeeks(vt.maxAgeMonths) : null
                     return (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-[#f0f7f7] border border-[#7FA5A3] rounded-xl p-3">
                           <p className="text-[10px] font-bold text-[#476B6B] uppercase tracking-wide">Min Age</p>
-                          <p className="font-bold text-[#476B6B] text-sm mt-0.5">{minWeeks} weeks</p>
+                          <p className="font-bold text-[#476B6B] text-sm mt-0.5">{minMonths} months ({minWeeks} weeks)</p>
                         </div>
-                        {maxWeeks && (
+                        {maxWeeks && vt.maxAgeMonths && (
                           <div className="bg-[#f0f7f7] border border-[#7FA5A3] rounded-xl p-3">
                             <p className="text-[10px] font-bold text-[#476B6B] uppercase tracking-wide">Max Age</p>
-                            <p className="font-bold text-[#476B6B] text-sm mt-0.5">{maxWeeks} weeks</p>
+                            <p className="font-bold text-[#476B6B] text-sm mt-0.5">{vt.maxAgeMonths} months ({maxWeeks} weeks)</p>
                           </div>
                         )}
                       </div>
