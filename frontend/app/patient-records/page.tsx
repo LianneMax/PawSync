@@ -649,33 +649,27 @@ export default function PatientRecordsPage() {
                     </div>
 
                     {/* Billing button */}
-                    <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
-                      {!currentRecord.billingId ? (
-                        <button
-                          onClick={() => { setBillingModalMode('create'); setBillingModalOpen(true) }}
-                          className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors"
-                        >
-                          <Receipt className="w-4 h-4" />
-                          Create Billing from Record
-                        </button>
-                      ) : currentRecordEdited ? (
-                        <button
-                          onClick={() => { setBillingModalMode('update'); setBillingModalOpen(true) }}
-                          className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors"
-                        >
-                          <Receipt className="w-4 h-4" />
-                          Update Billing
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
-                          className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors"
-                        >
-                          <Receipt className="w-4 h-4" />
-                          View Billing
-                        </button>
-                      )}
-                    </div>
+                    {currentRecord.billingId && (
+                      <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
+                        {currentRecordEdited ? (
+                          <button
+                            onClick={() => { setBillingModalMode('update'); setBillingModalOpen(true) }}
+                            className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors"
+                          >
+                            <Receipt className="w-4 h-4" />
+                            Update Billing
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
+                            className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors"
+                          >
+                            <Receipt className="w-4 h-4" />
+                            View Billing
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl p-12 shadow-sm text-center border-2 border-dashed border-gray-200">
@@ -915,6 +909,8 @@ export default function PatientRecordsPage() {
             ? `Dr. ${(currentRecord.vetId as any).firstName ?? ''} ${(currentRecord.vetId as any).lastName ?? ''}`.trim()
             : '—'
         }
+        record={currentRecord ?? undefined}
+        token={token || undefined}
       />
     </DashboardLayout>
   )
@@ -2158,6 +2154,8 @@ function ViewRecordModal({
             ? `Dr. ${(record.vetId as any).firstName ?? ''} ${(record.vetId as any).lastName ?? ''}`.trim()
             : '—'
         }
+        record={record ?? undefined}
+        token={token}
       />
 
       {/* ===== LIGHTBOX ===== */}

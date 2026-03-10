@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import Billing from '../models/Billing';
+import User from '../models/User';
+import MedicalRecord from '../models/MedicalRecord';
 import { sendBillingPendingPayment, sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 
@@ -42,7 +44,20 @@ export const createBilling = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'ownerId, petId, and vetId are required' });
     }
 
-    const clinicId = req.user.clinicId;
+    let clinicId = req.user.clinicId;
+
+    // Fall back 1: DB lookup for the admin user
+    if (!clinicId) {
+      const dbUser = await User.findById(req.user.userId).select('clinicId').lean();
+      clinicId = (dbUser as any)?.clinicId?.toString();
+    }
+
+    // Fall back 2: derive from the linked medical record (most reliable when admin has record access)
+    if (!clinicId && medicalRecordId) {
+      const linkedRecord = await MedicalRecord.findById(medicalRecordId).select('clinicId').lean();
+      clinicId = (linkedRecord as any)?.clinicId?.toString();
+    }
+
     if (!clinicId) {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
     }

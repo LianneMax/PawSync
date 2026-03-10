@@ -542,6 +542,8 @@ export default function ClinicAdminMedicalRecordViewPage() {
         patientName={pet.name || ''}
         appointmentId={record.appointmentId?._id || record.appointmentId || null}
         vetName={`${vet.firstName || ''} ${vet.lastName || ''}`.trim()}
+        record={record}
+        token={token || undefined}
       />
     </DashboardLayout>
   )

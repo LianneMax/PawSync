@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IBillingItem {
-  productServiceId: mongoose.Types.ObjectId;
+  productServiceId: mongoose.Types.ObjectId | null;
+  vaccineTypeId?: mongoose.Types.ObjectId | null;
   name: string;
   type: 'Service' | 'Product';
   unitPrice: number;
@@ -32,7 +33,12 @@ const BillingItemSchema = new Schema(
     productServiceId: {
       type: Schema.Types.ObjectId,
       ref: 'ProductService',
-      required: [true, 'Product/Service reference is required'],
+      default: null,
+    },
+    vaccineTypeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'VaccineType',
+      default: null,
     },
     name: {
       type: String,
