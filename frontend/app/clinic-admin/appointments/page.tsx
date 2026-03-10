@@ -81,6 +81,29 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// ---- Helper: normalize appointment type to valid enum values ----
+function normalizeAppointmentType(type: string): string {
+  const typeMap: Record<string, string> = {
+    // Normalize capitalized versions
+    'Consultation': 'consultation',
+    'consultation': 'consultation',
+    'General Checkup': 'general-checkup',
+    'Vaccination': 'vaccination',
+    'Deworming': 'deworming',
+    'Sterilization': 'Sterilization',
+    'Grooming': 'Grooming',
+    'Basic Grooming': 'basic-grooming',
+    'Basic grooming': 'basic-grooming',
+    'Full Grooming': 'full-grooming',
+    'Full grooming': 'full-grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+  }
+  
+  // Return mapped value if exists, otherwise return as-is (already in correct format)
+  return typeMap[type] || type
+}
+
 // ==================== DROPDOWN COMPONENT ====================
 
 function Dropdown({
@@ -1585,7 +1608,9 @@ function ClinicScheduleModal({
 
     setSubmitting(true)
     try {
-      // Send full types array including grooming; backend will handle not creating medical records for grooming
+      // Normalize types to valid enum values
+      const normalizedTypes = selectedTypes.map(normalizeAppointmentType)
+      
       // For grooming-only, don't send vetId; backend will set it to null
       const appointmentData: any = {
         ownerId: selectedOwner._id,
@@ -1593,7 +1618,7 @@ function ClinicScheduleModal({
         clinicId: clinic?._id || '',
         clinicBranchId: selectedBranchId,
         mode: mode as 'online' | 'face-to-face',
-        types: selectedTypes,
+        types: normalizedTypes,
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,

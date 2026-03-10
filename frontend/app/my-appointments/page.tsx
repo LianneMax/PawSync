@@ -45,6 +45,29 @@ const appointmentModes = [
 ]
 
 
+// ---- Helper: normalize appointment type to valid enum values ----
+function normalizeAppointmentType(type: string): string {
+  const typeMap: Record<string, string> = {
+    // Normalize capitalized versions
+    'Consultation': 'consultation',
+    'consultation': 'consultation',
+    'General Checkup': 'general-checkup',
+    'Vaccination': 'vaccination',
+    'Deworming': 'deworming',
+    'Sterilization': 'Sterilization',
+    'Grooming': 'Grooming',
+    'Basic Grooming': 'basic-grooming',
+    'Basic grooming': 'basic-grooming',
+    'Full Grooming': 'full-grooming',
+    'Full grooming': 'full-grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+  }
+  
+  // Return mapped value if exists, otherwise return as-is (already in correct format)
+  return typeMap[type] || type
+}
+
 // ---- Helper: format time for display ----
 function formatSlotTime(time: string) {
   const [h, m] = time.split(':')
@@ -716,14 +739,15 @@ function ScheduleModal({
         return toast.error(conflictCheck.message || 'Appointment conflict detected')
       }
 
-      // Send full types array including grooming; backend will handle not creating medical records for grooming
+      // Normalize types to valid enum values and send to backend
+      const normalizedTypes = selectedTypes.map(normalizeAppointmentType)
       const res = await createAppointment({
         petId: selectedPetId,
         vetId: selectedVetId,
         clinicId: selectedBranchOption?.clinicId || '',
         clinicBranchId: selectedBranchId,
         mode: mode as 'online' | 'face-to-face',
-        types: selectedTypes,
+        types: normalizedTypes,
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
