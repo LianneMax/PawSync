@@ -69,6 +69,35 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
 
 // ==================== HELPERS ====================
 
+// Normalize appointment type to valid enum values
+function normalizeAppointmentType(type: string): string {
+  const typeMap: Record<string, string> = {
+    // Normalize capitalized versions
+    'Consultation': 'consultation',
+    'consultation': 'consultation',
+    'General Checkup': 'general-checkup',
+    'Vaccination': 'vaccination',
+    'Vaccination / Immunization': 'vaccination',
+    'Vaccination/Immunization': 'vaccination',
+    'Flea & Tick Prevention': 'flea-tick-prevention',
+    'Flea Tick Prevention': 'flea-tick-prevention',
+    'Rabies': 'rabies',
+    'Rabies Vaccination': 'rabies',
+    'Deworming': 'deworming',
+    'Sterilization': 'Sterilization',
+    'Grooming': 'Grooming',
+    'Basic Grooming': 'basic-grooming',
+    'Basic grooming': 'basic-grooming',
+    'Full Grooming': 'full-grooming',
+    'Full grooming': 'full-grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+  }
+  
+  // Return mapped value if exists, otherwise return as-is (already in correct format)
+  return typeMap[type] || type
+}
+
 function formatSlotTime(time: string) {
   const [h, m] = time.split(':')
   const hour = parseInt(h)
