@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import VaccineCalendar from '@/components/VaccineCalendar'
 import { useAuthStore } from '@/store/authStore'
@@ -21,10 +22,11 @@ export default function VaccineSchedulePage() {
     async function fetchPets() {
       if (!token) return
       try {
-        const data = await getMyPets(token)
-        setPets(data)
-        if (data.length > 0) {
-          setSelectedPetId(data[0]._id)
+        const response = await getMyPets(token)
+        const pets = response.data?.pets || []
+        setPets(pets)
+        if (pets.length > 0) {
+          setSelectedPetId(pets[0]._id)
         }
       } catch (error) {
         console.error('Error fetching pets:', error)
@@ -85,7 +87,7 @@ export default function VaccineSchedulePage() {
             <Calendar className="w-6 h-6 text-[#35785C]" />
             <h1 className="text-3xl font-bold text-[#4F4F4F]">Vaccine Schedule</h1>
           </div>
-          <p className="text-gray-600">Track and manage your pets' upcoming vaccine appointments</p>
+          <p className="text-gray-600">Track and manage your pets&apos; upcoming vaccine appointments</p>
         </div>
 
         {/* Pet Selection */}
@@ -107,13 +109,15 @@ export default function VaccineSchedulePage() {
                     }`}
                   >
                     {pet.photo ? (
-                      <img
+                      <Image
                         src={pet.photo}
                         alt={pet.name}
-                        className="w-12 h-12 rounded-lg object-cover mx-auto mb-2"
+                        width={48}
+                        height={48}
+                        className="rounded-lg object-cover mx-auto mb-2"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#7FA5A3] to-[#5A7C7A] flex items-center justify-center mx-auto mb-2">
+                      <div className="w-12 h-12 rounded-lg bg-linear-to-br from-[#7FA5A3] to-[#5A7C7A] flex items-center justify-center mx-auto mb-2">
                         <PawPrint className="w-6 h-6 text-white" />
                       </div>
                     )}
@@ -127,7 +131,7 @@ export default function VaccineSchedulePage() {
             {/* Summary Cards */}
             {selectedPet && upcomingVaccines.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
                   <div className="flex items-center gap-3 mb-2">
                     <Calendar className="w-5 h-5 text-blue-600" />
                     <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Total Scheduled</p>
@@ -136,7 +140,7 @@ export default function VaccineSchedulePage() {
                   <p className="text-xs text-blue-600 mt-1">upcoming vaccine{upcomingVaccines.length !== 1 ? 's' : ''}</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+                <div className="bg-linear-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
                   <div className="flex items-center gap-3 mb-2">
                     <AlertCircle className="w-5 h-5 text-red-600" />
                     <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">Urgent</p>
@@ -152,7 +156,7 @@ export default function VaccineSchedulePage() {
                   </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+                <div className="bg-linear-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
                   <div className="flex items-center gap-3 mb-2">
                     <CheckCircle className="w-5 h-5 text-green-600" />
                     <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">Later</p>
@@ -208,7 +212,7 @@ export default function VaccineSchedulePage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
             <PawPrint className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">No pets found</h3>
-            <p className="text-gray-600">You haven't added any pets yet.</p>
+            <p className="text-gray-600">You haven&apos;t added any pets yet.</p>
           </div>
         )}
       </div>

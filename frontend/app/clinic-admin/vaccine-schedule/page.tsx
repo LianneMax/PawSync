@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import VaccineCalendar from '@/components/VaccineCalendar'
 import { useAuthStore } from '@/store/authStore'
@@ -74,19 +75,6 @@ export default function ClinicVaccineSchedulePage() {
     filteredSchedule = filteredSchedule.filter((v) => v.vet._id === filterVet);
   }
 
-  // Group by vet
-  const groupedByVet = filteredSchedule.reduce(
-    (acc, v) => {
-      const vetId = v.vet._id;
-      if (!acc[vetId]) {
-        acc[vetId] = { vet: v.vet, vaccines: [] };
-      }
-      acc[vetId].vaccines.push(v);
-      return acc;
-    },
-    {} as Record<string, { vet: any; vaccines: ClinicUpcomingSchedule[] }>
-  );
-
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-10">
@@ -102,7 +90,7 @@ export default function ClinicVaccineSchedulePage() {
         {/* Summary Cards */}
         {!loading && upcomingSchedule.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+            <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
               <div className="flex items-center gap-3 mb-2">
                 <Syringe className="w-5 h-5 text-blue-600" />
                 <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Total Due</p>
@@ -111,7 +99,7 @@ export default function ClinicVaccineSchedulePage() {
               <p className="text-xs text-blue-600 mt-1">vaccine{upcomingSchedule.length !== 1 ? 's' : ''}</p>
             </div>
 
-            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+            <div className="bg-linear-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
               <div className="flex items-center gap-3 mb-2">
                 <AlertCircle className="w-5 h-5 text-red-600" />
                 <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">Overdue</p>
@@ -120,7 +108,7 @@ export default function ClinicVaccineSchedulePage() {
               <p className="text-xs text-red-600 mt-1">need immediate attention</p>
             </div>
 
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
+            <div className="bg-linear-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
               <div className="flex items-center gap-3 mb-2">
                 <Calendar className="w-5 h-5 text-orange-600" />
                 <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">This Week</p>
@@ -129,7 +117,7 @@ export default function ClinicVaccineSchedulePage() {
               <p className="text-xs text-orange-600 mt-1">due within 7 days</p>
             </div>
 
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+            <div className="bg-linear-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
               <div className="flex items-center gap-3 mb-2">
                 <Users className="w-5 h-5 text-green-600" />
                 <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">Vets</p>
@@ -219,7 +207,7 @@ export default function ClinicVaccineSchedulePage() {
         {/* Detailed Table View */}
         {!loading && filteredSchedule.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#F8F6F2] to-white">
+            <div className="px-6 py-4 border-b border-gray-100 bg-linear-to-r from-[#F8F6F2] to-white">
               <h2 className="text-lg font-bold text-[#4F4F4F]">Detailed List</h2>
             </div>
             <div className="overflow-x-auto">
@@ -243,17 +231,17 @@ export default function ClinicVaccineSchedulePage() {
                         : daysUntil <= 7
                           ? 'bg-orange-50 text-orange-700'
                           : 'bg-blue-50 text-blue-700';
-                    const statusLabel =
-                      daysUntil <= 0 ? 'Overdue' : daysUntil <= 7 ? 'This Week' : `${daysUntil}d away`;
                     return (
                       <tr key={vaccine._id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             {vaccine.pet.photo ? (
-                              <img
+                              <Image
                                 src={vaccine.pet.photo}
                                 alt={vaccine.pet.name}
-                                className="w-8 h-8 rounded-lg object-cover"
+                                width={32}
+                                height={32}
+                                className="rounded-lg object-cover"
                               />
                             ) : (
                               <div className="w-8 h-8 rounded-lg bg-[#7FA5A3]/20 flex items-center justify-center">

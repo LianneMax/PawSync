@@ -88,7 +88,7 @@ export default function VaccineCalendar({
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#F8F6F2] to-white">
+      <div className="px-6 py-4 border-b border-gray-100 bg-linear-to-r from-[#F8F6F2] to-white">
         <div className="flex items-center gap-3 mb-1">
           <Calendar className="w-5 h-5 text-[#35785C]" />
           <h2 className="text-lg font-bold text-[#4F4F4F]">{title}</h2>
@@ -156,11 +156,11 @@ export default function VaccineCalendar({
                         ) : null}
                         {isClinicView ? (
                           <p className="text-xs text-gray-600">
-                            Vet: {getVetName(vaccine as any)}
+                            Vet: {getVetName(vaccine as VetUpcomingSchedule | ClinicUpcomingSchedule)}
                           </p>
                         ) : null}
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
                         {daysUntil <= 7 ? (
                           <AlertCircle className="w-5 h-5 text-red-600" />
                         ) : (

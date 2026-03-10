@@ -1270,7 +1270,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
               {/* Image uploads */}
               <div>
-                <label className="block text-sm font-semibold text-[#4F4F4F] mb-2 flex items-center gap-2">
+                <label className="flex text-sm font-semibold text-[#4F4F4F] mb-2 items-center gap-2">
                   <Upload className="w-4 h-4 text-[#7FA5A3]" />
                   Attachments
                 </label>
@@ -1500,7 +1500,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       </Dialog>
 
       {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
-      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-[22rem]'}`}>
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-88'}`}>
         {notesMinimized ? (
           <button
             onClick={() => setNotesMinimized(false)}

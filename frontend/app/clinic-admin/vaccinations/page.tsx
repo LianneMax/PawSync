@@ -625,7 +625,7 @@ export default function ClinicAdminVaccinationsPage() {
                   onClick={() => setForm((p) => ({ ...p, requiresBooster: !p.requiresBooster }))}
                   className="relative w-11 h-6 rounded-full transition-colors bg-gray-200 overflow-hidden hover:bg-gray-300"
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5 !bg-[#476B6B]' : 'translate-x-0'}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5 bg-[#476B6B]!' : 'translate-x-0'}`} />
                 </button>
               </div>
 
