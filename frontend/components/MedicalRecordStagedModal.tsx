@@ -348,6 +348,32 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         const sres = await getSurgeryServices(token as string)
         if (sres.status === 'SUCCESS' && sres.data?.items) {
           setSurgeryServices(sres.data.items)
+          // Auto-select surgery type based on appointmentTypes
+          if (appointmentTypes.length > 0 && sres.data.items.length > 0) {
+            const surgeryType = appointmentTypes.find(t => 
+              t === 'sterilization' || t === 'Sterilization' ||
+              t === 'abdominal-surgery' || t === 'orthopedic-surgery' ||
+              t === 'dental-scaling' || t === 'laser-therapy'
+            )
+            if (surgeryType) {
+              // Map appointment type to surgery service name
+              const typeMap: Record<string, string> = {
+                'sterilization': 'Sterilization',
+                'Sterilization': 'Sterilization',
+                'abdominal-surgery': 'Abdominal Surgery',
+                'orthopedic-surgery': 'Orthopedic Surgery',
+                'dental-scaling': 'Dental Scaling',
+                'laser-therapy': 'Laser Therapy',
+              }
+              const surgeryName = typeMap[surgeryType]
+              const matchedService = sres.data.items.find((s: ProductService) => 
+                s.name.toLowerCase() === surgeryName.toLowerCase()
+              )
+              if (matchedService) {
+                setSurgeryTypeId(matchedService._id)
+              }
+            }
+          }
         }
         setSurgeryServicesLoading(false)
       }
@@ -1271,16 +1297,39 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         Loading surgery types…
                       </div>
                     ) : (
-                      <select
-                        value={surgeryTypeId}
-                        onChange={(e) => setSurgeryTypeId(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-                      >
-                        <option value="">Select surgery type…</option>
-                        {surgeryServices.map((s) => (
-                          <option key={s._id} value={s._id}>{s.name}{s.price ? ` — ₱${s.price}` : ''}</option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-3">
+                        {surgeryTypeId ? (
+                          <>
+                            <div className="flex-1 p-3 bg-[#7FA5A3]/10 rounded-xl border border-[#7FA5A3]/30">
+                              <p className="text-sm font-medium text-[#4F4F4F]">
+                                {surgeryServices.find(s => s._id === surgeryTypeId)?.name}
+                                {surgeryServices.find(s => s._id === surgeryTypeId)?.price && (
+                                  <span className="text-gray-500 ml-2">— ₱{surgeryServices.find(s => s._id === surgeryTypeId)?.price}</span>
+                                )}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSurgeryTypeId('')}
+                              className="px-3 py-2.5 text-sm text-gray-600 hover:text-red-600 transition-colors"
+                              title="Clear selection"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <select
+                            value={surgeryTypeId}
+                            onChange={(e) => setSurgeryTypeId(e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+                          >
+                            <option value="">Select surgery type…</option>
+                            {surgeryServices.map((s) => (
+                              <option key={s._id} value={s._id}>{s.name}{s.price ? ` — ₱${s.price}` : ''}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     )}
                   </div>
 
