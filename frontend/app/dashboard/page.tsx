@@ -625,10 +625,6 @@ function RemovePetModal({
       setError('Please select a reason')
       return
     }
-    if (isTransfer && !newOwnerEmail.trim()) {
-      setError('Please enter the new owner\'s email')
-      return
-    }
 
     setLoading(true)
     setError('')
@@ -638,7 +634,8 @@ function RemovePetModal({
       if (!token) return
 
       if (isTransfer) {
-        const response = await transferPet(pet.id, newOwnerEmail.trim(), token)
+        // Email is optional for transfer - if provided, use it; otherwise backend handles it
+        const response = await transferPet(pet.id, newOwnerEmail.trim() || '', token)
         if (response.status === 'ERROR') {
           setError(response.message || 'Transfer failed')
           setLoading(false)
@@ -731,15 +728,15 @@ function RemovePetModal({
           ))}
         </div>
 
-        {/* Transfer email input (conditional) */}
+        {/* Transfer email input (optional) */}
         {isTransfer && (
           <div className="mb-4">
             <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
-              New Owner&apos;s Email
+              New Owner&apos;s Email (Optional)
             </label>
             <input
               type="email"
-              placeholder="Enter the pet-owner's email address"
+              placeholder="Enter the pet-owner's email address (leave blank if unknown)"
               value={newOwnerEmail}
               onChange={(e) => {
                 setNewOwnerEmail(e.target.value)
@@ -748,7 +745,7 @@ function RemovePetModal({
               className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
             />
             <p className="text-xs text-gray-400 mt-1">
-              The recipient must have a PawSync pet-owner account
+              If provided, the recipient must have a PawSync pet-owner account. Leave blank to handle transfer separately.
             </p>
           </div>
         )}
