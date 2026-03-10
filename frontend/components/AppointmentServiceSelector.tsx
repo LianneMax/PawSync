@@ -107,11 +107,14 @@ interface AppointmentServiceSelectorProps {
   values: string[]
   /** Called when the user toggles a service. */
   onChange: (values: string[]) => void
+  /** Optional dynamic categories from database. Falls back to defaults if not provided. */
+  categories?: ServiceCategory[]
 }
 
 export default function AppointmentServiceSelector({
   values,
   onChange,
+  categories,
 }: AppointmentServiceSelectorProps) {
   // "general" is expanded by default as it's the most common booking.
   const [openCategory, setOpenCategory] = useState<string>('general')
@@ -119,6 +122,9 @@ export default function AppointmentServiceSelector({
   const toggleCategory = (id: string) => {
     setOpenCategory((prev) => (prev === id ? '' : id))
   }
+
+  // Use provided categories or fall back to defaults
+  const displayCategories = categories || SERVICE_CATEGORIES
 
   const GROOMING_OPTIONS = ['basic-grooming', 'full-grooming']
 
@@ -154,7 +160,7 @@ export default function AppointmentServiceSelector({
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
-      {SERVICE_CATEGORIES.map((cat) => {
+      {displayCategories.map((cat) => {
         const isOpen = openCategory === cat.id
         const hasSelection = selectedCategories.has(cat.id)
 
