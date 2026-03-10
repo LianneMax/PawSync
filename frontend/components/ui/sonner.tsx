@@ -10,8 +10,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme="light"
       className="toaster group"
       closeButton
-      duration={Infinity}
-      style={{ fontFamily: 'var(--font-outfit), sans-serif' }}
+      duration={30000}
+      style={{ fontFamily: 'var(--font-outfit), sans-serif', zIndex: 9999 }}
       toastOptions={{
         classNames: {
           toast:

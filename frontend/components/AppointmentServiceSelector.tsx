@@ -51,7 +51,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
   },
   {
     id: 'surgery',
-    label: 'Surgery & Advanced Procedures',
+    label: 'Surgical Procedures',
     services: [
       { value: 'sterilization', label: 'Sterilization' },
     ],

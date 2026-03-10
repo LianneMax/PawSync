@@ -29,7 +29,7 @@ const ProductServiceSchema: Schema = new Schema(
     category: {
       type: String,
       required: true,
-      enum: ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Others'],
+      enum: ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'General Consultation', '', 'Others'],
       default: 'Others',
     },
     price: { type: Number, required: true, min: 0 },
