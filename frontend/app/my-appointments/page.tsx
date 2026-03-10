@@ -712,6 +712,25 @@ function ScheduleModal({
     slotsByHour[hour].push(s)
   })
 
+  // Check if a time slot has already passed
+  const isPastSlot = (slotStartTime: string): boolean => {
+    const today = new Date()
+    const todayYmd = today.toISOString().split('T')[0]
+    
+    // If not today, slot is not in the past
+    if (selectedDate !== todayYmd) return false
+    
+    // Compare times
+    const [slotHour, slotMin] = slotStartTime.split(':')
+    const currentHour = today.getHours()
+    const currentMin = today.getMinutes()
+    
+    const slotTimeInMinutes = parseInt(slotHour) * 60 + parseInt(slotMin)
+    const currentTimeInMinutes = currentHour * 60 + currentMin
+    
+    return slotTimeInMinutes <= currentTimeInMinutes
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-225 max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
@@ -882,8 +901,8 @@ function ScheduleModal({
                         <div className="flex-1 space-y-0.5">
                           {hourSlots.map((slot) => {
                             const isSelected = selectedSlot?.startTime === slot.startTime
-                            const isAvailable = slot.status === 'available'
-                            const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
+                            const isAvailable = slot.status === 'available' && !isPastSlot(slot.startTime)
+                            const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking' || isPastSlot(slot.startTime)
 
                             let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
                             if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'

@@ -255,6 +255,25 @@ export default function SurgeryAppointmentModal({
 
   const minDate = new Date(new Date().setHours(0, 0, 0, 0))
 
+  // Check if a time slot has already passed
+  const isPastSlot = (slotStartTime: string): boolean => {
+    const today = new Date()
+    const todayYmd = today.toISOString().split('T')[0]
+    
+    // If not today, slot is not in the past
+    if (date !== todayYmd) return false
+    
+    // Compare times
+    const [slotHour, slotMin] = slotStartTime.split(':')
+    const currentHour = today.getHours()
+    const currentMin = today.getMinutes()
+    
+    const slotTimeInMinutes = parseInt(slotHour) * 60 + parseInt(slotMin)
+    const currentTimeInMinutes = currentHour * 60 + currentMin
+    
+    return slotTimeInMinutes <= currentTimeInMinutes
+  }
+
   // Group time slots by hour
   const slotsByHour: Record<number, TimeSlot[]> = {}
   timeSlots.forEach((s) => {
@@ -464,8 +483,8 @@ export default function SurgeryAppointmentModal({
                             <div className="flex-1 space-y-0.5">
                               {hourSlots.map((slot) => {
                                 const isSelected = selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime
-                                const isAvailable = slot.status === 'available'
-                                const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking'
+                                const isAvailable = slot.status === 'available' && !isPastSlot(slot.startTime)
+                                const isUnavailable = slot.status === 'unavailable' || slot.status === 'your-booking' || isPastSlot(slot.startTime)
 
                                 let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
                                 if (isUnavailable) bg = 'bg-[#900B09] text-white cursor-default'
