@@ -362,7 +362,7 @@ function PetDetailModal({
             {/* Action Buttons */}
             <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-              onClick={() => { onClose(); router.push('/my-appointments') }}
+              onClick={() => { onClose(); router.push(`/my-appointments?petId=${pet.id}`) }}
             >
               <div>
                 <p className="font-semibold text-[#4F4F4F] text-sm">Book Appointment</p>

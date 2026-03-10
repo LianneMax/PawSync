@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
@@ -160,12 +161,14 @@ function Dropdown({
 
 // ========== MAIN PAGE ==========
 export default function MyAppointmentsPage() {
+  const searchParams = useSearchParams()
+  const petIdFromUrl = searchParams.get('petId')
   const { token } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [serviceType, setServiceType] = useState<'all' | 'medical' | 'grooming'>('all')
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(!!petIdFromUrl)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
 
@@ -396,6 +399,7 @@ export default function MyAppointmentsPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onBooked={() => { setModalOpen(false); loadAppointments() }}
+        initialPetId={petIdFromUrl || undefined}
       />
 
       {/* Cancel Confirmation Modal */}
@@ -446,10 +450,12 @@ function ScheduleModal({
   open,
   onClose,
   onBooked,
+  initialPetId,
 }: {
   open: boolean
   onClose: () => void
   onBooked: () => void
+  initialPetId?: string
 }) {
   const { token } = useAuthStore()
 
@@ -557,6 +563,13 @@ function ScheduleModal({
     loadClinics()
     loadServices()
   }, [open, token])
+
+  // Auto-select pet if initialPetId is provided
+  useEffect(() => {
+    if (open && initialPetId && pets.length > 0) {
+      setSelectedPetId(initialPetId)
+    }
+  }, [open, initialPetId, pets])
 
   // Load vets when branch changes
   useEffect(() => {
