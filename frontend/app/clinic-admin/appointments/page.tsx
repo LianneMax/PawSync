@@ -110,29 +110,6 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ---- Helper: normalize appointment type to valid enum values ----
-function normalizeAppointmentType(type: string): string {
-  const typeMap: Record<string, string> = {
-    // Normalize capitalized versions
-    'Consultation': 'consultation',
-    'consultation': 'consultation',
-    'General Checkup': 'general-checkup',
-    'Vaccination': 'vaccination',
-    'Deworming': 'deworming',
-    'Sterilization': 'Sterilization',
-    'Grooming': 'Grooming',
-    'Basic Grooming': 'basic-grooming',
-    'Basic grooming': 'basic-grooming',
-    'Full Grooming': 'full-grooming',
-    'Full grooming': 'full-grooming',
-    'General Consultation': 'General Consultation',
-    'Preventive Care': 'Preventive Care',
-  }
-  
-  // Return mapped value if exists, otherwise return as-is (already in correct format)
-  return typeMap[type] || type
-}
-
 // ==================== DROPDOWN COMPONENT ====================
 
 function Dropdown({
