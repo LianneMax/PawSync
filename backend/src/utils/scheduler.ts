@@ -38,7 +38,7 @@ export function startScheduler() {
     // ── 2. Vaccination overdue email notifications ────────────────────────────
     try {
       const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
       const overdueVaccinations = await Vaccination.find({
         status: 'overdue',
@@ -105,9 +105,9 @@ export function startScheduler() {
     // ── 3. Vaccination 7-day upcoming reminders ───────────────────────────────
     try {
       const in7Days = new Date(now);
-      in7Days.setDate(in7Days.getDate() + 7);
+      in7Days.setUTCDate(in7Days.getUTCDate() + 7);
       const in8Days = new Date(in7Days);
-      in8Days.setDate(in8Days.getDate() + 1);
+      in8Days.setUTCDate(in8Days.getUTCDate() + 1);
 
       const upcomingVaccinations = await Vaccination.find({
         status: 'active',
@@ -174,10 +174,10 @@ export function startScheduler() {
     // ── 4. Appointment 24-hour reminders ─────────────────────────────────────
     try {
       const tomorrowStart = new Date(now);
-      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-      tomorrowStart.setHours(0, 0, 0, 0);
+      tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+      tomorrowStart.setUTCHours(0, 0, 0, 0);
       const tomorrowEnd = new Date(tomorrowStart);
-      tomorrowEnd.setHours(23, 59, 59, 999);
+      tomorrowEnd.setUTCHours(23, 59, 59, 999);
 
       const tomorrowAppointments = await Appointment.find({
         date: { $gte: tomorrowStart, $lte: tomorrowEnd },
@@ -235,7 +235,7 @@ export function startScheduler() {
 
       // Only consider appointments for today or earlier
       const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
+      todayStart.setUTCHours(0, 0, 0, 0);
 
       const activeAppointments = await Appointment.find({
         status: { $in: ['confirmed', 'in_progress'] },

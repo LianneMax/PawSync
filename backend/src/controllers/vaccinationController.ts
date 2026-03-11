@@ -16,7 +16,7 @@ import { sendBoosterScheduledVet } from '../services/emailService';
  */
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
-  d.setDate(d.getDate() + days);
+  d.setUTCDate(d.getUTCDate() + days);
   return d;
 }
 
@@ -189,7 +189,7 @@ export const createVaccination = async (req: Request, res: Response) => {
     let boosterAppointmentId: string | undefined;
     if (nextDueDate) {
       const boosterDate = new Date(nextDueDate);
-      boosterDate.setHours(0, 0, 0, 0);
+      boosterDate.setUTCHours(0, 0, 0, 0);
 
       // Use the just-created vaccination's clinicId/clinicBranchId — already resolved correctly
       const resolvedClinicId = vaccination.clinicId;
