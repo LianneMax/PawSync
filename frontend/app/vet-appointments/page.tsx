@@ -208,7 +208,9 @@ export default function VetAppointmentsPage() {
   const upcomingAppointments = appointments
     .filter((a) => {
       const ds = getDisplayStatus(a)
-      return ds === 'confirmed' || ds === 'in_progress'
+      if (ds !== 'confirmed' && ds !== 'in_progress') return false
+      const apptTime = new Date(a.date + 'T' + a.startTime)
+      return apptTime > new Date() // Only include future appointments
     })
     .sort((a, b) => {
       const dateA = new Date(a.date + 'T' + a.startTime)

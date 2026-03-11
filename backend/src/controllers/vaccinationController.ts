@@ -557,8 +557,85 @@ export const updateVaccination = async (req: Request, res: Response) => {
     if (batchNumber !== undefined) vaccination.batchNumber = batchNumber;
     if (route !== undefined) vaccination.route = route;
     if (notes !== undefined) vaccination.notes = notes;
-    if (nextDueDate !== undefined) vaccination.nextDueDate = nextDueDate ? new Date(nextDueDate) : null;
     if (medicalRecordId !== undefined) vaccination.medicalRecordId = medicalRecordId || null;
+
+    // Handle nextDueDate changes — delete/recreate booster appointment if date changed
+    let nextDueDateChanged = false;
+    if (nextDueDate !== undefined) {
+      const oldNextDueDate = vaccination.nextDueDate;
+      const newNextDueDate = nextDueDate ? new Date(nextDueDate) : null;
+      
+      // Check if the date actually changed
+      if (
+        (oldNextDueDate === null && newNextDueDate !== null) ||
+        (oldNextDueDate !== null && newNextDueDate === null) ||
+        (oldNextDueDate && newNextDueDate && oldNextDueDate.toISOString() !== newNextDueDate.toISOString())
+      ) {
+        nextDueDateChanged = true;
+      }
+      
+      vaccination.nextDueDate = newNextDueDate;
+    }
+
+    // If nextDueDate changed, update or delete the booster appointment
+    if (nextDueDateChanged && vaccination.boosterAppointmentId) {
+      // Delete the old booster appointment
+      await Appointment.deleteOne({ _id: vaccination.boosterAppointmentId });
+      vaccination.boosterAppointmentId = null;
+    }
+
+    // If nextDueDate is now set (either unchanged or changed), and no booster appointment exists, create one
+    if (vaccination.nextDueDate && !vaccination.boosterAppointmentId) {
+      const boosterDate = new Date(vaccination.nextDueDate);
+      boosterDate.setUTCHours(0, 0, 0, 0);
+
+      const resolvedClinicId = vaccination.clinicId;
+      let resolvedBranchId: string | null = vaccination.clinicBranchId
+        ? vaccination.clinicBranchId.toString()
+        : null;
+
+      if (!resolvedBranchId) {
+        const vetUser = await User.findById(vaccination.vetId).select('clinicBranchId').lean();
+        if (vetUser?.clinicBranchId) {
+          resolvedBranchId = vetUser.clinicBranchId.toString();
+        } else if (resolvedClinicId) {
+          const branch = await ClinicBranch.findOne({ clinicId: resolvedClinicId }).select('_id').lean();
+          if (branch) resolvedBranchId = branch._id.toString();
+        }
+      }
+
+      if (resolvedClinicId && resolvedBranchId) {
+        const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+        for (const startTime of candidateSlots) {
+          const endTime = addMinutesToTime(startTime, 30);
+          try {
+            const vacType = await VaccineType.findById(vaccination.vaccineTypeId).select('name numberOfBoosters').lean();
+            const totalDoses = (vacType?.numberOfBoosters || 0) + 1;
+            
+            const boosterAppt = await Appointment.create({
+              petId: vaccination.petId,
+              ownerId: (await Pet.findById(vaccination.petId).select('ownerId'))?.ownerId,
+              vetId: vaccination.vetId,
+              clinicId: resolvedClinicId,
+              clinicBranchId: resolvedBranchId,
+              mode: 'face-to-face',
+              types: ['vaccination'],
+              date: boosterDate,
+              startTime,
+              endTime,
+              status: 'confirmed',
+              notes: `Auto-scheduled booster for ${vaccination.vaccineName}`,
+            });
+            vaccination.boosterAppointmentId = boosterAppt._id;
+            break;
+          } catch (slotErr: any) {
+            if (slotErr?.code === 11000) continue;
+            console.error('[AutoBooster] Appointment creation error:', slotErr);
+            break;
+          }
+        }
+      }
+    }
 
     await vaccination.save();
 
@@ -603,6 +680,12 @@ export const declineVaccination = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'This vaccination is already declined' });
     }
 
+    // Delete associated booster appointment if it exists
+    if (vaccination.boosterAppointmentId) {
+      await Appointment.deleteOne({ _id: vaccination.boosterAppointmentId });
+      vaccination.boosterAppointmentId = null;
+    }
+
     vaccination.status = 'declined';
     vaccination.declinedReason = req.body.reason || null;
     vaccination.declinedBy = req.user.userId as any;
@@ -634,6 +717,11 @@ export const deleteVaccination = async (req: Request, res: Response) => {
     const vaccination = await Vaccination.findById(req.params.id);
     if (!vaccination) {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccination record not found' });
+    }
+
+    // Delete associated booster appointment if it exists
+    if (vaccination.boosterAppointmentId) {
+      await Appointment.deleteOne({ _id: vaccination.boosterAppointmentId });
     }
 
     await vaccination.deleteOne();
