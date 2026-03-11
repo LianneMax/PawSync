@@ -243,7 +243,6 @@ export function startScheduler() {
       }).select('_id date startTime endTime status');
 
       const toCancel: string[] = [];
-      const toComplete: string[] = [];
 
       for (const appt of activeAppointments) {
         const dateStr = appt.date.toISOString().split('T')[0];
@@ -255,12 +254,6 @@ export function startScheduler() {
           if (cancelThreshold < now) {
             toCancel.push(appt._id.toString());
           }
-        } else if (appt.status === 'in_progress') {
-          // Auto-complete if the appointment's end time has passed
-          const apptEnd = new Date(`${dateStr}T${appt.endTime}`);
-          if (apptEnd < now) {
-            toComplete.push(appt._id.toString());
-          }
         }
       }
 
@@ -270,14 +263,6 @@ export function startScheduler() {
           { $set: { status: 'cancelled' } }
         );
         console.log(`[Scheduler] Auto-cancelled ${toCancel.length} appointment(s) (no check-in within 15 min)`);
-      }
-
-      if (toComplete.length > 0) {
-        await Appointment.updateMany(
-          { _id: { $in: toComplete } },
-          { $set: { status: 'completed' } }
-        );
-        console.log(`[Scheduler] Auto-completed ${toComplete.length} past appointment(s)`);
       }
     } catch (err) {
       console.error('[Scheduler] Auto-update appointments error:', err);
