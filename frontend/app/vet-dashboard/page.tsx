@@ -117,7 +117,7 @@ export default function VetDashboardPage() {
 
   const todayCount = appointments.filter((a) => {
     const apptDate = new Date(a.date).toISOString().split('T')[0]
-    return apptDate === today && (a.status === 'confirmed' || a.status === 'completed')
+    return apptDate === today && a.status === 'confirmed'
   }).length
 
   const todayList = appointments
