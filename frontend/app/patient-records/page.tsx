@@ -1654,7 +1654,7 @@ function ViewRecordModal({
                     </button>
                   ) : (
                     <button
-                      onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
+                      onClick={() => { setBillingModalMode('view'); setBillingModalExistingId(typeof record?.billingId === 'object' ? (record?.billingId as any)?._id : record?.billingId ?? undefined); setBillingModalOpen(true) }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
                     >
                       <Receipt className="w-3.5 h-3.5" />
