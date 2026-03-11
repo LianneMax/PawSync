@@ -82,6 +82,7 @@ interface FormState {
   species: string[]
   validityDays: string
   requiresBooster: boolean
+  numberOfBoosters: string
   boosterIntervalDays: string
   minAgeMonths: string
   maxAgeMonths: string
@@ -95,6 +96,7 @@ const emptyForm = (): FormState => ({
   species: ['dog'],
   validityDays: '365',
   requiresBooster: false,
+  numberOfBoosters: '1',
   boosterIntervalDays: '',
   minAgeMonths: '0',
   maxAgeMonths: '',
@@ -251,6 +253,7 @@ export default function VetVaccinationsPage() {
       species: vt.species,
       validityDays: String(vt.validityDays),
       requiresBooster: vt.requiresBooster,
+      numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
       boosterIntervalDays: vt.boosterIntervalDays != null ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
@@ -282,6 +285,7 @@ export default function VetVaccinationsPage() {
         species: form.species,
         validityDays: Number(form.validityDays),
         requiresBooster: form.requiresBooster,
+        numberOfBoosters: form.requiresBooster ? (Number(form.numberOfBoosters) || 1) : 0,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
@@ -706,14 +710,26 @@ export default function VetVaccinationsPage() {
                   <span className="text-sm font-semibold text-[#4F4F4F]">Requires Booster</span>
                 </label>
                 {form.requiresBooster && (
-                  <div className="mt-2">
-                    <label className="block text-xs text-gray-500 mb-1">Booster interval (days)</label>
-                    <input
-                      type="number" min="1" value={form.boosterIntervalDays}
-                      onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
-                      placeholder="e.g. 365"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    />
+                  <div className="mt-2 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Booster interval (days)</label>
+                      <input
+                        type="number" min="1" value={form.boosterIntervalDays}
+                        onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
+                        placeholder="e.g. 365"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Number of boosters</label>
+                      <input
+                        type="number" min="1" value={form.numberOfBoosters}
+                        onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
+                        placeholder="e.g. 3"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">Total doses = boosters + 1</p>
+                    </div>
                   </div>
                 )}
               </div>
