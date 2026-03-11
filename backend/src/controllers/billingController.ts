@@ -445,6 +445,10 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Billing is already marked as paid' });
     }
 
+    if (billing.status !== 'pending_payment') {
+      return res.status(400).json({ status: 'ERROR', message: 'Billing must be approved by the veterinarian before it can be marked as paid' });
+    }
+
     const { amountPaid, paymentMethod } = req.body;
 
     billing.status = 'paid';
