@@ -7,7 +7,8 @@
       "Bash(ls -la /Users/juliannalammoglia/Desktop/PawSync/frontend/components/*.tsx)",
       "Bash(pgrep -f \"ts-node\\\\|nodemon\\\\|node.*dist\")",
       "Bash(lsof -i :5001)",
-      "Bash(curl -s http://localhost:5001/api/billings)"
+      "Bash(curl -s http://localhost:5001/api/billings)",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -name billing* -o -name Billing*)"
     ]
   }
 }

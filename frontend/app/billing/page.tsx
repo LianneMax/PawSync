@@ -52,6 +52,9 @@ interface ApiBilling {
   serviceLabel: string
   serviceDate: string
   createdAt: string
+  paidAt?: string
+  amountPaid?: number
+  paymentMethod?: 'cash' | 'card' | 'qr'
 }
 
 interface ProductServiceOption {
@@ -1386,6 +1389,255 @@ function UploadQRModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ==================== VIEW BILLING MODAL (read-only) ====================
+
+function ViewBillingModal({
+  billing,
+  onClose,
+}: {
+  billing: ApiBilling
+  onClose: () => void
+}) {
+  const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Cash', card: 'Card', qr: 'QR' }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 relative max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Billing Details</h2>
+          <p className="text-sm text-gray-400">
+            {billing.petId?.name} &mdash; {billing.ownerId?.firstName} {billing.ownerId?.lastName}
+          </p>
+        </div>
+
+        {/* Items table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden mb-5">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {billing.items.map((item) => (
+                <tr key={item._id}>
+                  <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'Service' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {item.type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱ {item.unitPrice.toLocaleString()}</td>
+                </tr>
+              ))}
+              {billing.items.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">No items</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Order summary */}
+        <div className="border border-gray-100 rounded-xl p-4 mb-5 space-y-2">
+          <p className="text-sm font-semibold text-[#3D5A58] mb-2">Order Summary</p>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Services / Products Fee</span>
+            <span className="text-[#4F4F4F] font-medium">₱ {billing.subtotal.toLocaleString()}</span>
+          </div>
+          {billing.discount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Discount</span>
+              <span className="text-red-500 font-medium">-₱ {billing.discount.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="border-t border-gray-100 pt-2 flex justify-between text-sm font-semibold">
+            <span className="text-[#4F4F4F]">Total Amount Due</span>
+            <span className="text-[#4F4F4F]">₱ {billing.totalAmountDue.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Payment details (paid only) */}
+        {billing.status === 'paid' && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2">
+            <p className="text-sm font-semibold text-green-700 mb-1">Payment Received</p>
+            {billing.amountPaid !== undefined && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Amount Paid</span>
+                <span className="text-green-700 font-medium">₱ {billing.amountPaid.toLocaleString()}</span>
+              </div>
+            )}
+            {billing.paymentMethod && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Payment Method</span>
+                <span className="text-[#4F4F4F]">{PAYMENT_METHOD_LABEL[billing.paymentMethod] ?? billing.paymentMethod}</span>
+              </div>
+            )}
+            {billing.paidAt && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Paid On</span>
+                <span className="text-[#4F4F4F]">{formatDate(billing.paidAt)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="px-8 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold rounded-xl transition-colors text-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== MARK AS PAID MODAL ====================
+
+function MarkAsPaidModal({
+  billing,
+  onClose,
+  onPaid,
+}: {
+  billing: ApiBilling
+  onClose: () => void
+  onPaid: () => void
+}) {
+  const [amountPaid, setAmountPaid] = useState(billing.totalAmountDue.toString())
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'qr'>('cash')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async () => {
+    const parsed = parseFloat(amountPaid)
+    if (!amountPaid || isNaN(parsed) || parsed < 0) {
+      setError('Please enter a valid amount.')
+      return
+    }
+    setError('')
+    setSubmitting(true)
+    try {
+      const res = await fetch(`${API_BASE}/billings/${billing._id}/pay`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ amountPaid: parsed, paymentMethod }),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        onPaid()
+        onClose()
+      } else {
+        setError(data.message || 'Failed to mark as paid.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const PAYMENT_METHODS: { value: 'cash' | 'card' | 'qr'; label: string }[] = [
+    { value: 'cash', label: 'Cash' },
+    { value: 'card', label: 'Card' },
+    { value: 'qr', label: 'QR' },
+  ]
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Mark as Paid</h2>
+          <p className="text-sm text-gray-400">
+            {billing.petId?.name} &mdash; {billing.ownerId?.firstName} {billing.ownerId?.lastName}
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">Amount Paid (₱)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#4F4F4F] outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+              placeholder="Enter amount paid"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Total due: ₱ {billing.totalAmountDue.toLocaleString()}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">Payment Method</label>
+            <div className="grid grid-cols-3 gap-2">
+              {PAYMENT_METHODS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setPaymentMethod(value)}
+                  className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                    paymentMethod === value
+                      ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                      : 'bg-white text-[#4F4F4F] border-gray-200 hover:border-[#476B6B] hover:text-[#476B6B]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+        </div>
+
+        <div className="flex gap-3 mt-7">
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+          >
+            {submitting ? 'Saving...' : 'Confirm Payment'}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== CLINIC ADMIN VIEW ====================
 
 function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string; clinicBranchId?: string } | null }) {
@@ -1397,6 +1649,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingBilling, setEditingBilling] = useState<ApiBilling | null>(null)
   const [showQRModal, setShowQRModal] = useState(false)
+  const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
+  const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
 
   const fetchBillings = useCallback(async () => {
     setLoading(true)
@@ -1576,12 +1830,33 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => { setEditingBilling(b); setShowEditModal(true) }}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {b.status === 'pending_payment' && (
+                          <button
+                            onClick={() => setMarkingPaidBilling(b)}
+                            className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
+                        {b.status === 'paid' ? (
+                          <button
+                            onClick={() => setViewingBilling(b)}
+                            className="text-gray-400 hover:text-[#476B6B] transition-colors"
+                            title="View billing details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingBilling(b); setShowEditModal(true) }}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            title="Edit billing"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1613,6 +1888,21 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           currentUser={currentUser}
           onClose={() => { setShowEditModal(false); setEditingBilling(null) }}
           onUpdated={fetchBillings}
+        />
+      )}
+
+      {markingPaidBilling && (
+        <MarkAsPaidModal
+          billing={markingPaidBilling}
+          onClose={() => setMarkingPaidBilling(null)}
+          onPaid={fetchBillings}
+        />
+      )}
+
+      {viewingBilling && (
+        <ViewBillingModal
+          billing={viewingBilling}
+          onClose={() => setViewingBilling(null)}
         />
       )}
     </div>

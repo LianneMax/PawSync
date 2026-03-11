@@ -22,6 +22,8 @@ export interface IBilling extends Document {
   totalAmountDue: number;
   status: 'awaiting_approval' | 'pending_payment' | 'paid';
   paidAt: Date | null;
+  amountPaid: number | null;
+  paymentMethod: 'cash' | 'card' | 'qr' | null;
   serviceLabel: string;
   serviceDate: Date;
   createdAt: Date;
@@ -128,6 +130,15 @@ const BillingSchema = new Schema(
     },
     paidAt: {
       type: Date,
+      default: null,
+    },
+    amountPaid: {
+      type: Number,
+      default: null,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['cash', 'card', 'qr', null],
       default: null,
     },
     serviceLabel: {

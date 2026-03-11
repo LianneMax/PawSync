@@ -445,8 +445,12 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Billing is already marked as paid' });
     }
 
+    const { amountPaid, paymentMethod } = req.body;
+
     billing.status = 'paid';
     billing.paidAt = new Date();
+    if (amountPaid !== undefined) (billing as any).amountPaid = amountPaid;
+    if (paymentMethod !== undefined) (billing as any).paymentMethod = paymentMethod;
     await billing.save();
 
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
