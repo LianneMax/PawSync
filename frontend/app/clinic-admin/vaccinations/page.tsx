@@ -51,6 +51,7 @@ interface TypeFormState {
   species: string[]
   validityDays: string
   requiresBooster: boolean
+  numberOfBoosters: string
   boosterIntervalDays: string
   minAgeMonths: string
   maxAgeMonths: string
@@ -64,6 +65,7 @@ const emptyTypeForm = (): TypeFormState => ({
   species: ['dog'],
   validityDays: '365',
   requiresBooster: false,
+  numberOfBoosters: '1',
   boosterIntervalDays: '',
   minAgeMonths: '0',
   maxAgeMonths: '',
@@ -215,6 +217,7 @@ export default function ClinicAdminVaccinationsPage() {
       species: [...vt.species],
       validityDays: String(vt.validityDays),
       requiresBooster: vt.requiresBooster,
+      numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
       boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
@@ -258,6 +261,7 @@ export default function ClinicAdminVaccinationsPage() {
         species: form.species,
         validityDays: Number(form.validityDays),
         requiresBooster: form.requiresBooster,
+        numberOfBoosters: form.requiresBooster ? (Number(form.numberOfBoosters) || 1) : 0,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
@@ -303,7 +307,7 @@ export default function ClinicAdminVaccinationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8">
+      <div className="flex flex-col h-screen overflow-hidden p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -355,9 +359,9 @@ export default function ClinicAdminVaccinationsPage() {
 
         {/* ── RECORDS TAB ── */}
         {tab === 'records' && (
-          <>
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Status filters */}
-            <div className="flex bg-white rounded-full p-1.5 shadow-sm mb-5">
+            <div className="flex bg-white rounded-full p-1.5 shadow-sm mb-5 shrink-0">
               {STATUS_TABS.map((t) => (
                 <button
                   key={t}
@@ -372,7 +376,7 @@ export default function ClinicAdminVaccinationsPage() {
             </div>
 
             {/* Search */}
-            <div className="relative mb-5">
+            <div className="relative mb-5 shrink-0">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
@@ -384,7 +388,7 @@ export default function ClinicAdminVaccinationsPage() {
             </div>
 
             {recLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-3 shrink-0">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
                 ))}
@@ -397,8 +401,8 @@ export default function ClinicAdminVaccinationsPage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px] gap-4 px-5 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide border-b">
+              <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px] gap-4 px-5 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide border-b sticky top-0 z-10">
                   <span />
                   <span>Pet</span>
                   <span>Vaccine</span>
@@ -464,7 +468,7 @@ export default function ClinicAdminVaccinationsPage() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {/* ── VACCINE TYPES TAB ── */}
@@ -626,21 +630,33 @@ export default function ClinicAdminVaccinationsPage() {
                 <button
                   type="button"
                   onClick={() => setForm((p) => ({ ...p, requiresBooster: !p.requiresBooster }))}
-                  className="relative w-11 h-6 rounded-full transition-colors bg-gray-200 overflow-hidden hover:bg-gray-300"
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.requiresBooster ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5 bg-[#476B6B]!' : 'translate-x-0'}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
               {form.requiresBooster && (
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Booster interval (days)</label>
-                  <input
-                    type="number" min="1" value={form.boosterIntervalDays}
-                    onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
-                    placeholder="e.g. 365"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 font-semibold mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
+                    <input
+                      type="number" min="1" value={form.boosterIntervalDays}
+                      onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
+                      placeholder="e.g. 21"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 font-semibold mb-1">Number of Boosters <span className="text-red-400">*</span></label>
+                    <input
+                      type="number" min="1" value={form.numberOfBoosters}
+                      onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
+                      placeholder="e.g. 3"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Total doses = boosters + 1</p>
+                  </div>
                 </div>
               )}
 

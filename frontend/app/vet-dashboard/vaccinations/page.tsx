@@ -5,19 +5,6 @@ import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import {
-  Syringe,
-  Search,
-  ChevronRight,
-  AlertCircle,
-  Loader,
-  Plus,
-  Pencil,
-  X,
-  CheckCircle2,
-  ClipboardList,
-  Trash2,
-} from 'lucide-react'
-import {
   getVetVaccinations,
   getStatusLabel,
   getStatusClasses,
@@ -29,44 +16,36 @@ import {
   type Vaccination,
   type VaccineType,
 } from '@/lib/vaccinations'
+import {
+  Syringe,
+  Search,
+  Calendar,
+  AlertCircle,
+  Loader,
+  Plus,
+  Pencil,
+  X,
+  CheckCircle2,
+  ClipboardList,
+  Trash2,
+} from 'lucide-react'
 
-// ── Vaccination Records ──────────────────────────────────────────────────────
+// ── Shared ────────────────────────────────────────────────────────────────────
 
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'expired', label: 'Expired' },
-  { value: 'declined', label: 'Declined' },
-]
+const STATUS_TABS = ['all', 'active', 'pending', 'overdue', 'expired', 'declined'] as const
+type StatusTab = (typeof STATUS_TABS)[number]
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+function formatDate(d: string | null | undefined) {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function getPetName(vax: Vaccination): string {
-  if (typeof vax.petId === 'object' && vax.petId !== null) return (vax.petId as any).name || 'Unknown Pet'
-  return 'Unknown Pet'
-}
-
-function getPetSpecies(vax: Vaccination): string {
-  if (typeof vax.petId === 'object' && vax.petId !== null) return (vax.petId as any).species || ''
-  return ''
-}
-
-function getPetPhoto(vax: Vaccination): string | null {
-  if (typeof vax.petId === 'object' && vax.petId !== null) return (vax.petId as any).photo || null
-  return null
-}
-
-// ── Vaccine Types ────────────────────────────────────────────────────────────
+// ── Vaccine Types helpers ─────────────────────────────────────────────────────
 
 const SPECIES_OPTIONS = [
-  { value: 'dog', label: 'Canine' },
-  { value: 'cat', label: 'Feline' },
-  { value: 'both', label: 'Both' },
+  { value: 'dog', label: 'Dog' },
+  { value: 'cat', label: 'Cat' },
+  { value: 'all', label: 'All (Dog & Cat)' },
 ]
 
 const ROUTE_OPTIONS = [
@@ -77,7 +56,7 @@ const ROUTE_OPTIONS = [
   { value: 'oral', label: 'Oral' },
 ]
 
-interface FormState {
+interface TypeFormState {
   name: string
   species: string[]
   validityDays: string
@@ -91,7 +70,7 @@ interface FormState {
   defaultBatchNumber: string
 }
 
-const emptyForm = (): FormState => ({
+const emptyTypeForm = (): TypeFormState => ({
   name: '',
   species: ['dog'],
   validityDays: '365',
@@ -132,7 +111,7 @@ function SpeciesBadge({ species }: { species: string[] }) {
   )
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function VetVaccinationsPage() {
   const router = useRouter()
@@ -142,50 +121,49 @@ export default function VetVaccinationsPage() {
   // ── Records state ──
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [recLoading, setRecLoading] = useState(true)
-  const [recError, setRecError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [activeTab, setActiveTab] = useState<StatusTab>('all')
   const [search, setSearch] = useState('')
 
-  const loadVaccinations = useCallback(async () => {
+  const fetchVaccinations = useCallback(async () => {
     if (!token) return
+    setRecLoading(true)
     try {
-      setRecLoading(true)
-      setRecError(null)
-      const data = await getVetVaccinations(token, { status: statusFilter !== 'all' ? statusFilter : undefined })
+      const data = await getVetVaccinations(token, { status: activeTab !== 'all' ? activeTab : undefined })
       setVaccinations(data)
-    } catch (err) {
-      setRecError(err instanceof Error ? err.message : 'Failed to load vaccinations')
     } finally {
       setRecLoading(false)
     }
-  }, [token, statusFilter])
+  }, [token, activeTab])
 
-  useEffect(() => { if (tab === 'records') loadVaccinations() }, [loadVaccinations, tab])
+  useEffect(() => { if (tab === 'records') fetchVaccinations() }, [fetchVaccinations, tab])
 
-  // Reload records when the window regains focus (e.g. after navigating back from the new vaccination form)
   useEffect(() => {
-    const onFocus = () => { if (tab === 'records') loadVaccinations() }
+    const onFocus = () => { if (tab === 'records') fetchVaccinations() }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [tab, loadVaccinations])
+  }, [tab, fetchVaccinations])
 
-  const filtered = vaccinations.filter((vax) => {
-    if (!search.trim()) return true
-    const term = search.toLowerCase()
-    return getPetName(vax).toLowerCase().includes(term) || vax.vaccineName.toLowerCase().includes(term)
+  const filtered = vaccinations.filter((v) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    const petName = typeof v.petId === 'object' ? (v.petId as any)?.name?.toLowerCase() ?? '' : ''
+    return v.vaccineName.toLowerCase().includes(q) || petName.includes(q)
   })
 
-  // ── Vaccine Types state ──
-  const [types, setTypes] = useState<VaccineType[]>([])
-  const [typesLoading, setTypesLoading] = useState(false)
-  const [typesError, setTypesError] = useState<string | null>(null)
-  const [showModal, setShowModal] = useState(false)
-  const [editTarget, setEditTarget] = useState<VaccineType | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm())
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [togglingId, setTogglingId] = useState<string | null>(null)
+  function getPetPhoto(v: Vaccination) {
+    const pet = v.petId as any
+    return typeof pet === 'object' ? pet?.photo ?? null : null
+  }
+
+  function getPetInitial(v: Vaccination) {
+    const pet = v.petId as any
+    return typeof pet === 'object' ? (pet?.name?.[0] ?? '?').toUpperCase() : '?'
+  }
+
+  function getPetName(v: Vaccination) {
+    const pet = v.petId as any
+    return typeof pet === 'object' ? pet?.name ?? '—' : '—'
+  }
 
   // ── Delete vaccination state ──
   const [deleteTarget, setDeleteTarget] = useState<Vaccination | null>(null)
@@ -204,6 +182,18 @@ export default function VetVaccinationsPage() {
       setDeleting(false)
     }
   }
+
+  // ── Vaccine Types state ──
+  const [types, setTypes] = useState<VaccineType[]>([])
+  const [typesLoading, setTypesLoading] = useState(false)
+  const [typesError, setTypesError] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [editTarget, setEditTarget] = useState<VaccineType | null>(null)
+  const [form, setForm] = useState<TypeFormState>(emptyTypeForm())
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   // ── Delete vaccine type state ──
   const [deleteTypeTarget, setDeleteTypeTarget] = useState<VaccineType | null>(null)
@@ -240,7 +230,7 @@ export default function VetVaccinationsPage() {
 
   const openCreate = () => {
     setEditTarget(null)
-    setForm(emptyForm())
+    setForm(emptyTypeForm())
     setSaveError(null)
     setSaveSuccess(false)
     setShowModal(true)
@@ -250,7 +240,7 @@ export default function VetVaccinationsPage() {
     setEditTarget(vt)
     setForm({
       name: vt.name,
-      species: vt.species,
+      species: [...vt.species],
       validityDays: String(vt.validityDays),
       requiresBooster: vt.requiresBooster,
       numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
@@ -266,19 +256,31 @@ export default function VetVaccinationsPage() {
     setShowModal(true)
   }
 
-  const handleSpeciesSelect = (val: string) => {
-    setForm((prev) => ({ ...prev, species: val === 'both' ? ['dog', 'cat'] : [val] }))
-  }
-
-  const activeSpeciesOption = (val: string) => {
-    if (val === 'both') return form.species.length === 2
-    return form.species.length === 1 && form.species[0] === val
+  const handleSpeciesToggle = (s: string) => {
+    if (s === 'all') {
+      setForm((f) => ({ ...f, species: ['all'] }))
+      return
+    }
+    setForm((f) => {
+      const filtered = f.species.filter((x) => x !== 'all')
+      if (filtered.includes(s)) {
+        return { ...f, species: filtered.filter((x) => x !== s) || [s] }
+      }
+      return { ...f, species: [...filtered, s] }
+    })
   }
 
   const handleSave = async () => {
     if (!token) return
-    setSaveError(null)
+    if (!form.name.trim()) { setSaveError('Name is required'); return }
+    if (form.species.length === 0) { setSaveError('Select at least one species'); return }
+    if (!form.validityDays || isNaN(Number(form.validityDays))) { setSaveError('Valid validity days required'); return }
+    if (form.requiresBooster && (!form.boosterIntervalDays || isNaN(Number(form.boosterIntervalDays)))) {
+      setSaveError('Booster interval required when booster is enabled')
+      return
+    }
     setSaving(true)
+    setSaveError(null)
     try {
       const payload = {
         name: form.name.trim(),
@@ -321,7 +323,7 @@ export default function VetVaccinationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8">
+      <div className="flex flex-col h-screen overflow-hidden p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -333,7 +335,15 @@ export default function VetVaccinationsPage() {
               <p className="text-sm text-gray-500">Records and vaccine catalog</p>
             </div>
           </div>
-          {tab === 'types' && (
+          {tab === 'records' ? (
+            <button
+              onClick={() => router.push('/vet-dashboard/vaccinations/new')}
+              className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Vaccination
+            </button>
+          ) : (
             <button
               onClick={openCreate}
               className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors"
@@ -344,7 +354,7 @@ export default function VetVaccinationsPage() {
           )}
         </div>
 
-        {/* Tabs */}
+        {/* Main tabs */}
         <div className="inline-grid grid-cols-2 bg-white rounded-full p-1.5 shadow-sm mb-3">
           {([
             { value: 'records', label: 'Records', icon: <ClipboardList className="w-4 h-4" /> },
@@ -363,33 +373,30 @@ export default function VetVaccinationsPage() {
           ))}
         </div>
 
-        {/* Status filters */}
-        {tab === 'records' && (
-          <div className="flex bg-white rounded-full p-1.5 shadow-sm mb-6">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
-                className={`flex-1 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  statusFilter === f.value ? 'bg-[#476B6B] text-white shadow-sm' : 'text-[#4F4F4F] hover:bg-gray-50'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* ── RECORDS TAB ── */}
         {tab === 'records' && (
-          <>
+          <div className="flex flex-col flex-1 min-h-0">
+            {/* Status filters */}
+            <div className="flex bg-white rounded-full p-1.5 shadow-sm mb-5 shrink-0">
+              {STATUS_TABS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setActiveTab(t)}
+                  className={`flex-1 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all capitalize ${
+                    activeTab === t ? 'bg-[#476B6B] text-white shadow-sm' : 'text-[#4F4F4F] hover:bg-gray-50'
+                  }`}
+                >
+                  {t === 'all' ? 'All' : getStatusLabel(t as Vaccination['status'])}
+                </button>
+              ))}
+            </div>
 
             {/* Search */}
-            <div className="relative mb-5">
+            <div className="relative mb-5 shrink-0">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by pet name or vaccine..."
+                placeholder="Search by pet name or vaccine…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-[#F8F6F2] border border-transparent rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
@@ -397,76 +404,112 @@ export default function VetVaccinationsPage() {
             </div>
 
             {recLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader className="w-6 h-6 text-[#7FA5A3] animate-spin" />
-              </div>
-            ) : recError ? (
-              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                {recError}
+              <div className="space-y-3 shrink-0">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
+                ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-16">
-                <Syringe className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No vaccination records found</p>
-                <p className="text-gray-400 text-sm mt-1">
-                  {search ? 'Try a different search term.' : 'Vaccinations will appear here after completing a visit.'}
+              <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+                <Syringe className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">
+                  No {activeTab !== 'all' ? activeTab : ''} vaccination records found
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {filtered.map((vax) => (
-                  <div
-                    key={vax._id}
-                    className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#7FA5A3]/40 hover:bg-[#F8F6F2] transition-all"
-                  >
-                    <button
-                      className="flex items-center gap-4 flex-1 min-w-0 text-left"
-                      onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${vax._id}`)}
-                    >
-                      {getPetPhoto(vax) ? (
-                        <img src={getPetPhoto(vax)!} alt={getPetName(vax)} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
-                          <span className="text-[#476B6B] font-bold text-sm">{getPetName(vax).charAt(0).toUpperCase()}</span>
+              <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px_36px] gap-4 px-5 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide border-b sticky top-0 z-10">
+                  <span />
+                  <span>Pet</span>
+                  <span>Vaccine</span>
+                  <span>Date Given</span>
+                  <span>Expires</span>
+                  <span>Booster Due</span>
+                  <span>Status</span>
+                  <span />
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {filtered.map((v) => (
+                    <div key={v._id} className="group hover:bg-[#f8fbfb] transition-colors">
+                      {/* Mobile card */}
+                      <div className="md:hidden p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {getPetPhoto(v) ? (
+                              <img src={getPetPhoto(v)!} alt={getPetName(v)} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                {getPetInitial(v)}
+                              </div>
+                            )}
+                            <p className="font-medium text-[#4F4F4F] text-sm">{getPetName(v)}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getStatusClasses(v.status)}`}>
+                              {getStatusLabel(v.status)}
+                            </span>
+                            <button
+                              onClick={() => setDeleteTarget(v)}
+                              className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <p className="font-semibold text-[#4F4F4F] text-sm truncate">{vax.vaccineName}</p>
-                          <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full shrink-0 ${getStatusClasses(vax.status)}`}>
-                            {getStatusLabel(vax.status)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 truncate capitalize">
-                          {getPetName(vax)}{getPetSpecies(vax) ? ` · ${getPetSpecies(vax)}` : ''}
-                        </p>
-                        <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
-                          <span>Given: {formatDate(vax.dateAdministered)}</span>
-                          {vax.expiryDate && <span>Expires: {formatDate(vax.expiryDate)}</span>}
-                          {vax.nextDueDate && <span className="text-amber-500 font-medium">Booster Due: {formatDate(vax.nextDueDate)}</span>}
-                        </div>
+                        <button className="w-full text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <p className="text-sm text-gray-700 font-medium">{v.vaccineName}</p>
+                          <p className="text-xs text-gray-400 mt-1">Given: {formatDate(v.dateAdministered)} · Expires: {formatDate(v.expiryDate)}</p>
+                          {v.nextDueDate && <p className="text-xs text-amber-500 font-medium mt-0.5">Booster Due: {formatDate(v.nextDueDate)}</p>}
+                        </button>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(vax)}
-                      className="p-2 rounded-xl hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors shrink-0"
-                      title="Delete vaccination"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+
+                      {/* Desktop row */}
+                      <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px_36px] gap-4 items-center px-5 py-3.5">
+                        <button onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          {getPetPhoto(v) ? (
+                            <img src={getPetPhoto(v)!} alt={getPetName(v)} className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {getPetInitial(v)}
+                            </div>
+                          )}
+                        </button>
+                        <button className="text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <p className="font-medium text-[#4F4F4F] text-sm">{getPetName(v)}</p>
+                        </button>
+                        <button className="text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <p className="text-sm text-gray-700">{v.vaccineName}</p>
+                        </button>
+                        <button className="text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="w-3 h-3" />
+                            {formatDate(v.dateAdministered)}
+                          </div>
+                        </button>
+                        <button className="text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <p className="text-xs text-gray-500">{formatDate(v.expiryDate)}</p>
+                        </button>
+                        <button className="text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <p className="text-xs text-amber-500 font-medium">{v.nextDueDate ? formatDate(v.nextDueDate) : '—'}</p>
+                        </button>
+                        <button className="text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
+                          <span className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusClasses(v.status)}`}>
+                            {getStatusLabel(v.status)}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(v)}
+                          className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-
-            {!recLoading && !recError && filtered.length > 0 && (
-              <p className="text-center text-xs text-gray-400 mt-4">
-                {filtered.length} record{filtered.length !== 1 ? 's' : ''} shown
-              </p>
-            )}
-          </>
+          </div>
         )}
 
         {/* ── VACCINE TYPES TAB ── */}
@@ -474,11 +517,11 @@ export default function VetVaccinationsPage() {
           <>
             {typesLoading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader className="w-6 h-6 animate-spin text-[#476B6B]" />
+                <Loader className="w-6 h-6 text-[#7FA5A3] animate-spin" />
               </div>
             ) : typesError ? (
-              <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+                <AlertCircle className="w-5 h-5 shrink-0" />
                 {typesError}
               </div>
             ) : types.length === 0 ? (
@@ -505,7 +548,7 @@ export default function VetVaccinationsPage() {
                       <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
                         <span>Valid: <span className="font-medium text-[#4F4F4F]">{vt.validityDays}d</span></span>
                         {vt.requiresBooster && vt.boosterIntervalDays && (
-                          <span>Booster every: <span className="font-medium text-[#4F4F4F]">{vt.boosterIntervalDays}d</span></span>
+                          <span>Booster every: <span className="font-medium text-[#4F4F4F]">{vt.boosterIntervalDays}d × {vt.numberOfBoosters || 1} dose{(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}</span></span>
                         )}
                         {vt.route && <span>Route: <span className="font-medium text-[#4F4F4F] capitalize">{vt.route}</span></span>}
                         {vt.defaultManufacturer && <span>Mfr: <span className="font-medium text-[#4F4F4F]">{vt.defaultManufacturer}</span></span>}
@@ -549,7 +592,7 @@ export default function VetVaccinationsPage() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Vaccination Confirmation Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
@@ -563,7 +606,7 @@ export default function VetVaccinationsPage() {
               </div>
             </div>
             <p className="text-sm text-gray-600">
-              Are you sure you want to delete the <span className="font-semibold">{deleteTarget.vaccineName}</span> record for <span className="font-semibold">{getPetName(deleteTarget)}</span>?
+              Are you sure you want to delete the <span className="font-semibold">{deleteTarget.vaccineName}</span> record?
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -623,7 +666,7 @@ export default function VetVaccinationsPage() {
         </div>
       )}
 
-      {/* Create / Edit Modal */}
+      {/* Create / Edit Vaccine Type Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
@@ -637,6 +680,17 @@ export default function VetVaccinationsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {saveSuccess && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />Saved successfully
+                </div>
+              )}
+              {saveError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />{saveError}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
                   Vaccine Name <span className="text-red-500">*</span>
@@ -652,14 +706,14 @@ export default function VetVaccinationsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-2">Species</label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {SPECIES_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => handleSpeciesSelect(opt.value)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                        activeSpeciesOption(opt.value)
+                      onClick={() => handleSpeciesToggle(opt.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                        form.species.includes(opt.value)
                           ? 'bg-[#476B6B] text-white border-[#476B6B]'
                           : 'bg-white text-gray-500 border-gray-200 hover:border-[#7FA5A3]'
                       }`}
@@ -680,6 +734,7 @@ export default function VetVaccinationsPage() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Min Age (months)</label>
@@ -694,45 +749,49 @@ export default function VetVaccinationsPage() {
                   <input
                     type="number" min="0" value={form.maxAgeMonths}
                     onChange={(e) => setForm((p) => ({ ...p, maxAgeMonths: e.target.value }))}
-                    placeholder="Leave empty for no max age"
+                    placeholder="Leave empty for no maximum"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox" checked={form.requiresBooster}
-                    onChange={(e) => setForm((p) => ({ ...p, requiresBooster: e.target.checked }))}
-                    className="w-4 h-4 accent-[#476B6B]"
-                  />
-                  <span className="text-sm font-semibold text-[#4F4F4F]">Requires Booster</span>
-                </label>
-                {form.requiresBooster && (
-                  <div className="mt-2 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Booster interval (days)</label>
-                      <input
-                        type="number" min="1" value={form.boosterIntervalDays}
-                        onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
-                        placeholder="e.g. 365"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Number of boosters</label>
-                      <input
-                        type="number" min="1" value={form.numberOfBoosters}
-                        onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
-                        placeholder="e.g. 3"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                      />
-                      <p className="text-[10px] text-gray-400 mt-1">Total doses = boosters + 1</p>
-                    </div>
-                  </div>
-                )}
+              <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#4F4F4F]">Requires Booster</p>
+                  <p className="text-xs text-gray-400">Puppy/kitten series or boosters</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, requiresBooster: !p.requiresBooster }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.requiresBooster ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
               </div>
+
+              {form.requiresBooster && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 font-semibold mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
+                    <input
+                      type="number" min="1" value={form.boosterIntervalDays}
+                      onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
+                      placeholder="e.g. 21"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 font-semibold mb-1">Number of Boosters <span className="text-red-400">*</span></label>
+                    <input
+                      type="number" min="1" value={form.numberOfBoosters}
+                      onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
+                      placeholder="e.g. 3"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Total doses = boosters + 1</p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Route</label>
@@ -768,17 +827,6 @@ export default function VetVaccinationsPage() {
                 />
                 <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
               </div>
-
-              {saveError && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                  <AlertCircle className="w-4 h-4 shrink-0" />{saveError}
-                </div>
-              )}
-              {saveSuccess && (
-                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />Saved successfully
-                </div>
-              )}
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex justify-end gap-2">
