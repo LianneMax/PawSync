@@ -24,7 +24,10 @@ export default function VaccineCalendar({
   isClinicView = false,
   onDateSelect,
 }: VaccineCalendarProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    const today = new Date()
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  });
   const [calendarMarkers, setCalendarMarkers] = useState<Date[]>([]);
 
   // Generate calendar markers for dates with vaccines

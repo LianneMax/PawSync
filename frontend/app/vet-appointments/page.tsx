@@ -131,7 +131,13 @@ export default function VetAppointmentsPage() {
   const { token } = useAuthStore()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date()
     return { year: d.getFullYear(), month: d.getMonth() }
@@ -200,7 +206,11 @@ export default function VetAppointmentsPage() {
   // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
     if (a.status !== 'confirmed' && a.status !== 'in_progress') return false
-    const apptDate = new Date(a.date).toISOString().split('T')[0]
+    const d = new Date(a.date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const apptDate = `${year}-${month}-${day}`
     return apptDate === calendarDate
   })
 
@@ -209,12 +219,21 @@ export default function VetAppointmentsPage() {
     .filter((a) => {
       const ds = getDisplayStatus(a)
       if (ds !== 'confirmed' && ds !== 'in_progress') return false
-      const apptTime = new Date(a.date + 'T' + a.startTime)
+      // Parse date correctly - a.date is already in ISO format (YYYY-MM-DD)
+      const [year, month, day] = a.date.split('-').map(Number)
+      const [hours, minutes] = a.startTime.split(':').map(Number)
+      const apptTime = new Date(year, month - 1, day, hours, minutes, 0)
       return apptTime > new Date() // Only include future appointments
     })
     .sort((a, b) => {
-      const dateA = new Date(a.date + 'T' + a.startTime)
-      const dateB = new Date(b.date + 'T' + b.startTime)
+      const [yearA, monthA, dayA] = a.date.split('-').map(Number)
+      const [hoursA, minutesA] = a.startTime.split(':').map(Number)
+      const dateA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA, 0)
+      
+      const [yearB, monthB, dayB] = b.date.split('-').map(Number)
+      const [hoursB, minutesB] = b.startTime.split(':').map(Number)
+      const dateB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB, 0)
+      
       return dateA.getTime() - dateB.getTime()
     })
 
@@ -231,8 +250,20 @@ export default function VetAppointmentsPage() {
     })
 
   // Stats for today
-  const today = new Date().toISOString().split('T')[0]
-  const todayAppts = appointments.filter((a) => new Date(a.date).toISOString().split('T')[0] === today)
+  const today = (() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })()
+  const todayAppts = appointments.filter((a) => {
+    const d = new Date(a.date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}` === today
+  })
   const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_progress').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
 
@@ -340,7 +371,10 @@ export default function VetAppointmentsPage() {
   const goToDay = (offset: number) => {
     const d = new Date(calendarDate)
     d.setDate(d.getDate() + offset)
-    setCalendarDate(d.toISOString().split('T')[0])
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setCalendarDate(`${year}-${month}-${day}`)
   }
 
   const goToMonth = (offset: number) => {
@@ -363,7 +397,13 @@ export default function VetAppointmentsPage() {
   const datesWithAppointments = new Set(
     appointments
       .filter((a) => a.status === 'confirmed' || a.status === 'in_progress' || a.status === 'pending')
-      .map((a) => new Date(a.date).toISOString().split('T')[0])
+      .map((a) => {
+        const d = new Date(a.date)
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      })
   )
 
   const dateLabel = new Date(calendarDate).toLocaleDateString('en-US', {
