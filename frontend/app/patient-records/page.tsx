@@ -162,6 +162,7 @@ export default function PatientRecordsPage() {
   const [currentRecordEdited, setCurrentRecordEdited] = useState(false)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
   const [billingModalMode, setBillingModalMode] = useState<'create' | 'view' | 'update'>('create')
+  const [billingModalExistingId, setBillingModalExistingId] = useState<string | undefined>(undefined)
 
   // Follow-up modal
   const [followUpOpen, setFollowUpOpen] = useState(false)
@@ -653,7 +654,7 @@ export default function PatientRecordsPage() {
                       <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
                         {currentRecordEdited ? (
                           <button
-                            onClick={() => { setBillingModalMode('update'); setBillingModalOpen(true) }}
+                            onClick={() => { setBillingModalMode('update'); setBillingModalExistingId(typeof currentRecord?.billingId === 'object' ? (currentRecord?.billingId as any)?._id : currentRecord?.billingId ?? undefined); setBillingModalOpen(true) }}
                             className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors"
                           >
                             <Receipt className="w-4 h-4" />
@@ -911,6 +912,7 @@ export default function PatientRecordsPage() {
         }
         record={currentRecord ?? undefined}
         token={token || undefined}
+        existingBillingId={billingModalExistingId}
       />
     </DashboardLayout>
   )

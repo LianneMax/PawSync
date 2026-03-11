@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -254,7 +254,7 @@ function VetApprovalModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Products and Services</h2>
@@ -654,7 +654,7 @@ function CreateBillingModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
 
       {/* ── Step 1: Attach to Medical Record ─────────────────────────────── */}
       {step === 1 && (
@@ -888,9 +888,27 @@ function CreateBillingModal({
 
 // ==================== EDIT BILLING MODAL ====================
 
+const CATEGORY_ORDER_BILLING = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Vaccines', 'Others']
+
+function groupByCategory(items: ProductServiceOption[]) {
+  const map = new Map<string, ProductServiceOption[]>()
+  for (const item of items) {
+    const cat = (item as any).category || item.type
+    if (!map.has(cat)) map.set(cat, [])
+    map.get(cat)!.push(item)
+  }
+  const result: { category: string; items: ProductServiceOption[] }[] = []
+  for (const cat of CATEGORY_ORDER_BILLING) {
+    if (map.has(cat)) result.push({ category: cat, items: map.get(cat)! })
+  }
+  for (const [cat, items] of map) {
+    if (!CATEGORY_ORDER_BILLING.includes(cat)) result.push({ category: cat, items })
+  }
+  return result
+}
+
 function EditBillingModal({
   billing,
-  currentUser,
   onClose,
   onUpdated,
 }: {
@@ -899,11 +917,10 @@ function EditBillingModal({
   onClose: () => void
   onUpdated: () => void
 }) {
-  const [step, setStep] = useState<1 | 2>(1)
-
-  // Step 1 state — pre-populated from billing
-  const [productSearch, setProductSearch] = useState('')
-  const [productResults, setProductResults] = useState<ProductServiceOption[]>([])
+  const [catalog, setCatalog] = useState<(ProductServiceOption & { category: string })[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [showAddPanel, setShowAddPanel] = useState(false)
+  const [addSearch, setAddSearch] = useState('')
   const [selectedProducts, setSelectedProducts] = useState<{ _id: string; name: string; type: 'Service' | 'Product'; price: number }[]>(
     billing.items.map((item) => ({
       _id: item.productServiceId || item._id,
@@ -912,123 +929,60 @@ function EditBillingModal({
       price: item.unitPrice,
     }))
   )
-
-  // Step 2 state — pre-populated from billing
-  const [clientId, setClientId] = useState(billing.ownerId?._id || '')
-  const [patientId, setPatientId] = useState(billing.petId?._id || '')
-  const [veterinarianId, setVeterinarianId] = useState(billing.vetId?._id || '')
-  const [discount, setDiscount] = useState(billing.discount || 0)
-  const [allPatients, setAllPatients] = useState<any[]>([])
-  const [clientOptions, setClientOptions] = useState<{ id: string; name: string }[]>([])
-  const [vetOptions, setVetOptions] = useState<{ id: string; name: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
 
-  // Load patients and vets when reaching step 2
+  // Load full catalog on mount
   useEffect(() => {
-    if (step !== 2) return
-    if (currentUser?.clinicId) {
-      fetch(`${API_BASE}/clinics/${currentUser.clinicId}/patients`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.status === 'SUCCESS') {
-            const pets = data.data.pets || []
-            setAllPatients(pets)
-            const clientMap = new Map<string, { id: string; name: string }>()
-            pets.forEach((p: any) => {
-              if (p.owner?._id) {
-                clientMap.set(p.owner._id.toString(), {
-                  id: p.owner._id.toString(),
-                  name: `${p.owner.firstName} ${p.owner.lastName}`,
-                })
-              }
-            })
-            // Ensure current owner is included even if not in clinic patients yet
-            if (billing.ownerId?._id && !clientMap.has(billing.ownerId._id)) {
-              clientMap.set(billing.ownerId._id, {
-                id: billing.ownerId._id,
-                name: `${billing.ownerId.firstName} ${billing.ownerId.lastName}`,
-              })
-            }
-            setClientOptions([...clientMap.values()])
-          }
-        })
-        .catch(() => {})
-    }
-    fetch(`${API_BASE}/clinics/mine/vets`, { headers: authHeaders() })
+    setCatalogLoading(true)
+    fetch(`${API_BASE}/product-services`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (data.status === 'SUCCESS') {
-          setVetOptions(
-            (data.data.vets || []).map((v: any) => ({
-              id: v.vetId?.toString() || v._id?.toString() || '',
-              name: v.name,
-            }))
-          )
+          setCatalog((data.data.items || []).map((i: any) => ({
+            _id: i._id,
+            name: i.name,
+            type: i.type,
+            price: i.price,
+            category: i.category || i.type,
+          })))
         }
       })
       .catch(() => {})
-  }, [step, currentUser?.clinicId, billing.ownerId])
+      .finally(() => setCatalogLoading(false))
+  }, [])
 
-  // Product search with debounce
-  useEffect(() => {
-    if (!productSearch || productSearch.length < 2) {
-      setProductResults([])
-      return
-    }
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `${API_BASE}/product-services?search=${encodeURIComponent(productSearch)}`,
-          { headers: authHeaders() }
-        )
-        const data = await res.json()
-        if (data.status === 'SUCCESS') {
-          setProductResults(
-            (data.data.items || []).map((i: any) => ({ _id: i._id, name: i.name, type: i.type, price: i.price }))
-          )
-        }
-      } catch {}
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [productSearch])
-
-  const patientOptions = allPatients.filter(
-    (p: any) => !clientId || p.owner?._id?.toString() === clientId
-  )
-  // Always include the current pet in the list
-  const currentPetInOptions = patientOptions.find((p: any) => p._id?.toString() === patientId)
-  const fullPatientOptions = currentPetInOptions
-    ? patientOptions
-    : [{ _id: billing.petId?._id, name: billing.petId?.name }, ...patientOptions]
+  const filteredGrouped = useMemo(() => {
+    const q = addSearch.toLowerCase()
+    const filtered = q
+      ? catalog.filter((c) => c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q))
+      : catalog
+    return groupByCategory(filtered)
+  }, [addSearch, catalog])
 
   const total = selectedProducts.reduce((s, p) => s + p.price, 0)
 
-  const addProduct = (p: ProductServiceOption) => {
+  const addProduct = (p: ProductServiceOption & { category: string }) => {
     if (!selectedProducts.find((s) => s._id === p._id)) {
       setSelectedProducts((prev) => [...prev, p])
     }
-    setProductSearch('')
-    setProductResults([])
+    setAddSearch('')
+    setShowAddPanel(false)
   }
 
   const removeProduct = (id: string) => {
     setSelectedProducts((prev) => prev.filter((p) => p._id !== id))
   }
 
-  const handleSendForApproval = async () => {
+  const handleSave = async () => {
     setSubmitting(true)
     try {
       const body = {
-        ownerId: clientId,
-        petId: patientId,
-        vetId: veterinarianId,
         items: selectedProducts.map((p) => ({
           productServiceId: p._id,
           name: p.name,
           type: p.type,
           unitPrice: p.price,
         })),
-        discount,
       }
       const res = await fetch(`${API_BASE}/billings/${billing._id}`, {
         method: 'PATCH',
@@ -1050,186 +1004,114 @@ function EditBillingModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Edit Billing</h2>
+          <p className="text-sm text-gray-400">Add or remove products and services</p>
+        </div>
 
-      {/* ── Step 1: Products and Services ────────────────────────────────── */}
-      {step === 1 && (
-        <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Products and Services</h2>
-            <p className="text-sm text-gray-400">Add/Edit acquired products and services</p>
-          </div>
-
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search Product/Service to Add"
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-gray-50"
-            />
-            {productSearch && productResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                {productResults
-                  .filter((p) => !selectedProducts.find((s) => s._id === p._id))
-                  .map((p) => (
-                    <button
-                      key={p._id}
-                      onClick={() => addProduct(p)}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex justify-between items-center"
-                    >
-                      <span>{p.name}</span>
-                      <span className="text-gray-400">Php {p.price.toLocaleString()}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-
-          <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+        {/* Selected items table */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {selectedProducts.map((p) => (
+                <ProductItemRow key={p._id} item={p} onRemove={removeProduct} />
+              ))}
+              {selectedProducts.length === 0 && (
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service ↓</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type ↓</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price ↓</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Action ↓</th>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">No products or services added yet</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {selectedProducts.map((p) => (
-                  <ProductItemRow key={p._id} item={p} onRemove={removeProduct} />
-                ))}
-                {selectedProducts.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">No products or services added yet</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <p className="text-center text-sm font-medium text-[#4F4F4F] mb-6">
-            Total amount : Php {total.toLocaleString()}
-          </p>
-
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => setStep(2)}
-              disabled={selectedProducts.length === 0}
-              className="px-8 py-2 bg-[#3D5A58] text-white rounded-lg text-sm font-medium hover:bg-[#2e4341] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-            <button
-              onClick={onClose}
-              className="px-8 py-2 border border-gray-300 text-[#4F4F4F] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
 
-      {/* ── Step 2: Billing Information ───────────────────────────────────── */}
-      {step === 2 && (
-        <div className="bg-white rounded-2xl p-8 w-full max-w-xl mx-4 shadow-xl">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Billing Information</h2>
-            <p className="text-sm text-gray-400">View and edit the billing information accordingly before sending to veterinarian</p>
-          </div>
-
-          <div className="flex gap-6">
-            <div className="flex-1 flex flex-col gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Client</label>
-                <select
-                  value={clientId}
-                  onChange={(e) => { setClientId(e.target.value); setPatientId('') }}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  <option value="">Select</option>
-                  {clientOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Patient</label>
-                <select
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  <option value="">Select</option>
-                  {fullPatientOptions.map((p: any) => (
-                    <option key={p._id} value={p._id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Veterinarian</label>
-                <select
-                  value={veterinarianId}
-                  onChange={(e) => setVeterinarianId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  <option value="">Select</option>
-                  {vetOptions.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Discount (₱)</label>
+        {/* Add product/service panel */}
+        <div className="mb-5">
+          {!showAddPanel ? (
+            <button
+              onClick={() => setShowAddPanel(true)}
+              className="flex items-center gap-1.5 text-xs font-medium text-[#476B6B] hover:text-[#3a5858] transition-colors py-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Product / Service
+            </button>
+          ) : (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                 <input
-                  type="number"
-                  min={0}
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  type="text"
+                  value={addSearch}
+                  onChange={(e) => setAddSearch(e.target.value)}
+                  placeholder="Search products and services…"
+                  className="flex-1 text-xs bg-transparent outline-none text-[#4F4F4F] placeholder:text-gray-400"
+                  autoFocus
                 />
+                <button onClick={() => { setShowAddPanel(false); setAddSearch('') }} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="max-h-52 overflow-y-auto">
+                {catalogLoading ? (
+                  <p className="text-xs text-gray-400 text-center py-5">Loading…</p>
+                ) : filteredGrouped.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-5">No results found</p>
+                ) : (
+                  filteredGrouped.map(({ category, items: catItems }) => (
+                    <div key={category}>
+                      <div className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
+                      </div>
+                      {catItems
+                        .filter((c) => !selectedProducts.find((s) => s._id === c._id))
+                        .map((entry) => (
+                          <button
+                            key={entry._id}
+                            onClick={() => addProduct(entry as any)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#f0f7f7] text-left border-t border-gray-50 transition-colors"
+                          >
+                            <p className="text-sm font-medium text-[#4F4F4F]">{entry.name}</p>
+                            <span className="text-xs font-semibold text-[#476B6B] shrink-0 ml-4">Php {entry.price.toLocaleString()}</span>
+                          </button>
+                        ))}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-
-            <div className="w-52 shrink-0">
-              <div className="border border-gray-200 rounded-xl p-4">
-                <p className="text-sm font-semibold text-[#3D5A58] mb-3">Order Summary</p>
-                <p className="text-xs text-gray-400 mb-2">Amount Due</p>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-500">Services / Products Fee</span>
-                  <span className="text-[#4F4F4F] font-medium">₱ {total.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-3">
-                  <span className="text-gray-500">Discount</span>
-                  <span className="text-red-500 font-medium">-₱ {discount.toLocaleString()}</span>
-                </div>
-                <div className="border-t border-gray-200 pt-3 flex justify-between text-sm font-semibold">
-                  <span className="text-[#4F4F4F]">Total Amount Due</span>
-                  <span className="text-[#4F4F4F]">₱ {Math.max(0, total - discount).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 justify-center mt-8">
-            <button
-              onClick={handleSendForApproval}
-              disabled={submitting}
-              className="px-8 py-2 bg-[#3D5A58] text-white rounded-lg text-sm font-medium hover:bg-[#2e4341] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Saving...' : 'Send For Approval'}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-8 py-2 border border-gray-300 text-[#4F4F4F] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+          )}
         </div>
-      )}
+
+        <p className="text-center text-sm font-medium text-[#4F4F4F] mb-6">
+          Total amount : Php {total.toLocaleString()}
+        </p>
+
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={handleSave}
+            disabled={submitting || selectedProducts.length === 0}
+            className="px-8 py-2 bg-[#3D5A58] text-white rounded-lg text-sm font-medium hover:bg-[#2e4341] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-8 py-2 border border-gray-300 text-[#4F4F4F] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

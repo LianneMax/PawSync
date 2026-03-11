@@ -92,6 +92,11 @@ export const createBilling = async (req: Request, res: Response) => {
       serviceDate: serviceDate || new Date(),
     });
 
+    // Link billing back to the medical record so the page knows one already exists
+    if (medicalRecordId) {
+      await MedicalRecord.findByIdAndUpdate(medicalRecordId, { billingId: billing._id });
+    }
+
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING);
 
     return res.status(201).json({

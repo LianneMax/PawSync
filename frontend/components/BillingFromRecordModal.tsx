@@ -36,6 +36,7 @@ export interface BillingFromRecordModalProps {
   vetName: string
   record?: MedicalRecord
   token?: string
+  existingBillingId?: string
   onBillingCreated?: (billingId: string) => void
 }
 
@@ -95,6 +96,7 @@ export default function BillingFromRecordModal({
   vetName,
   record,
   token,
+  existingBillingId,
   onBillingCreated,
 }: BillingFromRecordModalProps) {
   const [items, setItems] = useState<BillingLineItem[]>([])
@@ -108,7 +110,7 @@ export default function BillingFromRecordModal({
   const isReadOnly = mode === 'view'
   const total = items.reduce((sum, item) => sum + item.price, 0)
 
-  // ---- Fetch catalog & auto-populate when modal opens in create/update mode ----
+  // ---- Fetch catalog & populate items when modal opens in create/update mode ----
   useEffect(() => {
     if (!open || isReadOnly) return
     if (!record) return
@@ -150,7 +152,33 @@ export default function BillingFromRecordModal({
         const allCatalog = [...productServices, ...vaccineTypes]
         setCatalog(allCatalog)
 
-        // 2. Fetch vaccinations for this pet administered on the same day as the record
+        // 2. In update mode, load the existing billing items instead of re-matching
+        if (mode === 'update' && existingBillingId) {
+          const billingRes = await authenticatedFetch(
+            `/billings/${existingBillingId}`,
+            { method: 'GET' },
+            token,
+          )
+          const existingItems: any[] = billingRes?.data?.billing?.items ?? []
+          const mapped: BillingLineItem[] = existingItems.map((item: any) => {
+            const catalogId = item.productServiceId || item.vaccineTypeId || null
+            const catalogEntry = catalogId ? allCatalog.find((c) => c.id === catalogId) : null
+            const isVaccine = !!item.vaccineTypeId
+            return {
+              tempId: nextTempId(),
+              name: item.name,
+              price: item.unitPrice ?? 0,
+              type: isVaccine ? 'Vaccine' : (item.type as 'Service' | 'Product'),
+              category: catalogEntry?.category ?? (isVaccine ? 'Vaccines' : item.type),
+              catalogId: catalogId,
+              catalogKind: isVaccine ? 'vaccine' : catalogId ? 'product-service' : 'unmatched',
+            }
+          })
+          setItems(mapped)
+          return
+        }
+
+        // 3. Create mode: fetch vaccinations for this pet on the same day as the record
         const petObj = typeof record.petId === 'object' ? (record.petId as any) : null
         const petId = petObj?._id ?? record.petId
         let petVaccinations: any[] = []
@@ -176,7 +204,7 @@ export default function BillingFromRecordModal({
           }
         }
 
-        // 3. Auto-match record entries to catalog items
+        // 4. Auto-match record entries to catalog items
         const autoItems: BillingLineItem[] = []
 
         // Medications
@@ -295,7 +323,7 @@ export default function BillingFromRecordModal({
     return groupByCategoryOrdered(filtered)
   }, [addSearch, catalog])
 
-  // ---- Save / create billing ----
+  // ---- Save / create or update billing ----
   const handleSave = async () => {
     if (!record) {
       onClose()
@@ -310,17 +338,6 @@ export default function BillingFromRecordModal({
 
     setSaving(true)
     try {
-      const pet = typeof record.petId === 'object' ? (record.petId as any) : { _id: record.petId }
-      const vet = typeof record.vetId === 'object' ? (record.vetId as any) : { _id: record.vetId }
-      const branch =
-        typeof record.clinicBranchId === 'object'
-          ? (record.clinicBranchId as any)
-          : { _id: record.clinicBranchId }
-      const apptId =
-        typeof record.appointmentId === 'object'
-          ? (record.appointmentId as any)?._id
-          : record.appointmentId
-
       const billingItems = itemsToSave.map((item) => ({
         ...(item.catalogKind === 'product-service' && item.catalogId
           ? { productServiceId: item.catalogId }
@@ -332,6 +349,42 @@ export default function BillingFromRecordModal({
         type: item.type === 'Vaccine' ? 'Service' : item.type,
         unitPrice: item.price,
       }))
+
+      // UPDATE existing billing via PATCH
+      if (mode === 'update' && existingBillingId) {
+        const res = await authenticatedFetch(
+          `/billings/${existingBillingId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ items: billingItems }),
+          },
+          token,
+        )
+        if (res.status === 'SUCCESS') {
+          setSaved(true)
+          toast.success('Billing updated successfully')
+          onBillingCreated?.(existingBillingId)
+          setTimeout(() => {
+            onClose()
+            setSaved(false)
+          }, 1200)
+        } else {
+          toast.error(res.message || 'Failed to update billing')
+        }
+        return
+      }
+
+      // CREATE new billing via POST
+      const pet = typeof record.petId === 'object' ? (record.petId as any) : { _id: record.petId }
+      const vet = typeof record.vetId === 'object' ? (record.vetId as any) : { _id: record.vetId }
+      const branch =
+        typeof record.clinicBranchId === 'object'
+          ? (record.clinicBranchId as any)
+          : { _id: record.clinicBranchId }
+      const apptId =
+        typeof record.appointmentId === 'object'
+          ? (record.appointmentId as any)?._id
+          : record.appointmentId
 
       const res = await authenticatedFetch(
         '/billings',
@@ -362,8 +415,8 @@ export default function BillingFromRecordModal({
         toast.error(res.message || 'Failed to create billing')
       }
     } catch (err) {
-      console.error('Create billing error:', err)
-      toast.error('An error occurred while creating billing')
+      console.error('Save billing error:', err)
+      toast.error('An error occurred while saving billing')
     } finally {
       setSaving(false)
     }

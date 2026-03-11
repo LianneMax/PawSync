@@ -61,6 +61,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
   const { token } = useAuthStore()
   const [showBillingModal, setShowBillingModal] = useState(false)
   const [billingStatus, setBillingStatus] = useState<'awaiting_approval' | 'pending_payment' | 'paid' | null>(null)
+  const [existingBillingId, setExistingBillingId] = useState<string | null>(null)
 
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -74,9 +75,11 @@ export default function ClinicAdminMedicalRecordViewPage() {
           setRecord(rec)
 
           if (rec.billingId) {
+            const billingIdStr = typeof rec.billingId === 'object' ? (rec.billingId as any)._id ?? String(rec.billingId) : String(rec.billingId)
+            setExistingBillingId(billingIdStr)
             try {
               const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-              const billingRes = await fetch(`${apiBase}/billings/${rec.billingId}`, {
+              const billingRes = await fetch(`${apiBase}/billings/${billingIdStr}`, {
                 headers: {
                   'Content-Type': 'application/json',
                   ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -568,7 +571,11 @@ export default function ClinicAdminMedicalRecordViewPage() {
         vetName={`${vet.firstName || ''} ${vet.lastName || ''}`.trim()}
         record={record}
         token={token || undefined}
-        onBillingCreated={(billingId) => setBillingStatus('awaiting_approval')}
+        existingBillingId={existingBillingId ?? undefined}
+        onBillingCreated={(billingId) => {
+          setExistingBillingId(billingId)
+          setBillingStatus('awaiting_approval')
+        }}
       />
     </DashboardLayout>
   )
