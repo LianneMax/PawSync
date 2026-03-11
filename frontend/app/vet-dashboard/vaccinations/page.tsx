@@ -440,6 +440,7 @@ export default function VetVaccinationsPage() {
                         <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
                           <span>Given: {formatDate(vax.dateAdministered)}</span>
                           {vax.expiryDate && <span>Expires: {formatDate(vax.expiryDate)}</span>}
+                          {vax.nextDueDate && <span className="text-amber-500 font-medium">Booster Due: {formatDate(vax.nextDueDate)}</span>}
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />

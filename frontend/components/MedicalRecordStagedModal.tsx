@@ -209,7 +209,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [notesMinimized, setNotesMinimized] = useState(false)
 
   // Whether this appointment includes vaccination/booster
-  const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination')
+  const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination' || t === 'rabies-vaccination')
 
   // Whether this appointment is a surgery appointment
   const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) =>
@@ -559,6 +559,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           notes: vaccineNotes || undefined,
           medicalRecordId: recordId,
           appointmentId: appointmentId || undefined,
+          clinicId: clinicId || undefined,
+          clinicBranchId: clinicBranchId || undefined,
         }, token)
         setVaccineCreated(true)
         setCreatedVaccineId(res._id)
@@ -624,6 +626,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           notes: vaccineNotes || undefined,
           medicalRecordId: recordId,
           appointmentId: appointmentId || undefined,
+          clinicId: clinicId || undefined,
+          clinicBranchId: clinicBranchId || undefined,
         }, token)
         setVaccineCreated(true)
         setCreatedVaccineId(res._id)

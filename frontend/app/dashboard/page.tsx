@@ -119,6 +119,41 @@ function formatSlotTime(time: string): string {
   return `${display}:${m}${ampm}`
 }
 
+function formatAppointmentTypeDisplay(type: string): string {
+  const displayMap: Record<string, string> = {
+    'consultation': 'Consultation',
+    'general-checkup': 'General Checkup',
+    'primary-treatment': 'Primary Treatment',
+    'vaccination': 'Vaccination',
+    'rabies-vaccination': 'Rabies Vaccination',
+    'puppy-litter-vaccination': 'Puppy Litter Vaccination',
+    'deworming': 'Deworming',
+    'cbc': 'CBC Test',
+    'blood-chemistry-16': 'Blood Chemistry (16)',
+    'pcr-test': 'PCR Test',
+    'x-ray': 'X-Ray',
+    'ultrasound': 'Ultrasound',
+    'abdominal-surgery': 'Abdominal Surgery',
+    'orthopedic-surgery': 'Orthopedic Surgery',
+    'dental-scaling': 'Dental Scaling',
+    'laser-therapy': 'Laser Therapy',
+    'Sterilization': 'Sterilization',
+    'inpatient-care': 'Inpatient Care',
+    'outpatient-treatment': 'Outpatient Treatment',
+    'point-of-care-diagnostic': 'Point of Care Diagnostic',
+    'basic-grooming': 'Basic Grooming',
+    'full-grooming': 'Full Grooming',
+    'Basic Grooming': 'Basic Grooming',
+    'Full Grooming': 'Full Grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+    'Grooming': 'Grooming',
+    'flea-tick-prevention': 'Flea & Tick Prevention',
+  }
+  
+  return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+}
+
 function apiAppointmentToDashboard(appt: APIAppointment): DashboardAppointment {
   const appointmentDate = new Date(appt.date)
   const startTimeFormatted = formatSlotTime(appt.startTime)
@@ -135,7 +170,7 @@ function apiAppointmentToDashboard(appt: APIAppointment): DashboardAppointment {
 
   return {
     id: appt._id,
-    title: appt.types.length > 0 ? appt.types.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ') : 'Appointment',
+    title: appt.types.length > 0 ? appt.types.map(formatAppointmentTypeDisplay).join(', ') : 'Appointment',
     date: appointmentDate,
     time: `${startTimeFormatted} - ${endTimeFormatted}`,
     clinic: clinicName,

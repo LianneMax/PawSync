@@ -87,6 +87,41 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function formatAppointmentTypeDisplay(type: string): string {
+  const displayMap: Record<string, string> = {
+    'consultation': 'Consultation',
+    'general-checkup': 'General Checkup',
+    'primary-treatment': 'Primary Treatment',
+    'vaccination': 'Vaccination',
+    'rabies-vaccination': 'Rabies Vaccination',
+    'puppy-litter-vaccination': 'Puppy Litter Vaccination',
+    'deworming': 'Deworming',
+    'cbc': 'CBC Test',
+    'blood-chemistry-16': 'Blood Chemistry (16)',
+    'pcr-test': 'PCR Test',
+    'x-ray': 'X-Ray',
+    'ultrasound': 'Ultrasound',
+    'abdominal-surgery': 'Abdominal Surgery',
+    'orthopedic-surgery': 'Orthopedic Surgery',
+    'dental-scaling': 'Dental Scaling',
+    'laser-therapy': 'Laser Therapy',
+    'Sterilization': 'Sterilization',
+    'inpatient-care': 'Inpatient Care',
+    'outpatient-treatment': 'Outpatient Treatment',
+    'point-of-care-diagnostic': 'Point of Care Diagnostic',
+    'basic-grooming': 'Basic Grooming',
+    'full-grooming': 'Full Grooming',
+    'Basic Grooming': 'Basic Grooming',
+    'Full Grooming': 'Full Grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+    'Grooming': 'Grooming',
+    'flea-tick-prevention': 'Flea & Tick Prevention',
+  }
+  
+  return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+}
+
 function emptyVitalEntry(): VitalEntry {
   return { value: '', notes: '' }
 }
@@ -557,7 +592,7 @@ export default function PatientRecordsPage() {
                           <div className="flex flex-wrap gap-1 mb-2">
                             {(currentRecord.appointmentId.types || []).map((t: string) => (
                               <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#f0f7f7] text-[#476B6B] font-medium capitalize">
-                                {t}
+                                {formatAppointmentTypeDisplay(t)}
                               </span>
                             ))}
                           </div>
@@ -731,7 +766,7 @@ export default function PatientRecordsPage() {
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {(record.appointmentId.types || []).map((t: string) => (
                                   <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#f0f7f7] text-[#476B6B] font-medium capitalize">
-                                    {t}
+                                    {formatAppointmentTypeDisplay(t)}
                                   </span>
                                 ))}
                               </div>

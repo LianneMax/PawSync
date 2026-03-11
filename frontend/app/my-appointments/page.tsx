@@ -58,8 +58,8 @@ function normalizeAppointmentType(type: string): string {
     'Vaccination/Immunization': 'vaccination',
     'Flea & Tick Prevention': 'flea-tick-prevention',
     'Flea Tick Prevention': 'flea-tick-prevention',
-    'Rabies': 'rabies',
-    'Rabies Vaccination': 'rabies',
+    'Rabies': 'rabies-vaccination',
+    'Rabies Vaccination': 'rabies-vaccination',
     'Deworming': 'deworming',
     'Sterilization': 'Sterilization',
     'Grooming': 'Grooming',
@@ -74,6 +74,44 @@ function normalizeAppointmentType(type: string): string {
   // Return mapped value if exists, otherwise return as-is (already in correct format)
   return typeMap[type] || type
 }
+
+// ---- Helper: format appointment type for display ----
+function formatAppointmentTypeDisplay(type: string): string {
+  const displayMap: Record<string, string> = {
+    'consultation': 'Consultation',
+    'general-checkup': 'General Checkup',
+    'primary-treatment': 'Primary Treatment',
+    'vaccination': 'Vaccination',
+    'rabies-vaccination': 'Rabies Vaccination',
+    'puppy-litter-vaccination': 'Puppy Litter Vaccination',
+    'deworming': 'Deworming',
+    'cbc': 'CBC Test',
+    'blood-chemistry-16': 'Blood Chemistry (16)',
+    'pcr-test': 'PCR Test',
+    'x-ray': 'X-Ray',
+    'ultrasound': 'Ultrasound',
+    'abdominal-surgery': 'Abdominal Surgery',
+    'orthopedic-surgery': 'Orthopedic Surgery',
+    'dental-scaling': 'Dental Scaling',
+    'laser-therapy': 'Laser Therapy',
+    'Sterilization': 'Sterilization',
+    'inpatient-care': 'Inpatient Care',
+    'outpatient-treatment': 'Outpatient Treatment',
+    'point-of-care-diagnostic': 'Point of Care Diagnostic',
+    'basic-grooming': 'Basic Grooming',
+    'full-grooming': 'Full Grooming',
+    'Basic Grooming': 'Basic Grooming',
+    'Full Grooming': 'Full Grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+    'Grooming': 'Grooming',
+    'flea-tick-prevention': 'Flea & Tick Prevention',
+  }
+  
+  // Return mapped display value if exists, otherwise capitalize each word
+  return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+}
+
 
 // ---- Helper: format time for display ----
 function formatSlotTime(time: string) {
@@ -333,7 +371,7 @@ export default function MyAppointmentsPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex flex-wrap gap-1">
                     {appt.types.map((t) => (
-                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{t ? t.replace('-', ' ') : ''}</span>
+                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
                     ))}
                   </div>
                   <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${

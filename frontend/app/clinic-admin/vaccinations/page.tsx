@@ -398,12 +398,13 @@ export default function ClinicAdminVaccinationsPage() {
               </div>
             ) : (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_120px] gap-4 px-5 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide border-b">
+                <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px] gap-4 px-5 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide border-b">
                   <span />
                   <span>Pet</span>
                   <span>Vaccine</span>
                   <span>Date Given</span>
                   <span>Expires</span>
+                  <span>Booster Due</span>
                   <span>Status</span>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -435,10 +436,11 @@ export default function ClinicAdminVaccinationsPage() {
                         </div>
                         <p className="text-sm text-gray-700 font-medium">{v.vaccineName}</p>
                         <p className="text-xs text-gray-400 mt-1">Given: {formatDate(v.dateAdministered)} · Expires: {formatDate(v.expiryDate)}</p>
+                        {v.nextDueDate && <p className="text-xs text-amber-500 font-medium mt-0.5">Booster Due: {formatDate(v.nextDueDate)}</p>}
                       </div>
 
                       {/* Desktop row */}
-                      <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_120px] gap-4 items-center px-5 py-3.5">
+                      <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px] gap-4 items-center px-5 py-3.5">
                         <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold">
                           {getPetInitial(v)}
                         </div>
@@ -452,6 +454,7 @@ export default function ClinicAdminVaccinationsPage() {
                           {formatDate(v.dateAdministered)}
                         </div>
                         <p className="text-xs text-gray-500">{formatDate(v.expiryDate)}</p>
+                        <p className="text-xs text-amber-500 font-medium">{v.nextDueDate ? formatDate(v.nextDueDate) : '—'}</p>
                         <span className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusClasses(v.status)}`}>
                           {getStatusLabel(v.status)}
                         </span>

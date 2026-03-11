@@ -7,7 +7,9 @@ import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
 import Appointment from '../models/Appointment';
+import ClinicBranch from '../models/ClinicBranch';
 import { createNotification } from '../services/notificationService';
+import { sendBoosterScheduledVet } from '../services/emailService';
 
 /**
  * Helper: add days to a date, returns a new Date.
@@ -139,11 +141,29 @@ export const createVaccination = async (req: Request, res: Response) => {
         ? addDays(adminDate, vaccineType.boosterIntervalDays)
         : null;
 
+    // Resolve clinicId/clinicBranchId — priority: body → JWT → appointmentId lookup → vet user doc
+    let resolvedCreateClinicId: any = clinicId || req.user.clinicId;
+    let resolvedCreateBranchId: any = clinicBranchId || req.user.clinicBranchId || null;
+
+    if (!resolvedCreateClinicId && appointmentId) {
+      const appt = await Appointment.findById(appointmentId).select('clinicId clinicBranchId').lean();
+      if (appt) {
+        resolvedCreateClinicId = appt.clinicId;
+        resolvedCreateBranchId = resolvedCreateBranchId || appt.clinicBranchId || null;
+      }
+    }
+
+    if (!resolvedCreateClinicId) {
+      const vetUser = await User.findById(vetId).select('clinicId clinicBranchId').lean();
+      resolvedCreateClinicId = vetUser?.clinicId || null;
+      resolvedCreateBranchId = resolvedCreateBranchId || vetUser?.clinicBranchId || null;
+    }
+
     const vaccination = await Vaccination.create({
       petId,
       vetId,
-      clinicId: clinicId || req.user.clinicId,
-      clinicBranchId: clinicBranchId || req.user.clinicBranchId || null,
+      clinicId: resolvedCreateClinicId,
+      clinicBranchId: resolvedCreateBranchId,
       vaccineTypeId,
       vaccineName: vaccineType.name,
       manufacturer: manufacturer || '',
@@ -165,62 +185,118 @@ export const createVaccination = async (req: Request, res: Response) => {
       .substring(0, 24);
     await vaccination.save();
 
-    const populated = await Vaccination.findById(vaccination._id)
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
-      .populate('vetId', 'firstName lastName')
-      .populate('clinicId', 'name')
-      .populate('clinicBranchId', 'name');
-
     // Auto-schedule the next booster appointment if a nextDueDate was computed
     let boosterAppointmentId: string | undefined;
     if (nextDueDate) {
       const boosterDate = new Date(nextDueDate);
       boosterDate.setHours(0, 0, 0, 0);
-      const resolvedClinicId = clinicId || req.user.clinicId;
-      const resolvedBranchId = clinicBranchId || req.user.clinicBranchId || null;
 
-      // Try several time slots to avoid double-booking
-      const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
-      for (const startTime of candidateSlots) {
-        const endTime = addMinutesToTime(startTime, 30);
-        try {
-          const boosterAppt = await Appointment.create({
-            petId,
-            ownerId: pet.ownerId,
-            vetId,
-            clinicId: resolvedClinicId,
-            clinicBranchId: resolvedBranchId,
-            mode: 'face-to-face',
-            types: ['vaccination'],
-            date: boosterDate,
-            startTime,
-            endTime,
-            status: 'pending',
-            notes: `Auto-scheduled booster for ${vaccineType.name}`,
-          });
-          boosterAppointmentId = boosterAppt._id.toString();
-          break;
-        } catch (_slotErr) {
-          // Slot taken — try the next one
-          continue;
+      // Use the just-created vaccination's clinicId/clinicBranchId — already resolved correctly
+      const resolvedClinicId = vaccination.clinicId;
+
+      // clinicBranchId is required on Appointment — try vaccination first, then vet's user doc, then first branch
+      let resolvedBranchId: string | null = vaccination.clinicBranchId
+        ? vaccination.clinicBranchId.toString()
+        : null;
+
+      if (!resolvedBranchId) {
+        const vetUser = await User.findById(vetId).select('clinicBranchId').lean();
+        if (vetUser?.clinicBranchId) {
+          resolvedBranchId = vetUser.clinicBranchId.toString();
+        } else if (resolvedClinicId) {
+          const branch = await ClinicBranch.findOne({ clinicId: resolvedClinicId }).select('_id').lean();
+          if (branch) resolvedBranchId = branch._id.toString();
         }
       }
 
-      // Notify the pet owner about the scheduled booster
+      if (!resolvedClinicId || !resolvedBranchId) {
+        console.error('[AutoBooster] Cannot auto-schedule booster: clinicId or clinicBranchId could not be resolved');
+      } else {
+        // Try several time slots to avoid double-booking
+        const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+        for (const startTime of candidateSlots) {
+          const endTime = addMinutesToTime(startTime, 30);
+          try {
+            const boosterAppt = await Appointment.create({
+              petId,
+              ownerId: pet.ownerId,
+              vetId,
+              clinicId: resolvedClinicId,
+              clinicBranchId: resolvedBranchId,
+              mode: 'face-to-face',
+              types: ['vaccination'],
+              date: boosterDate,
+              startTime,
+              endTime,
+              status: 'confirmed',
+              notes: `Auto-scheduled booster for ${vaccineType.name}`,
+            });
+            boosterAppointmentId = boosterAppt._id.toString();
+            break;
+          } catch (slotErr: any) {
+            // Only continue looping for duplicate key (slot conflict); break on any other error
+            if (slotErr?.code === 11000) continue;
+            console.error('[AutoBooster] Appointment creation error:', slotErr);
+            break;
+          }
+        }
+
+        if (!boosterAppointmentId) {
+          console.error('[AutoBooster] All candidate slots were taken — booster not scheduled');
+        } else {
+          // Link booster appointment back to the vaccination record
+          await Vaccination.findByIdAndUpdate(vaccination._id, { boosterAppointmentId });
+        }
+      }
+
+      // Notify the pet owner and vet about the scheduled booster
       if (boosterAppointmentId) {
+        const boosterDateStr = boosterDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         try {
           await createNotification(
             pet.ownerId.toString(),
             'appointment_scheduled',
             'Booster Appointment Scheduled',
-            `A booster appointment for ${vaccineType.name} has been automatically scheduled for ${boosterDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Please confirm with the clinic.`,
+            `A booster appointment for ${vaccineType.name} has been automatically confirmed for ${boosterDateStr}.`,
             { appointmentId: boosterAppointmentId, vaccineName: vaccineType.name }
           );
         } catch (notifErr) {
-          console.error('[Notification] Booster appointment notification error:', notifErr);
+          console.error('[Notification] Booster appointment owner notification error:', notifErr);
+        }
+
+        // Notify the vet
+        try {
+          await createNotification(
+            vetId.toString(),
+            'appointment_scheduled',
+            'Booster Appointment Scheduled',
+            `A booster appointment for ${vaccineType.name} has been auto-scheduled for ${pet.name} on ${boosterDateStr}.`,
+            { appointmentId: boosterAppointmentId, vaccineName: vaccineType.name, petId }
+          );
+          // Send email to vet
+          const vet = await User.findById(vetId).select('firstName lastName email');
+          const owner = await User.findById(pet.ownerId).select('firstName lastName');
+          if (vet?.email && owner) {
+            await sendBoosterScheduledVet({
+              vetEmail: vet.email,
+              vetFirstName: vet.firstName,
+              petName: pet.name,
+              ownerName: `${owner.firstName} ${owner.lastName}`,
+              vaccineName: vaccineType.name,
+              boosterDate,
+            });
+          }
+        } catch (notifErr) {
+          console.error('[Notification] Booster appointment vet notification error:', notifErr);
         }
       }
     }
+
+    const populated = await Vaccination.findById(vaccination._id)
+      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name');
 
     return res.status(201).json({
       status: 'SUCCESS',

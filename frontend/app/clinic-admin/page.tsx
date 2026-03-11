@@ -42,8 +42,43 @@ const formatTime = (time: string) => {
   return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
+function formatAppointmentTypeDisplay(type: string): string {
+  const displayMap: Record<string, string> = {
+    'consultation': 'Consultation',
+    'general-checkup': 'General Checkup',
+    'primary-treatment': 'Primary Treatment',
+    'vaccination': 'Vaccination',
+    'rabies-vaccination': 'Rabies Vaccination',
+    'puppy-litter-vaccination': 'Puppy Litter Vaccination',
+    'deworming': 'Deworming',
+    'cbc': 'CBC Test',
+    'blood-chemistry-16': 'Blood Chemistry (16)',
+    'pcr-test': 'PCR Test',
+    'x-ray': 'X-Ray',
+    'ultrasound': 'Ultrasound',
+    'abdominal-surgery': 'Abdominal Surgery',
+    'orthopedic-surgery': 'Orthopedic Surgery',
+    'dental-scaling': 'Dental Scaling',
+    'laser-therapy': 'Laser Therapy',
+    'Sterilization': 'Sterilization',
+    'inpatient-care': 'Inpatient Care',
+    'outpatient-treatment': 'Outpatient Treatment',
+    'point-of-care-diagnostic': 'Point of Care Diagnostic',
+    'basic-grooming': 'Basic Grooming',
+    'full-grooming': 'Full Grooming',
+    'Basic Grooming': 'Basic Grooming',
+    'Full Grooming': 'Full Grooming',
+    'General Consultation': 'General Consultation',
+    'Preventive Care': 'Preventive Care',
+    'Grooming': 'Grooming',
+    'flea-tick-prevention': 'Flea & Tick Prevention',
+  }
+  
+  return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+}
+
 const formatTypes = (types: string[]) =>
-  types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')
+  types.map(formatAppointmentTypeDisplay).join(', ')
 
 // ==================== MAIN COMPONENT ====================
 

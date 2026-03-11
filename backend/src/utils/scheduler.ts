@@ -6,6 +6,7 @@ import ClinicBranch from '../models/ClinicBranch';
 import {
   sendAppointmentReminder,
   sendVaccinationDueReminder,
+  sendVaccinationDueReminderVet,
 } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 
@@ -42,15 +43,20 @@ export function startScheduler() {
       const overdueVaccinations = await Vaccination.find({
         status: 'overdue',
         nextDueDate: { $gte: yesterday, $lt: now },
-      }).populate({
-        path: 'petId',
-        select: 'name ownerId',
-        populate: { path: 'ownerId', select: 'firstName email' },
-      });
+      })
+        .populate({
+          path: 'petId',
+          select: 'name ownerId',
+          populate: { path: 'ownerId', select: 'firstName lastName email' },
+        })
+        .populate('vetId', 'firstName lastName email');
 
       for (const vax of overdueVaccinations) {
         const pet = vax.petId as any;
         const owner = pet?.ownerId as any;
+        const vet = vax.vetId as any;
+        const dueDateStr = vax.nextDueDate!.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
         if (owner?.email && pet?.name && vax.nextDueDate) {
           await sendVaccinationDueReminder({
             ownerEmail: owner.email,
@@ -60,7 +66,6 @@ export function startScheduler() {
             nextDueDate: vax.nextDueDate,
             type: 'overdue',
           });
-          const dueDateStr = vax.nextDueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
           await createNotification(
             owner._id.toString(),
             'vaccine_due',
@@ -68,6 +73,28 @@ export function startScheduler() {
             `${pet.name}'s ${vax.vaccineName} vaccination was due on ${dueDateStr}. Please schedule an appointment soon.`,
             { vaccinationId: vax._id, petId: pet._id }
           );
+        }
+
+        // Notify the vet as well
+        if (vet?._id && pet?.name && vax.nextDueDate) {
+          await createNotification(
+            vet._id.toString(),
+            'vaccine_due',
+            'Patient Vaccination Overdue',
+            `${pet.name}'s ${vax.vaccineName} vaccination was due on ${dueDateStr} and has not been done.`,
+            { vaccinationId: vax._id, petId: pet._id }
+          );
+          if (vet.email && owner) {
+            await sendVaccinationDueReminderVet({
+              vetEmail: vet.email,
+              vetFirstName: vet.firstName,
+              petName: pet.name,
+              ownerName: `${owner.firstName} ${owner.lastName}`,
+              vaccineName: vax.vaccineName,
+              nextDueDate: vax.nextDueDate,
+              type: 'overdue',
+            });
+          }
         }
       }
       console.log(`[Scheduler] Sent ${overdueVaccinations.length} overdue vaccination emails`);
@@ -85,15 +112,20 @@ export function startScheduler() {
       const upcomingVaccinations = await Vaccination.find({
         status: 'active',
         nextDueDate: { $gte: in7Days, $lt: in8Days },
-      }).populate({
-        path: 'petId',
-        select: 'name ownerId',
-        populate: { path: 'ownerId', select: 'firstName email' },
-      });
+      })
+        .populate({
+          path: 'petId',
+          select: 'name ownerId',
+          populate: { path: 'ownerId', select: 'firstName lastName email' },
+        })
+        .populate('vetId', 'firstName lastName email');
 
       for (const vax of upcomingVaccinations) {
         const pet = vax.petId as any;
         const owner = pet?.ownerId as any;
+        const vet = vax.vetId as any;
+        const dueDateStr = vax.nextDueDate!.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
         if (owner?.email && pet?.name && vax.nextDueDate) {
           await sendVaccinationDueReminder({
             ownerEmail: owner.email,
@@ -103,7 +135,6 @@ export function startScheduler() {
             nextDueDate: vax.nextDueDate,
             type: 'upcoming',
           });
-          const dueDateStr = vax.nextDueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
           await createNotification(
             owner._id.toString(),
             'vaccine_due',
@@ -111,6 +142,28 @@ export function startScheduler() {
             `${pet.name}'s ${vax.vaccineName} vaccination is due on ${dueDateStr}. Schedule an appointment soon.`,
             { vaccinationId: vax._id, petId: pet._id }
           );
+        }
+
+        // Notify the vet as well
+        if (vet?._id && pet?.name && vax.nextDueDate) {
+          await createNotification(
+            vet._id.toString(),
+            'vaccine_due',
+            'Patient Booster Due in 7 Days',
+            `${pet.name}'s ${vax.vaccineName} booster is due on ${dueDateStr}. Follow up with the owner.`,
+            { vaccinationId: vax._id, petId: pet._id }
+          );
+          if (vet.email && owner) {
+            await sendVaccinationDueReminderVet({
+              vetEmail: vet.email,
+              vetFirstName: vet.firstName,
+              petName: pet.name,
+              ownerName: `${owner.firstName} ${owner.lastName}`,
+              vaccineName: vax.vaccineName,
+              nextDueDate: vax.nextDueDate,
+              type: 'upcoming',
+            });
+          }
         }
       }
       console.log(`[Scheduler] Sent ${upcomingVaccinations.length} upcoming vaccination reminder emails`);

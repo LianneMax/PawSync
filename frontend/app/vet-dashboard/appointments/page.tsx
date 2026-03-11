@@ -39,8 +39,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   vaccination: <Syringe className="w-3 h-3" />,
+  'rabies-vaccination': <Syringe className="w-3 h-3" />,
+  'puppy-litter-vaccination': <Syringe className="w-3 h-3" />,
   consultation: <FileText className="w-3 h-3" />,
   'check-up': <CheckCircle className="w-3 h-3" />,
+  'general-checkup': <CheckCircle className="w-3 h-3" />,
   deworming: <AlertCircle className="w-3 h-3" />,
 }
 
@@ -178,6 +181,41 @@ export default function VetAppointmentsPage() {
     return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
+  function formatAppointmentTypeDisplay(type: string): string {
+    const displayMap: Record<string, string> = {
+      'consultation': 'Consultation',
+      'general-checkup': 'General Checkup',
+      'primary-treatment': 'Primary Treatment',
+      'vaccination': 'Vaccination',
+      'rabies-vaccination': 'Rabies Vaccination',
+      'puppy-litter-vaccination': 'Puppy Litter Vaccination',
+      'deworming': 'Deworming',
+      'cbc': 'CBC Test',
+      'blood-chemistry-16': 'Blood Chemistry (16)',
+      'pcr-test': 'PCR Test',
+      'x-ray': 'X-Ray',
+      'ultrasound': 'Ultrasound',
+      'abdominal-surgery': 'Abdominal Surgery',
+      'orthopedic-surgery': 'Orthopedic Surgery',
+      'dental-scaling': 'Dental Scaling',
+      'laser-therapy': 'Laser Therapy',
+      'Sterilization': 'Sterilization',
+      'inpatient-care': 'Inpatient Care',
+      'outpatient-treatment': 'Outpatient Treatment',
+      'point-of-care-diagnostic': 'Point of Care Diagnostic',
+      'basic-grooming': 'Basic Grooming',
+      'full-grooming': 'Full Grooming',
+      'Basic Grooming': 'Basic Grooming',
+      'Full Grooming': 'Full Grooming',
+      'General Consultation': 'General Consultation',
+      'Preventive Care': 'Preventive Care',
+      'Grooming': 'Grooming',
+      'flea-tick-prevention': 'Flea & Tick Prevention',
+    }
+    
+    return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+  }
+
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-4xl mx-auto">
@@ -256,7 +294,7 @@ export default function VetAppointmentsPage() {
                               className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#f0f7f7] text-[#476B6B] rounded-full text-xs font-medium"
                             >
                               {TYPE_ICONS[t]}
-                              {t}
+                              {formatAppointmentTypeDisplay(t)}
                             </span>
                           ))}
                           <span

@@ -185,6 +185,86 @@ export async function sendVaccinationDueReminder(params: {
   }
 }
 
+// ─── Booster Appointment Scheduled (vet notification) ────────────────────────
+
+export async function sendBoosterScheduledVet(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  petName: string;
+  ownerName: string;
+  vaccineName: string;
+  boosterDate: Date | string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `PawSync – Booster Appointment Scheduled for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Booster Appointment Auto-Scheduled</h2>
+          <p>Hi Dr. ${params.vetFirstName},</p>
+          <p>A booster vaccination appointment has been automatically scheduled for your patient.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Patient:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0;"><strong>Owner:</strong> ${params.ownerName}</p>
+            <p style="margin: 4px 0;"><strong>Vaccine:</strong> ${params.vaccineName}</p>
+            <p style="margin: 4px 0;"><strong>Scheduled Date:</strong> ${formatDate(params.boosterDate)}</p>
+          </div>
+          <p style="color: #666;">Please confirm or adjust this appointment in PawSync as needed.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendBoosterScheduledVet error:', err);
+  }
+}
+
+// ─── Vaccination Due Reminder (vet notification) ──────────────────────────────
+
+export async function sendVaccinationDueReminderVet(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  petName: string;
+  ownerName: string;
+  vaccineName: string;
+  nextDueDate: Date | string;
+  type: 'upcoming' | 'overdue';
+}) {
+  const isOverdue = params.type === 'overdue';
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: isOverdue
+        ? `PawSync – Vaccination Overdue: ${params.petName}`
+        : `PawSync – Vaccination Due in 7 Days: ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">${isOverdue ? 'Vaccination Overdue' : 'Vaccination Due Soon'}</h2>
+          <p>Hi Dr. ${params.vetFirstName},</p>
+          <p>${isOverdue
+            ? `Your patient <strong>${params.petName}</strong>'s <strong>${params.vaccineName}</strong> vaccination is now <strong>overdue</strong>.`
+            : `Your patient <strong>${params.petName}</strong>'s <strong>${params.vaccineName}</strong> vaccination is due in 7 days.`
+          }</p>
+          <div style="background: ${isOverdue ? '#fef2f2' : '#f3f4f6'}; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Patient:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0;"><strong>Owner:</strong> ${params.ownerName}</p>
+            <p style="margin: 4px 0;"><strong>Vaccine:</strong> ${params.vaccineName}</p>
+            <p style="margin: 4px 0;"><strong>Due Date:</strong> ${formatDate(params.nextDueDate)}</p>
+            <p style="margin: 4px 0; color: ${isOverdue ? '#dc2626' : '#666'};"><strong>Status:</strong> ${isOverdue ? 'OVERDUE' : 'Due in 7 days'}</p>
+          </div>
+          <p style="color: #666;">Please follow up with the owner to schedule an appointment.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendVaccinationDueReminderVet error:', err);
+  }
+}
+
 // ─── Lost Pet Confirmation (owner marked pet as lost) ─────────────────────────
 
 export async function sendLostPetConfirmation(params: {
