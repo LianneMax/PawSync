@@ -332,7 +332,7 @@ export default function VaccinationFormClient() {
         </h1>
       </div>
 
-      <div className={`grid gap-8 ${selectedPet ? 'xl:grid-cols-[1fr_360px]' : ''}`}>
+      <div className={`grid gap-8 ${selectedPet ? 'lg:grid-cols-[1fr_360px]' : ''}`}>
       {/* ── Left: Form ────────────────────────────────── */}
       <div>
 
@@ -648,7 +648,7 @@ export default function VaccinationFormClient() {
 
       {/* ── Right: Vaccine Card Preview ───────────────── */}
       {selectedPet && token && (
-        <div className="hidden xl:block">
+        <div className="hidden lg:block">
           <VaccineCardPreview
             petId={selectedPet._id}
             token={token}

@@ -111,7 +111,7 @@ export default function VaccineCardPreview({ petId, token, refreshKey }: Props) 
         {/* Card Header */}
         <div className="px-5 py-3.5 flex items-center justify-between bg-linear-to-r from-[#476B6B] to-[#5A8A8A]">
           <img
-            src="/images/pawsync-logo-white.png"
+            src="/images/logos/pawsync-logo-white.png"
             alt="PawSync"
             className="h-7 w-auto object-contain"
           />
