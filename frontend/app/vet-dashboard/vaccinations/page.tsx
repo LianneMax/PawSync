@@ -43,9 +43,9 @@ function formatDate(d: string | null | undefined) {
 // ── Vaccine Types helpers ─────────────────────────────────────────────────────
 
 const SPECIES_OPTIONS = [
-  { value: 'dog', label: 'Dog' },
-  { value: 'cat', label: 'Cat' },
-  { value: 'all', label: 'All (Dog & Cat)' },
+  { value: 'dog', label: 'Canine' },
+  { value: 'cat', label: 'Feline' },
+  { value: 'all', label: 'Both' },
 ]
 
 const ROUTE_OPTIONS = [
@@ -56,15 +56,36 @@ const ROUTE_OPTIONS = [
   { value: 'oral', label: 'Oral' },
 ]
 
+const VACCINE_SUGGESTIONS: Record<string, string[]> = {
+  dog: [
+    'DHPPiL', 'DA2PPL', 'DHPP', 'DA2PP', 'Anti-Rabies', 'Bordetella',
+    'Leptospira', 'Canine Influenza', 'Lyme Disease', 'Parvovirus',
+    'Distemper', 'Ehrlichia Canis',
+  ],
+  cat: [
+    'FVRCP', 'Anti-Rabies', 'FeLV', 'FIV', 'Chlamydia',
+    'Panleukopenia', 'Herpesvirus', 'Calicivirus',
+  ],
+  all: [
+    'Anti-Rabies', 'DHPPiL', 'DA2PPL', 'DHPP', 'DA2PP', 'FVRCP',
+    'Bordetella', 'Leptospira', 'FeLV', 'FIV', 'Canine Influenza',
+    'Lyme Disease', 'Parvovirus', 'Distemper', 'Ehrlichia Canis',
+    'Chlamydia', 'Panleukopenia', 'Herpesvirus', 'Calicivirus',
+  ],
+}
+
 interface TypeFormState {
   name: string
   species: string[]
   validityDays: string
   requiresBooster: boolean
+  lifetimeBooster: boolean
   numberOfBoosters: string
   boosterIntervalDays: string
   minAgeMonths: string
+  minAgeUnit: 'weeks' | 'months'
   maxAgeMonths: string
+  maxAgeUnit: 'weeks' | 'months'
   route: string
   defaultManufacturer: string
   defaultBatchNumber: string
@@ -75,10 +96,13 @@ const emptyTypeForm = (): TypeFormState => ({
   species: ['dog'],
   validityDays: '365',
   requiresBooster: false,
+  lifetimeBooster: false,
   numberOfBoosters: '1',
   boosterIntervalDays: '',
   minAgeMonths: '0',
+  minAgeUnit: 'months',
   maxAgeMonths: '',
+  maxAgeUnit: 'months',
   route: '',
   defaultManufacturer: '',
   defaultBatchNumber: '',
@@ -238,15 +262,19 @@ export default function VetVaccinationsPage() {
 
   const openEdit = (vt: VaccineType) => {
     setEditTarget(vt)
+    const speciesVal = vt.species.includes('dog') && vt.species.includes('cat') ? ['all'] : [...vt.species]
     setForm({
       name: vt.name,
-      species: [...vt.species],
+      species: speciesVal,
       validityDays: String(vt.validityDays),
       requiresBooster: vt.requiresBooster,
+      lifetimeBooster: vt.lifetimeBooster ?? false,
       numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
       boosterIntervalDays: vt.boosterIntervalDays != null ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
+      minAgeUnit: (vt as any).minAgeUnit || 'months',
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
+      maxAgeUnit: (vt as any).maxAgeUnit || 'months',
       route: vt.route || '',
       defaultManufacturer: vt.defaultManufacturer || '',
       defaultBatchNumber: vt.defaultBatchNumber || '',
@@ -257,17 +285,7 @@ export default function VetVaccinationsPage() {
   }
 
   const handleSpeciesToggle = (s: string) => {
-    if (s === 'all') {
-      setForm((f) => ({ ...f, species: ['all'] }))
-      return
-    }
-    setForm((f) => {
-      const filtered = f.species.filter((x) => x !== 'all')
-      if (filtered.includes(s)) {
-        return { ...f, species: filtered.filter((x) => x !== s) || [s] }
-      }
-      return { ...f, species: [...filtered, s] }
-    })
+    setForm((f) => ({ ...f, species: [s] }))
   }
 
   const handleSave = async () => {
@@ -287,10 +305,13 @@ export default function VetVaccinationsPage() {
         species: form.species,
         validityDays: Number(form.validityDays),
         requiresBooster: form.requiresBooster,
-        numberOfBoosters: form.requiresBooster ? (Number(form.numberOfBoosters) || 1) : 0,
+        lifetimeBooster: form.requiresBooster ? form.lifetimeBooster : false,
+        numberOfBoosters: form.requiresBooster && !form.lifetimeBooster ? (Number(form.numberOfBoosters) || 1) : 0,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
+        minAgeUnit: form.minAgeUnit,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
+        maxAgeUnit: form.maxAgeUnit,
         route: form.route || null,
         defaultManufacturer: form.defaultManufacturer.trim() || null,
         defaultBatchNumber: form.defaultBatchNumber.trim() || null,
@@ -448,12 +469,6 @@ export default function VetVaccinationsPage() {
                             <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getStatusClasses(v.status)}`}>
                               {getStatusLabel(v.status)}
                             </span>
-                            <button
-                              onClick={() => setDeleteTarget(v)}
-                              className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         </div>
                         <button className="w-full text-left" onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
@@ -496,12 +511,6 @@ export default function VetVaccinationsPage() {
                           <span className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusClasses(v.status)}`}>
                             {getStatusLabel(v.status)}
                           </span>
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(v)}
-                          className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -546,9 +555,9 @@ export default function VetVaccinationsPage() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
-                        <span>Valid: <span className="font-medium text-[#4F4F4F]">{vt.validityDays}d</span></span>
+                        <span>Protection: <span className="font-medium text-[#4F4F4F]">{vt.validityDays}d</span></span>
                         {vt.requiresBooster && vt.boosterIntervalDays && (
-                          <span>Booster every: <span className="font-medium text-[#4F4F4F]">{vt.boosterIntervalDays}d × {vt.numberOfBoosters || 1} dose{(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}</span></span>
+                          <span>Booster every: <span className="font-medium text-[#4F4F4F]">{vt.boosterIntervalDays}d{vt.lifetimeBooster ? ' (lifetime)' : ` × ${vt.numberOfBoosters || 1} dose${(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}`}</span></span>
                         )}
                         {vt.route && <span>Route: <span className="font-medium text-[#4F4F4F] capitalize">{vt.route}</span></span>}
                         {vt.defaultManufacturer && <span>Mfr: <span className="font-medium text-[#4F4F4F]">{vt.defaultManufacturer}</span></span>}
@@ -706,13 +715,13 @@ export default function VetVaccinationsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-2">Species</label>
-                <div className="flex gap-2 flex-wrap">
+                <div className="grid grid-cols-3 gap-2">
                   {SPECIES_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => handleSpeciesToggle(opt.value)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
                         form.species.includes(opt.value)
                           ? 'bg-[#476B6B] text-white border-[#476B6B]'
                           : 'bg-white text-gray-500 border-gray-200 hover:border-[#7FA5A3]'
@@ -726,32 +735,59 @@ export default function VetVaccinationsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                  Validity (days) <span className="text-red-500">*</span>
+                  Protection Duration (days) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number" min="1" value={form.validityDays}
                   onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                 />
+                <p className="text-xs text-gray-400 mt-1">How long immunity lasts after each dose — not the vial&apos;s shelf life</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Min Age (months)</label>
-                  <input
-                    type="number" min="0" value={form.minAgeMonths}
-                    onChange={(e) => setForm((p) => ({ ...p, minAgeMonths: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Min Age</label>
+                    <input
+                      type="number" min="0" value={form.minAgeMonths}
+                      onChange={(e) => setForm((p) => ({ ...p, minAgeMonths: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Unit</label>
+                    <select
+                      value={form.minAgeUnit}
+                      onChange={(e) => setForm((p) => ({ ...p, minAgeUnit: e.target.value as 'weeks' | 'months' }))}
+                      className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    >
+                      <option value="weeks">Weeks</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Max Age (months)</label>
-                  <input
-                    type="number" min="0" value={form.maxAgeMonths}
-                    onChange={(e) => setForm((p) => ({ ...p, maxAgeMonths: e.target.value }))}
-                    placeholder="Leave empty for no maximum"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Max Age</label>
+                    <input
+                      type="number" min="0" value={form.maxAgeMonths}
+                      onChange={(e) => setForm((p) => ({ ...p, maxAgeMonths: e.target.value }))}
+                      placeholder="Leave empty for no maximum"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Unit</label>
+                    <select
+                      value={form.maxAgeUnit}
+                      onChange={(e) => setForm((p) => ({ ...p, maxAgeUnit: e.target.value as 'weeks' | 'months' }))}
+                      className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    >
+                      <option value="weeks">Weeks</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -770,27 +806,44 @@ export default function VetVaccinationsPage() {
               </div>
 
               {form.requiresBooster && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 font-semibold mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
-                    <input
-                      type="number" min="1" value={form.boosterIntervalDays}
-                      onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
-                      placeholder="e.g. 21"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    />
+                <>
+                  <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">Lifetime Boosters?</p>
+                      <p className="text-xs text-gray-400">Required for the pet&apos;s entire life</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, lifetimeBooster: !p.lifetimeBooster }))}
+                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.lifetimeBooster ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.lifetimeBooster ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 font-semibold mb-1">Number of Boosters <span className="text-red-400">*</span></label>
-                    <input
-                      type="number" min="1" value={form.numberOfBoosters}
-                      onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
-                      placeholder="e.g. 3"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    />
-                    <p className="text-[10px] text-gray-400 mt-1">Total doses = boosters + 1</p>
+                  <div className={form.lifetimeBooster ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-3'}>
+                    <div>
+                      <label className="block text-xs text-gray-500 font-semibold mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
+                      <input
+                        type="number" min="1" value={form.boosterIntervalDays}
+                        onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
+                        placeholder="e.g. 365"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      />
+                    </div>
+                    {!form.lifetimeBooster && (
+                      <div>
+                        <label className="block text-xs text-gray-500 font-semibold mb-1">Number of Boosters <span className="text-red-400">*</span></label>
+                        <input
+                          type="number" min="1" value={form.numberOfBoosters}
+                          onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
+                          placeholder="e.g. 3"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">Total doses in series = boosters + 1</p>
+                      </div>
+                    )}
                   </div>
-                </div>
+                </>
               )}
 
               <div>

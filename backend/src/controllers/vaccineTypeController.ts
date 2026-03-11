@@ -44,7 +44,9 @@ export const createVaccineType = async (req: Request, res: Response) => {
       requiresBooster,
       boosterIntervalDays,
       minAgeMonths,
+      minAgeUnit,
       maxAgeMonths,
+      maxAgeUnit,
       route,
       defaultManufacturer,
       defaultBatchNumber,
@@ -54,9 +56,12 @@ export const createVaccineType = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'name, species, and validityDays are required' });
     }
 
-    const existing = await VaccineType.findOne({ name: name.trim() });
+    const existing = await VaccineType.findOne({ 
+      name: name.trim(),
+      species: { $in: species }
+    });
     if (existing) {
-      return res.status(409).json({ status: 'ERROR', message: 'A vaccine type with this name already exists' });
+      return res.status(409).json({ status: 'ERROR', message: 'A vaccine type with this name and species already exists' });
     }
 
     const vaccineType = await VaccineType.create({
@@ -66,7 +71,9 @@ export const createVaccineType = async (req: Request, res: Response) => {
       requiresBooster: requiresBooster || false,
       boosterIntervalDays: boosterIntervalDays || null,
       minAgeMonths: minAgeMonths || 0,
+      minAgeUnit: minAgeUnit || 'months',
       maxAgeMonths: maxAgeMonths ?? null,
+      maxAgeUnit: maxAgeUnit || 'months',
       route: route || null,
       defaultManufacturer: defaultManufacturer || null,
       defaultBatchNumber: defaultBatchNumber || null,
@@ -80,7 +87,7 @@ export const createVaccineType = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Create vaccine type error:', error);
     if (error.code === 11000) {
-      return res.status(409).json({ status: 'ERROR', message: 'A vaccine type with this name already exists' });
+      return res.status(409).json({ status: 'ERROR', message: 'A vaccine type with this name and species already exists' });
     }
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the vaccine type' });
   }
@@ -132,7 +139,9 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       requiresBooster,
       boosterIntervalDays,
       minAgeMonths,
+      minAgeUnit,
       maxAgeMonths,
+      maxAgeUnit,
       route,
       pricePerDose,
       defaultManufacturer,
@@ -146,7 +155,9 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (requiresBooster !== undefined) vaccineType.requiresBooster = requiresBooster;
     if (boosterIntervalDays !== undefined) vaccineType.boosterIntervalDays = boosterIntervalDays;
     if (minAgeMonths !== undefined) vaccineType.minAgeMonths = minAgeMonths;
+    if (minAgeUnit !== undefined) vaccineType.minAgeUnit = minAgeUnit;
     if (maxAgeMonths !== undefined) vaccineType.maxAgeMonths = maxAgeMonths ?? null;
+    if (maxAgeUnit !== undefined) vaccineType.maxAgeUnit = maxAgeUnit;
     if (route !== undefined) vaccineType.route = route;
     if (pricePerDose !== undefined) vaccineType.pricePerDose = pricePerDose;
     if (defaultManufacturer !== undefined) vaccineType.defaultManufacturer = defaultManufacturer || null;

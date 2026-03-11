@@ -570,7 +570,7 @@ export default function PatientRecordsPage() {
                     <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : currentRecord ? (
-                  <div className="bg-gradient-to-br from-[#7FA5A3]/5 to-[#476B6B]/5 rounded-xl p-6 shadow-md border-2 border-[#7FA5A3]/30">
+                  <div className="bg-linear-to-br from-[#7FA5A3]/5 to-[#476B6B]/5 rounded-xl p-6 shadow-md border-2 border-[#7FA5A3]/30">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">

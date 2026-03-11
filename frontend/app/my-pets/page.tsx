@@ -162,7 +162,7 @@ export default function MyPetsPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-200 p-6 h-[280px] animate-pulse">
+              <div key={i} className="bg-white rounded-2xl border border-gray-200 p-6 h-70 animate-pulse">
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 bg-gray-200 rounded-full mb-3" />
                   <div className="h-5 w-24 bg-gray-200 rounded mb-1" />
@@ -286,7 +286,7 @@ export default function MyPetsPage() {
 
             {/* Add New Pet Card */}
             <div
-              className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors min-h-[280px]"
+              className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors min-h-70"
               onClick={() => router.push('/onboarding/pet?from=dashboard')}
             >
               <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3">
@@ -324,7 +324,7 @@ export default function MyPetsPage() {
 
       {/* Pet Tag Request Modal */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Request Pet Tag for {selectedPetId && pets.find(p => p._id === selectedPetId)?.name}</DialogTitle>
           </DialogHeader>

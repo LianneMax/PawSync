@@ -68,6 +68,7 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccination Records', href: '/vet-dashboard/vaccinations', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
+    { label: 'Settings', href: '/vet-settings', icon: <Settings className="w-5 h-5" /> },
   ],
   'clinic-admin': [
     { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" />, section: 'MAIN MENU' },
@@ -283,7 +284,7 @@ export default function Navbar({
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center gap-2">
+                    <Link href={userType === 'veterinarian' ? '/vet-settings' : '/settings'} className="flex items-center gap-2">
                       <Settings className="w-4 h-4" />
                       Settings
                     </Link>

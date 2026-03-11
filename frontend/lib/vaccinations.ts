@@ -8,8 +8,11 @@ export interface VaccineType {
   requiresBooster: boolean;
   numberOfBoosters: number;
   boosterIntervalDays: number | null;
+  lifetimeBooster: boolean;
   minAgeMonths: number;
+  minAgeUnit: 'weeks' | 'months';
   maxAgeMonths: number | null;
+  maxAgeUnit: 'weeks' | 'months';
   route: string | null;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
@@ -47,6 +50,7 @@ export interface CreateVaccinationInput {
   route?: string;
   dateAdministered?: string;
   notes?: string;
+  nextDueDate?: string;
   clinicId?: string;
   clinicBranchId?: string;
   /** Clinic-admin: specify which vet administered the vaccine */
@@ -93,6 +97,7 @@ export interface VaccineTypeInput {
   requiresBooster: boolean;
   numberOfBoosters?: number;
   boosterIntervalDays?: number | null;
+  lifetimeBooster?: boolean;
   minAgeMonths?: number;
   maxAgeMonths?: number | null;
   route?: string | null;

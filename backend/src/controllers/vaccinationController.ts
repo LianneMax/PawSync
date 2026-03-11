@@ -87,6 +87,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       route,
       dateAdministered,
       notes,
+      nextDueDate,
       clinicId,
       clinicBranchId,
       appointmentId,
@@ -140,10 +141,16 @@ export const createVaccination = async (req: Request, res: Response) => {
     const expiryDate = addDays(adminDate, vaccineType.validityDays);
     const totalDoses = (vaccineType.numberOfBoosters || 0) + 1;
     const isLastDose = doseNumber >= totalDoses;
-    const nextDueDate =
-      vaccineType.requiresBooster && vaccineType.boosterIntervalDays && !isLastDose
-        ? addDays(adminDate, vaccineType.boosterIntervalDays)
-        : null;
+    
+    // Use provided nextDueDate if available, otherwise auto-calculate
+    let computedNextDueDate: Date | null = null;
+    if (nextDueDate) {
+      // User provided a specific date
+      computedNextDueDate = new Date(nextDueDate);
+    } else if (vaccineType.requiresBooster && vaccineType.boosterIntervalDays && !isLastDose) {
+      // Auto-calculate based on vaccine type
+      computedNextDueDate = addDays(adminDate, vaccineType.boosterIntervalDays);
+    }
 
     // Resolve clinicId/clinicBranchId — priority: body → JWT → appointmentId lookup → vet user doc
     let resolvedCreateClinicId: any = clinicId || req.user.clinicId;
@@ -175,7 +182,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       route: route || vaccineType.route || null,
       dateAdministered: adminDate,
       expiryDate,
-      nextDueDate,
+      nextDueDate: computedNextDueDate,
       doseNumber,
       notes: notes || '',
       appointmentId: appointmentId || null,
@@ -192,8 +199,8 @@ export const createVaccination = async (req: Request, res: Response) => {
 
     // Auto-schedule the next booster appointment if a nextDueDate was computed
     let boosterAppointmentId: string | undefined;
-    if (nextDueDate) {
-      const boosterDate = new Date(nextDueDate);
+    if (computedNextDueDate) {
+      const boosterDate = new Date(computedNextDueDate);
       boosterDate.setUTCHours(0, 0, 0, 0);
 
       // Use the just-created vaccination's clinicId/clinicBranchId — already resolved correctly
@@ -503,6 +510,7 @@ export const updateVaccination = async (req: Request, res: Response) => {
       route,
       dateAdministered,
       notes,
+      nextDueDate,
       medicalRecordId,
     } = req.body;
 
@@ -516,10 +524,15 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.vaccineTypeId = vaccineTypeId;
       vaccination.vaccineName = vaccineType.name;
       vaccination.expiryDate = addDays(adminDate, vaccineType.validityDays);
-      vaccination.nextDueDate =
-        vaccineType.requiresBooster && vaccineType.boosterIntervalDays
-          ? addDays(adminDate, vaccineType.boosterIntervalDays)
-          : null;
+      // Use provided nextDueDate if available, otherwise auto-calculate
+      if (nextDueDate) {
+        vaccination.nextDueDate = new Date(nextDueDate);
+      } else {
+        vaccination.nextDueDate =
+          vaccineType.requiresBooster && vaccineType.boosterIntervalDays
+            ? addDays(adminDate, vaccineType.boosterIntervalDays)
+            : null;
+      }
       vaccination.dateAdministered = adminDate;
     } else if (dateAdministered) {
       // Date changed but vaccine type is the same — recompute dates with same type
@@ -528,10 +541,15 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.dateAdministered = adminDate;
       if (vaccineType) {
         vaccination.expiryDate = addDays(adminDate, vaccineType.validityDays);
-        vaccination.nextDueDate =
-          vaccineType.requiresBooster && vaccineType.boosterIntervalDays
-            ? addDays(adminDate, vaccineType.boosterIntervalDays)
-            : null;
+        // Use provided nextDueDate if available, otherwise auto-calculate
+        if (nextDueDate) {
+          vaccination.nextDueDate = new Date(nextDueDate);
+        } else {
+          vaccination.nextDueDate =
+            vaccineType.requiresBooster && vaccineType.boosterIntervalDays
+              ? addDays(adminDate, vaccineType.boosterIntervalDays)
+              : null;
+        }
       }
     }
 
@@ -539,6 +557,7 @@ export const updateVaccination = async (req: Request, res: Response) => {
     if (batchNumber !== undefined) vaccination.batchNumber = batchNumber;
     if (route !== undefined) vaccination.route = route;
     if (notes !== undefined) vaccination.notes = notes;
+    if (nextDueDate !== undefined) vaccination.nextDueDate = nextDueDate ? new Date(nextDueDate) : null;
     if (medicalRecordId !== undefined) vaccination.medicalRecordId = medicalRecordId || null;
 
     await vaccination.save();

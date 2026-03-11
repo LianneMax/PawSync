@@ -31,7 +31,8 @@ function isExpired(expiryDate: string | null): boolean {
 }
 
 function VaccineStatus({ vax }: { vax: Vaccination }) {
-  const expiry = vax.expiryDate ?? vax.nextDueDate ?? null
+  const expiry = vax.expiryDate ?? null
+  const nextDue = vax.nextDueDate ?? null
   const expired = expiry ? isExpired(expiry) : false
 
   return (
@@ -39,10 +40,17 @@ function VaccineStatus({ vax }: { vax: Vaccination }) {
       {expiry ? (
         <>
           <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
-            {expired ? 'Expired' : 'Valid Until'}
+            {expired ? 'Protection Ended' : 'Protected Until'}
           </p>
           <p className={`text-xs font-bold ${expired ? 'text-[#983232]' : 'text-[#1a1a1a]'}`}>
             {formatMonthYear(expiry)}
+          </p>
+        </>
+      ) : nextDue ? (
+        <>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Booster Due</p>
+          <p className={`text-xs font-bold ${isExpired(nextDue) ? 'text-[#983232]' : 'text-amber-600'}`}>
+            {formatMonthYear(nextDue)}
           </p>
         </>
       ) : (
@@ -276,19 +284,45 @@ export default function VaccineCardPage() {
 
             <div className="px-5 pt-4 pb-6 space-y-3">
               <DetailRow label="Vaccine name" value={selectedVax.vaccineName} />
+              {selectedVax.doseNumber > 1 && (
+                <DetailRow label="Dose" value={`#${selectedVax.doseNumber} (booster)`} />
+              )}
               {selectedVax.dateAdministered && (
                 <DetailRow label="Date administered" value={formatFullDate(selectedVax.dateAdministered)} />
               )}
               {selectedVax.expiryDate && (
                 <DetailRow
-                  label={isExpired(selectedVax.expiryDate) ? 'Expired' : 'Valid until'}
+                  label={isExpired(selectedVax.expiryDate) ? 'Protection ended' : 'Protected until'}
                   value={formatFullDate(selectedVax.expiryDate)}
                   highlight={isExpired(selectedVax.expiryDate) ? 'red' : 'green'}
                 />
               )}
               {selectedVax.nextDueDate && (
-                <DetailRow label="Next due" value={formatFullDate(selectedVax.nextDueDate)} />
+                <DetailRow
+                  label="Booster due"
+                  value={formatFullDate(selectedVax.nextDueDate)}
+                  highlight={isExpired(selectedVax.nextDueDate) ? 'red' : undefined}
+                />
               )}
+              {(() => {
+                const vt = selectedVax.vaccineTypeId
+                if (typeof vt === 'object' && vt !== null) {
+                  return (
+                    <>
+                      <DetailRow label="Protection duration" value={`${vt.validityDays} days per dose`} />
+                      {vt.requiresBooster && (
+                        <DetailRow
+                          label="Booster schedule"
+                          value={vt.lifetimeBooster
+                            ? `Every ${vt.boosterIntervalDays}d (lifetime)`
+                            : `Every ${vt.boosterIntervalDays}d × ${vt.numberOfBoosters || 1} dose${(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}`}
+                        />
+                      )}
+                    </>
+                  )
+                }
+                return null
+              })()}
               {selectedVax.manufacturer && (
                 <DetailRow label="Manufacturer" value={selectedVax.manufacturer} />
               )}

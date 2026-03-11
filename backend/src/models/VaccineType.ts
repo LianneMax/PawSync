@@ -7,8 +7,11 @@ export interface IVaccineType extends Document {
   requiresBooster: boolean;
   numberOfBoosters: number;
   boosterIntervalDays: number | null;
+  lifetimeBooster: boolean;
   minAgeMonths: number;
+  minAgeUnit: 'weeks' | 'months';
   maxAgeMonths: number | null;
+  maxAgeUnit: 'weeks' | 'months';
   route: string | null;
   pricePerDose: number;
   defaultManufacturer: string | null;
@@ -23,7 +26,6 @@ const VaccineTypeSchema = new Schema(
     name: {
       type: String,
       required: [true, 'Vaccine name is required'],
-      unique: true,
       trim: true,
     },
     species: {
@@ -49,13 +51,27 @@ const VaccineTypeSchema = new Schema(
       type: Number,
       default: null,
     },
+    lifetimeBooster: {
+      type: Boolean,
+      default: false,
+    },
     minAgeMonths: {
       type: Number,
       default: 0,
     },
+    minAgeUnit: {
+      type: String,
+      enum: ['weeks', 'months'],
+      default: 'months',
+    },
     maxAgeMonths: {
       type: Number,
       default: null,
+    },
+    maxAgeUnit: {
+      type: String,
+      enum: ['weeks', 'months'],
+      default: 'months',
     },
     route: {
       type: String,
@@ -83,5 +99,8 @@ const VaccineTypeSchema = new Schema(
     timestamps: true,
   }
 );
+
+// Create compound unique index for name + species combination
+VaccineTypeSchema.index({ name: 1, species: 1 }, { unique: true });
 
 export default mongoose.model<IVaccineType>('VaccineType', VaccineTypeSchema);
