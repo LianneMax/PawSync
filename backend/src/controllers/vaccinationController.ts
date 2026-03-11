@@ -93,6 +93,8 @@ export const createVaccination = async (req: Request, res: Response) => {
       medicalRecordId,
     } = req.body;
 
+    const doseNumber = req.body.doseNumber ? Number(req.body.doseNumber) : 1;
+
     // BR-VAX-01: resolve vetId
     const vetId = req.body.vetId || req.user.userId;
 
@@ -136,8 +138,10 @@ export const createVaccination = async (req: Request, res: Response) => {
     }
 
     const expiryDate = addDays(adminDate, vaccineType.validityDays);
+    const totalDoses = (vaccineType.numberOfBoosters || 0) + 1;
+    const isLastDose = doseNumber >= totalDoses;
     const nextDueDate =
-      vaccineType.requiresBooster && vaccineType.boosterIntervalDays
+      vaccineType.requiresBooster && vaccineType.boosterIntervalDays && !isLastDose
         ? addDays(adminDate, vaccineType.boosterIntervalDays)
         : null;
 
@@ -172,6 +176,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       dateAdministered: adminDate,
       expiryDate,
       nextDueDate,
+      doseNumber,
       notes: notes || '',
       appointmentId: appointmentId || null,
       medicalRecordId: medicalRecordId || null,
@@ -229,7 +234,7 @@ export const createVaccination = async (req: Request, res: Response) => {
               startTime,
               endTime,
               status: 'confirmed',
-              notes: `Auto-scheduled booster for ${vaccineType.name}`,
+              notes: `Auto-scheduled dose ${doseNumber + 1} of ${totalDoses} for ${vaccineType.name}`,
             });
             boosterAppointmentId = boosterAppt._id.toString();
             break;

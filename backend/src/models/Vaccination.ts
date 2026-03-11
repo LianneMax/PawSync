@@ -8,6 +8,7 @@ export interface IVaccination extends Document {
   appointmentId: mongoose.Types.ObjectId | null;
   medicalRecordId: mongoose.Types.ObjectId | null;
   boosterAppointmentId: mongoose.Types.ObjectId | null;
+  doseNumber: number;
   // Vaccine identity
   vaccineTypeId: mongoose.Types.ObjectId | null;
   vaccineName: string;
@@ -69,6 +70,11 @@ const VaccinationSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Appointment',
       default: null,
+    },
+    doseNumber: {
+      type: Number,
+      default: 1,
+      min: 1,
     },
     vaccineTypeId: {
       type: Schema.Types.ObjectId,

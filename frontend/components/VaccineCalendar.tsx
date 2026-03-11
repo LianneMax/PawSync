@@ -148,6 +148,11 @@ export default function VaccineCalendar({
                         </h3>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {typeLabel}
+                          {vaccine.vaccineType && (vaccine.vaccineType.numberOfBoosters || 0) > 0 && 'doseNumber' in vaccine && (
+                            <span className="ml-1 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-semibold text-gray-600">
+                              Dose {(vaccine as UpcomingVaccine).doseNumber} / {(vaccine.vaccineType.numberOfBoosters || 0) + 1}
+                            </span>
+                          )}
                         </p>
                         {isVetView || isClinicView ? (
                           <p className="text-xs text-gray-600 mt-1">

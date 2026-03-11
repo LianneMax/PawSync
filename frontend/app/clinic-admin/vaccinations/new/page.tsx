@@ -93,6 +93,7 @@ function ClinicVaccinationFormInner() {
   const [dateAdministered, setDateAdministered] = useState(
     new Date().toISOString().split('T')[0]
   )
+  const [doseNumber, setDoseNumber] = useState(1)
   const [route, setRoute] = useState<string>('')
   const [manufacturer, setManufacturer] = useState('')
   const [batchNumber, setBatchNumber] = useState('')
@@ -114,7 +115,9 @@ function ClinicVaccinationFormInner() {
       })()
     : null
 
-  const computedNextDue = selectedVaccineType?.requiresBooster && selectedVaccineType.boosterIntervalDays && dateAdministered
+  const totalDoses = selectedVaccineType ? Math.max(selectedVaccineType.numberOfBoosters || 0, 1) + 1 : 1
+  const isLastDose = doseNumber >= totalDoses
+  const computedNextDue = selectedVaccineType?.requiresBooster && selectedVaccineType.boosterIntervalDays && dateAdministered && !isLastDose
     ? (() => {
         const d = new Date(dateAdministered)
         d.setDate(d.getDate() + selectedVaccineType.boosterIntervalDays!)
@@ -149,6 +152,7 @@ function ClinicVaccinationFormInner() {
         if (vax.vaccineTypeId && typeof vax.vaccineTypeId === 'object') {
           setSelectedVaccineType(vax.vaccineTypeId)
         }
+        setDoseNumber(vax.doseNumber || 1)
       }
     } finally {
       setLoading(false)
@@ -265,6 +269,7 @@ function ClinicVaccinationFormInner() {
         batchNumber,
         notes,
         vetId: selectedVet?._id,
+        doseNumber,
       }
 
       if (editId) {
@@ -474,6 +479,7 @@ function ClinicVaccinationFormInner() {
                   onChange={(e) => {
                     const vt = vaccineTypes.find((v) => v._id === e.target.value)
                     setSelectedVaccineType(vt || null)
+                    setDoseNumber(1)
                     if (vt?.route) setRoute(vt.route)
                   }}
                   disabled={!selectedPet && !editId}
@@ -488,6 +494,32 @@ function ClinicVaccinationFormInner() {
               </div>
             </div>
 
+            {/* Dose number selector */}
+            {selectedVaccineType?.requiresBooster && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Dose Number</label>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setDoseNumber(n)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                        doseNumber === n
+                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#476B6B]'
+                      }`}
+                    >
+                      {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {doseNumber} of {totalDoses} total doses
+                </p>
+              </div>
+            )}
+
             {/* Computed preview */}
             {selectedVaccineType && (
               <div className="grid grid-cols-2 gap-3 p-3 bg-[#f0f7f7] rounded-xl text-sm">
@@ -497,7 +529,7 @@ function ClinicVaccinationFormInner() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">Next Booster Due {computedNextDue ? '(auto-schedules)' : ''}</p>
-                  <p className="font-medium text-[#476B6B]">{computedNextDue ?? 'No booster required'}</p>
+                  <p className="font-medium text-[#476B6B]">{computedNextDue ?? (isLastDose ? 'Final dose' : 'No booster required')}</p>
                 </div>
               </div>
             )}

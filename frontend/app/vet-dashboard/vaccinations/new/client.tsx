@@ -92,6 +92,7 @@ export default function VaccinationFormClient() {
 
   // Form fields
   const [vaccineTypeId, setVaccineTypeId] = useState('')
+  const [doseNumber, setDoseNumber] = useState(1)
   const [manufacturer, setManufacturer] = useState('')
   const [batchNumber, setBatchNumber] = useState('')
   const [route, setRoute] = useState('')
@@ -123,6 +124,7 @@ export default function VaccinationFormClient() {
   useEffect(() => {
     const vt = vaccineTypes.find((v) => v._id === vaccineTypeId) || null
     setSelectedVaccineType(vt)
+    setDoseNumber(1)
     if (vt?.route && !route) {
       setRoute(vt.route)
     }
@@ -184,6 +186,7 @@ export default function VaccinationFormClient() {
         } else if (typeof vax.vaccineTypeId === 'string') {
           setVaccineTypeId(vax.vaccineTypeId)
         }
+        setDoseNumber(vax.doseNumber || 1)
         setManufacturer(vax.manufacturer || '')
         setBatchNumber(vax.batchNumber || '')
         setRoute(vax.route || '')
@@ -247,8 +250,10 @@ export default function VaccinationFormClient() {
       ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), selectedVaccineType.validityDays)))
       : null
 
+  const totalDoses = selectedVaccineType ? Math.max(selectedVaccineType.numberOfBoosters || 0, 1) + 1 : 1
+  const isLastDose = doseNumber >= totalDoses
   const computedNextDueDate =
-    selectedVaccineType?.requiresBooster && selectedVaccineType.boosterIntervalDays && dateAdministered
+    selectedVaccineType?.requiresBooster && selectedVaccineType.boosterIntervalDays && dateAdministered && !isLastDose
       ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), selectedVaccineType.boosterIntervalDays)))
       : null
 
@@ -270,7 +275,7 @@ export default function VaccinationFormClient() {
       if (editId) {
         await updateVaccination(
           editId,
-          { vaccineTypeId, manufacturer, batchNumber, route, dateAdministered, notes },
+          { vaccineTypeId, manufacturer, batchNumber, route, dateAdministered, notes, doseNumber },
           token
         )
         setSuccess(true)
@@ -286,6 +291,7 @@ export default function VaccinationFormClient() {
             route,
             dateAdministered,
             notes,
+            doseNumber,
           },
           token
         )
@@ -519,6 +525,32 @@ export default function VaccinationFormClient() {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
+
+            {/* Dose number selector */}
+            {selectedVaccineType?.requiresBooster && (
+              <div className="mt-3">
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Dose Number</label>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setDoseNumber(n)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                        doseNumber === n
+                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                          : 'bg-[#F8F6F2] text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {doseNumber} of {totalDoses} total doses
+                </p>
+              </div>
+            )}
 
             {/* Computed preview */}
             {selectedVaccineType && dateAdministered && (

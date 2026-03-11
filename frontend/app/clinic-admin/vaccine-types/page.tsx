@@ -37,6 +37,7 @@ interface FormState {
   species: string[]
   validityDays: string
   requiresBooster: boolean
+  numberOfBoosters: string
   boosterIntervalDays: string
   minAgeMonths: string
   maxAgeMonths: string
@@ -48,6 +49,7 @@ const emptyForm = (): FormState => ({
   species: ['dog'],
   validityDays: '365',
   requiresBooster: false,
+  numberOfBoosters: '1',
   boosterIntervalDays: '',
   minAgeMonths: '0',
   maxAgeMonths: '',
@@ -126,6 +128,7 @@ export default function VaccineTypesPage() {
       species: [...vt.species],
       validityDays: String(vt.validityDays),
       requiresBooster: vt.requiresBooster,
+      numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
       boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
@@ -168,6 +171,7 @@ export default function VaccineTypesPage() {
         species: form.species,
         validityDays: Number(form.validityDays),
         requiresBooster: form.requiresBooster,
+        numberOfBoosters: form.requiresBooster ? (Number(form.numberOfBoosters) || 1) : 0,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
@@ -270,7 +274,7 @@ export default function VaccineTypesPage() {
                   <div className="flex flex-wrap gap-3 mt-1.5 text-[11px] text-gray-400">
                     <span>Valid: {vt.validityDays}d</span>
                     {vt.requiresBooster && vt.boosterIntervalDays && (
-                      <span>Booster: {vt.boosterIntervalDays}d</span>
+                      <span>Booster: every {vt.boosterIntervalDays}d × {vt.numberOfBoosters || 1} dose{(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}</span>
                     )}
                     {vt.minAgeMonths > 0 && <span>Min age: {vt.minAgeMonths}mo</span>}
                     {vt.maxAgeMonths && <span>Max age: {vt.maxAgeMonths}mo</span>}
@@ -415,20 +419,36 @@ export default function VaccineTypesPage() {
                 </button>
               </div>
 
-              {/* Booster Interval */}
+              {/* Booster Interval + Number of Boosters */}
               {form.requiresBooster && (
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                    Booster Interval (days) <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.boosterIntervalDays}
-                    onChange={(e) => setForm((f) => ({ ...f, boosterIntervalDays: e.target.value }))}
-                    placeholder="e.g. 21"
-                    className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                      Booster Interval (days) <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.boosterIntervalDays}
+                      onChange={(e) => setForm((f) => ({ ...f, boosterIntervalDays: e.target.value }))}
+                      placeholder="e.g. 21"
+                      className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                      Number of Boosters <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.numberOfBoosters}
+                      onChange={(e) => setForm((f) => ({ ...f, numberOfBoosters: e.target.value }))}
+                      placeholder="e.g. 3"
+                      className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Total doses = boosters + 1</p>
+                  </div>
                 </div>
               )}
 

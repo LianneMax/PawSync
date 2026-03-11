@@ -6,6 +6,7 @@ export interface VaccineType {
   species: ('dog' | 'cat' | 'all')[];
   validityDays: number;
   requiresBooster: boolean;
+  numberOfBoosters: number;
   boosterIntervalDays: number | null;
   minAgeMonths: number;
   maxAgeMonths: number | null;
@@ -30,6 +31,7 @@ export interface Vaccination {
   expiryDate: string | null;
   nextDueDate: string | null;
   boosterAppointmentId: string | null;
+  doseNumber: number;
   status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
   isUpToDate: boolean;
   notes: string;
@@ -53,6 +55,8 @@ export interface CreateVaccinationInput {
   medicalRecordId?: string;
   /** Link to an appointment */
   appointmentId?: string;
+  /** Which dose in the series this is (1 = initial, 2 = first booster, etc.) */
+  doseNumber?: number;
 }
 
 function authHeaders(token: string): HeadersInit {
@@ -87,6 +91,7 @@ export interface VaccineTypeInput {
   species: string[];
   validityDays: number;
   requiresBooster: boolean;
+  numberOfBoosters?: number;
   boosterIntervalDays?: number | null;
   minAgeMonths?: number;
   maxAgeMonths?: number | null;
@@ -271,11 +276,13 @@ export interface UpcomingVaccine {
   expiryDate: string | null; // Actual expiry date
   lastAdministeredDate: string | null;
   status: string;
+  doseNumber: number;
   dateType: 'booster_due' | 'expires'; // What the nextDueDate represents
   vaccineType: {
     _id: string;
     name: string;
     requiresBooster: boolean;
+    numberOfBoosters: number;
     boosterIntervalDays: number | null;
   } | null;
 }
@@ -295,11 +302,13 @@ export interface VetUpcomingSchedule {
   expiryDate: string | null; // Actual expiry date
   lastAdministeredDate: string | null;
   status: string;
+  doseNumber: number;
   dateType: 'booster_due' | 'expires';
   vaccineType: {
     _id: string;
     name: string;
     requiresBooster: boolean;
+    numberOfBoosters: number;
     boosterIntervalDays: number | null;
   } | null;
   clinic: {
@@ -327,11 +336,13 @@ export interface ClinicUpcomingSchedule {
   expiryDate: string | null; // Actual expiry date
   lastAdministeredDate: string | null;
   status: string;
+  doseNumber: number;
   dateType: 'booster_due' | 'expires';
   vaccineType: {
     _id: string;
     name: string;
     requiresBooster: boolean;
+    numberOfBoosters: number;
     boosterIntervalDays: number | null;
   } | null;
 }

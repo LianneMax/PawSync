@@ -5,6 +5,7 @@ export interface IVaccineType extends Document {
   species: ('dog' | 'cat' | 'all')[];
   validityDays: number;
   requiresBooster: boolean;
+  numberOfBoosters: number;
   boosterIntervalDays: number | null;
   minAgeMonths: number;
   maxAgeMonths: number | null;
@@ -38,6 +39,11 @@ const VaccineTypeSchema = new Schema(
     requiresBooster: {
       type: Boolean,
       default: false,
+    },
+    numberOfBoosters: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     boosterIntervalDays: {
       type: Number,
