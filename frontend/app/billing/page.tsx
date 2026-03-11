@@ -230,10 +230,88 @@ function VetApprovalModal({
   onApproved: () => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [catalog, setCatalog] = useState<(ProductServiceOption & { category: string })[]>([])
+  const [showAddPanel, setShowAddPanel] = useState(false)
+  const [addSearch, setAddSearch] = useState('')
+  const [selectedItems, setSelectedItems] = useState(
+    billing.items.map((item) => ({
+      _id: item.productServiceId || item._id,
+      name: item.name,
+      type: item.type,
+      price: item.unitPrice,
+    }))
+  )
+
+  useEffect(() => {
+    fetch(`${API_BASE}/product-services`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'SUCCESS') {
+          setCatalog(
+            (data.data.items || [])
+              .filter((i: any) => i.isActive)
+              .map((i: any) => ({
+                _id: i._id,
+                name: i.name,
+                type: i.type,
+                price: i.price,
+                category: i.category || i.type,
+              }))
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const filteredGrouped = useMemo(() => {
+    const q = addSearch.toLowerCase()
+    const filtered = q
+      ? catalog.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.category.toLowerCase().includes(q)
+        )
+      : catalog
+    return groupByCategory(filtered)
+  }, [addSearch, catalog])
+
+  const total = selectedItems.reduce((s, p) => s + p.price, 0)
+
+  const addItem = (p: ProductServiceOption & { category: string }) => {
+    if (!selectedItems.find((s) => s._id === p._id)) {
+      setSelectedItems((prev) => [...prev, { _id: p._id, name: p.name, type: p.type, price: p.price }])
+    }
+    setAddSearch('')
+    setShowAddPanel(false)
+  }
+
+  const removeItem = (id: string) => {
+    setSelectedItems((prev) => prev.filter((p) => p._id !== id))
+  }
 
   const handleApprove = async () => {
     setLoading(true)
     try {
+      // Step 1: save updated items
+      const saveRes = await fetch(`${API_BASE}/billings/${billing._id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          items: selectedItems.map((p) => ({
+            productServiceId: p._id,
+            name: p.name,
+            type: p.type,
+            unitPrice: p.price,
+          })),
+        }),
+      })
+      const saveData = await saveRes.json()
+      if (saveData.status !== 'SUCCESS') {
+        alert(saveData.message || 'Failed to save billing items')
+        return
+      }
+
+      // Step 2: approve
       const res = await fetch(`${API_BASE}/billings/${billing._id}`, {
         method: 'PATCH',
         headers: authHeaders(),
@@ -255,23 +333,24 @@ function VetApprovalModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Products and Services</h2>
-          <p className="text-sm text-gray-400">Review the billing details before approval</p>
+          <p className="text-sm text-gray-400">Review and edit the billing details before approval</p>
         </div>
 
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
+        <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service ↓</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type ↓</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price ↓</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {billing.items.map((item) => (
+              {selectedItems.map((item) => (
                 <tr key={item._id}>
                   <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
                   <td className="px-4 py-3">
@@ -280,33 +359,94 @@ function VetApprovalModal({
                       {item.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-[#4F4F4F]">₱ {item.unitPrice.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-[#4F4F4F]">₱ {item.price.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => removeItem(item._id)}
+                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                      title="Remove"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {billing.items.length === 0 && (
+              {selectedItems.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">No items in this billing record</td>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">
+                    No items. Use &ldquo;Add Service / Product&rdquo; below.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
+        {/* Add panel */}
+        <div className="mb-5">
+          {!showAddPanel ? (
+            <button
+              onClick={() => setShowAddPanel(true)}
+              className="flex items-center gap-1.5 text-xs font-medium text-[#476B6B] hover:text-[#3a5858] transition-colors py-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Service / Product
+            </button>
+          ) : (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <input
+                  type="text"
+                  value={addSearch}
+                  onChange={(e) => setAddSearch(e.target.value)}
+                  placeholder="Search medications, services…"
+                  className="flex-1 text-xs bg-transparent outline-none text-[#4F4F4F] placeholder:text-gray-400"
+                  autoFocus
+                />
+                <button
+                  onClick={() => { setShowAddPanel(false); setAddSearch('') }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {filteredGrouped.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-5">No results found</p>
+                ) : (
+                  filteredGrouped.map(({ category, items: catItems }) => (
+                    <div key={category}>
+                      <div className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
+                      </div>
+                      {catItems.map((entry) => (
+                        <button
+                          key={entry._id}
+                          onClick={() => addItem(entry as ProductServiceOption & { category: string })}
+                          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#f0f7f7] text-left border-t border-gray-50 transition-colors"
+                        >
+                          <p className="text-sm font-medium text-[#4F4F4F]">{entry.name}</p>
+                          <span className="text-xs font-semibold text-[#476B6B] shrink-0 ml-4">
+                            ₱ {entry.price.toLocaleString()}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-end justify-between gap-6">
           <div className="border border-gray-200 rounded-xl p-4 w-56 shrink-0">
             <p className="text-sm font-semibold text-[#3D5A58] mb-1">Order Summary</p>
             <p className="text-xs text-gray-400 mb-3">Amount Due</p>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-500">Services / Products Fee</span>
-              <span className="text-[#4F4F4F] font-medium">₱ {billing.subtotal.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm mb-3">
-              <span className="text-gray-500">Discount</span>
-              <span className="text-red-500 font-medium">-₱ {billing.discount.toLocaleString()}</span>
-            </div>
             <div className="border-t border-gray-200 pt-3 flex justify-between text-sm font-semibold">
               <span className="text-[#4F4F4F]">Total Amount Due</span>
-              <span className="text-[#4F4F4F]">₱ {billing.totalAmountDue.toLocaleString()}</span>
+              <span className="text-[#4F4F4F]">₱ {total.toLocaleString()}</span>
             </div>
           </div>
 
