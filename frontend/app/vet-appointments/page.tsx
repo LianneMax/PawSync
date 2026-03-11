@@ -144,6 +144,7 @@ export default function VetAppointmentsPage() {
   })
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
   const [checkingIn, setCheckingIn] = useState<string | null>(null)
   const [continuingVisit, setContinuingVisit] = useState<string | null>(null)
@@ -183,6 +184,15 @@ export default function VetAppointmentsPage() {
   useEffect(() => {
     loadAppointments()
   }, [loadAppointments])
+
+  // Update current time every minute
+  useEffect(() => {
+    setCurrentTime(new Date())
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000) // Update every minute
+    return () => clearInterval(interval)
+  }, [])
 
   const loadSchedules = useCallback(async () => {
     if (!token) return
@@ -415,6 +425,20 @@ export default function VetAppointmentsPage() {
 
   const hours = Array.from({ length: 11 }, (_, i) => i + 7) // 7AM to 5PM
 
+  // Calculate current time line position
+  const isViewingToday = calendarDate === (() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })()
+  
+  const currentHour = currentTime.getHours()
+  const currentMinute = currentTime.getMinutes()
+  const isCurrentTimeVisible = isViewingToday && currentHour >= 7 && currentHour < 17 // 7AM to 5PM
+  const timelinePercentage = isCurrentTimeVisible ? ((currentHour - 7 + currentMinute / 60) / 11) * 100 : 0
+
   return (
     <DashboardLayout userType="veterinarian">
       <div className="p-6 lg:p-8">
@@ -495,7 +519,18 @@ export default function VetAppointmentsPage() {
 
               {/* Calendar Grid */}
               <div className="overflow-x-auto">
-                <div className="min-w-125">
+                <div className="min-w-125 relative">
+                  {/* Current Time Line */}
+                  {isCurrentTimeVisible && (
+                    <div
+                      className="absolute left-0 right-0 h-0.5 bg-red-500 z-10 pointer-events-none shadow-sm"
+                      style={{ top: `calc(${timelinePercentage}% + 0px)` }}
+                    >
+                      <div className="absolute -left-6 -top-2 text-xs font-semibold text-red-500 bg-white px-1.5 rounded">
+                        {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </div>
+                    </div>
+                  )}
                   {hours.map((hour) => {
                     const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
                     const hourAppts = confirmedForDate.filter((a) => {
