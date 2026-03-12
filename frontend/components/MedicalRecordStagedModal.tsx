@@ -1957,7 +1957,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
-            {((step === 3 && !isVaccinationAppt) || step === 4) && (
+            {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
               <button
                 onClick={handleCompleteClick}
                 disabled={completing}
