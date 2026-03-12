@@ -59,7 +59,7 @@ const AppointmentSchema = new Schema(
       type: [String],
       enum: [
         'consultation', 'general-checkup', 'primary-treatment',
-        'vaccination', 'rabies-vaccination', 'puppy-litter-vaccination', 'deworming',
+        'vaccination', 'rabies-vaccination', 'puppy-litter-vaccination', 'deworming', 'flea-tick-prevention', 'heartworm',
         'cbc', 'blood-chemistry-16', 'pcr-test',
         'x-ray', 'ultrasound',
         'abdominal-surgery', 'orthopedic-surgery', 'dental-scaling', 'laser-therapy', 'Sterilization',

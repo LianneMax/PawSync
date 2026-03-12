@@ -212,6 +212,13 @@ export const clinicCheckInAppointment = async (
 };
 
 /**
+ * Get a single appointment by ID
+ */
+export const getAppointmentById = async (id: string, token?: string): Promise<{ status: string; data?: Appointment }> => {
+  return authenticatedFetch(`/appointments/${id}`, { method: 'GET' }, token);
+};
+
+/**
  * Reschedule an appointment to a new date/time (clinic admin)
  */
 export const rescheduleAppointment = async (id: string, data: { date: string; startTime: string; endTime: string }, token?: string) => {

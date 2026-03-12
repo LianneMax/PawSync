@@ -160,6 +160,7 @@ export default function VetAppointmentsPage() {
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null)
   const [activePetId, setActivePetId] = useState<string | null>(null)
   const [activeAppointmentTypes, setActiveAppointmentTypes] = useState<string[]>([])
+  const [activeAppointmentDate, setActiveAppointmentDate] = useState<string | null>(null)
 
   const loadAppointments = useCallback(async () => {
     if (!token) return
@@ -290,6 +291,7 @@ export default function VetAppointmentsPage() {
           setActiveAppointmentId(appt._id)
           setActivePetId(petId)
           setActiveAppointmentTypes(appt.types || [])
+          setActiveAppointmentDate(appt.date || null)
           setModalOpen(true)
           loadAppointments()
         }
@@ -312,6 +314,7 @@ export default function VetAppointmentsPage() {
         setActiveAppointmentId(appt._id)
         setActivePetId(petId)
         setActiveAppointmentTypes(appt.types || [])
+        setActiveAppointmentDate(appt.date || null)
         setModalOpen(true)
       } else {
         toast.error('Could not find the visit record. Please try again.')
@@ -327,6 +330,7 @@ export default function VetAppointmentsPage() {
     setActiveAppointmentId(null)
     setActivePetId(null)
     setActiveAppointmentTypes([])
+    setActiveAppointmentDate(null)
     loadAppointments()
   }
 
@@ -336,6 +340,7 @@ export default function VetAppointmentsPage() {
     setActiveAppointmentId(null)
     setActivePetId(null)
     setActiveAppointmentTypes([])
+    setActiveAppointmentDate(null)
     loadAppointments()
   }
 
@@ -878,6 +883,7 @@ export default function VetAppointmentsPage() {
           appointmentId={activeAppointmentId}
           petId={activePetId}
           appointmentTypes={activeAppointmentTypes}
+          appointmentDate={activeAppointmentDate}
           onComplete={handleModalComplete}
           onClose={handleModalClose}
         />

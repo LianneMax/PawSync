@@ -7,7 +7,7 @@
  * 
  * This script creates standard preventive care services with default intervals:
  * - Deworming: 90 days
- * - Flea and Tick Prevention: 30 days
+ * - Flea and Tick Prevention: 365 days
  * 
  * Note: Rabies Vaccine is handled as a VaccineType, not preventive care
  */
@@ -65,7 +65,7 @@ async function seedPreventiveCareServices() {
 
     console.log('\n✓ Preventive care services seeded successfully!');
     console.log('  - Deworming: 90-day interval');
-    console.log('  - Flea and Tick Prevention: 30-day interval');
+    console.log('  - Flea and Tick Prevention: 365-day interval');
     console.log('  - Note: Rabies Vaccine is handled via the vaccine form (VaccineType)');
   } catch (error) {
     console.error('✗ Error seeding preventive care services:', error);
