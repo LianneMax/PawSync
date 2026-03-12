@@ -389,7 +389,7 @@ export default function MyAppointmentsPage() {
                      appt.status === 'pending' ? 'Pending' :
                      appt.status === 'cancelled' ? 'Cancelled' :
                      appt.status === 'completed' ? 'Completed' :
-                     appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
+                     (appt.status as string).charAt(0).toUpperCase() + (appt.status as string).slice(1)}
                   </span>
                   {(appt.status === 'pending' || appt.status === 'confirmed') && activeTab === 'upcoming' && (
                     <button

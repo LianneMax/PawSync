@@ -21,6 +21,28 @@ const tryDecodeToken = (req: Request): { userId: string } | null => {
 };
 
 /**
+ * Migrate legacy sterilization values to new gender-specific format
+ * If a pet has 'yes' or 'no', convert to spayed/unspayed (female) or neutered/unneutered (male)
+ */
+const migrateSterilizationIfNeeded = async (pet: any) => {
+  if (pet.sterilization === 'yes' || pet.sterilization === 'no') {
+    if (pet.sex === 'female') {
+      pet.sterilization = pet.sterilization === 'yes' ? 'spayed' : 'unspayed';
+    } else if (pet.sex === 'male') {
+      pet.sterilization = pet.sterilization === 'yes' ? 'neutered' : 'unneutered';
+    }
+    // Save the migration to the database
+    try {
+      await Pet.updateOne({ _id: pet._id }, { sterilization: pet.sterilization });
+    } catch (error) {
+      console.error('Error migrating sterilization data:', error);
+      // Continue anyway - we've already converted the in-memory value
+    }
+  }
+  return pet;
+};
+
+/**
  * Generate QR code for a pet profile
  */
 const generateQRCodeForPet = async (petId: string, baseUrl: string): Promise<string> => {
@@ -109,6 +131,11 @@ export const getMyPets = async (req: Request, res: Response) => {
 
     const pets = await Pet.find({ ownerId: req.user.userId }).sort({ createdAt: -1 });
 
+    // Migrate legacy sterilization data if needed
+    for (const pet of pets) {
+      await migrateSterilizationIfNeeded(pet);
+    }
+
     return res.status(200).json({
       status: 'SUCCESS',
       data: { pets }
@@ -151,6 +178,9 @@ export const getPetById = async (req: Request, res: Response) => {
     if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this pet' });
     }
+
+    // Migrate legacy sterilization data if needed
+    await migrateSterilizationIfNeeded(pet);
 
     return res.status(200).json({
       status: 'SUCCESS',

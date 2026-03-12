@@ -529,6 +529,29 @@ export const updateRecord = async (req: Request, res: Response) => {
       }));
     }
 
+    // If marking the record as completed and it's a sterilization appointment, update the pet's sterilization status
+    if (stage === 'completed' && record.appointmentId) {
+      const appointment = await Appointment.findById(record.appointmentId);
+      if (appointment && appointment.types) {
+        const hasSterilization = appointment.types.some((t: string) => 
+          t === 'sterilization' || t === 'Sterilization'
+        );
+
+        if (hasSterilization) {
+          const pet = await Pet.findById(record.petId);
+          if (pet) {
+            // Update sterilization status based on pet's sex
+            if (pet.sex === 'female') {
+              pet.sterilization = 'spayed';
+            } else if (pet.sex === 'male') {
+              pet.sterilization = 'neutered';
+            }
+            await pet.save();
+          }
+        }
+      }
+    }
+
     await record.save();
 
     return res.status(200).json({

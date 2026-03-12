@@ -9,7 +9,7 @@ export interface IPet extends Document {
   sex: 'male' | 'female';
   dateOfBirth: Date;
   weight: number;
-  sterilization: 'yes' | 'no' | 'unknown';
+  sterilization: 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown';
   microchipNumber: string | null;
   nfcTagId: string | null;
   qrCode: string | null;
@@ -73,7 +73,7 @@ const PetSchema = new Schema(
     },
     sterilization: {
       type: String,
-      enum: ['yes', 'no', 'unknown'],
+      enum: ['spayed', 'unspayed', 'neutered', 'unneutered', 'unknown'],
       required: [true, 'Please specify sterilization status']
     },
     microchipNumber: {

@@ -174,7 +174,7 @@ function PetOnboardingContent() {
         sex: sex as 'male' | 'female',
         dateOfBirth,
         weight: parseFloat(weight),
-        sterilization: sterilization as 'yes' | 'no' | 'unknown',
+        sterilization: sterilization as 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown',
         photo: photoPreview || undefined,
         notes: notes || undefined,
       }, token || undefined)
@@ -560,11 +560,21 @@ function PetOnboardingContent() {
                         <SelectValue placeholder="Sterilization*" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="yes">Yes</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
+                        {sex === 'female' ? (
+                          <>
+                            <SelectItem value="spayed">Spayed</SelectItem>
+                            <SelectItem value="unspayed">Unspayed</SelectItem>
+                          </>
+                        ) : sex === 'male' ? (
+                          <>
+                            <SelectItem value="neutered">Neutered</SelectItem>
+                            <SelectItem value="unneutered">Unneutered</SelectItem>
+                          </>
+                        ) : null}
                         <SelectItem value="unknown">Unknown</SelectItem>
                       </SelectContent>
                     </Select>
+                    {!sex && <p className="text-xs text-gray-500 mt-1 ml-1">Select sex first</p>}
                     {errors.sterilization && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
                   </div>
 

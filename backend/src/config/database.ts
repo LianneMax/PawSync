@@ -14,8 +14,16 @@ export const connectDatabase = async (): Promise<void> => {
       throw new Error('MONGODB_URI is not defined in environment variables');
     }
 
-    // Connect to MongoDB
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+    // Connect to MongoDB with options to bypass SRV DNS lookups
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      directConnection: false,
+      retryWrites: true,
+      w: 'majority',
+      srvServiceName: 'mongodb',
+      // Add DNS options
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
+    });
     
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 

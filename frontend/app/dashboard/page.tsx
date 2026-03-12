@@ -73,6 +73,25 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
 }
 
+function formatSterilizationStatus(status: string, sex: string): string {
+  switch (status) {
+    case 'spayed':
+    case 'unspayed':
+    case 'neutered':
+    case 'unneutered':
+      return status.charAt(0).toUpperCase() + status.slice(1)
+    case 'unknown':
+      return 'Unknown'
+    // Handle legacy values
+    case 'yes':
+      return sex === 'female' ? 'Spayed' : 'Neutered'
+    case 'no':
+      return sex === 'female' ? 'Unspayed' : 'Unneutered'
+    default:
+      return 'Unknown'
+  }
+}
+
 function apiPetToDashboardPet(apiPet: APIPet): Pet {
   return {
     id: apiPet._id,
@@ -91,7 +110,7 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     lostContactName: apiPet.lostContactName ?? null,
     lostContactNumber: apiPet.lostContactNumber ?? null,
     lostMessage: apiPet.lostMessage ?? null,
-    sterilization: apiPet.sterilization === 'yes' ? 'NEUTERED' : apiPet.sterilization === 'no' ? 'UNNEUTERED' : 'UNKNOWN',
+    sterilization: formatSterilizationStatus(apiPet.sterilization, apiPet.sex),
     microchipNumber: apiPet.microchipNumber || '-',
     bloodType: apiPet.bloodType || '-',
     allergies: apiPet.allergies,

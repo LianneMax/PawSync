@@ -10,7 +10,7 @@ export interface Pet {
   sex: 'male' | 'female';
   dateOfBirth: string;
   weight: number;
-  sterilization: 'yes' | 'no' | 'unknown';
+  sterilization: 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown';
   microchipNumber: string | null;
   nfcTagId: string | null;
   qrCode: string | null;
@@ -70,7 +70,7 @@ export const createPet = async (petData: {
   sex: 'male' | 'female';
   dateOfBirth: string;
   weight: number;
-  sterilization: 'yes' | 'no' | 'unknown';
+  sterilization: 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown';
   microchipNumber?: string;
   nfcTagId?: string;
   photo?: string;

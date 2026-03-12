@@ -480,7 +480,24 @@ export default function PetProfilePage() {
     )
   }
 
-  const sterilizationLabel = pet.sterilization === 'yes' ? 'Neutered' : pet.sterilization === 'no' ? 'Unneutered' : 'Unknown'
+  const sterilizationLabel = (() => {
+    switch (pet.sterilization) {
+      case 'spayed':
+      case 'unspayed':
+      case 'neutered':
+      case 'unneutered':
+        return pet.sterilization.charAt(0).toUpperCase() + pet.sterilization.slice(1)
+      case 'unknown':
+        return 'Unknown'
+      // Handle legacy values
+      case 'yes':
+        return pet.sex === 'female' ? 'Spayed' : 'Neutered'
+      case 'no':
+        return pet.sex === 'female' ? 'Unspayed' : 'Unneutered'
+      default:
+        return 'Unknown'
+    }
+  })()
 
   return (
     <DashboardLayout>
