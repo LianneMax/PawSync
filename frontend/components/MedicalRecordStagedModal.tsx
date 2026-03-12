@@ -305,6 +305,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
   const [diagnosticTests, setDiagnosticTests] = useState<Omit<DiagnosticTest, '_id'>[]>([])
   const [preventiveCare, setPreventiveCare] = useState<Omit<PreventiveCare, '_id'>[]>([])
+  const [preventiveCareManuallyEdited, setPreventiveCareManuallyEdited] = useState<Set<number>>(new Set())
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
   const [images, setImages] = useState<{ data: string; contentType: string; description: string }[]>([])
 
@@ -333,7 +334,50 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setVisitSummary(r.visitSummary || '')
       setMedications((r.medications || []).map(({ _id: _, ...rest }) => rest))
       setDiagnosticTests((r.diagnosticTests || []).map(({ _id: _, ...rest }) => rest))
-      setPreventiveCare((r.preventiveCare || []).map(({ _id: _, ...rest }) => rest))
+      
+      // Auto-populate preventive care if record doesn't have any AND appointment date exists
+      if ((!r.preventiveCare || r.preventiveCare.length === 0) && appointmentDate) {
+        const addDays = (dateStr: string, days: number): string => {
+          let normalized = dateStr
+          if (dateStr.includes('T')) {
+            normalized = dateStr.split('T')[0]
+          }
+          const [year, month, day] = normalized.split('-').map(Number)
+          const date = new Date(year, month - 1, day)
+          date.setDate(date.getDate() + days)
+          const y = date.getFullYear()
+          const m = String(date.getMonth() + 1).padStart(2, '0')
+          const d = String(date.getDate()).padStart(2, '0')
+          return `${y}-${m}-${d}`
+        }
+        let normalizedDate = appointmentDate
+        if (appointmentDate.includes('T')) {
+          normalizedDate = appointmentDate.split('T')[0]
+        }
+        setPreventiveCare([
+          {
+            careType: 'deworming',
+            product: 'Deworming',
+            dateAdministered: normalizedDate,
+            nextDueDate: addDays(normalizedDate, 90),
+            notes: ''
+          },
+          {
+            careType: 'flea',
+            product: 'Flea & Tick Prevention',
+            dateAdministered: normalizedDate,
+            nextDueDate: addDays(normalizedDate, 30),
+            notes: ''
+          }
+        ])
+      } else {
+        // Normalize old 'Flea and Tick Prevention' to new 'Flea & Tick Prevention'
+        const normalizedCare = (r.preventiveCare || []).map(({ _id: _, ...rest }) => ({
+          ...rest,
+          product: rest.product === 'Flea and Tick Prevention' ? 'Flea & Tick Prevention' : rest.product
+        }))
+        setPreventiveCare(normalizedCare)
+      }
       setSharedWithOwner(r.sharedWithOwner || false)
       
       // Store clinic and vet info for surgery appointment modal
@@ -423,30 +467,27 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     loadData()
   }, [loadData])
 
-  // Auto-populate preventive care based on appointment types with dates
+  // Auto-populate preventive care when appointment date is set
   useEffect(() => {
-    // Only proceed if we have all required data
-    if (appointmentTypes.length === 0 || preventiveCareServices.length === 0 || !appointmentDate) {
-      console.log('Waiting for data:', {
-        hasAppointmentTypes: appointmentTypes.length > 0,
-        hasServices: preventiveCareServices.length > 0,
-        hasDate: !!appointmentDate,
-      })
+    // Only proceed if we have an appointment date
+    if (!appointmentDate) {
       return
     }
 
-    // Helper to calculate next due date safely
-    const addDaysToDateString = (dateStr: string, days: number): string => {
-      // Normalize to YYYY-MM-DD format first
-      let normalizedDate = dateStr
+    // Check if record already has preventive care saved
+    if (preventiveCare.length > 0) {
+      return // Already has data (either saved or already auto-populated)
+    }
+
+    // Helper to calculate next due date
+    const addDays = (dateStr: string, days: number): string => {
+      let normalized = dateStr
       if (dateStr.includes('T')) {
-        // ISO format - extract just the date part
-        normalizedDate = dateStr.split('T')[0]
+        normalized = dateStr.split('T')[0]
       }
       
-      // Parse as local date (not UTC)
-      const [year, month, day] = normalizedDate.split('-').map(Number)
-      const date = new Date(year, month - 1, day) // month is 0-indexed
+      const [year, month, day] = normalized.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
       date.setDate(date.getDate() + days)
       
       const y = date.getFullYear()
@@ -455,142 +496,33 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       return `${y}-${m}-${d}`
     }
 
-    // Normalize appointment date to YYYY-MM-DD if it has time component
-    let normalizedAppointmentDate = appointmentDate
+    // Normalize appointment date
+    let normalizedDate = appointmentDate
     if (appointmentDate.includes('T')) {
-      normalizedAppointmentDate = appointmentDate.split('T')[0]
+      normalizedDate = appointmentDate.split('T')[0]
     }
 
-    console.log('Auto-populate running with normalized date:', normalizedAppointmentDate)
-
-    // Check if we already have preventive care from a saved record
-    // If so, only populate if all items lack dates
-    if (preventiveCare.length > 0) {
-      const allHaveDates = preventiveCare.every(c => c.dateAdministered && c.nextDueDate)
-      if (allHaveDates) {
-        return // Already has complete data
+    // Always add both preventive care services (Deworming & Flea & Tick Prevention)
+    const autoPop: typeof preventiveCare = [
+      {
+        careType: 'deworming',
+        product: 'Deworming',
+        dateAdministered: normalizedDate,
+        nextDueDate: addDays(normalizedDate, 90),
+        notes: ''
+      },
+      {
+        careType: 'flea',
+        product: 'Flea & Tick Prevention',
+        dateAdministered: normalizedDate,
+        nextDueDate: addDays(normalizedDate, 30),
+        notes: ''
       }
-      // If some are missing dates, we'll update them below
-    }
+    ]
 
-    // More flexible matching - check if appointment type contains preventive care keywords
-    const preventiveCareTypes = appointmentTypes.filter(t => {
-      const lowerT = String(t).toLowerCase()
-      return (
-        lowerT === 'deworming' || 
-        lowerT.includes('flea') || 
-        lowerT.includes('tick') || 
-        lowerT === 'preventive care' || 
-        lowerT === 'preventive-care' ||
-        lowerT.includes('heartworm')
-      )
-    })
-
-    if (preventiveCareTypes.length === 0) {
-      console.log('No preventive care types found in:', appointmentTypes)
-      return
-    }
-
-    console.log('Found preventive care types:', preventiveCareTypes)
-
-    // If just "Preventive Care" was selected, add all available preventive care services
-    const isGenericPreventiveCare = appointmentTypes.some(t => 
-      String(t).toLowerCase() === 'preventive care' || 
-      String(t).toLowerCase() === 'preventive-care'
-    )
-
-    const autoPop: any[] = []
-    
-    console.log('isGenericPreventiveCare:', isGenericPreventiveCare)
-    console.log('Available services:', preventiveCareServices.map(s => ({ name: s.name, intervalDays: s.intervalDays })))
-    console.log('Service names (lowercase):', preventiveCareServices.map(s => s.name.toLowerCase()))
-    
-    if (isGenericPreventiveCare) {
-      // Add all preventive care services
-      for (const service of preventiveCareServices) {
-        const dateAdministered = normalizedAppointmentDate
-        const nextDueDate = addDaysToDateString(normalizedAppointmentDate, service.intervalDays || 0)
-        
-        autoPop.push({
-          careType: mapProductToCareType(service.name),
-          product: service.name,
-          dateAdministered,
-          nextDueDate,
-          notes: ''
-        })
-      }
-    } else {
-      // Add specific services based on appointment type
-      const serviceNameMap: Record<string, string> = {
-        'deworming': 'Deworming',
-        'flea-tick-prevention': 'Flea & Tick Prevention',
-        'flea': 'Flea & Tick Prevention',
-        'tick': 'Flea & Tick Prevention',
-        'preventive care': 'Preventive Care',
-        'preventive-care': 'Preventive Care',
-        'heartworm': 'Heartworm Prevention',
-      }
-
-      for (const type of preventiveCareTypes) {
-        const lowerType = String(type).toLowerCase()
-        let serviceName = serviceNameMap[lowerType]
-        
-        console.log(`Processing type: ${lowerType}, mapped service name:`, serviceName)
-        
-        // If not in map, try to match based on content
-        if (!serviceName) {
-          if (lowerType.includes('flea') || lowerType.includes('tick')) {
-            serviceName = 'Flea and Tick Prevention'
-          } else if (lowerType === 'deworming') {
-            serviceName = 'Deworming'
-          } else if (lowerType.includes('heartworm')) {
-            serviceName = 'Heartworm Prevention'
-          }
-        }
-
-        console.log(`Final service name for ${lowerType}:`, serviceName)
-
-        if (serviceName) {
-          let service = preventiveCareServices.find((s) => 
-            s.name.toLowerCase() === serviceName.toLowerCase()
-          )
-          
-          // Fallback: if not found and serviceName is "Flea and Tick Prevention", try with ampersand
-          if (!service && serviceName.toLowerCase() === 'flea and tick prevention') {
-            service = preventiveCareServices.find((s) => 
-              s.name.toLowerCase().includes('flea') && (s.name.toLowerCase().includes('tick') || s.name.toLowerCase().includes('&'))
-            )
-          }
-          
-          console.log(`Service found for ${serviceName}:`, service)
-          console.log(`Service intervalDays:`, service?.intervalDays, `Type: ${typeof service?.intervalDays}`)
-          
-          if (service) {
-            const dateAdministered = normalizedAppointmentDate
-            const intervalDays = service.intervalDays || 0
-            console.log(`Calculating next due: ${normalizedAppointmentDate} + ${intervalDays} days`)
-            const nextDueDate = addDaysToDateString(normalizedAppointmentDate, intervalDays)
-            console.log(`Result nextDueDate: ${nextDueDate}`)
-            
-            console.log(`Adding to autoPop: careType=${mapProductToCareType(service.name)}, dateAdministered=${dateAdministered}, nextDueDate=${nextDueDate}`)
-            
-            autoPop.push({
-              careType: mapProductToCareType(service.name),
-              product: service.name,
-              dateAdministered,
-              nextDueDate,
-              notes: ''
-            })
-          }
-        }
-      }
-    }
-
-    if (autoPop.length > 0) {
-      console.log('Setting preventive care:', autoPop)
-      setPreventiveCare(autoPop)
-    }
-  }, [appointmentTypes, preventiveCareServices, appointmentDate])
+    setPreventiveCare(autoPop)
+    setPreventiveCareManuallyEdited(new Set()) // Reset manual edits on auto-populate
+  }, [appointmentDate, preventiveCare.length])
 
   // Auto-fill manufacturer and batch number from vaccine type defaults
   // Also validate pet age against vaccine type age requirements
@@ -1802,11 +1734,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                       }
                                     : c
                                 ))
+                                // Reset manual edit flag when product changes
+                                setPreventiveCareManuallyEdited((prev) => {
+                                  const newSet = new Set(prev)
+                                  newSet.delete(i)
+                                  return newSet
+                                })
                               }}
                               className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                             >
                               <option value="">Select a preventive care service</option>
-                              {preventiveCareServices.map((service) => (
+                              {console.log(`Preventive Care ${i + 1}: product="${care.product}", services=${preventiveCareServices.map(s => s.name).join(', ')}`), preventiveCareServices.map((service) => (
                                 <option key={service._id} value={service.name}>
                                   {service.name} {service.price ? `(₱${service.price})` : ''}{service.intervalDays ? ` [${service.intervalDays}d]` : ''}
                                 </option>
@@ -1820,22 +1758,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 onChange={(e) => {
                                   const dateValue = e.target.value
                                   const selected = preventiveCareServices.find((s) => s.name.toLowerCase() === care.product.toLowerCase())
+                                  
+                                  // Always recalculate nextDueDate UNLESS vet has manually edited it
+                                  let newNextDueDate = care.nextDueDate
+                                  if (dateValue && selected?.intervalDays && !preventiveCareManuallyEdited.has(i)) {
+                                    const d = new Date(dateValue)
+                                    d.setDate(d.getDate() + (selected.intervalDays as number))
+                                    newNextDueDate = d.toISOString().split('T')[0]
+                                  }
+                                  
                                   setPreventiveCare((prev) => prev.map((c, j) => 
                                     j === i 
-                                      ? { 
-                                          ...c, 
-                                          dateAdministered: dateValue || null,
-                                          // Auto-calculate nextDueDate if dateAdministered is set and selected service has interval
-                                          ...(dateValue && selected?.intervalDays 
-                                            ? { nextDueDate: (() => {
-                                                const d = new Date(dateValue)
-                                                d.setDate(d.getDate() + (selected.intervalDays as number))
-                                                return d.toISOString().split('T')[0]
-                                              })() 
-                                            }
-                                            : {}
-                                          )
-                                        }
+                                      ? { ...c, dateAdministered: dateValue || null, nextDueDate: newNextDueDate }
                                       : c
                                   ))
                                 }}
@@ -1863,7 +1797,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             <input 
                               type="date" 
                               value={care.nextDueDate || ''} 
-                              onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: e.target.value || null } : c))}
+                              onChange={(e) => {
+                                setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: e.target.value || null } : c))
+                                // Mark this item as manually edited
+                                setPreventiveCareManuallyEdited((prev) => new Set([...prev, i]))
+                              }}
                               placeholder="mm/dd/yyyy"
                               className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 
                             />

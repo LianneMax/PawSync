@@ -15,6 +15,94 @@ function isClinicAdminUser(req: Request): boolean {
 }
 
 /**
+ * Helper — add days to a date, returns a new Date.
+ */
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+/**
+ * Helper — add minutes to a "HH:MM" time string.
+ */
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+}
+
+/**
+ * Helper — Create auto-scheduled appointments for preventive care items when visit is completed
+ */
+async function autoSchedulePreventiveCareAppointments(
+  record: any,
+  preventiveCare: any[],
+  userId: string
+): Promise<void> {
+  if (!preventiveCare || preventiveCare.length === 0) return;
+
+  for (const care of preventiveCare) {
+    try {
+      // Skip if no nextDueDate
+      if (!care.nextDueDate) continue;
+
+      const scheduledDate = new Date(care.nextDueDate);
+      scheduledDate.setUTCHours(0, 0, 0, 0);
+
+      const pet = await Pet.findById(record.petId);
+      if (!pet) continue;
+
+      let resolvedBranchId: string | null = record.clinicBranchId
+        ? record.clinicBranchId.toString()
+        : null;
+
+      if (!resolvedBranchId) {
+        const vet = await User.findById(record.vetId).select('clinicBranchId').lean();
+        if (vet?.clinicBranchId) {
+          resolvedBranchId = vet.clinicBranchId.toString();
+        } else if (record.clinicId) {
+          const branch = await ClinicBranch.findOne({ clinicId: record.clinicId }).select('_id').lean();
+          if (branch) resolvedBranchId = branch._id.toString();
+        }
+      }
+
+      if (!record.clinicId || !resolvedBranchId) continue;
+
+      // Try several time slots for appointment
+      const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+      
+      for (const startTime of candidateSlots) {
+        const endTime = addMinutesToTime(startTime, 30);
+        try {
+          await Appointment.create({
+            petId: record.petId,
+            ownerId: pet.ownerId,
+            vetId: record.vetId,
+            clinicId: record.clinicId,
+            clinicBranchId: resolvedBranchId,
+            mode: 'face-to-face',
+            types: ['preventive-care'],
+            date: scheduledDate,
+            startTime,
+            endTime,
+            status: 'confirmed',
+            notes: `Auto-scheduled ${care.product} - Next due preventive care`,
+          });
+          break; // Appointment created successfully
+        } catch (slotErr: any) {
+          if (slotErr?.code === 11000) continue; // Slot conflict, try next
+          break; // Other error, stop trying
+        }
+      }
+    } catch (err) {
+      console.error(`[PreventiveCare] Error auto-scheduling ${care.product}:`, err);
+      // Continue with next item even if one fails
+    }
+  }
+}
+
+/**
  * Create a new medical record.
  * Accessible by: veterinarian, clinic-admin, branch-admin.
  *
@@ -549,6 +637,16 @@ export const updateRecord = async (req: Request, res: Response) => {
             await pet.save();
           }
         }
+      }
+    }
+
+    // If marking the record as completed, auto-schedule appointments for preventive care items
+    if (stage === 'completed' && preventiveCare && preventiveCare.length > 0) {
+      try {
+        await autoSchedulePreventiveCareAppointments(record, preventiveCare, req.user.userId);
+      } catch (pcErr) {
+        console.error('[MedicalRecord] Error auto-scheduling preventive care appointments:', pcErr);
+        // Don't block the visit completion on preventive care scheduling error
       }
     }
 

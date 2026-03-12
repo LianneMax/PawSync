@@ -7,7 +7,7 @@
  * 
  * This script creates standard preventive care services with default intervals:
  * - Deworming: 90 days
- * - Flea and Tick Prevention: 365 days
+ * - Flea & Tick Prevention: 30 days
  * 
  * Note: Rabies Vaccine is handled as a VaccineType, not preventive care
  */
@@ -25,16 +25,16 @@ const preventiveCareServices = [
     price: 250,
     description: 'Deworming treatment for internal parasites',
     isActive: true,
-    intervalDays: 90,
+    intervalDays: 90,  // Every 90 days
   },
   {
-    name: 'Flea and Tick Prevention',
+    name: 'Flea & Tick Prevention',
     type: 'Service',
     category: 'Preventive Care',
     price: 350,
     description: 'Monthly flea and tick prevention treatment',
     isActive: true,
-    intervalDays: 30,
+    intervalDays: 30,  // Every 30 days
   },
 ];
 
@@ -42,6 +42,14 @@ async function seedPreventiveCareServices() {
   try {
     await mongoose.connect(MONGO_URL);
     console.log('✓ Connected to MongoDB');
+
+    // Handle name migration: rename old "Flea and Tick Prevention" to "Flea & Tick Prevention"
+    const oldFleavName = await ProductService.findOne({ name: 'Flea and Tick Prevention' });
+    if (oldFleavName) {
+      oldFleavName.name = 'Flea & Tick Prevention';
+      await oldFleavName.save();
+      console.log('✓ Migrated "Flea and Tick Prevention" → "Flea & Tick Prevention"');
+    }
 
     for (const service of preventiveCareServices) {
       // Check if service already exists
@@ -65,7 +73,7 @@ async function seedPreventiveCareServices() {
 
     console.log('\n✓ Preventive care services seeded successfully!');
     console.log('  - Deworming: 90-day interval');
-    console.log('  - Flea and Tick Prevention: 365-day interval');
+    console.log('  - Flea & Tick Prevention: 30-day interval');
     console.log('  - Note: Rabies Vaccine is handled via the vaccine form (VaccineType)');
   } catch (error) {
     console.error('✗ Error seeding preventive care services:', error);
