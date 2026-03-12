@@ -16,6 +16,7 @@ export interface IProductService extends Document {
   isActive: boolean;
   administrationRoute?: AdministrationRoute;
   administrationMethod?: AdministrationMethod;
+  intervalDays?: number; // For preventive care services, days until next due
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +45,11 @@ const ProductServiceSchema: Schema = new Schema(
       type: String,
       enum: ['pills', 'capsules', 'tablets', 'liquid', 'suspension', 'skin', 'eyes', 'ears'],
       default: null,
+    },
+    intervalDays: {
+      type: Number,
+      default: null,
+      min: 1,
     },
   },
   { timestamps: true }

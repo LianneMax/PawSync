@@ -411,20 +411,26 @@ export const getMyAppointments = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const now = new Date();
     const filter = req.query.filter as string; // 'upcoming' or 'previous'
 
     const query: any = { ownerId: req.user.userId };
 
+    // Get today at midnight for date comparisons
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get tomorrow at midnight for clean separation
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     if (filter === 'upcoming') {
-      query.$or = [
-        { date: { $gt: now } },
-        { date: { $eq: now }, status: { $in: ['pending', 'confirmed'] } }
-      ];
-      query.status = { $in: ['pending', 'confirmed'] };
+      // Upcoming: date is today or later AND status is pending or confirmed
+      query.date = { $gte: today };
+      query.status = { $in: ['pending', 'confirmed', 'in_clinic', 'in_progress'] };
     } else if (filter === 'previous') {
+      // Previous: date is before today OR status is completed/cancelled
       query.$or = [
-        { date: { $lt: now } },
+        { date: { $lt: today }, status: { $ne: 'pending' } },
         { status: { $in: ['completed', 'cancelled'] } }
       ];
     }

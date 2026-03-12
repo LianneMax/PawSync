@@ -374,13 +374,22 @@ export default function MyAppointmentsPage() {
                       <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
                     ))}
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
+                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                    appt.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                    appt.status === 'in_clinic' ? 'bg-yellow-100 text-yellow-700' :
                     appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                    appt.status === 'completed' ? 'bg-green-100 text-green-700' :
                     appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                     appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
-                    {appt.status}
+                    {appt.status === 'in_progress' ? 'In Progress' :
+                     appt.status === 'in_clinic' ? 'In Clinic' :
+                     appt.status === 'confirmed' ? 'Confirmed' :
+                     appt.status === 'pending' ? 'Pending' :
+                     appt.status === 'cancelled' ? 'Cancelled' :
+                     appt.status === 'completed' ? 'Completed' :
+                     appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
                   </span>
                   {(appt.status === 'pending' || appt.status === 'confirmed') && activeTab === 'upcoming' && (
                     <button

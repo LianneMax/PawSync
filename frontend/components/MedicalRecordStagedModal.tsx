@@ -129,6 +129,16 @@ const emptyPreventiveCare = (): Omit<PreventiveCare, '_id'> => ({
   notes: '',
 })
 
+// Map product names to careType enum values
+// Handles: Deworming, Flea and Tick Prevention
+const mapProductToCareType = (productName: string): 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other' => {
+  const productLower = productName.toLowerCase()
+  if (productLower.includes('deworming')) return 'deworming'
+  if (productLower.includes('flea') || productLower.includes('tick')) return 'flea' // "Flea and Tick Prevention" → 'flea'
+  if (productLower.includes('heartworm')) return 'heartworm'
+  return 'other'
+}
+
 function calcAge(dob: string): string {
   const d = new Date(dob)
   const now = new Date()
@@ -411,6 +421,50 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Auto-populate preventive care based on appointment types
+  useEffect(() => {
+    if (preventiveCare.length > 0 || appointmentTypes.length === 0 || preventiveCareServices.length === 0) {
+      return // Already has preventive care or no appointment types to process
+    }
+
+    const preventiveCareTypes = appointmentTypes.filter(t => 
+      t === 'deworming' || t === 'flea-tick-prevention' || 
+      t === 'Preventive Care' || t === 'heartworm'
+    )
+
+    if (preventiveCareTypes.length === 0) return
+
+    const serviceNameMap: Record<string, string> = {
+      'deworming': 'Deworming',
+      'flea-tick-prevention': 'Flea and Tick Prevention',
+      'Preventive Care': 'Preventive Care',
+      'heartworm': 'Heartworm Prevention'
+    }
+
+    const autoPop: any[] = []
+    for (const type of preventiveCareTypes) {
+      const serviceName = serviceNameMap[type]
+      if (serviceName) {
+        const service = preventiveCareServices.find((s) => 
+          s.name.toLowerCase() === serviceName.toLowerCase()
+        )
+        if (service) {
+          autoPop.push({
+            careType: mapProductToCareType(service.name),
+            product: service.name,
+            dateAdministered: null,
+            nextDueDate: null,
+            notes: ''
+          })
+        }
+      }
+    }
+
+    if (autoPop.length > 0) {
+      setPreventiveCare(autoPop)
+    }
+  }, [appointmentTypes, preventiveCareServices, preventiveCare.length])
 
   // Auto-fill manufacturer and batch number from vaccine type defaults
   // Also validate pet age against vaccine type age requirements
@@ -709,12 +763,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setCompleting(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
+      
+      // Ensure preventiveCare items have correct careType mapping
+      const sanitizedPreventiveCare = preventiveCare.map((care) => ({
+        careType: mapProductToCareType(care.product),
+        product: care.product,
+        dateAdministered: care.dateAdministered,
+        nextDueDate: care.nextDueDate,
+        notes: care.notes,
+      }))
+      
       await updateMedicalRecord(recordId, {
         stage: 'completed',
         visitSummary,
         medications,
         diagnosticTests,
-        preventiveCare,
+        preventiveCare: sanitizedPreventiveCare,
         sharedWithOwner,
         images,
         confinementAction,
@@ -1573,33 +1637,119 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 </button>
                 {preventiveOpen && (
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
-                    {preventiveCare.map((care, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-gray-500">Preventive Care {i + 1}</span>
-                          <button onClick={() => setPreventiveCare((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={care.product} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, product: e.target.value, careType: 'other' } : c))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="">Select a preventive care service</option>
-                            {preventiveCareServices.map((service) => (
-                              <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
-                            ))}
-                          </select>
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
-                            <input type="date" value={care.dateAdministered || ''} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, dateAdministered: e.target.value || null } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                    {preventiveCare.map((care, i) => {
+                      const selectedService = preventiveCareServices.find((s) => s.name === care.product)
+                      const base = care.dateAdministered ? new Date(care.dateAdministered) : null
+                      const calculatedNextDue = base && selectedService?.intervalDays
+                        ? (() => { const d = new Date(base); d.setDate(d.getDate() + (selectedService.intervalDays as number)); return d })()
+                        : null
+                      
+                      return (
+                        <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-gray-500">Preventive Care {i + 1}</span>
+                            <button onClick={() => setPreventiveCare((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Next Due Date</label>
-                            <input type="date" value={care.nextDueDate || ''} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: e.target.value || null } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <select 
+                              value={care.product} 
+                              onChange={(e) => {
+                                const selected = preventiveCareServices.find((s) => s.name === e.target.value)
+                                setPreventiveCare((prev) => prev.map((c, j) => 
+                                  j === i 
+                                    ? { 
+                                        ...c, 
+                                        product: e.target.value, 
+                                        careType: mapProductToCareType(e.target.value),
+                                        // Auto-calculate nextDueDate if dateAdministered is set and selected service has interval
+                                        ...(c.dateAdministered && selected?.intervalDays 
+                                          ? { nextDueDate: (() => {
+                                              const d = new Date(c.dateAdministered)
+                                              d.setDate(d.getDate() + (selected.intervalDays as number))
+                                              return d.toISOString().split('T')[0]
+                                            })() 
+                                          }
+                                          : {}
+                                        )
+                                      }
+                                    : c
+                                ))
+                              }}
+                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                            >
+                              <option value="">Select a preventive care service</option>
+                              {preventiveCareServices.map((service) => (
+                                <option key={service._id} value={service.name}>
+                                  {service.name} {service.price ? `(₱${service.price})` : ''}{service.intervalDays ? ` [${service.intervalDays}d]` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
+                              <input 
+                                type="date" 
+                                value={care.dateAdministered || ''} 
+                                onChange={(e) => {
+                                  const dateValue = e.target.value
+                                  const selected = preventiveCareServices.find((s) => s.name === care.product)
+                                  setPreventiveCare((prev) => prev.map((c, j) => 
+                                    j === i 
+                                      ? { 
+                                          ...c, 
+                                          dateAdministered: dateValue || null,
+                                          // Auto-calculate nextDueDate if dateAdministered is set and selected service has interval
+                                          ...(dateValue && selected?.intervalDays 
+                                            ? { nextDueDate: (() => {
+                                                const d = new Date(dateValue)
+                                                d.setDate(d.getDate() + (selected.intervalDays as number))
+                                                return d.toISOString().split('T')[0]
+                                              })() 
+                                            }
+                                            : {}
+                                          )
+                                        }
+                                      : c
+                                  ))
+                                }}
+                                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 
+                              />
+                            </div>
                           </div>
+                          
+                          {/* Auto-calculated Next Due Date Display */}
+                          {calculatedNextDue && (
+                            <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg p-2">
+                              <p className="text-[10px] font-bold text-[#4569B1] uppercase tracking-wide">Suggested Next Due Date</p>
+                              <p className="font-semibold text-[#4569B1] text-xs mt-0.5">
+                                {care.nextDueDate && care.nextDueDate !== calculatedNextDue.toISOString().split('T')[0]
+                                  ? new Date(care.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : calculatedNextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                }
+                              </p>
+                            </div>
+                          )}
+                          
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Next Due Date (Optional - Override)</label>
+                            <input 
+                              type="date" 
+                              value={care.nextDueDate || ''} 
+                              onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: e.target.value || null } : c))}
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 
+                            />
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Notes (optional)" 
+                            value={care.notes} 
+                            onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, notes: e.target.value } : c))} 
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 
+                          />
                         </div>
-                        <input type="text" placeholder="Notes (optional)" value={care.notes} onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, notes: e.target.value } : c))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                      </div>
-                    ))}
+                      )
+                    })}
                     <button onClick={() => setPreventiveCare((prev) => [...prev, emptyPreventiveCare()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add Item
                     </button>

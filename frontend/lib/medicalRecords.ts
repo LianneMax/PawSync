@@ -317,6 +317,7 @@ export interface ProductService {
   price: number;
   description: string;
   isActive: boolean;
+  intervalDays?: number;
   createdAt: string;
   updatedAt: string;
 }
