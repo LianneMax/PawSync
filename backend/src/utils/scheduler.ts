@@ -5,6 +5,7 @@ import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
 import {
   sendAppointmentReminder,
+  sendAppointmentMissed,
   sendVaccinationDueReminder,
   sendVaccinationDueReminderVet,
 } from '../services/emailService';
@@ -240,9 +241,13 @@ export function startScheduler() {
       const activeAppointments = await Appointment.find({
         status: { $in: ['confirmed', 'in_progress'] },
         date: { $lte: todayStart },
-      }).select('_id date startTime endTime status');
+      })
+        .populate('ownerId', 'firstName lastName email')
+        .populate('petId', 'name')
+        .populate('vetId', 'firstName lastName')
+        .populate('clinicBranchId', 'name');
 
-      const toCancel: string[] = [];
+      const toCancel: typeof activeAppointments = [];
 
       for (const appt of activeAppointments) {
         const dateStr = appt.date.toISOString().split('T')[0];
@@ -252,17 +257,52 @@ export function startScheduler() {
           const apptStart = new Date(`${dateStr}T${appt.startTime}`);
           const cancelThreshold = new Date(apptStart.getTime() + 15 * 60 * 1000);
           if (cancelThreshold < now) {
-            toCancel.push(appt._id.toString());
+            toCancel.push(appt);
           }
         }
       }
 
       if (toCancel.length > 0) {
         await Appointment.updateMany(
-          { _id: { $in: toCancel } },
+          { _id: { $in: toCancel.map(a => a._id) } },
           { $set: { status: 'cancelled' } }
         );
         console.log(`[Scheduler] Auto-cancelled ${toCancel.length} appointment(s) (no check-in within 15 min)`);
+
+        // Send missed appointment email + in-app notification for each cancelled appointment
+        for (const appt of toCancel) {
+          const owner = appt.ownerId as any;
+          const pet = appt.petId as any;
+          const vet = appt.vetId as any;
+          const branch = appt.clinicBranchId as any;
+          const petName = pet?.name ?? 'your pet';
+          const vetName = vet ? `${vet.firstName} ${vet.lastName}` : 'your vet';
+          const clinicName = branch?.name ?? 'the clinic';
+          const dateStr2 = appt.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+          if (owner?._id) {
+            await createNotification(
+              owner._id.toString(),
+              'appointment_cancelled',
+              'Appointment Missed',
+              `Your appointment for ${petName} on ${dateStr2} at ${appt.startTime} was not attended and has been cancelled. You can reschedule anytime.`,
+              { appointmentId: appt._id }
+            ).catch(() => {});
+          }
+
+          if (owner?.email && vet && branch) {
+            await sendAppointmentMissed({
+              ownerEmail: owner.email,
+              ownerFirstName: owner.firstName,
+              petName,
+              vetName,
+              clinicName,
+              date: appt.date,
+              startTime: appt.startTime,
+              types: appt.types,
+            }).catch(() => {});
+          }
+        }
       }
     } catch (err) {
       console.error('[Scheduler] Auto-update appointments error:', err);

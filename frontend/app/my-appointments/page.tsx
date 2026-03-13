@@ -46,6 +46,20 @@ const appointmentModes = [
 ]
 
 
+// ---- Helper: compute display status (mirrors auto-cancel logic in scheduler) ----
+function getDisplayStatus(appt: Appointment): string {
+  if (appt.status === 'confirmed') {
+    const apptStart = new Date(appt.date.split('T')[0] + 'T' + appt.startTime)
+    const cancelThreshold = new Date(apptStart.getTime() + 15 * 60 * 1000)
+    if (cancelThreshold < new Date()) return 'cancelled'
+  }
+  if (appt.status === 'in_progress') {
+    const apptEnd = new Date(appt.date.split('T')[0] + 'T' + appt.endTime)
+    if (apptEnd < new Date()) return 'completed'
+  }
+  return appt.status
+}
+
 // ---- Helper: normalize appointment type to valid enum values ----
 function normalizeAppointmentType(type: string): string {
   const typeMap: Record<string, string> = {
@@ -375,23 +389,23 @@ export default function MyAppointmentsPage() {
                     ))}
                   </div>
                   <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    appt.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
-                    appt.status === 'in_clinic' ? 'bg-yellow-100 text-yellow-700' :
-                    appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                    appt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                    appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                    appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                    getDisplayStatus(appt) === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                    getDisplayStatus(appt) === 'in_clinic' ? 'bg-yellow-100 text-yellow-700' :
+                    getDisplayStatus(appt) === 'confirmed' ? 'bg-green-100 text-green-700' :
+                    getDisplayStatus(appt) === 'completed' ? 'bg-green-100 text-green-700' :
+                    getDisplayStatus(appt) === 'pending' ? 'bg-amber-100 text-amber-700' :
+                    getDisplayStatus(appt) === 'cancelled' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
-                    {appt.status === 'in_progress' ? 'In Progress' :
-                     appt.status === 'in_clinic' ? 'In Clinic' :
-                     appt.status === 'confirmed' ? 'Confirmed' :
-                     appt.status === 'pending' ? 'Pending' :
-                     appt.status === 'cancelled' ? 'Cancelled' :
-                     appt.status === 'completed' ? 'Completed' :
-                     (appt.status as string).charAt(0).toUpperCase() + (appt.status as string).slice(1)}
+                    {getDisplayStatus(appt) === 'in_progress' ? 'In Progress' :
+                     getDisplayStatus(appt) === 'in_clinic' ? 'In Clinic' :
+                     getDisplayStatus(appt) === 'confirmed' ? 'Confirmed' :
+                     getDisplayStatus(appt) === 'pending' ? 'Pending' :
+                     getDisplayStatus(appt) === 'cancelled' ? 'Cancelled' :
+                     getDisplayStatus(appt) === 'completed' ? 'Completed' :
+                     (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
                   </span>
-                  {(appt.status === 'pending' || appt.status === 'confirmed') && activeTab === 'upcoming' && (
+                  {(appt.status === 'pending' || appt.status === 'confirmed') && getDisplayStatus(appt) !== 'cancelled' && activeTab === 'upcoming' && (
                     <button
                       onClick={() => handleCancel(appt._id)}
                       className="text-xs text-red-500 hover:text-red-700 font-medium"

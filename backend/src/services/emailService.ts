@@ -141,6 +141,49 @@ export async function sendAppointmentCancelled(params: {
   }
 }
 
+// ─── Appointment Missed (auto-cancelled after 15 min no check-in) ────────────
+
+export async function sendAppointmentMissed(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  clinicName: string;
+  date: Date | string;
+  startTime: string;
+  types: string[];
+}) {
+  const rescheduleUrl = `${FRONTEND_URL}/my-appointments`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Missed Appointment for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #b45309;">Missed Appointment</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>We noticed that your appointment for <strong>${params.petName}</strong> was not attended and has been automatically cancelled.</p>
+          <div style="background: #fef3c7; border: 1px solid #fcd34d; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Vet:</strong> Dr. ${params.vetName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
+          </div>
+          <p style="color: #666;">Don't worry — you can reschedule anytime. Click the button below to book a new appointment.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${rescheduleUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Reschedule Appointment</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentMissed error:', err);
+  }
+}
+
 // ─── Vaccination Due Reminder ─────────────────────────────────────────────────
 
 export async function sendVaccinationDueReminder(params: {
