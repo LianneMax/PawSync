@@ -73,7 +73,7 @@ interface ApiMedicalRecord {
 // ==================== STATUS HELPERS ====================
 
 type AdminStatus = 'Awaiting Approval' | 'Paid' | 'Pending Payment'
-type OwnerStatus = 'Paid' | 'Pending'
+type OwnerStatus = 'Paid' | 'Pending Payment' | 'Awaiting Approval'
 
 function mapAdminStatus(status: string): AdminStatus {
   if (status === 'paid') return 'Paid'
@@ -83,7 +83,8 @@ function mapAdminStatus(status: string): AdminStatus {
 
 function mapOwnerStatus(status: string): OwnerStatus {
   if (status === 'paid') return 'Paid'
-  return 'Pending'
+  if (status === 'pending_payment') return 'Pending Payment'
+  return 'Awaiting Approval'
 }
 
 function getAdminStatusStyle(status: AdminStatus) {
@@ -98,7 +99,8 @@ function getAdminStatusStyle(status: AdminStatus) {
 function getOwnerStatusStyle(status: OwnerStatus) {
   switch (status) {
     case 'Paid': return 'bg-green-100 text-green-700'
-    case 'Pending': return 'bg-yellow-100 text-yellow-700'
+    case 'Pending Payment': return 'bg-blue-100 text-blue-700'
+    case 'Awaiting Approval': return 'bg-yellow-100 text-yellow-700'
     default: return 'bg-gray-100 text-[#4F4F4F]'
   }
 }
@@ -118,6 +120,8 @@ function PetOwnerBilling() {
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
+  const [payingBilling, setPayingBilling] = useState<ApiBilling | null>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -200,9 +204,23 @@ function PetOwnerBilling() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {b.status === 'pending_payment' && (
+                          <button
+                            onClick={() => setPayingBilling(b)}
+                            className="inline-flex items-center px-3 py-1.5 bg-[#3D5A58] hover:bg-[#2e4341] text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Pay Now
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setViewingBilling(b)}
+                          className="text-gray-400 hover:text-[#476B6B] transition-colors"
+                          title="View billing details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -217,6 +235,20 @@ function PetOwnerBilling() {
           )}
         </div>
       </div>
+
+      {viewingBilling && (
+        <ViewBillingModal
+          billing={viewingBilling}
+          onClose={() => setViewingBilling(null)}
+        />
+      )}
+
+      {payingBilling && (
+        <PayNowModal
+          billing={payingBilling}
+          onClose={() => setPayingBilling(null)}
+        />
+      )}
     </div>
   )
 }
@@ -1500,6 +1532,51 @@ function ViewBillingModal({
           <button
             onClick={onClose}
             className="px-8 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold rounded-xl transition-colors text-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== PAY NOW MODAL (Pet Owner) ====================
+
+function PayNowModal({
+  billing,
+  onClose,
+}: {
+  billing: ApiBilling
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Pay Now</h2>
+          <p className="text-sm text-gray-400">
+            {billing.petId?.name} &mdash; {formatCurrency(billing.totalAmountDue)}
+          </p>
+        </div>
+
+        {/* Payment form will be added here */}
+        <p className="text-center text-sm text-gray-400 py-8">Payment options coming soon.</p>
+
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={onClose}
+            className="px-8 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm"
           >
             Close
           </button>

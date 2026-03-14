@@ -8,7 +8,19 @@
       "Bash(pgrep -f \"ts-node\\\\|nodemon\\\\|node.*dist\")",
       "Bash(lsof -i :5001)",
       "Bash(curl -s http://localhost:5001/api/billings)",
-      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -name billing* -o -name Billing*)"
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -name billing* -o -name Billing*)",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend -type f \\\\\\(-name *bill* -o -name *payment* -o -name *invoice* \\\\\\))",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend -type f \\\\\\(-path */clinic-admin/*billing* -o -path */clinic-admin/*invoice* -o -path */clinic-admin/*payment* \\\\\\))",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend -type f \\\\\\(-path */app/* -name page.tsx -o -path */app/* -name page.ts \\\\\\))",
+      "Bash(grep -r \"listBillingsForClinic\\\\|listBillingsForVet\" /Users/juliannalammoglia/Desktop/PawSync/frontend --include=*.tsx --include=*.ts)",
+      "Bash(grep -r billings /Users/juliannalammoglia/Desktop/PawSync/frontend/app --include=*.tsx)",
+      "Bash(grep -r payment-qr /Users/juliannalammoglia/Desktop/PawSync/frontend/app --include=*.tsx)",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend/src -name *[Bb]illing* -o -name *[Ii]nvoice* -o -name *[Pp]ayment*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend -name *DashboardLayout* -o -name *Layout*)",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -name *emailService* -o -name *email*)",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend/app -type f -name *.tsx -o -name *.ts)"
     ]
   }
 }
