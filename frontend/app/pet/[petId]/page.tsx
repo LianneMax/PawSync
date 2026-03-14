@@ -33,6 +33,7 @@ interface PetData {
   weight: number
   photo?: string
   allergies: string[]
+  pregnancyStatus?: 'pregnant' | 'not_pregnant'
   isLost: boolean
   lostReportedByStranger: boolean
   lostContactName: string | null
@@ -440,19 +441,25 @@ export default function PetProfilePage() {
         )}
 
         {/* Info Chips */}
-        <div className="flex gap-3">
-          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1">
+        <div className="flex gap-3 flex-wrap">
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1 min-w-[80px]">
             <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Species</p>
             <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.species}</p>
           </div>
-          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1">
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1 min-w-[80px]">
             <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Gender</p>
             <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.sex}</p>
           </div>
-          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1">
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1 min-w-[80px]">
             <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Age</p>
             <p className="text-base font-bold text-[#4F4F4F]">{calculateAge(pet.dateOfBirth)}</p>
           </div>
+          {pet.sex === 'female' && pet.pregnancyStatus === 'pregnant' && (
+            <div className="bg-pink-50 border border-pink-200 rounded-xl px-5 py-3 flex-1 min-w-[80px]">
+              <p className="text-[10px] text-pink-400 uppercase tracking-wide mb-0.5">Status</p>
+              <p className="text-base font-bold text-pink-600">Pregnant</p>
+            </div>
+          )}
         </div>
 
         {/* Vitals Grid */}

@@ -190,6 +190,13 @@ export default function MyPetsPage() {
                   </div>
                 )}
 
+                {/* Pregnancy badge */}
+                {pet.sex === 'female' && pet.pregnancyStatus === 'pregnant' && (
+                  <div className="absolute -top-3 right-4 bg-pink-100 border border-pink-400 text-pink-700 text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
+                    Pregnant
+                  </div>
+                )}
+
                 {/* Pet Photo + Info */}
                 <div className="flex flex-col items-center mb-4">
                   <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center mb-3">

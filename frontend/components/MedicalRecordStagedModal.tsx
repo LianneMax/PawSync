@@ -1086,6 +1086,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <p className="text-gray-400 text-xs mb-0.5">Sex</p>
                       <p className="font-medium text-[#4F4F4F] capitalize">{pet.sex}</p>
                     </div>
+                    {pet.sex === 'female' && (
+                      <div>
+                        <p className="text-gray-400 text-xs mb-0.5">Pregnancy</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          pet.pregnancyStatus === 'pregnant'
+                            ? 'bg-pink-100 text-pink-700 border border-pink-300'
+                            : 'bg-gray-100 text-gray-500 border border-gray-200'
+                        }`}>
+                          {pet.pregnancyStatus === 'pregnant' ? 'Pregnant' : 'Not Pregnant'}
+                        </span>
+                      </div>
+                    )}
                     {pet.microchipNumber && (
                       <div>
                         <p className="text-gray-400 text-xs mb-0.5">Microchip</p>

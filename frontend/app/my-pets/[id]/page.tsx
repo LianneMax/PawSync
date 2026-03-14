@@ -749,6 +749,20 @@ export default function PetProfilePage() {
               {/* Sterilization - read only */}
               <DetailField label="Sterilization" value={sterilizationLabel} />
 
+              {/* Pregnancy Status - read only, female only */}
+              {pet.sex === 'female' && (
+                <div className="bg-[#F8F6F2] rounded-xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Pregnancy Status</p>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    pet.pregnancyStatus === 'pregnant'
+                      ? 'bg-pink-100 text-pink-700 border border-pink-300'
+                      : 'bg-gray-100 text-gray-500 border border-gray-200'
+                  }`}>
+                    {pet.pregnancyStatus === 'pregnant' ? 'Pregnant' : 'Not Pregnant'}
+                  </span>
+                </div>
+              )}
+
               {/* Blood Type - read only */}
               <DetailField label="Blood Type" value={pet.bloodType || '-'} />
 
