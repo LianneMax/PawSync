@@ -20,7 +20,9 @@
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend -name *DashboardLayout* -o -name *Layout*)",
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -name *emailService* -o -name *email*)",
-      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend/app -type f -name *.tsx -o -name *.ts)"
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend/app -type f -name *.tsx -o -name *.ts)",
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend/src -name *Billing* -o -name *billing*)",
+      "Bash(grep -r \"product-services\\\\|vaccine-types\" /Users/juliannalammoglia/Desktop/PawSync/frontend/components --include=*.tsx)"
     ]
   }
 }
