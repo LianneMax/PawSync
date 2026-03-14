@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet } from '@/lib/pets'
 import { getVaccinationsByPet, type Vaccination } from '@/lib/medicalRecords'
-import { ShieldCheck, X, PawPrint } from 'lucide-react'
+import { ShieldCheck, X, PawPrint, XCircle, BadgeCheck, Clock } from 'lucide-react'
 
 function formatMonthYear(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -67,8 +67,8 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
             alt="PawSync"
             className="h-8 w-auto object-contain"
           />
-          <span className="text-white text-[10px] font-bold tracking-widest uppercase">
-            Vaccination Card
+          <span style={{ color: 'white', fontSize: 14, fontFamily: 'var(--font-outfit)', fontWeight: '400', letterSpacing: '0.1em' }}>
+            VACCINATION CARD
           </span>
         </div>
 
@@ -88,7 +88,7 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
               {pet.nfcTagId ?? pet.microchipNumber ?? 'Not registered'}
             </p>
           </div>
-          <div className="w-[62px] h-[62px] rounded-xl overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center">
+          <div className="w-22.5 h-22.5 rounded-xl overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center">
             {pet.photo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
@@ -99,9 +99,7 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
         </div>
 
         {/* Ticket-punch divider */}
-        <div className="relative flex items-center h-5 mx-0 shrink-0">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[18px] h-[18px] bg-[#F8F6F2] rounded-r-full z-10" />
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[18px] h-[18px] bg-[#F8F6F2] rounded-l-full z-10" />
+        <div className="flex items-center h-5 mx-0 shrink-0">
           <div className="w-full border-t-2 border-dashed border-gray-200" />
         </div>
 
@@ -115,15 +113,25 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
               {vaccinations.map((vax) => {
                 const status = getPillStatus(vax)
                 const isNegative = status === 'expired' || status === 'overdue'
+                const isPending = status === 'pending'
                 return (
                   <span
                     key={vax._id}
-                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full leading-none ${
+                    className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full leading-none ${
                       isNegative
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-green-100 text-green-700'
+                        ? 'bg-red-100 text-red-800'
+                        : isPending
+                        ? 'bg-gray-100 text-gray-500'
+                        : 'bg-green-100 text-green-800'
                     }`}
                   >
+                    {isNegative ? (
+                      <XCircle className="w-3 h-3 shrink-0" />
+                    ) : isPending ? (
+                      <Clock className="w-3 h-3 shrink-0" />
+                    ) : (
+                      <BadgeCheck className="w-3 h-3 shrink-0" />
+                    )}
                     {vax.vaccineName}
                   </span>
                 )
@@ -230,18 +238,30 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
         </div>
 
         {/* ── Ticket-punch divider ── */}
-        <div className="relative flex items-center h-6 mx-0">
-          {/* Left punch */}
+        <div className="relative flex items-center h-8">
+          {/* Left half-circle punch — flat side at card edge, curve points inward */}
           <div
-            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 rounded-full"
-            style={{ width: 32, height: 32, background: 'rgba(0,0,0,0.12)' }}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10"
+            style={{
+              width: 18,
+              height: 36,
+              background: 'rgba(0,0,0,0.6)',
+              borderTopRightRadius: 36,
+              borderBottomRightRadius: 36,
+            }}
           />
-          {/* Right punch */}
+          {/* Right half-circle punch — flat side at card edge, curve points inward */}
           <div
-            className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 rounded-full"
-            style={{ width: 32, height: 32, background: 'rgba(0,0,0,0.12)' }}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10"
+            style={{
+              width: 18,
+              height: 36,
+              background: 'rgba(0,0,0,0.6)',
+              borderTopLeftRadius: 36,
+              borderBottomLeftRadius: 36,
+            }}
           />
-          <div className="w-full border-t-2 border-dashed border-gray-300 mx-2" />
+          <div className="w-full border-t-2 border-dashed border-gray-300 mx-5" />
         </div>
 
         {/* ── Vaccine section (gray) ── */}

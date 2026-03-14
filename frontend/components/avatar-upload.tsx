@@ -4,7 +4,7 @@ import { type ReactNode, useState, useCallback } from 'react';
 import { formatBytes, useFileUpload, type FileWithPreview } from '@/hooks/use-file-upload';
 import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { PawPrint, TriangleAlert, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { PawPrint, ImagePlus, TriangleAlert, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Cropper, { type Area } from 'react-easy-crop';
 
@@ -14,6 +14,7 @@ interface AvatarUploadProps {
   onFileChange?: (file: FileWithPreview | null) => void;
   defaultAvatar?: string;
   children?: ReactNode;
+  placeholderIcon?: ReactNode;
 }
 
 // Helper function to create cropped image
@@ -55,9 +56,11 @@ export default function AvatarUpload({
   onFileChange,
   defaultAvatar,
   children,
+  placeholderIcon,
 }: AvatarUploadProps) {
   // Cropper state
   const [showCropper, setShowCropper] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -123,11 +126,16 @@ export default function AvatarUpload({
   };
 
   const handleRemove = () => {
+    setShowRemoveConfirm(true);
+  };
+
+  const handleConfirmRemove = () => {
     if (currentFile) {
       removeFile(currentFile.id);
     }
     setCroppedPreview(null);
     onFileChange?.(null);
+    setShowRemoveConfirm(false);
   };
 
   return (
@@ -154,7 +162,7 @@ export default function AvatarUpload({
                 <img src={previewUrl} alt="Avatar" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
-                  <PawPrint className="size-6 text-muted-foreground" />
+                  {placeholderIcon ?? <ImagePlus className="size-6 text-muted-foreground" />}
                 </div>
               )}
             </div>
@@ -199,6 +207,27 @@ export default function AvatarUpload({
             </AlertDescription>
           </AlertContent>
         </Alert>
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {showRemoveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowRemoveConfirm(false)}>
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-gray-800 mb-2">Remove Profile Photo</h3>
+            <p className="text-sm text-gray-500 mb-6">Are you sure you want to remove your profile photo? This cannot be undone.</p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowRemoveConfirm(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1 bg-[#900B09] hover:bg-[#7a0908] text-white" onClick={handleConfirmRemove}>
+                Remove
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cropper Modal */}

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
-import { Eye, EyeOff, Lock, Mail, User, X, ChevronDown, Camera } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, User, X, ChevronDown } from 'lucide-react'
+import AvatarUpload from '@/components/avatar-upload'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -384,7 +384,6 @@ export default function SettingsPage() {
   // Photo fields
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(null)
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
-  const photoInputRef = useRef<HTMLInputElement>(null)
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('')
@@ -418,18 +417,6 @@ export default function SettingsPage() {
     })()
   }, [token])
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) { toast.error('Please select an image file.'); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB.'); return }
-    const reader = new FileReader()
-    reader.onloadend = () => setPendingPhoto(reader.result as string)
-    reader.readAsDataURL(file)
-    // Reset input so same file can be re-selected
-    e.target.value = ''
-  }
-
   const handleSavePhoto = async () => {
     if (!pendingPhoto) return
     setPhotoSaving(true)
@@ -446,6 +433,7 @@ export default function SettingsPage() {
       if (res.status === 'SUCCESS') {
         toast.success('Profile photo updated')
         setCurrentPhoto(pendingPhoto)
+        if (authUser) setUser({ ...authUser, avatar: pendingPhoto })
         setPendingPhoto(null)
       } else {
         toast.error(res.message || 'Failed to update photo')
@@ -457,8 +445,7 @@ export default function SettingsPage() {
     }
   }
 
-  const displayPhoto = pendingPhoto || currentPhoto
-  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -551,76 +538,40 @@ export default function SettingsPage() {
           <div className="bg-white rounded-2xl shadow-sm p-8">
             <h2 className="text-base font-semibold text-[#4F4F4F] mb-6">Profile Picture</h2>
             <div className="flex items-center gap-6">
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm bg-gray-100">
-                  {displayPhoto ? (
-                    <Image
-                      src={displayPhoto}
-                      alt="Profile"
-                      width={96}
-                      height={96}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#7FA5A3] to-[#476B6B] flex items-center justify-center">
-                      <span className="text-white font-bold text-2xl">{initials}</span>
-                    </div>
-                  )}
-                </div>
-                {/* Camera overlay */}
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-md hover:bg-gray-50 transition-colors"
-                  title="Change photo"
-                >
-                  <Camera className="w-3.5 h-3.5 text-[#7FA5A3]" />
-                </button>
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Info + actions */}
+              <AvatarUpload
+                maxSize={5 * 1024 * 1024}
+                onFileChange={(file) => {
+                  if (file?.file instanceof File) {
+                    const reader = new FileReader()
+                    reader.onloadend = () => setPendingPhoto(reader.result as string)
+                    reader.readAsDataURL(file.file)
+                  } else {
+                    setPendingPhoto(null)
+                  }
+                }}
+              />
               <div className="flex-1">
-                <p className="text-sm font-medium text-[#4F4F4F] mb-1">
-                  {firstName} {lastName}
-                </p>
+                <p className="text-sm font-medium text-[#4F4F4F] mb-1">{firstName} {lastName}</p>
                 <p className="text-xs text-gray-400 mb-4">PNG, JPG or WEBP · Max 5MB</p>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => photoInputRef.current?.click()}
-                    className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
-                  >
-                    {displayPhoto ? 'Change Photo' : 'Upload Photo'}
-                  </button>
-                  {pendingPhoto && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleSavePhoto}
-                        disabled={photoSaving}
-                        className="px-4 py-2 bg-[#7FA5A3] hover:bg-[#476B6B] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {photoSaving ? 'Saving...' : 'Save Photo'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingPhoto(null)}
-                        className="text-xs text-gray-400 hover:text-red-400 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
+                {pendingPhoto && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSavePhoto}
+                      disabled={photoSaving}
+                      className="px-4 py-2 bg-[#7FA5A3] hover:bg-[#476B6B] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {photoSaving ? 'Saving...' : 'Save Photo'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingPhoto(null)}
+                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

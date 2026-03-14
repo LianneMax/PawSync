@@ -12,6 +12,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
 import AvatarUpload from '@/components/avatar-upload'
+import { PawPrint } from 'lucide-react'
 
 type PetSpecies = 'dog' | 'cat' | null
 
@@ -353,6 +354,7 @@ function PetOnboardingContent() {
               <AvatarUpload
                 className="w-full"
                 maxSize={5 * 1024 * 1024}
+                placeholderIcon={<PawPrint className="size-6 text-muted-foreground" />}
                 onFileChange={(file) => {
                   if (file?.file instanceof File) {
                     const reader = new FileReader()

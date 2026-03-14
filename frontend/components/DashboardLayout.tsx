@@ -166,6 +166,7 @@ export default function DashboardLayout({
       lastName: authUser.lastName,
       email: authUser.email,
       userType: resolvedUserType,
+      avatar: authUser.avatar,
     })
   }, [userTypeOverride, authUser, router])
 

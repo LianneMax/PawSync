@@ -61,7 +61,6 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Appointments', href: '/my-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Vaccine Cards', href: '/vaccine-cards', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Billing and Invoicing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
-    { label: 'Settings', href: '/settings', icon: <Settings className="w-5 h-5" /> },
   ],
   'veterinarian': [
     { label: 'Dashboard', href: '/vet-dashboard', icon: <Home className="w-5 h-5" /> },
@@ -69,7 +68,6 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccination Records', href: '/vet-dashboard/vaccinations', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
-    { label: 'Settings', href: '/settings', icon: <Settings className="w-5 h-5" /> },
   ],
   'clinic-admin': [
     { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" />, section: 'MAIN MENU' },
@@ -82,7 +80,6 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
     { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" />, badge: '2' },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
-    { label: 'Settings', href: '/settings', icon: <Settings className="w-5 h-5" /> },
   ],
 }
 

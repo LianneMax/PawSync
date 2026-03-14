@@ -11,6 +11,8 @@ import { Mail, Phone, Lock, Camera } from 'lucide-react'
 
 export default function VetSettingsPage() {
   const { token } = useAuthStore()
+  const authUser = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -102,6 +104,7 @@ export default function VetSettingsPage() {
         toast.success('Profile updated successfully')
         if (res.data.user.photo) {
           setCurrentAvatar(res.data.user.photo)
+          if (authUser) setUser({ ...authUser, avatar: res.data.user.photo })
         }
         setProfilePhoto(null)
       } else {

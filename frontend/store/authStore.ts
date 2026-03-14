@@ -12,6 +12,7 @@ export interface User {
   clinicBranchId?: string;
   branchId?: string;
   isMainBranch?: boolean;
+  avatar?: string;
 }
 
 interface AuthState {
