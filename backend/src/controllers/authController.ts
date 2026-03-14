@@ -312,7 +312,8 @@ export const login = async (req: Request, res: Response) => {
       lastName: user.lastName,
       email: user.email,
       userType: user.userType,
-      isVerified: user.isVerified
+      isVerified: user.isVerified,
+      ...(user.photo && { avatar: user.photo }),
     };
 
     // Include clinic/branch info for clinic-admin users
@@ -375,7 +376,8 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       lastName: user.lastName,
       email: user.email,
       userType: user.userType,
-      isVerified: user.isVerified
+      isVerified: user.isVerified,
+      ...(user.photo && { avatar: user.photo }),
     };
 
     if (user.userType === 'clinic-admin' && user.clinicId) {
@@ -860,7 +862,8 @@ export const googleAuth = async (req: Request, res: Response) => {
       lastName: user.lastName,
       email: user.email,
       userType: user.userType,
-      isVerified: user.isVerified
+      isVerified: user.isVerified,
+      ...(user.photo && { avatar: user.photo }),
     };
 
     if (user.userType === 'clinic-admin' && user.clinicId) {

@@ -170,6 +170,38 @@ export const createVaccination = async (req: Request, res: Response) => {
       resolvedCreateBranchId = resolvedCreateBranchId || vetUser?.clinicBranchId || null;
     }
 
+    // If a record for the same pet + vaccine type already exists (non-declined), update it
+    // instead of creating a duplicate — just increment doseNumber and refresh dates.
+    const existing = await Vaccination.findOne({
+      petId,
+      vaccineTypeId,
+      status: { $ne: 'declined' },
+    });
+
+    if (existing) {
+      existing.vetId = vetId;
+      existing.clinicId = resolvedCreateClinicId;
+      existing.clinicBranchId = resolvedCreateBranchId;
+      existing.manufacturer = manufacturer || existing.manufacturer;
+      existing.batchNumber = batchNumber || existing.batchNumber;
+      existing.route = route || vaccineType.route || existing.route;
+      existing.dateAdministered = adminDate;
+      existing.expiryDate = expiryDate;
+      existing.nextDueDate = computedNextDueDate;
+      existing.doseNumber = existing.doseNumber + 1;
+      existing.notes = notes || existing.notes;
+      if (appointmentId) existing.appointmentId = appointmentId;
+      if (medicalRecordId) existing.medicalRecordId = medicalRecordId;
+
+      await existing.save();
+
+      return res.status(200).json({
+        status: 'SUCCESS',
+        message: `Vaccination updated (dose ${existing.doseNumber})`,
+        data: { vaccination: existing },
+      });
+    }
+
     const vaccination = await Vaccination.create({
       petId,
       vetId,

@@ -53,6 +53,7 @@ export default function VetSettingsPage() {
           setContactNumber(userData.contactNumber || '')
           if (userData.photo) {
             setCurrentAvatar(userData.photo)
+            if (authUser) setUser({ ...authUser, avatar: userData.photo })
           }
         }
       } catch (err) {

@@ -30,6 +30,7 @@ import {
   type Notification,
   type NotificationType,
 } from '@/lib/notifications'
+import { authenticatedFetch } from '@/lib/auth'
 
 type UserType = 'pet-owner' | 'veterinarian' | 'clinic-admin'
 
@@ -134,10 +135,25 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const router = useRouter()
   const authUser = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
+  const token = useAuthStore((state) => state.token)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
+
+  // Sync avatar from DB on mount so navbar always shows the saved photo
+  useEffect(() => {
+    if (!authUser || !token || authUser.avatar) return
+    authenticatedFetch('/users/profile', { method: 'GET' }, token)
+      .then((res) => {
+        if (res.status === 'SUCCESS' && res.data?.user?.photo) {
+          setUser({ ...authUser, avatar: res.data.user.photo })
+        }
+      })
+      .catch(() => {/* silent — avatar will just remain unset */})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   useEffect(() => {
     // If no authenticated user in store, redirect to login

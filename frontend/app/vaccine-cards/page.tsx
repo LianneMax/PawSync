@@ -186,8 +186,8 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
     >
       {/* Card container — close to 502:669 Figma ratio */}
       <div
-        className="relative bg-white rounded-[20px] shadow-2xl w-full overflow-hidden"
-        style={{ maxWidth: 500, fontFamily: 'var(--font-outfit)' }}
+        className="relative bg-white rounded-[20px] w-full overflow-y-auto [&::-webkit-scrollbar]:hidden"
+        style={{ maxWidth: 500, maxHeight: '90vh', fontFamily: 'var(--font-outfit)', scrollbarWidth: 'none' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}

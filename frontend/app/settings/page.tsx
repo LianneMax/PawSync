@@ -407,7 +407,10 @@ export default function SettingsPage() {
           setFirstName(u.firstName)
           setLastName(u.lastName)
           setEmail(u.email)
-          if (u.photo) setCurrentPhoto(u.photo)
+          if (u.photo) {
+            setCurrentPhoto(u.photo)
+            if (authUser) setUser({ ...authUser, avatar: u.photo })
+          }
         }
       } catch {
         toast.error('Failed to load profile')
