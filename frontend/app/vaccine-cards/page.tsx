@@ -179,156 +179,163 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
 function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () => void }) {
   const { pet, vaccinations } = petData
 
+  // Mask that cuts quarter-circles from the bottom corners of the top section
+  const maskBottom = `
+    radial-gradient(circle 18px at 0px 100%, transparent 18px, black 18px),
+    radial-gradient(circle 18px at 100% 100%, transparent 18px, black 18px)
+  `
+  // Mask that cuts quarter-circles from the top corners of the bottom section
+  const maskTop = `
+    radial-gradient(circle 18px at 0px 0%, transparent 18px, black 18px),
+    radial-gradient(circle 18px at 100% 0%, transparent 18px, black 18px)
+  `
+
   return (
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      {/* Card container — close to 502:669 Figma ratio */}
       <div
-        className="relative bg-white rounded-[20px] w-full overflow-y-auto [&::-webkit-scrollbar]:hidden"
-        style={{ maxWidth: 500, maxHeight: '90vh', fontFamily: 'var(--font-outfit)', scrollbarWidth: 'none' }}
+        className="relative w-full flex flex-col"
+        style={{ maxWidth: 'min(500px, 100%)', maxHeight: '90vh', fontFamily: 'var(--font-outfit)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ── Header ── */}
-        <div className="bg-[#476B6B] flex items-center justify-between px-7 py-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/logos/pawsync-logo-white.png"
-            alt="PawSync"
-            className="h-9 w-auto object-contain"
-          />
-          <span className="text-white text-lg tracking-wider font-normal">VACCINATION CARD</span>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4 text-white" />
-          </button>
-        </div>
-
-        {/* ── Pet Info ── */}
-        <div className="px-7 pt-6 pb-5 flex items-start gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-[#4F4F4F] uppercase tracking-wider mb-1 font-normal">
-              PET&apos;S NAME
-            </p>
-            <p className="text-[22px] font-bold text-[#476B6B] uppercase leading-tight mb-5">
-              {pet.name}
-            </p>
-            <p className="text-[11px] text-[#4F4F4F] uppercase tracking-wider mb-1 font-normal">
-              NFC TAG NO.
-            </p>
-            <p className="text-[18px] text-[#476B6B] font-normal">
-              {pet.nfcTagId ?? pet.microchipNumber ?? 'Not registered'}
-            </p>
-          </div>
-          {/* Pet photo — teal box top-right */}
-          <div
-            className="rounded-[19px] overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center"
-            style={{ width: 130, height: 120 }}
-          >
-            {pet.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
-            ) : (
-              <PawIcon className="w-14 h-14 text-white/60" />
-            )}
-          </div>
-        </div>
-
-        {/* ── Ticket-punch divider ── */}
-        <div className="relative flex items-center h-8">
-          {/* Left half-circle punch — flat side at card edge, curve points inward */}
-          <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10"
-            style={{
-              width: 18,
-              height: 36,
-              background: 'rgba(0,0,0,0.6)',
-              borderTopRightRadius: 36,
-              borderBottomRightRadius: 36,
-            }}
-          />
-          {/* Right half-circle punch — flat side at card edge, curve points inward */}
-          <div
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10"
-            style={{
-              width: 18,
-              height: 36,
-              background: 'rgba(0,0,0,0.6)',
-              borderTopLeftRadius: 36,
-              borderBottomLeftRadius: 36,
-            }}
-          />
-          <div className="w-full border-t-2 border-dashed border-gray-300 mx-5" />
-        </div>
-
-        {/* ── Vaccine section (gray) ── */}
-        <div className="mx-6 mt-4 rounded-[19px] overflow-hidden bg-[#EFEFEF]">
-          {/* Vaccine rows */}
-          <div className="divide-y divide-gray-200">
-            {vaccinations.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <p className="text-sm text-gray-400">No vaccinations recorded yet.</p>
-              </div>
-            ) : (
-              vaccinations.map((vax) => {
-                const status = getPillStatus(vax)
-                const isNegative = status === 'expired' || status === 'overdue'
-                const dateToShow = vax.expiryDate ?? vax.nextDueDate ?? null
-
-                return (
-                  <div key={vax._id} className="flex items-center justify-between px-5 py-4">
-                    <p className="text-[18px] text-[#4F4F4F] font-normal">
-                      {vax.vaccineName}
-                    </p>
-                    {dateToShow ? (
-                      <div className="text-right">
-                        <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
-                          {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
-                        </p>
-                        <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
-                          {formatMonthYear(dateToShow)}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-right">
-                        <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">STATUS</p>
-                        <p className="text-[14px] text-[#4F4F4F]">{vax.status}</p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })
-            )}
+        {/* ── TOP SECTION — header + pet info, mask cuts bottom corners ── */}
+        <div
+          className="bg-white rounded-t-4xl shrink-0"
+          style={{
+            borderBottom: '2px dashed #d1d5db',
+            maskImage: maskBottom,
+            maskComposite: 'intersect',
+            WebkitMaskImage: maskBottom,
+            WebkitMaskComposite: 'destination-in',
+          }}
+        >
+          {/* Header */}
+          <div className="bg-[#476B6B] rounded-t-4xl flex items-center justify-between px-7 py-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logos/pawsync-logo-white.png"
+              alt="PawSync"
+              className="h-9 w-auto object-contain"
+            />
+            <span className="text-white text-lg tracking-wider font-normal">VACCINATION CARD</span>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
           </div>
 
-          {/* ── White footer strip inside gray box ── */}
-          {vaccinations.length > 0 && vaccinations[0].vetId && (
-            <div className="bg-white border-t border-[#C2C2C2] grid grid-cols-2 gap-4 px-5 py-4 rounded-b-[19px]">
-              <div>
-                <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-1">ADMINISTERED</p>
-                <p className="text-[14px] text-[#4F4F4F] truncate">
-                  {`Dr. ${vaccinations[0].vetId.firstName} ${vaccinations[0].vetId.lastName}`}
-                </p>
-              </div>
-              <div>
-                <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-1">VETERINARY CLINIC</p>
-                <p className="text-[14px] text-[#4F4F4F] truncate">
-                  {vaccinations[0].clinicId?.name ?? '—'}
-                </p>
-              </div>
+          {/* Pet Info */}
+          <div className="px-7 pt-6 pb-5 flex items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-[#4F4F4F] uppercase tracking-wider mb-1 font-normal">
+                PET&apos;S NAME
+              </p>
+              <p className="text-[22px] font-bold text-[#476B6B] uppercase leading-tight mb-5">
+                {pet.name}
+              </p>
+              <p className="text-[11px] text-[#4F4F4F] uppercase tracking-wider mb-1 font-normal">
+                NFC TAG NO.
+              </p>
+              <p className="text-[18px] text-[#476B6B] font-normal">
+                {pet.nfcTagId ?? pet.microchipNumber ?? 'Not registered'}
+              </p>
             </div>
-          )}
+            <div
+              className="rounded-[19px] overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center"
+              style={{ width: 130, height: 120 }}
+            >
+              {pet.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+              ) : (
+                <PawIcon className="w-14 h-14 text-white/60" />
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* ── Vet Verified pill ── */}
-        <div className="mx-6 my-5 flex items-center justify-center gap-2 bg-[#BAE0BD] rounded-full py-2.5 px-4">
-          <ShieldCheck className="w-4 h-4 text-[#35785C] shrink-0" />
-          <span className="text-[13px] text-[#35785C] font-normal">
-            Vet Verified — Linked to Medical Records
-          </span>
+        {/* ── BOTTOM SECTION — vaccines + pill, mask cuts top corners ── */}
+        <div
+          className="bg-white rounded-b-4xl overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden"
+          style={{
+            scrollbarWidth: 'none',
+            maskImage: maskTop,
+            maskComposite: 'intersect',
+            WebkitMaskImage: maskTop,
+            WebkitMaskComposite: 'destination-in',
+          }}
+        >
+          <div>
+            {/* Vaccine section */}
+            <div className="mx-6 mt-4 rounded-[19px] overflow-hidden bg-[#EFEFEF]">
+              <div className="divide-y divide-gray-200">
+                {vaccinations.length === 0 ? (
+                  <div className="px-5 py-8 text-center">
+                    <p className="text-sm text-gray-400">No vaccinations recorded yet.</p>
+                  </div>
+                ) : (
+                  vaccinations.map((vax) => {
+                    const status = getPillStatus(vax)
+                    const isNegative = status === 'expired' || status === 'overdue'
+                    const dateToShow = vax.expiryDate ?? vax.nextDueDate ?? null
+
+                    return (
+                      <div key={vax._id} className="flex items-center justify-between px-5 py-4">
+                        <p className="text-[18px] text-[#4F4F4F] font-normal">
+                          {vax.vaccineName}
+                        </p>
+                        {dateToShow ? (
+                          <div className="text-right">
+                            <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
+                              {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
+                            </p>
+                            <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
+                              {formatMonthYear(dateToShow)}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="text-right">
+                            <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">STATUS</p>
+                            <p className="text-[14px] text-[#4F4F4F]">{vax.status}</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* White footer strip */}
+              {vaccinations.length > 0 && vaccinations[0].vetId && (
+                <div className="bg-white border-t border-[#C2C2C2] grid grid-cols-2 gap-4 px-5 py-4 rounded-b-[19px]">
+                  <div>
+                    <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-1">ADMINISTERED</p>
+                    <p className="text-[14px] text-[#4F4F4F] truncate">
+                      {`Dr. ${vaccinations[0].vetId.firstName} ${vaccinations[0].vetId.lastName}`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-1">VETERINARY CLINIC</p>
+                    <p className="text-[14px] text-[#4F4F4F] truncate">
+                      {vaccinations[0].clinicId?.name ?? '—'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Vet Verified pill */}
+            <div className="mx-6 my-5 flex items-center justify-center gap-2 bg-[#BAE0BD] rounded-full py-2.5 px-4">
+              <ShieldCheck className="w-4 h-4 text-[#35785C] shrink-0" />
+              <span className="text-[13px] text-[#35785C] font-normal">
+                Vet Verified — Linked to Medical Records
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
