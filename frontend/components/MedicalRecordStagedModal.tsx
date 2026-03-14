@@ -1744,7 +1744,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                             >
                               <option value="">Select a preventive care service</option>
-                              {console.log(`Preventive Care ${i + 1}: product="${care.product}", services=${preventiveCareServices.map(s => s.name).join(', ')}`), preventiveCareServices.map((service) => (
+                              {preventiveCareServices.map((service) => (
                                 <option key={service._id} value={service.name}>
                                   {service.name} {service.price ? `(₱${service.price})` : ''}{service.intervalDays ? ` [${service.intervalDays}d]` : ''}
                                 </option>
