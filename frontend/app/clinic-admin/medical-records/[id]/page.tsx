@@ -18,6 +18,7 @@ import {
   FlaskConical,
   ShieldCheck,
   Receipt,
+  Baby,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import BillingFromRecordModal from '@/components/BillingFromRecordModal'
@@ -504,6 +505,93 @@ export default function ClinicAdminMedicalRecordViewPage() {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Pregnancy Record */}
+            {record.pregnancyRecord && (
+              <>
+                <hr className="border-gray-200" />
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Baby className="w-4 h-4 text-pink-500" />
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Pregnancy Record</h3>
+                    <span className={`ml-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${record.pregnancyRecord.isPregnant ? 'bg-pink-100 text-pink-700 border border-pink-300' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+                      {record.pregnancyRecord.isPregnant ? 'Pregnant' : 'Not Pregnant'}
+                    </span>
+                  </div>
+                  {record.pregnancyRecord.isPregnant && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {record.pregnancyRecord.gestationDate && (
+                        <div className="bg-[#F8F6F2] rounded-xl p-3">
+                          <p className="text-xs text-gray-500 mb-1">Gestation Date</p>
+                          <p className="text-sm font-medium text-[#4F4F4F]">{new Date(record.pregnancyRecord.gestationDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                      )}
+                      {record.pregnancyRecord.expectedDueDate && (
+                        <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
+                          <p className="text-xs text-pink-500 mb-1">Expected Due Date</p>
+                          <p className="text-sm font-medium text-pink-700">{new Date(record.pregnancyRecord.expectedDueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                      )}
+                      {record.pregnancyRecord.litterNumber != null && (
+                        <div className="bg-[#F8F6F2] rounded-xl p-3">
+                          <p className="text-xs text-gray-500 mb-1">Litter Number</p>
+                          <p className="text-sm font-medium text-[#4F4F4F]">{record.pregnancyRecord.litterNumber}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Pregnancy Delivery */}
+            {record.pregnancyDelivery && (
+              <>
+                <hr className="border-gray-200" />
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Baby className="w-4 h-4 text-purple-500" />
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Pregnancy Delivery</h3>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {record.pregnancyDelivery.deliveryDate && (
+                      <div className="bg-[#F8F6F2] rounded-xl p-3">
+                        <p className="text-xs text-gray-500 mb-1">Delivery Date</p>
+                        <p className="text-sm font-medium text-[#4F4F4F]">{new Date(record.pregnancyDelivery.deliveryDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                      </div>
+                    )}
+                    <div className="bg-[#F8F6F2] rounded-xl p-3">
+                      <p className="text-xs text-gray-500 mb-1">Delivery Type</p>
+                      <p className="text-sm font-medium text-[#4F4F4F] capitalize">{record.pregnancyDelivery.deliveryType === 'c-section' ? 'C-Section' : 'Natural'}</p>
+                    </div>
+                    {record.pregnancyDelivery.laborDuration && (
+                      <div className="bg-[#F8F6F2] rounded-xl p-3">
+                        <p className="text-xs text-gray-500 mb-1">Labor Duration</p>
+                        <p className="text-sm font-medium text-[#4F4F4F]">{record.pregnancyDelivery.laborDuration}</p>
+                      </div>
+                    )}
+                    <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+                      <p className="text-xs text-green-600 mb-1">Live Births</p>
+                      <p className="text-sm font-bold text-green-700">{record.pregnancyDelivery.liveBirths ?? 0}</p>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                      <p className="text-xs text-gray-500 mb-1">Still Births</p>
+                      <p className="text-sm font-bold text-[#4F4F4F]">{record.pregnancyDelivery.stillBirths ?? 0}</p>
+                    </div>
+                    <div className={`rounded-xl p-3 ${record.pregnancyDelivery.motherCondition === 'stable' ? 'bg-green-50 border border-green-100' : record.pregnancyDelivery.motherCondition === 'critical' ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
+                      <p className="text-xs text-gray-500 mb-1">Mother Condition</p>
+                      <p className={`text-sm font-semibold capitalize ${record.pregnancyDelivery.motherCondition === 'stable' ? 'text-green-700' : record.pregnancyDelivery.motherCondition === 'critical' ? 'text-red-700' : 'text-amber-700'}`}>{record.pregnancyDelivery.motherCondition}</p>
+                    </div>
+                    {record.pregnancyDelivery.vetRemarks && (
+                      <div className="col-span-full bg-[#F8F6F2] rounded-xl p-3">
+                        <p className="text-xs text-gray-500 mb-1">Vet Remarks</p>
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap">{record.pregnancyDelivery.vetRemarks}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
