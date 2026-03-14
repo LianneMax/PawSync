@@ -1589,6 +1589,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               <input
                                 type="date"
                                 value={vaccineNextDueDate}
+                                min={vaccineDateAdministered ? (() => { const d = new Date(vaccineDateAdministered); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() : undefined}
                                 onChange={(e) => setVaccineNextDueDate(e.target.value)}
                                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                               />
@@ -1602,6 +1603,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 </button>
                               )}
                             </div>
+                            {vaccineNextDueDate && vaccineDateAdministered && vaccineNextDueDate <= vaccineDateAdministered && (
+                              <p className="text-xs text-red-500 mt-1">Next due date must be after the date administered.</p>
+                            )}
                             {!vaccineNextDueDate && nextDue && (
                               <p className="text-xs text-gray-500 mt-1">Default: {nextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
                             )}
@@ -1641,7 +1645,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <input
                       type="date"
                       value={vaccineDateAdministered}
-                      max={new Date().toISOString().split('T')[0]}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setVaccineDateAdministered(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                     />

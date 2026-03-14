@@ -82,7 +82,12 @@ async function autoSchedulePreventiveCareAppointments(
             clinicId: record.clinicId,
             clinicBranchId: resolvedBranchId,
             mode: 'face-to-face',
-            types: ['preventive-care'],
+            types: [
+              care.careType === 'flea' || care.careType === 'tick' ? 'flea-tick-prevention' :
+              care.careType === 'deworming' ? 'deworming' :
+              care.careType === 'heartworm' ? 'heartworm' :
+              'flea-tick-prevention'
+            ],
             date: scheduledDate,
             startTime,
             endTime,

@@ -127,7 +127,7 @@ interface DashboardAppointment {
   clinic: string
   petName: string
   petBreed: string
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED'
+  status: 'CONFIRMED' | 'PENDING' | 'IN PROGRESS' | 'CANCELLED' | 'COMPLETED'
 }
 
 function formatSlotTime(time: string): string {
@@ -180,9 +180,10 @@ function apiAppointmentToDashboard(appt: APIAppointment): DashboardAppointment {
   const clinicName = appt.clinicBranchId?.name || appt.clinicId?.name || 'Unknown Clinic'
   const petName = appt.petId?.name || 'Pet'
   const petBreed = appt.petId?.breed || 'Unknown Breed'
-  const statusMap: { [key: string]: 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'COMPLETED' } = {
+  const statusMap: { [key: string]: 'CONFIRMED' | 'PENDING' | 'IN PROGRESS' | 'CANCELLED' | 'COMPLETED' } = {
     confirmed: 'CONFIRMED',
     pending: 'PENDING',
+    in_progress: 'IN PROGRESS',
     cancelled: 'CANCELLED',
     completed: 'COMPLETED',
   }
@@ -1179,11 +1180,13 @@ export default function DashboardPage() {
                     className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
                       appt.status === 'CONFIRMED'
                         ? 'bg-green-100 text-green-700'
-                        : appt.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : appt.status === 'CANCELLED'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-gray-100 text-gray-600'
+                        : appt.status === 'IN PROGRESS'
+                          ? 'bg-blue-100 text-blue-700'
+                          : appt.status === 'PENDING'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : appt.status === 'CANCELLED'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-600'
                     }`}
                   >
                     {appt.status}

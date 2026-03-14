@@ -557,7 +557,7 @@ function ClinicVaccinationFormInner() {
               <input
                 type="date"
                 value={dateAdministered}
-                max={new Date().toISOString().split('T')[0]}
+                min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setDateAdministered(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#476B6B]"
               />

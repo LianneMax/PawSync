@@ -596,7 +596,7 @@ export default function VaccinationFormClient() {
               value={dateAdministered}
               onChange={(e) => setDateAdministered(e.target.value)}
               required
-              max={formatDateInput(new Date())}
+              min={formatDateInput(new Date())}
               className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
             />
           </div>

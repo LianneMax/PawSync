@@ -211,6 +211,7 @@ export default function VetAppointmentsPage() {
       'Preventive Care': 'Preventive Care',
       'Grooming': 'Grooming',
       'flea-tick-prevention': 'Flea & Tick Prevention',
+      'heartworm': 'Heartworm Prevention',
     }
     
     return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
