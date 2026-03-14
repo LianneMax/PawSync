@@ -368,6 +368,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             dateAdministered: normalizedDate,
             nextDueDate: addDays(normalizedDate, 30),
             notes: ''
+          },
+          {
+            careType: 'heartworm',
+            product: 'Heartworm Prevention',
+            dateAdministered: normalizedDate,
+            nextDueDate: addDays(normalizedDate, 30),
+            notes: ''
           }
         ])
       } else {
@@ -412,7 +419,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setConfined(loadedPet.isConfined || false)
       if (isVaccinationAppt) {
         const vts = await getVaccineTypes(loadedPet.species)
-        setVaccineTypes(vts.filter((vt) => vt.isActive))
+        const activeVts = vts.filter((vt) => vt.isActive)
+        setVaccineTypes(activeVts)
+
       }
       if (isSurgeryAppt) {
         setSurgeryServicesLoading(true)
@@ -502,7 +511,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       normalizedDate = appointmentDate.split('T')[0]
     }
 
-    // Always add both preventive care services (Deworming & Flea & Tick Prevention)
+    // Always add all preventive care services (Deworming, Flea & Tick Prevention, Heartworm Prevention)
     const autoPop: typeof preventiveCare = [
       {
         careType: 'deworming',
@@ -514,6 +523,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       {
         careType: 'flea',
         product: 'Flea & Tick Prevention',
+        dateAdministered: normalizedDate,
+        nextDueDate: addDays(normalizedDate, 30),
+        notes: ''
+      },
+      {
+        careType: 'heartworm',
+        product: 'Heartworm Prevention',
         dateAdministered: normalizedDate,
         nextDueDate: addDays(normalizedDate, 30),
         notes: ''

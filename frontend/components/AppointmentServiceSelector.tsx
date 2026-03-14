@@ -35,7 +35,6 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
       { value: 'general-checkup', label: 'General Checkup' },
       { value: 'vaccination', label: 'Vaccination / Immunization' },
       { value: 'flea-tick-prevention', label: 'Flea & Tick Prevention' },
-      { value: 'rabies', label: 'Rabies Vaccination' },
       { value: 'deworming', label: 'Deworming' },
     ],
   },
@@ -45,7 +44,6 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     services: [
       { value: 'vaccination', label: 'Vaccination / Immunization' },
       { value: 'flea-tick-prevention', label: 'Flea & Tick Prevention' },
-      { value: 'rabies', label: 'Rabies Vaccination' },
       { value: 'deworming', label: 'Deworming' },
     ],
   },
