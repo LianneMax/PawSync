@@ -18,6 +18,7 @@ export interface Pet {
   notes: string | null;
   bloodType: string | null;
   allergies: string[];
+  pregnancyStatus: 'pregnant' | 'not_pregnant';
   isLost: boolean;
   lostReportedByStranger: boolean;
   lostContactName: string | null;
@@ -157,6 +158,17 @@ export const updatePetConfinement = async (id: string, isConfined: boolean, toke
   return authenticatedFetch(`/pets/${id}/confined`, {
     method: 'PATCH',
     body: JSON.stringify({ isConfined })
+  }, token);
+};
+
+/**
+ * Update a pet's pregnancy status.
+ * Accessible by the pet owner, treating vet, or clinic admin.
+ */
+export const updatePetPregnancyStatus = async (id: string, pregnancyStatus: 'pregnant' | 'not_pregnant', token?: string): Promise<PetResponse> => {
+  return authenticatedFetch(`/pets/${id}/pregnancy-status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pregnancyStatus })
   }, token);
 };
 

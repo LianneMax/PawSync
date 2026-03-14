@@ -34,6 +34,23 @@ export interface IPreventiveCare {
   notes: string;
 }
 
+export interface IPregnancyRecord {
+  isPregnant: boolean;
+  gestationDate: Date | null;
+  expectedDueDate: Date | null;
+  litterNumber: number | null;
+}
+
+export interface IPregnancyDelivery {
+  deliveryDate: Date | null;
+  deliveryType: 'natural' | 'c-section';
+  laborDuration: string;
+  liveBirths: number;
+  stillBirths: number;
+  motherCondition: 'stable' | 'critical' | 'recovering';
+  vetRemarks: string;
+}
+
 export interface ISurgeryRecord {
   surgeryType: string;
   vetRemarks: string;
@@ -88,6 +105,8 @@ export interface IMedicalRecord extends Document {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  pregnancyRecord?: IPregnancyRecord | null;
+  pregnancyDelivery?: IPregnancyDelivery | null;
   surgeryRecord?: ISurgeryRecord | null;
   billingId: mongoose.Types.ObjectId | null;
   followUps: IFollowUp[];
@@ -165,6 +184,29 @@ const PreventiveCareSchema = new Schema(
     notes: { type: String, default: '' }
   },
   { _id: true }
+);
+
+const PregnancyRecordSchema = new Schema(
+  {
+    isPregnant: { type: Boolean, default: false },
+    gestationDate: { type: Date, default: null },
+    expectedDueDate: { type: Date, default: null },
+    litterNumber: { type: Number, default: null },
+  },
+  { _id: false }
+);
+
+const PregnancyDeliverySchema = new Schema(
+  {
+    deliveryDate: { type: Date, default: null },
+    deliveryType: { type: String, enum: ['natural', 'c-section'], default: 'natural' },
+    laborDuration: { type: String, default: '' },
+    liveBirths: { type: Number, default: 0 },
+    stillBirths: { type: Number, default: 0 },
+    motherCondition: { type: String, enum: ['stable', 'critical', 'recovering'], default: 'stable' },
+    vetRemarks: { type: String, default: '' },
+  },
+  { _id: false }
 );
 
 const SurgeryRecordSchema = new Schema(
@@ -296,6 +338,14 @@ const MedicalRecordSchema = new Schema(
       type: Boolean,
       default: true,
       index: true
+    },
+    pregnancyRecord: {
+      type: PregnancyRecordSchema,
+      default: null,
+    },
+    pregnancyDelivery: {
+      type: PregnancyDeliverySchema,
+      default: null,
     },
     surgeryRecord: {
       type: SurgeryRecordSchema,

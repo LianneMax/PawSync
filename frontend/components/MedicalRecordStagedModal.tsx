@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
-import { getPetById, updatePetConfinement } from '@/lib/pets'
+import { getPetById, updatePetConfinement, updatePetPregnancyStatus } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
@@ -300,6 +300,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [ultrasound, setUltrasound] = useState(false)
   const [availedProducts, setAvailedProducts] = useState(false)
 
+  // Pregnancy tracking (from ultrasound diagnostic)
+  const [ultrasoundPregnant, setUltrasoundPregnant] = useState(false)
+  const [gestationDate, setGestationDate] = useState('')
+  const [expectedDueDate, setExpectedDueDate] = useState('')
+  const [litterNumber, setLitterNumber] = useState('')
+
+  // Pregnancy delivery
+  const [pregnancyDelivery, setPregnancyDelivery] = useState(false)
+  const [deliveryDate, setDeliveryDate] = useState('')
+  const [deliveryType, setDeliveryType] = useState<'natural' | 'c-section'>('natural')
+  const [laborDuration, setLaborDuration] = useState('')
+  const [liveBirths, setLiveBirths] = useState('')
+  const [stillBirths, setStillBirths] = useState('')
+  const [motherCondition, setMotherCondition] = useState<'stable' | 'critical' | 'recovering'>('stable')
+  const [deliveryVetRemarks, setDeliveryVetRemarks] = useState('')
+
   // Step 3 fields
   const [visitSummary, setVisitSummary] = useState('')
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
@@ -334,6 +350,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setVisitSummary(r.visitSummary || '')
       setMedications((r.medications || []).map(({ _id: _, ...rest }) => rest))
       setDiagnosticTests((r.diagnosticTests || []).map(({ _id: _, ...rest }) => rest))
+      if (r.pregnancyRecord) {
+        setUltrasoundPregnant(r.pregnancyRecord.isPregnant)
+        setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
+        setExpectedDueDate(r.pregnancyRecord.expectedDueDate ? r.pregnancyRecord.expectedDueDate.split('T')[0] : '')
+        setLitterNumber(r.pregnancyRecord.litterNumber != null ? String(r.pregnancyRecord.litterNumber) : '')
+      }
+      if (r.pregnancyDelivery) {
+        setPregnancyDelivery(true)
+        setDeliveryDate(r.pregnancyDelivery.deliveryDate ? r.pregnancyDelivery.deliveryDate.split('T')[0] : '')
+        setDeliveryType(r.pregnancyDelivery.deliveryType || 'natural')
+        setLaborDuration(r.pregnancyDelivery.laborDuration || '')
+        setLiveBirths(r.pregnancyDelivery.liveBirths != null ? String(r.pregnancyDelivery.liveBirths) : '')
+        setStillBirths(r.pregnancyDelivery.stillBirths != null ? String(r.pregnancyDelivery.stillBirths) : '')
+        setMotherCondition(r.pregnancyDelivery.motherCondition || 'stable')
+        setDeliveryVetRemarks(r.pregnancyDelivery.vetRemarks || '')
+      }
       
       // Auto-populate preventive care if record doesn't have any AND appointment date exists
       if ((!r.preventiveCare || r.preventiveCare.length === 0) && appointmentDate) {
@@ -623,6 +655,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         sharedWithOwner,
         confinementAction,
         confinementDays,
+        ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
           ...(surgImgs && surgImgs.length > 0 ? { images: surgImgs } : {}),
           surgeryRecord: {
@@ -710,6 +743,44 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }
 
+  const buildPregnancyPayload = () => {
+    const hasUltrasound = diagnosticTests.some(
+      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
+    )
+    return {
+      ...(hasUltrasound ? {
+        pregnancyRecord: {
+          isPregnant: ultrasoundPregnant,
+          gestationDate: ultrasoundPregnant && gestationDate ? gestationDate : null,
+          expectedDueDate: ultrasoundPregnant && expectedDueDate ? expectedDueDate : null,
+          litterNumber: ultrasoundPregnant && litterNumber ? parseInt(litterNumber) : null,
+        },
+      } : {}),
+      ...(pregnancyDelivery ? {
+        pregnancyDelivery: {
+          deliveryDate: deliveryDate || null,
+          deliveryType,
+          laborDuration,
+          liveBirths: parseInt(liveBirths) || 0,
+          stillBirths: parseInt(stillBirths) || 0,
+          motherCondition,
+          vetRemarks: deliveryVetRemarks,
+        },
+      } : {}),
+    }
+  }
+
+  const syncPregnancyStatus = async () => {
+    const hasUltrasoundTest = diagnosticTests.some(
+      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
+    )
+    if (pregnancyDelivery) {
+      await updatePetPregnancyStatus(petId, 'not_pregnant', token!)
+    } else if (hasUltrasoundTest && ultrasoundPregnant) {
+      await updatePetPregnancyStatus(petId, 'pregnant', token!)
+    }
+  }
+
   const handleProceedStep2 = async () => {
     if (!token) return
     setSaving(true)
@@ -719,10 +790,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         overallObservation: buildExtraObservation(),
         assessment,
         plan,
+        diagnosticTests,
+        ...buildPregnancyPayload(),
         // Only advance stage to post_procedure if not a vaccination or surgery appointment
         // (those have an intermediate step 3)
         ...(!isVaccinationAppt && !isSurgeryAppt ? { stage: 'post_procedure' } : {}),
       }, token)
+      await syncPregnancyStatus()
       await handleSaveNotes()
       setStep(isVaccinationAppt ? 3 : 3)
     } catch {
@@ -857,6 +931,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         images,
         confinementAction,
         confinementDays,
+        ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
           surgeryRecord: {
             surgeryType: surgeryServices.find((s) => s._id === surgeryTypeId)?.name || '',
@@ -864,6 +939,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           },
         } : {}),
       }, token)
+      await syncPregnancyStatus()
       if (!alreadyCompleted && appointmentId) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
       }
@@ -1254,8 +1330,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <select value={test.name} onChange={(e) => {
-                            const selectedService = diagnosticTestServices.find((s) => s.name === e.target.value)
-                            setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name: e.target.value, testType: 'other' } : t))
+                            const name = e.target.value
+                            const isUltrasound = name.toLowerCase().includes('ultrasound')
+                            setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name, testType: isUltrasound ? 'ultrasound' : 'other' } : t))
                           }} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
                             <option value="">Select a diagnostic test service</option>
                             {diagnosticTestServices.map((service) => (
@@ -1272,6 +1349,157 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <button onClick={() => setDiagnosticTests((prev) => [...prev, emptyDiagnosticTest()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add Test
                     </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ── ULTRASOUND PREGNANCY RESULT ── */}
+              {diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')) && (
+                <div className="border border-pink-100 rounded-2xl overflow-hidden bg-pink-50/30">
+                  <div className="px-4 py-3 flex items-center gap-2 border-b border-pink-100">
+                    <span className="text-sm font-semibold text-pink-700">Ultrasound — Pregnancy Result</span>
+                  </div>
+                  <div className="px-4 py-3 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={ultrasoundPregnant}
+                        onChange={(e) => setUltrasoundPregnant(e.target.checked)}
+                        className="w-4 h-4 accent-pink-600"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">Pet is Pregnant</span>
+                    </label>
+                    {ultrasoundPregnant && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Gestation Date</label>
+                          <input
+                            type="date"
+                            value={gestationDate}
+                            onChange={(e) => setGestationDate(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Expected Due Date</label>
+                          <input
+                            type="date"
+                            value={expectedDueDate}
+                            onChange={(e) => setExpectedDueDate(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Litter Number</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={litterNumber}
+                            onChange={(e) => setLitterNumber(e.target.value)}
+                            placeholder="e.g. 1"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── PREGNANCY DELIVERY ── */}
+              <div className="border border-purple-100 rounded-2xl overflow-hidden bg-purple-50/30">
+                <div className="px-4 py-3 border-b border-purple-100">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pregnancyDelivery}
+                      onChange={(e) => setPregnancyDelivery(e.target.checked)}
+                      className="w-4 h-4 accent-purple-600"
+                    />
+                    <span className="text-sm font-semibold text-purple-700">Pregnancy Delivery Performed</span>
+                  </label>
+                </div>
+                {pregnancyDelivery && (
+                  <div className="px-4 py-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Date</label>
+                        <input
+                          type="date"
+                          value={deliveryDate}
+                          onChange={(e) => setDeliveryDate(e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Type</label>
+                        <select
+                          value={deliveryType}
+                          onChange={(e) => setDeliveryType(e.target.value as 'natural' | 'c-section')}
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        >
+                          <option value="natural">Natural</option>
+                          <option value="c-section">C-Section</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Labor Duration</label>
+                        <input
+                          type="text"
+                          value={laborDuration}
+                          onChange={(e) => setLaborDuration(e.target.value)}
+                          placeholder="e.g. 3 hours"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Mother Condition</label>
+                        <select
+                          value={motherCondition}
+                          onChange={(e) => setMotherCondition(e.target.value as 'stable' | 'critical' | 'recovering')}
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        >
+                          <option value="stable">Stable</option>
+                          <option value="recovering">Recovering</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Live Births</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={liveBirths}
+                          onChange={(e) => setLiveBirths(e.target.value)}
+                          placeholder="0"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Still Births</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={stillBirths}
+                          onChange={(e) => setStillBirths(e.target.value)}
+                          placeholder="0"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Vet Remarks</label>
+                      <textarea
+                        rows={3}
+                        value={deliveryVetRemarks}
+                        onChange={(e) => setDeliveryVetRemarks(e.target.value)}
+                        placeholder="Post-delivery observations, complications, instructions…"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none"
+                      />
+                    </div>
+                    <p className="text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                      Completing this visit will automatically update the pet's pregnancy status to <strong>Not Pregnant</strong>.
+                    </p>
                   </div>
                 )}
               </div>

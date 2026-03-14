@@ -17,6 +17,7 @@ export interface IPet extends Document {
   notes: string | null;
   bloodType: string | null;
   allergies: string[];
+  pregnancyStatus: 'pregnant' | 'not_pregnant';
   isLost: boolean;
   lostContactName: string | null;
   lostContactNumber: string | null;
@@ -104,6 +105,11 @@ const PetSchema = new Schema(
     allergies: {
       type: [String],
       default: []
+    },
+    pregnancyStatus: {
+      type: String,
+      enum: ['pregnant', 'not_pregnant'],
+      default: 'not_pregnant'
     },
     isLost: {
       type: Boolean,

@@ -70,6 +70,23 @@ export interface PreventiveCare {
   notes: string;
 }
 
+export interface PregnancyRecord {
+  isPregnant: boolean;
+  gestationDate: string | null;
+  expectedDueDate: string | null;
+  litterNumber: number | null;
+}
+
+export interface PregnancyDelivery {
+  deliveryDate: string | null;
+  deliveryType: 'natural' | 'c-section';
+  laborDuration: string;
+  liveBirths: number;
+  stillBirths: number;
+  motherCondition: 'stable' | 'critical' | 'recovering';
+  vetRemarks: string;
+}
+
 export interface FollowUp {
   _id: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,6 +126,8 @@ export interface MedicalRecord {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  pregnancyRecord?: PregnancyRecord | null;
+  pregnancyDelivery?: PregnancyDelivery | null;
   surgeryRecord?: { surgeryType: string; vetRemarks: string } | null;
   billingId?: string;
   followUps?: FollowUp[];
@@ -282,6 +301,8 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
   surgeryRecord: { surgeryType: string; vetRemarks: string } | null;
+  pregnancyRecord: PregnancyRecord | null;
+  pregnancyDelivery: PregnancyDelivery | null;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

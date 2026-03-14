@@ -217,7 +217,8 @@ export const updatePet = async (req: Request, res: Response) => {
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
       'dateOfBirth', 'weight', 'sterilization', 'microchipNumber',
       'nfcTagId', 'photo', 'notes', 'allergies', 'isLost', 'isConfined',
-      'lostContactName', 'lostContactNumber', 'lostMessage', 'lostReportedByStranger'
+      'lostContactName', 'lostContactNumber', 'lostMessage', 'lostReportedByStranger',
+      'pregnancyStatus'
     ];
 
     for (const field of allowedFields) {
@@ -589,6 +590,53 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Update pet confinement error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating confinement status' });
+  }
+};
+
+/**
+ * Update a pet's pregnancy status.
+ * Accessible by: pet owner OR a vet who has treated this pet OR clinic admin.
+ */
+export const updatePetPregnancyStatus = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.id);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+      isAuthorizedVet = !!hasRecords;
+    }
+
+    if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this pet\'s pregnancy status' });
+    }
+
+    const { pregnancyStatus } = req.body;
+    if (pregnancyStatus !== 'pregnant' && pregnancyStatus !== 'not_pregnant') {
+      return res.status(400).json({ status: 'ERROR', message: 'pregnancyStatus must be "pregnant" or "not_pregnant"' });
+    }
+
+    pet.pregnancyStatus = pregnancyStatus;
+    await pet.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: `Pet pregnancy status updated to ${pregnancyStatus}`,
+      data: { pet }
+    });
+  } catch (error) {
+    console.error('Update pet pregnancy status error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating pregnancy status' });
   }
 };
 
