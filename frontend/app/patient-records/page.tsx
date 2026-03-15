@@ -53,8 +53,9 @@ import {
   StickyNote,
   Baby,
   Heart,
+  Scissors,
 } from 'lucide-react'
-import { getVaccinationsByPet, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
+import { getVaccinationsByPet, getVaccinationsByMedicalRecord, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -1357,7 +1358,16 @@ function ViewRecordModal({
     setRecord(null)
     setExpandedFollowUps(new Set())
     getRecordById(recordIds[index], token).then((res) => {
-      if (res.status === 'SUCCESS' && res.data?.record) setRecord(res.data.record)
+      if (res.status === 'SUCCESS' && res.data?.record) {
+        const recordData = res.data.record
+        // Load vaccinations for this medical record
+        getVaccinationsByMedicalRecord(recordData._id, token).then((vaccinations) => {
+          setRecord({ ...recordData, vaccinations })
+        }).catch(() => {
+          // If vaccination fetch fails, still show record without vaccinations
+          setRecord(recordData)
+        })
+      }
     }).catch(() => {}).finally(() => setLoading(false))
   }, [open, index, recordIds, token])
 
@@ -2158,6 +2168,165 @@ function ViewRecordModal({
                         <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.pregnancyDelivery.vetRemarks}</p>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* ===== REFERRAL, DISCHARGE & SCHEDULED SURGERY ===== */}
+              {(record.referral || record.discharge || record.scheduledSurgery) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {record.discharge && (
+                    <div className="border border-green-200 rounded-xl bg-green-50/30 p-4 flex items-start gap-3">
+                      <div className="text-xl shrink-0">✓</div>
+                      <div>
+                        <p className="text-xs font-semibold text-green-900 uppercase tracking-wider">Discharge for At-Home Care</p>
+                        <p className="text-sm text-green-700 mt-1">Patient cleared for discharge</p>
+                      </div>
+                    </div>
+                  )}
+                  {record.referral && (
+                    <div className="border border-blue-200 rounded-xl bg-blue-50/30 p-4 flex items-start gap-3">
+                      <div className="text-xl shrink-0">→</div>
+                      <div>
+                        <p className="text-xs font-semibold text-blue-900 uppercase tracking-wider">Referral to Another Vet</p>
+                        <p className="text-sm text-blue-700 mt-1">Patient requires specialist consultation</p>
+                      </div>
+                    </div>
+                  )}
+                  {record.scheduledSurgery && (
+                    <div className="border border-red-200 rounded-xl bg-red-50/30 p-4 flex items-start gap-3">
+                      <Scissors className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-red-900 uppercase tracking-wider">Surgery Scheduled</p>
+                        <p className="text-sm text-red-700 mt-1">Surgical procedure has been recommended</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ===== SURGERY RESULTS ===== */}
+              {record.surgeryRecord && (
+                <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30">
+                  <div className="bg-amber-100/50 px-4 py-2 border-b border-amber-200">
+                    <h2 className="text-xs font-semibold text-amber-900 uppercase tracking-wider flex items-center gap-2">
+                      <Scissors className="w-3.5 h-3.5" />
+                      Surgery Results
+                    </h2>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {record.surgeryRecord.surgeryType && (
+                      <div className="bg-white rounded-lg p-3 border border-amber-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Surgery Type</p>
+                        <p className="text-sm font-semibold text-[#4F4F4F]">{record.surgeryRecord.surgeryType}</p>
+                      </div>
+                    )}
+                    {record.surgeryRecord.vetRemarks && (
+                      <div className="bg-white rounded-lg p-3 border border-amber-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Vet Remarks</p>
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.surgeryRecord.vetRemarks}</p>
+                      </div>
+                    )}
+                    {record.surgeryRecord.images && record.surgeryRecord.images.length > 0 && (
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-2">Surgery Images</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {record.surgeryRecord.images.map((img, idx) => (
+                            <div key={idx} className="relative rounded-lg overflow-hidden border border-amber-100">
+                              {img.data ? (
+                                <>
+                                  <img
+                                    src={`data:${img.contentType};base64,${img.data}`}
+                                    alt={img.description || `Surgery image ${idx + 1}`}
+                                    className="w-full h-32 object-cover cursor-pointer hover:opacity-75 transition-opacity"
+                                    onClick={() => setLightboxMedia({ src: `data:${img.contentType};base64,${img.data}`, contentType: img.contentType, description: img.description })}
+                                  />
+                                  {img.description && (
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-2 py-1 truncate">
+                                      {img.description}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                                  <ImageIcon className="w-6 h-6 text-gray-300" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ===== VACCINATIONS ADMINISTERED ===== */}
+              {Array.isArray(record.vaccinations) && record.vaccinations.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-2">
+                      <Syringe className="w-3.5 h-3.5" />
+                      Vaccinations Administered ({record.vaccinations.length})
+                    </h2>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {record.vaccinations.map((vac, idx) => (
+                      <div key={vac._id || idx} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-[#4F4F4F]">
+                              {vac.vaccineTypeId?.name || vac.vaccineName || 'Unknown Vaccine'}
+                              {vac.doseNumber != null && (
+                                <span className="ml-2 text-xs font-normal text-gray-400">Dose {vac.doseNumber}</span>
+                              )}
+                            </p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                            vac.status === 'active' ? 'bg-green-50 text-green-700' :
+                            vac.status === 'expired' ? 'bg-red-50 text-red-700' :
+                            vac.status === 'overdue' ? 'bg-amber-50 text-amber-700' :
+                            'bg-gray-50 text-gray-600'
+                          }`}>
+                            {vac.status}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-gray-400 uppercase font-medium">Date Administered</p>
+                            <p className="text-[#4F4F4F]">{vac.dateAdministered ? new Date(vac.dateAdministered).toLocaleDateString() : '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400 uppercase font-medium">Next Due Date</p>
+                            <p className="text-[#4F4F4F]">{vac.nextDueDate ? new Date(vac.nextDueDate).toLocaleDateString() : '—'}</p>
+                          </div>
+                          {vac.route && (
+                            <div>
+                              <p className="text-gray-400 uppercase font-medium">Route</p>
+                              <p className="text-[#4F4F4F] capitalize">{vac.route}</p>
+                            </div>
+                          )}
+                          {vac.manufacturer && (
+                            <div>
+                              <p className="text-gray-400 uppercase font-medium">Manufacturer</p>
+                              <p className="text-[#4F4F4F]">{vac.manufacturer}</p>
+                            </div>
+                          )}
+                          {vac.batchNumber && (
+                            <div className="col-span-2">
+                              <p className="text-gray-400 uppercase font-medium">Batch/Lot Number</p>
+                              <p className="text-[#4F4F4F] font-mono">{vac.batchNumber}</p>
+                            </div>
+                          )}
+                        </div>
+                        {vac.notes && (
+                          <div className="mt-2 pt-2 border-t border-gray-100">
+                            <p className="text-[10px] text-gray-400 uppercase font-medium mb-1">Clinical Notes</p>
+                            <p className="text-xs text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{vac.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

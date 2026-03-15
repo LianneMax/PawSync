@@ -151,6 +151,16 @@ export async function getVaccinationsByPet(petId: string, token: string): Promis
   return json.data.vaccinations;
 }
 
+/** Get vaccinations for a specific medical record. */
+export async function getVaccinationsByMedicalRecord(medicalRecordId: string, token: string): Promise<Vaccination[]> {
+  const res = await fetch(`${API_BASE_URL}/vaccinations/medical-record/${medicalRecordId}`, {
+    headers: authHeaders(token),
+  });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch vaccinations');
+  return json.data.vaccinations || [];
+}
+
 /** Get vaccinations for a pet without auth (for public/NFC profile). */
 export async function getPublicVaccinationsByPet(petId: string): Promise<Vaccination[]> {
   const res = await fetch(`${API_BASE_URL}/vaccinations/pet/${petId}/public`);

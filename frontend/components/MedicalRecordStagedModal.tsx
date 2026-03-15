@@ -375,6 +375,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setAssessment(r.assessment || '')
       setPlan(r.plan || '')
       setVisitSummary(r.visitSummary || '')
+      setReferral(r.referral ?? false)
+      setDischarge(r.discharge ?? false)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       setMedications((r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest))
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -520,7 +522,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setPet(loadedPet)
       setConfined(loadedPet.isConfined || false)
       if (isVaccinationAppt) {
-        const vts = await getVaccineTypes(loadedPet.species)
+        const speciesMap: Record<string, string> = { canine: 'dog', feline: 'cat' }
+        const apiSpecies = speciesMap[loadedPet.species] ?? loadedPet.species
+        const vts = await getVaccineTypes(apiSpecies)
         const activeVts = vts.filter((vt) => vt.isActive)
         setVaccineTypes(activeVts)
 
@@ -705,12 +709,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         sharedWithOwner,
         confinementAction,
         confinementDays,
+        referral,
+        discharge,
+        scheduledSurgery: surgery,
         ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
           ...(surgImgs && surgImgs.length > 0 ? { images: surgImgs } : {}),
           surgeryRecord: {
             surgeryType: selectedSurgery?.name || '',
             vetRemarks: surgeryVetRemarks,
+            images: surgImgs,
           },
         } : {}),
       }, token)
@@ -784,12 +792,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setSaving(true)
     try {
+      const { action: confinementAction, days: confinementDays } = await syncConfinement()
       await updateMedicalRecord(recordId, {
         subjective,
         overallObservation: buildExtraObservation(),
         assessment,
         plan,
         diagnosticTests,
+        confinementAction,
+        confinementDays,
+        referral,
+        discharge,
+        scheduledSurgery: surgery,
         ...buildPregnancyPayload(),
         // Only advance stage to post_procedure if not a vaccination or surgery appointment
         // (those have an intermediate step 3)
@@ -941,6 +955,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         images,
         confinementAction,
         confinementDays,
+        referral,
+        discharge,
+        scheduledSurgery: surgery,
         ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
           surgeryRecord: {
@@ -1526,6 +1543,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </div>
                 )}
               </div>
+
 
             </>
           )}

@@ -128,7 +128,11 @@ export interface MedicalRecord {
   confinementDays: number;
   pregnancyRecord?: PregnancyRecord | null;
   pregnancyDelivery?: PregnancyDelivery | null;
-  surgeryRecord?: { surgeryType: string; vetRemarks: string } | null;
+  surgeryRecord?: { surgeryType: string; vetRemarks: string; images?: ImageFragment[] } | null;
+  vaccinations?: Vaccination[];
+  referral: boolean;
+  discharge: boolean;
+  scheduledSurgery: boolean;
   billingId?: string;
   followUps?: FollowUp[];
   createdAt: string;
@@ -137,23 +141,31 @@ export interface MedicalRecord {
 
 export interface Vaccination {
   _id: string;
-  petId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  petId: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vetId: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicId: any;
-  clinicBranchId: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  clinicBranchId: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  vaccineTypeId?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  appointmentId?: any;
   vaccineName: string;
-  dateAdministered: string;
+  doseNumber?: number;
+  dateAdministered: string | null;
   expiryDate: string | null;
   nextDueDate: string | null;
   manufacturer?: string;
   batchNumber?: string;
   route?: string | null;
+  notes?: string;
   status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
   isUpToDate: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface VaccinationsResponse {
@@ -300,9 +312,12 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   sharedWithOwner: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
-  surgeryRecord: { surgeryType: string; vetRemarks: string } | null;
+  surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { data: string; contentType: string; description: string }[] } | null;
   pregnancyRecord: PregnancyRecord | null;
   pregnancyDelivery: PregnancyDelivery | null;
+  referral: boolean;
+  discharge: boolean;
+  scheduledSurgery: boolean;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

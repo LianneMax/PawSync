@@ -594,6 +594,7 @@ export const updateRecord = async (req: Request, res: Response) => {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
       medications, diagnosticTests, preventiveCare, confinementAction, confinementDays,
+      referral, discharge, scheduledSurgery,
       surgeryRecord, pregnancyRecord, pregnancyDelivery
     } = req.body;
 
@@ -615,6 +616,9 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
     if (confinementAction !== undefined) record.confinementAction = confinementAction;
     if (confinementDays !== undefined) record.confinementDays = confinementDays;
+    if (referral !== undefined) record.referral = referral;
+    if (discharge !== undefined) record.discharge = discharge;
+    if (scheduledSurgery !== undefined) record.scheduledSurgery = scheduledSurgery;
 
     if (images) {
       record.images = images.map((img: { data: string; contentType: string; description?: string }) => ({

@@ -105,6 +105,9 @@ export interface IMedicalRecord extends Document {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  referral: boolean;
+  discharge: boolean;
+  scheduledSurgery: boolean;
   pregnancyRecord?: IPregnancyRecord | null;
   pregnancyDelivery?: IPregnancyDelivery | null;
   surgeryRecord?: ISurgeryRecord | null;
@@ -333,6 +336,18 @@ const MedicalRecordSchema = new Schema(
     confinementDays: {
       type: Number,
       default: 0
+    },
+    referral: {
+      type: Boolean,
+      default: false
+    },
+    discharge: {
+      type: Boolean,
+      default: false
+    },
+    scheduledSurgery: {
+      type: Boolean,
+      default: false
     },
     isCurrent: {
       type: Boolean,

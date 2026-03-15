@@ -443,6 +443,31 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
 };
 
 /**
+ * GET /api/vaccinations/medical-record/:medicalRecordId
+ * Auth required — returns all vaccinations linked to a specific medical record.
+ */
+export const getVaccinationsByMedicalRecord = async (req: Request, res: Response) => {
+  try {
+    const vaccinations = await Vaccination.find({ medicalRecordId: req.params.medicalRecordId })
+      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
+      .populate('vetId', 'firstName lastName')
+      .populate('clinicId', 'name')
+      .populate('clinicBranchId', 'name')
+      .sort({ dateAdministered: -1 });
+
+    await refreshStatuses(vaccinations);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { vaccinations },
+    });
+  } catch (error) {
+    console.error('Get vaccinations by medical record error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vaccinations' });
+  }
+};
+
+/**
  * GET /api/vaccinations/pet/:petId/public
  * No auth required — returns minimal public-safe vaccination data.
  */
