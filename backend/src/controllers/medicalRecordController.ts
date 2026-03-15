@@ -844,6 +844,200 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
 /**
  * Get a single image from a medical record
  */
+/**
+ * Get aggregated medical history for a pet (all operations, medications, vaccines, pregnancy, etc.)
+ * Used for displaying a comprehensive history view while filling/viewing medical records
+ */
+export const getMedicalHistory = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const petId = req.params.petId;
+    
+    // Get pet info
+    const pet = await Pet.findById(petId).lean();
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    // Authorization: owner, vet who treated this pet or is assigned to it, or clinic admin
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    const isAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    let isAuthorizedVet = false;
+    if (req.user.userType === 'veterinarian') {
+      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId });
+      isAuthorizedVet = !!hasRecords;
+      if (!isAuthorizedVet) {
+        const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId, isActive: true });
+        isAuthorizedVet = !!assignment;
+      }
+    }
+
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this pet\'s history' });
+    }
+
+    // Get all medical records for this pet (sorted by date, most recent first)
+    const allRecords = await MedicalRecord.find({ petId })
+      .populate('surgeryRecord')
+      .sort({ createdAt: -1 });
+
+    // Calculate pet age
+    const calculateAge = (dob: Date) => {
+      const now = new Date();
+      const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+      if (months < 12) return `${months}mo`;
+      const years = Math.floor(months / 12);
+      const rem = months % 12;
+      return rem > 0 ? `${years}yr ${rem}mo` : `${years}yr`;
+    };
+
+    // 1. Extract all operations (surgeries from all records)
+    const operations = allRecords
+      .filter(r => r.surgeryRecord)
+      .map(r => ({
+        date: r.createdAt,
+        surgeryType: (r.surgeryRecord as any)?.surgeryType || '',
+        vetRemarks: (r.surgeryRecord as any)?.vetRemarks || '',
+        clinicName: '',
+        clinicId: r.clinicId.toString(),
+      }));
+
+    // 2. Extract all unique medications (deduplicated by name, prioritize active status)
+    const medicationMap = new Map<string, any>();
+    allRecords.forEach(r => {
+      r.medications?.forEach(med => {
+        const key = med.name.toLowerCase();
+        if (!medicationMap.has(key)) {
+          medicationMap.set(key, {
+            name: med.name,
+            dosage: med.dosage,
+            route: med.route,
+            frequency: med.frequency,
+            startDate: med.startDate,
+            endDate: med.endDate,
+            status: med.status,
+            notes: med.notes,
+          });
+        } else {
+          // Keep active medications if found
+          const existing = medicationMap.get(key);
+          if (med.status === 'active' && existing.status !== 'active') {
+            medicationMap.set(key, {
+              name: med.name,
+              dosage: med.dosage,
+              route: med.route,
+              frequency: med.frequency,
+              startDate: med.startDate,
+              endDate: med.endDate,
+              status: med.status,
+              notes: med.notes,
+            });
+          }
+        }
+      });
+    });
+    const medications = Array.from(medicationMap.values())
+      .sort((a, b) => {
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        return 0;
+      });
+
+    // 3. Why patient is here today (chief complaint from today's record)
+    const todayRecord = allRecords.find(r => {
+      const recordDate = new Date(r.createdAt);
+      const today = new Date();
+      return recordDate.toDateString() === today.toDateString();
+    });
+    const chiefComplaint = todayRecord?.chiefComplaint || '';
+
+    // 4. Most recent SOAP notes
+    const latestRecordWithSOAP = allRecords.find(r => r.assessment || r.plan || r.subjective);
+    const latestSOAP = latestRecordWithSOAP ? {
+      date: latestRecordWithSOAP.createdAt,
+      subjective: latestRecordWithSOAP.subjective || '',
+      objective: latestRecordWithSOAP.overallObservation || '',
+      assessment: latestRecordWithSOAP.assessment || '',
+      plan: latestRecordWithSOAP.plan || '',
+    } : null;
+
+    // 5. All vaccinations
+    const vaccinations = await Vaccination.find({ petId })
+      .populate('vaccineTypeId', 'name')
+      .sort({ dateAdministered: -1 });
+
+    const formattedVaccinations = vaccinations.map(v => ({
+      name: (v.vaccineTypeId as any)?.name || 'Unknown Vaccine',
+      status: v.status,
+      dateAdministered: v.dateAdministered,
+      nextDueDate: v.nextDueDate,
+      route: v.route,
+      manufacturer: v.manufacturer,
+      batchNumber: v.batchNumber,
+    }));
+
+    // 6. Pregnancy records if female
+    const pregnancyRecords: any[] = [];
+    if (pet.sex === 'female') {
+      allRecords.forEach(r => {
+        if (r.pregnancyRecord) {
+          pregnancyRecords.push({
+            date: r.createdAt,
+            isPregnant: r.pregnancyRecord.isPregnant,
+            gestationDate: r.pregnancyRecord.gestationDate,
+            expectedDueDate: r.pregnancyRecord.expectedDueDate,
+            litterNumber: r.pregnancyRecord.litterNumber,
+          });
+        }
+        if (r.pregnancyDelivery) {
+          pregnancyRecords.push({
+            date: r.createdAt,
+            deliveryDate: r.pregnancyDelivery.deliveryDate,
+            deliveryType: r.pregnancyDelivery.deliveryType,
+            motherCondition: r.pregnancyDelivery.motherCondition,
+          });
+        }
+      });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        pet: {
+          _id: pet._id,
+          name: pet.name,
+          species: pet.species,
+          breed: pet.breed,
+          secondaryBreed: pet.secondaryBreed,
+          sex: pet.sex,
+          dateOfBirth: pet.dateOfBirth,
+          weight: pet.weight,
+          age: calculateAge(pet.dateOfBirth),
+          sterilization: pet.sterilization,
+          color: pet.color,
+          microchipNumber: pet.microchipNumber,
+          nfcTagId: pet.nfcTagId,
+          photo: pet.photo,
+          allergies: pet.allergies,
+          pregnancyStatus: pet.pregnancyStatus,
+        },
+        operations,
+        medications,
+        chiefComplaint,
+        latestSOAP,
+        vaccinations: formattedVaccinations,
+        pregnancyRecords,
+      }
+    });
+  } catch (error) {
+    console.error('Get medical history error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching medical history' });
+  }
+};
+
 export const getRecordImage = async (req: Request, res: Response) => {
   try {
     if (!req.user) {

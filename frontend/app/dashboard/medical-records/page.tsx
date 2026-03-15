@@ -7,7 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
-import { ArrowLeft, Search, FileText, Calendar, Stethoscope, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Search, FileText, Calendar, Stethoscope, ChevronRight, History } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 
 // ==================== TYPES ====================
 
@@ -263,6 +264,19 @@ export default function MedicalRecordsContent() {
               {selectedPet.breed} • {calculateAge(selectedPet.dateOfBirth)} old
             </p>
           </div>
+        </div>
+
+        {/* Medical History Summary */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <History className="w-4 h-4 text-[#476B6B]" />
+            <h2 className="text-sm font-semibold text-[#476B6B] uppercase tracking-wider">Medical History</h2>
+          </div>
+          <HistoricalMedicalRecord
+            petId={selectedPet._id}
+            token={token}
+            isReadOnly={true}
+          />
         </div>
 
         {/* Records List */}

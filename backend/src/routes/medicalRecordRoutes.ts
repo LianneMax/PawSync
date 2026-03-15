@@ -11,7 +11,8 @@ import {
   updateRecord,
   toggleShareRecord,
   createFollowUp,
-  getRecordImage
+  getRecordImage,
+  getMedicalHistory,
 } from '../controllers/medicalRecordController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -52,6 +53,12 @@ router.get('/pet/:petId/current', authMiddleware, getCurrentRecord);
  * Get all historical (non-current) medical records for a pet
  */
 router.get('/pet/:petId/historical', authMiddleware, getHistoricalRecords);
+
+/**
+ * GET /api/medical-records/pet/:petId/medical-history
+ * Get aggregated medical history for a pet (operations, medications, vaccines, pregnancies, etc.)
+ */
+router.get('/pet/:petId/medical-history', authMiddleware, getMedicalHistory);
 
 /**
  * GET /api/medical-records/pet/:petId

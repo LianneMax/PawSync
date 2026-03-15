@@ -9,6 +9,7 @@ import { getVaccineTypes, getVaccinationsByPet, createVaccination, updateVaccina
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
 import SurgeryAppointmentModal from './SurgeryAppointmentModal'
+import { HistoricalMedicalRecord } from './HistoricalMedicalRecord'
 import {
   X,
   ChevronRight,
@@ -33,6 +34,7 @@ import {
   Lock,
   StickyNote,
   Scissors,
+  Heart,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -256,6 +258,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [petNotesSaving, setPetNotesSaving] = useState(false)
   const [petNotesSaved, setPetNotesSaved] = useState(false)
   const [notesMinimized, setNotesMinimized] = useState(false)
+
+  // Historical medical record panel
+  const [historyMinimized, setHistoryMinimized] = useState(true)
+  const [historyRefresh, setHistoryRefresh] = useState(0)
 
   // Whether this appointment includes vaccination/booster
   const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination' || t === 'rabies-vaccination')
@@ -723,6 +729,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         } : {}),
       }, token)
       await handleSaveNotes()
+      setHistoryRefresh(prev => prev + 1)
       toast.success('Progress saved')
       onClose()
     } catch {
@@ -741,6 +748,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         chiefComplaint,
         vitals,
       }, token)
+      setHistoryRefresh(prev => prev + 1)
       setSubjective((prev) => prev || chiefComplaint)
       setStep(2)
     } catch {
@@ -811,6 +819,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }, token)
       await syncPregnancyStatus()
       await handleSaveNotes()
+      setHistoryRefresh(prev => prev + 1)
       setStep(isVaccinationAppt ? 3 : 3)
     } catch {
       toast.error('Failed to save notes')
@@ -891,6 +900,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     try {
       await trySaveVaccinations()
       await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
+      setHistoryRefresh(prev => prev + 1)
       setStep(4)
     } catch {
       toast.error('Failed to save vaccination')
@@ -919,6 +929,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           vetRemarks: surgeryVetRemarks,
         },
       }, token)
+      setHistoryRefresh(prev => prev + 1)
       setStep(4)
     } catch {
       toast.error('Failed to save surgery record')
@@ -971,6 +982,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         await updateAppointmentStatus(appointmentId, 'completed', token)
       }
       await handleSaveNotes()
+      setHistoryRefresh(prev => prev + 1)
       setShowCompleteConfirm(false)
       toast.success('Visit completed!')
       onComplete()
@@ -2474,6 +2486,48 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         )}
       </div>
 
+      {/* ===== HISTORICAL MEDICAL RECORD PANEL (right, collapsible) ===== */}
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${historyMinimized ? 'w-10' : 'w-96'}`}>
+        {historyMinimized ? (
+          <button
+            onClick={() => setHistoryMinimized(false)}
+            className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+          >
+            <ChevronLeft className="w-4 h-4 shrink-0" />
+            <span
+              className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
+              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            >
+              History
+            </span>
+          </button>
+        ) : (
+          <>
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5" />
+                Medical History
+              </h2>
+              <button
+                onClick={() => setHistoryMinimized(true)}
+                className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
+                title="Minimize"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              <HistoricalMedicalRecord
+                petId={petId}
+                token={token}
+                refreshTrigger={historyRefresh}
+                isReadOnly={true}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Surgery Appointment Modal */}
       <SurgeryAppointmentModal
         open={showSurgeryModal}
@@ -2489,3 +2543,4 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     </div>
   )
 }
+
