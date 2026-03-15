@@ -22,6 +22,7 @@ import productServiceRoutes from './routes/productServiceRoutes';
 import paymentQRRoutes from './routes/paymentQRRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import petNotesRoutes from './routes/petNotesRoutes';
+import vetReportRoutes from './routes/vetReportRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { seedVaccineTypes } from './utils/seedVaccineTypes';
@@ -102,6 +103,9 @@ app.use('/api/notifications', notificationRoutes);
 
 // Pet notes (vet notepad) routes
 app.use('/api/pet-notes', petNotesRoutes);
+
+// Vet report routes
+app.use('/api/vet-reports', vetReportRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);

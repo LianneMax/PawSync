@@ -18,6 +18,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/vet-dashboard/vaccinations': ['veterinarian'],
   '/vet-dashboard/medical-records': ['veterinarian'],
   '/vet-dashboard/appointments': ['veterinarian'],
+  '/vet-dashboard/reports': ['veterinarian'],
 
   // Clinic admin / branch admin routes
   '/clinic-admin': ['clinic-admin', 'branch-admin'],
@@ -35,7 +36,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
 const AUTH_ONLY_ROUTES = ['/login', '/signup', '/clinic-login']
 
 // Public routes that are always accessible regardless of auth state
-const PUBLIC_ROUTES = ['/verify-email']
+const PUBLIC_ROUTES = ['/verify-email', '/reports']
 
 function getDashboardForUserType(userType: string): string {
   switch (userType) {

@@ -24,6 +24,7 @@ import {
   User,
   Briefcase,
   BarChart3,
+  FileText,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -68,6 +69,7 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Appointments', href: '/vet-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccination Records', href: '/vet-dashboard/vaccinations', icon: <Syringe className="w-5 h-5" /> },
+    { label: 'Reports', href: '/vet-dashboard/reports', icon: <FileText className="w-5 h-5" /> },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
   'clinic-admin': [
