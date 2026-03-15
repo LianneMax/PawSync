@@ -600,7 +600,7 @@ export const updateVaccination = async (req: Request, res: Response) => {
 
     if (manufacturer !== undefined) vaccination.manufacturer = manufacturer;
     if (batchNumber !== undefined) vaccination.batchNumber = batchNumber;
-    if (route !== undefined) vaccination.route = route;
+    if (route !== undefined) vaccination.route = (route || null) as typeof vaccination.route;
     if (notes !== undefined) vaccination.notes = notes;
     if (medicalRecordId !== undefined) vaccination.medicalRecordId = medicalRecordId || null;
 

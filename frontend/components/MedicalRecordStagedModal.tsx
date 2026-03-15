@@ -130,6 +130,44 @@ const emptyPreventiveCare = (): Omit<PreventiveCare, '_id'> => ({
   notes: '',
 })
 
+interface VaccineFormItem {
+  vaccineTypeId: string
+  manufacturer: string
+  batchNumber: string
+  route: string
+  dateAdministered: string
+  notes: string
+  nextDueDate: string
+  doseNumber: number
+  vaccineCreated: boolean
+  createdVaccineId: string | null
+}
+
+const emptyVaccine = (): VaccineFormItem => ({
+  vaccineTypeId: '',
+  manufacturer: '',
+  batchNumber: '',
+  route: '',
+  dateAdministered: new Date().toISOString().split('T')[0],
+  notes: '',
+  nextDueDate: '',
+  doseNumber: 1,
+  vaccineCreated: false,
+  createdVaccineId: null,
+})
+
+function getIntervalForDose(
+  vaccineType: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] },
+  doseNumber: number
+): number | null {
+  const list = vaccineType.boosterIntervalDaysList
+  if (list && list.length > 0) {
+    const interval = list[doseNumber - 1]
+    if (interval != null) return interval
+  }
+  return vaccineType.boosterIntervalDays ?? null
+}
+
 // Map product names to careType enum values
 // Handles: Deworming, Flea and Tick Prevention
 const mapProductToCareType = (productName: string): 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other' => {
@@ -270,21 +308,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     { type: 'after', file: null, preview: null },
   ])
 
-  // Vaccine form state (step 3 for vaccination appointments)
+  // Vaccine form state (step 3 for vaccination appointments) — supports multiple vaccines per appointment
   const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([])
-  const [vaccineTypeId, setVaccineTypeId] = useState('')
-  const [vaccineManufacturer, setVaccineManufacturer] = useState('')
-  const [vaccineBatchNumber, setVaccineBatchNumber] = useState('')
-  const [vaccineRoute, setVaccineRoute] = useState('')
-  const [vaccineDateAdministered, setVaccineDateAdministered] = useState(new Date().toISOString().split('T')[0])
-  const [vaccineNotes, setVaccineNotes] = useState('')
-  const [vaccineNextDueDate, setVaccineNextDueDate] = useState('')
-  const [vaccineDoseNumber, setVaccineDoseNumber] = useState(1)
-  const [vaccineCreated, setVaccineCreated] = useState(false)
-  const [createdVaccineId, setCreatedVaccineId] = useState<string | null>(null)
+  const [vaccines, setVaccines] = useState<VaccineFormItem[]>([emptyVaccine()])
   const [vaccineSaving, setVaccineSaving] = useState(false)
-  const [vaccineAgeError, setVaccineAgeError] = useState<string | null>(null)
-  const [vaccineAgeValid, setVaccineAgeValid] = useState(true)
 
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
@@ -435,34 +462,35 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         : { pre_procedure: 1, in_procedure: 2, post_procedure: 3, completed: 3 }
       let currentStep = stageToStep[r.stage] || 1
 
-      // Task 2: if this is a vaccination appt, check whether a vaccination record already
-      // exists for this appointment — pre-fill the vaccine form fields so progress is never
-      // lost on re-open, regardless of which stage the record is currently at.
+      // Pre-fill vaccination rows from any existing vaccination records linked to this appointment.
+      // Supports multiple vaccines — all matching records are loaded into the vaccines[] array.
       if (isVaccinationAppt && appointmentId && token) {
         try {
           const existingVaccinations: Vaccination[] = await getVaccinationsByPet(petId, token)
-          const match = existingVaccinations.find(
+          const matches = existingVaccinations.filter(
             (v) => v.appointmentId === appointmentId || (typeof v.appointmentId === 'string' && v.appointmentId === appointmentId)
           )
-          if (match) {
-            setVaccineCreated(true)
-            setCreatedVaccineId(match._id)
-            const vtId = typeof match.vaccineTypeId === 'object' && match.vaccineTypeId !== null
-              ? (match.vaccineTypeId as VaccineType)._id
-              : (match.vaccineTypeId as string) || ''
-            setVaccineTypeId(vtId)
-            setVaccineManufacturer(match.manufacturer || '')
-            setVaccineBatchNumber(match.batchNumber || '')
-            setVaccineRoute(match.route || '')
-            setVaccineDateAdministered(
-              match.dateAdministered
-                ? match.dateAdministered.split('T')[0]
-                : new Date().toISOString().split('T')[0]
-            )
-            setVaccineNotes(match.notes || '')
-            setVaccineNextDueDate(match.nextDueDate ? match.nextDueDate.split('T')[0] : '')
-            setVaccineDoseNumber(match.doseNumber || 1)
-            // Only jump to step 3 if still mid-vaccination (stage not yet advanced past in_procedure)
+          if (matches.length > 0) {
+            setVaccines(matches.map((match) => {
+              const vtId = typeof match.vaccineTypeId === 'object' && match.vaccineTypeId !== null
+                ? (match.vaccineTypeId as VaccineType)._id
+                : (match.vaccineTypeId as string) || ''
+              return {
+                vaccineTypeId: vtId,
+                manufacturer: match.manufacturer || '',
+                batchNumber: match.batchNumber || '',
+                route: match.route || '',
+                dateAdministered: match.dateAdministered
+                  ? match.dateAdministered.split('T')[0]
+                  : new Date().toISOString().split('T')[0],
+                notes: match.notes || '',
+                nextDueDate: match.nextDueDate ? match.nextDueDate.split('T')[0] : '',
+                doseNumber: match.doseNumber || 1,
+                vaccineCreated: true,
+                createdVaccineId: match._id,
+              }
+            }))
+            // Only jump to step 3 if still mid-vaccination
             if (r.stage === 'in_procedure') currentStep = 3
           }
         } catch {
@@ -618,30 +646,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setPreventiveCareManuallyEdited(new Set()) // Reset manual edits on auto-populate
   }, [appointmentDate, isPreventiveCareAppt, preventiveCare.length])
 
-  // Auto-fill manufacturer and batch number from vaccine type defaults
-  // Also validate pet age against vaccine type age requirements
-  useEffect(() => {
-    if (!vaccineTypeId) {
-      setVaccineAgeError(null)
-      setVaccineAgeValid(true)
-      return
-    }
-    const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
-    if (!vt) return
-    
-    // Auto-fill defaults
-    if (vt.defaultManufacturer) setVaccineManufacturer(vt.defaultManufacturer)
-    if (vt.defaultBatchNumber) setVaccineBatchNumber(vt.defaultBatchNumber)
-    if (vt.route) setVaccineRoute(vt.route)
-    
-    // Validate pet age
-    if (pet?.dateOfBirth) {
-      const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
-      setVaccineAgeValid(validation.isValid)
-      setVaccineAgeError(validation.message)
-    }
-  }, [vaccineTypeId, vaccineTypes, pet?.dateOfBirth])
-
   // Convert surgery images state into the base64 payload for updateMedicalRecord
   const buildSurgeryImagesPayload = () =>
     surgeryImages
@@ -683,7 +687,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setSaving(true)
     try {
-      if (step === 3 && isVaccinationAppt) await trySaveVaccination()
+      if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
       const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
@@ -801,61 +805,68 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }
 
-  // Silently save vaccination data if a vaccine type has been selected — used by
-  // Save & Close, X, and Back so progress is never lost.
-  const trySaveVaccination = async () => {
-    if (!token || !vaccineTypeId || vaccineSaving) return
-    if (!vaccineAgeValid) return // do not persist an ineligible vaccination
-    
-    // Only save if we haven't already created the vaccination, or if it's an update
-    if (!vaccineCreated) {
-      setVaccineSaving(true)
-      try {
-        const res = await createVaccination({
-          petId,
-          vaccineTypeId,
-          manufacturer: vaccineManufacturer || undefined,
-          batchNumber: vaccineBatchNumber || undefined,
-          route: vaccineRoute || undefined,
-          dateAdministered: vaccineDateAdministered,
-          notes: vaccineNotes || undefined,
-          nextDueDate: vaccineNextDueDate || undefined,
-          medicalRecordId: recordId,
-          appointmentId: appointmentId || undefined,
-          clinicId: clinicId || undefined,
-          clinicBranchId: clinicBranchId || undefined,
-        }, token)
-        setVaccineCreated(true)
-        setCreatedVaccineId(res._id)
-        if (res.boosterDate) {
-          const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-          toast.success(`Vaccination saved! Next booster auto-scheduled for ${d}.`)
-        }
-      } catch (err) {
-        console.error('Vaccination creation error:', err)
-        // silent — don't block close/back on a vaccination save error
-      } finally {
-        setVaccineSaving(false)
-      }
-    } else if (createdVaccineId) {
-      // Only update if already created
-      setVaccineSaving(true)
-      try {
-        await updateVaccination(createdVaccineId, {
-          vaccineTypeId,
-          manufacturer: vaccineManufacturer || undefined,
-          batchNumber: vaccineBatchNumber || undefined,
-          route: vaccineRoute || undefined,
-          dateAdministered: vaccineDateAdministered,
-          notes: vaccineNotes || undefined,
-          nextDueDate: vaccineNextDueDate || undefined,
-        }, token)
-      } catch (err) {
-        console.error('Vaccination update error:', err)
-        // silent — don't block close/back on a vaccination save error
-      } finally {
-        setVaccineSaving(false)
-      }
+  // Silently save all vaccination rows — used by Save & Close, X, Back, Proceed, and Complete.
+  const trySaveVaccinations = async () => {
+    if (!token || vaccineSaving) return
+    setVaccineSaving(true)
+    try {
+      const updated = await Promise.all(
+        vaccines.map(async (v) => {
+          if (!v.vaccineTypeId) return v // skip empty rows
+          // Skip ineligible vaccines
+          const vt = vaccineTypes.find((x) => x._id === v.vaccineTypeId)
+          if (vt && pet?.dateOfBirth) {
+            const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
+            if (!validation.isValid) return v
+          }
+          if (!v.vaccineCreated) {
+            try {
+              const res = await createVaccination({
+                petId,
+                vaccineTypeId: v.vaccineTypeId,
+                manufacturer: v.manufacturer || undefined,
+                batchNumber: v.batchNumber || undefined,
+                route: v.route || undefined,
+                dateAdministered: v.dateAdministered,
+                notes: v.notes || undefined,
+                nextDueDate: v.nextDueDate || undefined,
+                medicalRecordId: recordId,
+                appointmentId: appointmentId || undefined,
+                clinicId: clinicId || undefined,
+                clinicBranchId: clinicBranchId || undefined,
+                doseNumber: v.doseNumber,
+              }, token)
+              if (res.boosterDate) {
+                const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                toast.success(`${vt?.name || 'Vaccination'} saved! Next booster auto-scheduled for ${d}.`)
+              }
+              return { ...v, vaccineCreated: true, createdVaccineId: res._id }
+            } catch (err) {
+              console.error('Vaccination creation error:', err)
+              return v
+            }
+          } else if (v.createdVaccineId) {
+            try {
+              await updateVaccination(v.createdVaccineId, {
+                vaccineTypeId: v.vaccineTypeId,
+                manufacturer: v.manufacturer || undefined,
+                batchNumber: v.batchNumber || undefined,
+                route: v.route || undefined,
+                dateAdministered: v.dateAdministered,
+                notes: v.notes || undefined,
+                nextDueDate: v.nextDueDate || undefined,
+              }, token)
+            } catch (err) {
+              console.error('Vaccination update error:', err)
+            }
+            return v
+          }
+          return v
+        })
+      )
+      setVaccines(updated)
+    } finally {
+      setVaccineSaving(false)
     }
   }
 
@@ -863,7 +874,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setSaving(true)
     try {
-      await trySaveVaccination()
+      await trySaveVaccinations()
       await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
       setStep(4)
     } catch {
@@ -906,7 +917,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setCompleting(true)
     try {
       // Ensure vaccination is saved (with nextDueDate) before completing so the booster gets scheduled
-      if (isVaccinationAppt) await trySaveVaccination()
+      if (isVaccinationAppt) await trySaveVaccinations()
 
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       
@@ -1005,7 +1016,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           </div>
           <button
             onClick={async () => {
-              if (step === 3 && isVaccinationAppt) await trySaveVaccination()
+              if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
               if (isSurgeryAppt && token) {
                 const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
                 const xImgs = buildSurgeryImagesPayload()
@@ -1519,7 +1530,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
           {/* ── STEP 3: VACCINATION (vaccination appointments only) ── */}
           {step === 3 && isVaccinationAppt && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Patient card */}
               {pet && (
                 <div className="bg-[#f0f7f7] rounded-2xl p-4">
@@ -1542,187 +1553,230 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 </div>
               )}
 
-              {/* Vaccine Details */}
-              <div>
-                <p className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide mb-4">Vaccine Details</p>
+              {/* Vaccines list */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide flex items-center gap-2">
+                  <Syringe className="w-4 h-4 text-[#7FA5A3]" />
+                  Vaccinations <span className="text-xs font-normal text-gray-400 ml-1">({vaccines.length})</span>
+                </p>
+              </div>
 
-                <div className="space-y-4">
-                  {/* Vaccine Type */}
-                  <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                      Vaccine Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={vaccineTypeId}
-                      onChange={(e) => setVaccineTypeId(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-                    >
-                      <option value="">Select vaccine type…</option>
-                      {vaccineTypes.map((vt) => (
-                        <option key={vt._id} value={vt._id}>{vt.name}</option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="space-y-3">
+                {vaccines.map((v, i) => {
+                  const vt = vaccineTypes.find((x) => x._id === v.vaccineTypeId)
+                  const ageValidation = vt && pet?.dateOfBirth
+                    ? validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
+                    : null
+                  const base = v.dateAdministered ? new Date(v.dateAdministered) : null
+                  const expiry = base && vt
+                    ? (() => { const d = new Date(base); d.setDate(d.getDate() + (vt.validityDays || 0)); return d })()
+                    : null
+                  const doseInterval = vt ? getIntervalForDose(vt, v.doseNumber) : null
+                  const isLastDose = vt ? v.doseNumber >= (vt.numberOfBoosters + 1) : false
+                  const nextDue = vt?.requiresBooster && doseInterval != null && !isLastDose && base
+                    ? (() => { const d = new Date(base); d.setDate(d.getDate() + doseInterval); return d })()
+                    : null
 
-                  {/* Expiry and Next Due */}
-                  {vaccineTypeId && (() => {
-                    const vt = vaccineTypes.find((v) => v._id === vaccineTypeId)
-                    if (!vt) return null
-                    const base = new Date(vaccineDateAdministered)
-                    const expiry = new Date(base); expiry.setDate(expiry.getDate() + (vt.validityDays || 0))
-                    const doseInterval = (() => {
-                      const list = vt.boosterIntervalDaysList
-                      if (list && list.length > 0) {
-                        const i = list[vaccineDoseNumber - 1]
-                        if (i != null) return i
-                      }
-                      return vt.boosterIntervalDays ?? null
-                    })()
-                    const nextDue = vt.requiresBooster && doseInterval != null
-                      ? (() => { const d = new Date(base); d.setDate(d.getDate() + doseInterval); return d })()
-                      : null
-                    return (
-                      <>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-[#F4D3D2] border border-[#983232] rounded-xl p-3">
-                            <p className="text-[10px] font-bold text-[#983232] uppercase tracking-wide">Expires</p>
-                            <p className="font-bold text-[#983232] text-sm mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                  return (
+                    <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+                      {/* Row header */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-gray-500 flex items-center gap-1.5">
+                          <Syringe className="w-3.5 h-3.5" /> Vaccine {i + 1}
+                        </span>
+                        {vaccines.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setVaccines((prev) => prev.filter((_, j) => j !== i))}
+                            className="text-red-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Vaccine Type */}
+                      <select
+                        value={v.vaccineTypeId}
+                        onChange={(e) => {
+                          const newVtId = e.target.value
+                          const newVt = vaccineTypes.find((x) => x._id === newVtId)
+                          setVaccines((prev) => prev.map((item, j) => j === i ? {
+                            ...item,
+                            vaccineTypeId: newVtId,
+                            doseNumber: 1,
+                            manufacturer: newVt?.defaultManufacturer || item.manufacturer,
+                            batchNumber: newVt?.defaultBatchNumber || item.batchNumber,
+                            route: newVt?.route || item.route,
+                          } : item))
+                        }}
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
+                      >
+                        <option value="">Select vaccine type…</option>
+                        {vaccineTypes.map((vt) => (
+                          <option key={vt._id} value={vt._id}>{vt.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Dose selector (only for vaccines with boosters) */}
+                      {vt?.requiresBooster && (() => {
+                        const totalDoses = Math.max(vt.numberOfBoosters || 0, 1) + 1
+                        return (
+                          <div className="flex flex-wrap gap-1.5">
+                            {Array.from({ length: totalDoses }, (_, d) => d + 1).map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, doseNumber: n } : item))}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
+                                  v.doseNumber === n
+                                    ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                                }`}
+                              >
+                                {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                              </button>
+                            ))}
                           </div>
+                        )
+                      })()}
+
+                      {/* Expires | Next Due badges */}
+                      {vt && base && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {expiry && (
+                            <div className="bg-[#F4D3D2] border border-[#983232] rounded-lg p-2">
+                              <p className="text-[9px] font-bold text-[#983232] uppercase tracking-wide">Expires</p>
+                              <p className="font-bold text-[#983232] text-xs mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            </div>
+                          )}
                           {nextDue && (
-                            <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-xl p-3">
-                              <p className="text-[10px] font-bold text-[#4569B1] uppercase tracking-wide">Next Due</p>
-                              <p className="font-bold text-[#4569B1] text-sm mt-0.5">
-                                {vaccineNextDueDate 
-                                  ? new Date(vaccineNextDueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                                  : nextDue.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                            <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg p-2">
+                              <p className="text-[9px] font-bold text-[#4569B1] uppercase tracking-wide">Next Due</p>
+                              <p className="font-bold text-[#4569B1] text-xs mt-0.5">
+                                {v.nextDueDate
+                                  ? new Date(v.nextDueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : nextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                 }
                               </p>
                             </div>
                           )}
                         </div>
-                        {vt.requiresBooster && (
-                          <div>
-                            <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Next Due Date (Optional)</label>
-                            <div className="relative">
+                      )}
+
+                      {/* Pet eligibility indicator */}
+                      {ageValidation && (
+                        <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs ${
+                          ageValidation.isValid
+                            ? 'bg-green-50 border border-green-200 text-green-700'
+                            : 'bg-red-50 border border-red-200 text-red-700'
+                        }`}>
+                          {ageValidation.isValid
+                            ? <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                            : <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          }
+                          <span>{ageValidation.message}</span>
+                        </div>
+                      )}
+
+                      {/* Date Administered | Next Due Date */}
+                      {(() => {
+                        const today = new Date().toISOString().split('T')[0]
+                        const dateInFuture = v.dateAdministered && v.dateAdministered > today
+                        const nextDueInvalid = v.nextDueDate && v.dateAdministered && v.nextDueDate <= v.dateAdministered
+                        return (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-1">Date Administered <span className="text-red-400">*</span></label>
                               <input
                                 type="date"
-                                value={vaccineNextDueDate}
-                                min={vaccineDateAdministered ? (() => { const d = new Date(vaccineDateAdministered); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() : undefined}
-                                onChange={(e) => setVaccineNextDueDate(e.target.value)}
-                                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                                value={v.dateAdministered}
+                                max={today}
+                                onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, dateAdministered: e.target.value } : item))}
+                                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${dateInFuture ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
                               />
-                              {vaccineNextDueDate && (
-                                <button
-                                  type="button"
-                                  onClick={() => setVaccineNextDueDate('')}
-                                  className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm font-bold"
-                                >
-                                  ✕
-                                </button>
+                              {dateInFuture && (
+                                <p className="text-[10px] text-red-500 mt-0.5">Date cannot be in the future.</p>
                               )}
                             </div>
-                            {vaccineNextDueDate && vaccineDateAdministered && vaccineNextDueDate <= vaccineDateAdministered && (
-                              <p className="text-xs text-red-500 mt-1">Next due date must be after the date administered.</p>
-                            )}
-                            {!vaccineNextDueDate && nextDue && (
-                              <p className="text-xs text-gray-500 mt-1">Default: {nextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                            {vt?.requiresBooster && (
+                              <div>
+                                <label className="block text-[10px] text-gray-400 mb-1">Next Due Date</label>
+                                <input
+                                  type="date"
+                                  value={v.nextDueDate}
+                                  min={v.dateAdministered ? (() => { const d = new Date(v.dateAdministered); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() : undefined}
+                                  onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, nextDueDate: e.target.value } : item))}
+                                  className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${nextDueInvalid ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                                />
+                                {nextDueInvalid && (
+                                  <p className="text-[10px] text-red-500 mt-0.5">Must be after date administered.</p>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </>
-                    )
-                  })()}
+                        )
+                      })()}
 
-                  {/* Age eligibility validation */}
-                  {vaccineTypeId && pet?.dateOfBirth && (
-                    <div className={`flex items-start gap-3 p-3 rounded-xl ${
-                      vaccineAgeValid
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-red-50 border border-red-200'
-                    }`}>
-                      {vaccineAgeValid ? (
-                        <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${
-                          vaccineAgeValid ? 'text-green-700' : 'text-red-700'
-                        }`}>
-                          {vaccineAgeError}
-                        </p>
+                      {/* Route | Manufacturer | Batch/Lot No */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">Route</label>
+                          <select
+                            value={v.route}
+                            onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, route: e.target.value } : item))}
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
+                          >
+                            <option value="">Route…</option>
+                            <option value="subcutaneous">Subcutaneous (SC)</option>
+                            <option value="intramuscular">Intramuscular (IM)</option>
+                            <option value="intranasal">Intranasal (IN)</option>
+                            <option value="oral">Oral</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">Manufacturer</label>
+                          <input
+                            type="text"
+                            value={v.manufacturer}
+                            onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, manufacturer: e.target.value } : item))}
+                            placeholder="Manufacturer"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">Batch/Lot No</label>
+                          <input
+                            type="text"
+                            value={v.batchNumber}
+                            onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, batchNumber: e.target.value } : item))}
+                            placeholder="Batch No."
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                          />
+                        </div>
                       </div>
+
+                      {/* Clinical Notes */}
+                      <input
+                        type="text"
+                        value={v.notes}
+                        onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, notes: e.target.value } : item))}
+                        placeholder="Clinical notes (optional)"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                      />
                     </div>
-                  )}
-
-                  {/* Date Administered */}
-                  <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                      Date Administered <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={vaccineDateAdministered}
-                      max={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setVaccineDateAdministered(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    />
-                  </div>
-
-                  {/* Route */}
-                  <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Route</label>
-                    <select
-                      value={vaccineRoute}
-                      onChange={(e) => setVaccineRoute(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-                    >
-                      <option value="">Select route…</option>
-                      <option value="subcutaneous">Subcutaneous (SC)</option>
-                      <option value="intramuscular">Intramuscular (IM)</option>
-                      <option value="intranasal">Intranasal (IN)</option>
-                      <option value="oral">Oral</option>
-                    </select>
-                  </div>
-
-                  {/* Manufacturer */}
-                  <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Manufacturer</label>
-                    <input
-                      type="text"
-                      value={vaccineManufacturer}
-                      onChange={(e) => setVaccineManufacturer(e.target.value)}
-                      placeholder="e.g. Merial, Zoetis…"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    />
-                  </div>
-
-                  {/* Batch / Lot Number */}
-                  <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Batch / Lot Number</label>
-                    <input
-                      type="text"
-                      value={vaccineBatchNumber}
-                      onChange={(e) => setVaccineBatchNumber(e.target.value)}
-                      placeholder="e.g. A12345"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    />
-                  </div>
-
-                  {/* Clinical Notes */}
-                  <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Clinical Notes</label>
-                    <textarea
-                      value={vaccineNotes}
-                      onChange={(e) => setVaccineNotes(e.target.value)}
-                      rows={3}
-                      placeholder="Any observations, reactions, or special instructions…"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
-                    />
-                  </div>
-
-                </div>
+                  )
+                })}
               </div>
+
+              {/* Add Vaccine button */}
+              <button
+                type="button"
+                onClick={() => setVaccines((prev) => [...prev, emptyVaccine()])}
+                className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Vaccine
+              </button>
             </div>
           )}
 
@@ -2235,7 +2289,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             {step > 1 && (
               <button
                 onClick={async () => {
-                  if (step === 3 && isVaccinationAppt) await trySaveVaccination()
+                  if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
                   setStep((s) => (s - 1) as StepKey)
                 }}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
@@ -2265,18 +2319,31 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
-            {step === 3 && isVaccinationAppt && (
+            {step === 3 && isVaccinationAppt && (() => {
+              const today = new Date().toISOString().split('T')[0]
+              const hasAgeError = vaccines.some((v) => {
+                if (!v.vaccineTypeId) return false
+                const vt = vaccineTypes.find((x) => x._id === v.vaccineTypeId)
+                if (!vt || !pet?.dateOfBirth) return false
+                return !validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null).isValid
+              })
+              const hasDateError = vaccines.some((v) =>
+                (v.dateAdministered && v.dateAdministered > today) ||
+                (v.nextDueDate && v.dateAdministered && v.nextDueDate <= v.dateAdministered)
+              )
+              return (
               <button
                 onClick={handleProceedStep3Vaccination}
-                disabled={saving || !vaccineAgeValid || !vaccineTypeId}
-                title={!vaccineAgeValid ? 'Pet age is outside the allowed range for this vaccine' : !vaccineTypeId ? 'Please select a vaccine type' : undefined}
+                disabled={saving || hasAgeError || hasDateError}
+                title={hasAgeError ? 'One or more vaccines: pet age is outside the allowed range' : hasDateError ? 'Fix date errors before proceeding' : undefined}
                 className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Proceed to Post-Procedure
                 <ChevronRight className="w-4 h-4" />
               </button>
-            )}
+              )
+            })()}
             {step === 3 && isSurgeryAppt && (
               <button
                 onClick={handleProceedStep3Surgery}

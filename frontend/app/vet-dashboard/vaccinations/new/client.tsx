@@ -17,6 +17,7 @@ import {
   getVaccineTypes,
   createVaccination,
   getVaccinationById,
+  getVaccinationsByPet,
   updateVaccination,
   type VaccineType,
   type Vaccination,
@@ -129,6 +130,9 @@ export default function VaccinationFormClient() {
   const [ageValid, setAgeValid] = useState(true)
   const [ageMessage, setAgeMessage] = useState<string | null>(null)
 
+  // Doses already taken for this pet + vaccine type (new mode only)
+  const [takenDoses, setTakenDoses] = useState<number[]>([])
+
   // Date validation: run whenever either date changes
   useEffect(() => {
     const today = formatDateInput(new Date())
@@ -159,10 +163,11 @@ export default function VaccinationFormClient() {
   }, [selectedPet?.species])
 
   // Sync selected vaccine type for computed preview + validate pet age
+  // NOTE: doseNumber is intentionally NOT reset here — it is reset to 1 in the
+  // vaccine type onChange handler so that edit-mode loads preserve the correct dose.
   useEffect(() => {
     const vt = vaccineTypes.find((v) => v._id === vaccineTypeId) || null
     setSelectedVaccineType(vt)
-    setDoseNumber(1)
     if (vt?.route && !route) {
       setRoute(vt.route)
     }
@@ -237,6 +242,27 @@ export default function VaccinationFormClient() {
       .catch(() => {})
       .finally(() => setLoadingEdit(false))
   }, [editId, token])
+
+  // In new mode: fetch taken dose numbers for this pet + vaccine type so we can lock untaken doses
+  useEffect(() => {
+    if (editId || !selectedPet || !vaccineTypeId || !token) {
+      setTakenDoses([])
+      return
+    }
+    getVaccinationsByPet(selectedPet._id, token)
+      .then((vaxes) => {
+        const doses = vaxes
+          .filter((v) => {
+            const vtId = typeof v.vaccineTypeId === 'object' && v.vaccineTypeId
+              ? (v.vaccineTypeId as VaccineType)._id
+              : v.vaccineTypeId as string
+            return vtId === vaccineTypeId
+          })
+          .map((v) => v.doseNumber)
+        setTakenDoses(doses)
+      })
+      .catch(() => setTakenDoses([]))
+  }, [editId, selectedPet, vaccineTypeId, token])
 
   // Owner search with debounce
   const searchOwnersFn = useCallback(async (q: string) => {
@@ -557,7 +583,7 @@ export default function VaccinationFormClient() {
             <div className="relative">
               <select
                 value={vaccineTypeId}
-                onChange={(e) => setVaccineTypeId(e.target.value)}
+                onChange={(e) => { setVaccineTypeId(e.target.value); setDoseNumber(1) }}
                 required
                 className="w-full appearance-none bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
               >
@@ -575,22 +601,54 @@ export default function VaccinationFormClient() {
             {selectedVaccineType?.requiresBooster && (
               <div className="mt-3">
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Dose Number</label>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setDoseNumber(n)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                        doseNumber === n
-                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                          : 'bg-[#F8F6F2] text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
-                      }`}
-                    >
-                      {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
-                    </button>
-                  ))}
-                </div>
+                {editId ? (
+                  // Edit mode: dose is locked — cannot change which dose a historical record represents
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => (
+                      <div
+                        key={n}
+                        title={n !== doseNumber ? 'Cannot change dose number of an existing record' : undefined}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border select-none ${
+                          doseNumber === n
+                            ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                            : 'bg-gray-100 text-gray-400 border-gray-200 opacity-50 cursor-not-allowed'
+                        }`}
+                      >
+                        {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                        {doseNumber === n && <span className="ml-1.5 text-[9px] opacity-75">(this record)</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // New mode: only allow doses that are either taken or the immediate next dose
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => {
+                      const isTaken = takenDoses.includes(n)
+                      const nextDose = takenDoses.length + 1
+                      const isSelectable = n === nextDose
+                      const isDisabled = isTaken || !isSelectable
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => !isDisabled && setDoseNumber(n)}
+                          title={isTaken ? 'This dose has already been recorded' : !isSelectable ? 'Previous dose must be administered first' : undefined}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors disabled:cursor-not-allowed ${
+                            doseNumber === n
+                              ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                              : isDisabled
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-50'
+                              : 'bg-[#F8F6F2] text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                          }`}
+                        >
+                          {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                          {isTaken && <span className="ml-1 opacity-60">✓</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
                 <p className="text-[10px] text-gray-400 mt-1">
                   {doseNumber} of {totalDoses} total doses
                 </p>
@@ -606,10 +664,16 @@ export default function VaccinationFormClient() {
                     <p className="text-xs font-bold text-[#983232]">{computedExpiryDate}</p>
                   </div>
                 )}
-                {computedNextDueDate && (
+                {(nextDueDate || computedNextDueDate) && (
                   <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-[#4569B1] uppercase tracking-wide font-semibold mb-0.5">Next Due (auto-schedules)</p>
-                    <p className="text-xs font-bold text-[#4569B1]">{computedNextDueDate}</p>
+                    <p className="text-[10px] text-[#4569B1] uppercase tracking-wide font-semibold mb-0.5">
+                      {nextDueDate ? 'Next Due (overridden)' : 'Next Due (auto-schedules)'}
+                    </p>
+                    <p className="text-xs font-bold text-[#4569B1]">
+                      {nextDueDate
+                        ? formatDisplayDate(nextDueDate)
+                        : computedNextDueDate}
+                    </p>
                   </div>
                 )}
               </div>
