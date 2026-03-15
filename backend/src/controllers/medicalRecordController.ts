@@ -410,7 +410,7 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     const record = await MedicalRecord.findById(req.params.id)
-      .populate('petId', 'name species breed sex dateOfBirth weight photo ownerId')
+      .populate('petId', 'name species breed sex dateOfBirth weight photo color sterilization nfcTagId microchipNumber allergies ownerId')
       .populate('vetId', 'firstName lastName email')
       .populate('clinicId', 'name address phone email adminId')
       .populate('clinicBranchId', 'name address phone')

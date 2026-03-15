@@ -1089,6 +1089,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <p className="font-medium text-[#4F4F4F]">{pet.breed}</p>
                     </div>
                     <div>
+                      <p className="text-gray-400 text-xs mb-0.5">Color</p>
+                      <p className="font-medium text-[#4F4F4F]">{pet.color || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs mb-0.5">Date of Birth</p>
+                      <p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString() : '-'}</p>
+                    </div>
+                    <div>
                       <p className="text-gray-400 text-xs mb-0.5">Age</p>
                       <p className="font-medium text-[#4F4F4F]">{calcAge(pet.dateOfBirth)}</p>
                     </div>
@@ -1096,6 +1104,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <p className="text-gray-400 text-xs mb-0.5">Sex</p>
                       <p className="font-medium text-[#4F4F4F] capitalize">{pet.sex}</p>
                     </div>
+                    <div>
+                      <p className="text-gray-400 text-xs mb-0.5">Sterilization</p>
+                      <p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization || '-'}</p>
+                    </div>
+                    {pet.nfcTagId && (
+                      <div>
+                        <p className="text-gray-400 text-xs mb-0.5">Pet Tag ID</p>
+                        <p className="font-medium text-[#4F4F4F] text-xs">{pet.nfcTagId}</p>
+                      </div>
+                    )}
+                    {pet.microchipNumber && (
+                      <div>
+                        <p className="text-gray-400 text-xs mb-0.5">Microchip</p>
+                        <p className="font-medium text-[#4F4F4F] text-xs">{pet.microchipNumber}</p>
+                      </div>
+                    )}
                     {pet.sex === 'female' && (
                       <div>
                         <p className="text-gray-400 text-xs mb-0.5">Pregnancy</p>
@@ -1106,12 +1130,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         }`}>
                           {pet.pregnancyStatus === 'pregnant' ? 'Pregnant' : 'Not Pregnant'}
                         </span>
-                      </div>
-                    )}
-                    {pet.microchipNumber && (
-                      <div>
-                        <p className="text-gray-400 text-xs mb-0.5">Microchip</p>
-                        <p className="font-medium text-[#4F4F4F] text-xs">{pet.microchipNumber}</p>
                       </div>
                     )}
                   </div>

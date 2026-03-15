@@ -71,6 +71,13 @@ interface PatientPet {
   species: string
   breed: string
   photo: string | null
+  sex: string
+  dateOfBirth: string | null
+  color: string | null
+  sterilization: string | null
+  nfcTagId: string | null
+  microchipNumber: string | null
+  allergies: string[]
   ownerFirstName: string
   ownerLastName: string
   ownerEmail: string
@@ -229,6 +236,13 @@ export default function PatientRecordsPage() {
               species: appt.petId?.species || '',
               breed: appt.petId?.breed || '',
               photo: appt.petId?.photo || null,
+              sex: appt.petId?.sex || '',
+              dateOfBirth: appt.petId?.dateOfBirth || null,
+              color: appt.petId?.color || null,
+              sterilization: appt.petId?.sterilization || null,
+              nfcTagId: appt.petId?.nfcTagId || null,
+              microchipNumber: appt.petId?.microchipNumber || null,
+              allergies: appt.petId?.allergies || [],
               ownerFirstName: appt.ownerId?.firstName || '',
               ownerLastName: appt.ownerId?.lastName || '',
               ownerEmail: appt.ownerId?.email || '',
@@ -1340,7 +1354,7 @@ function ViewRecordModal({
     setExpandedFollowUps(new Set())
     getRecordById(recordIds[index], token).then((res) => {
       if (res.status === 'SUCCESS' && res.data?.record) setRecord(res.data.record)
-    }).finally(() => setLoading(false))
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [open, index, recordIds, token])
 
   // Load pet-level vet notes when pet changes
@@ -1764,15 +1778,33 @@ function ViewRecordModal({
                         <p className="text-sm text-[#4F4F4F] capitalize">{pet?.breed || '—'}</p>
                       </div>
                       <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Color</p>
+                        <p className="text-sm text-[#4F4F4F]">{pet?.color || '—'}</p>
+                      </div>
+                      <div>
                         <p className="text-[10px] text-gray-400 uppercase">Sex</p>
                         <p className="text-sm text-[#4F4F4F] capitalize">{pet?.sex || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Date of Birth</p>
+                        <p className="text-sm text-[#4F4F4F]">{pet?.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString() : '—'}</p>
                       </div>
                       <div>
                         <p className="text-[10px] text-gray-400 uppercase">Age</p>
                         <p className="text-sm text-[#4F4F4F]">{pet?.dateOfBirth ? calculateAge(pet.dateOfBirth) : '—'}</p>
                       </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase">Sterilization</p>
+                        <p className="text-sm text-[#4F4F4F] capitalize">{pet?.sterilization || '—'}</p>
+                      </div>
+                      {pet?.nfcTagId && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase">Pet Tag ID</p>
+                          <p className="text-sm font-mono text-[#4F4F4F]">{pet.nfcTagId}</p>
+                        </div>
+                      )}
                       {pet?.microchipNumber && (
-                        <div className="col-span-2">
+                        <div className={pet?.nfcTagId ? '' : 'col-span-2'}>
                           <p className="text-[10px] text-gray-400 uppercase">Microchip</p>
                           <p className="text-sm font-mono text-[#4F4F4F]">{pet.microchipNumber}</p>
                         </div>

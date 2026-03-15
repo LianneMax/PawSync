@@ -256,8 +256,16 @@ export default function ClinicAdminMedicalRecordViewPage() {
                   <p className="text-sm font-medium text-[#4F4F4F]">{pet.breed || '-'}</p>
                 </div>
                 <div>
+                  <p className="text-xs text-gray-500">Color</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.color || '-'}</p>
+                </div>
+                <div>
                   <p className="text-xs text-gray-500">Sex</p>
                   <p className="text-sm font-medium text-[#4F4F4F] capitalize">{pet.sex || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Date of Birth</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString() : '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Age</p>
@@ -269,6 +277,22 @@ export default function ClinicAdminMedicalRecordViewPage() {
                   <p className="text-xs text-gray-500">Weight</p>
                   <p className="text-sm font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '-'}</p>
                 </div>
+                <div>
+                  <p className="text-xs text-gray-500">Sterilization</p>
+                  <p className="text-sm font-medium text-[#4F4F4F] capitalize">{pet.sterilization || '-'}</p>
+                </div>
+                {pet.nfcTagId && (
+                  <div>
+                    <p className="text-xs text-gray-500">Pet Tag ID</p>
+                    <p className="text-sm font-medium text-[#4F4F4F]">{pet.nfcTagId}</p>
+                  </div>
+                )}
+                {pet.microchipNumber && (
+                  <div>
+                    <p className="text-xs text-gray-500">Microchip</p>
+                    <p className="text-sm font-medium text-[#4F4F4F]">{pet.microchipNumber}</p>
+                  </div>
+                )}
               </div>
             </div>
 
