@@ -10,7 +10,6 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, togglePetLost, type Pet as APIPet } from '@/lib/pets'
-import { updateProfile } from '@/lib/users'
 import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { authenticatedFetch } from '@/lib/auth'
@@ -100,7 +99,6 @@ export default function PetProfilePage() {
   const [editNotes, setEditNotes] = useState('')
   const [editAllergies, setEditAllergies] = useState('')
   const [editPhoto, setEditPhoto] = useState<string | null>(null)
-  const [editOwnerContact, setEditOwnerContact] = useState('')
 
   const fetchPet = useCallback(async () => {
     if (!token || !petId) return
@@ -223,7 +221,6 @@ export default function PetProfilePage() {
     setEditNotes(pet.notes || '')
     setEditAllergies(pet.allergies.join(', '))
     setEditPhoto(null)
-    setEditOwnerContact(typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '' : '')
     setEditing(true)
   }
 
@@ -254,11 +251,7 @@ export default function PetProfilePage() {
         updates.allergies = newAllergies
       }
 
-      // Check if owner contact number changed
-      const currentOwnerContact = typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber : ''
-      const contactNumberChanged = editOwnerContact.trim() !== (currentOwnerContact || '')
-
-      if (Object.keys(updates).length === 0 && !contactNumberChanged) {
+      if (Object.keys(updates).length === 0) {
         setEditing(false)
         setShowPhotoUpload(false)
         return
@@ -269,19 +262,6 @@ export default function PetProfilePage() {
         const response = await updatePet(petId, updates as Partial<APIPet>, token)
         if (response.status !== 'SUCCESS') {
           toast('Error', { description: response.message || 'Failed to update pet.' })
-          setSaving(false)
-          return
-        }
-      }
-
-      // Update user contact number if it changed
-      if (contactNumberChanged) {
-        const profileResponse = await updateProfile(
-          { contactNumber: editOwnerContact.trim() },
-          token
-        )
-        if (profileResponse.status !== 'SUCCESS') {
-          toast('Error', { description: profileResponse.message || 'Failed to update contact number.' })
           setSaving(false)
           return
         }
@@ -782,24 +762,11 @@ export default function PetProfilePage() {
                 <DetailField label="Microchip Number" value={pet.microchipNumber || '-'} />
               )}
 
-              {/* Owner Contact Number - editable */}
-              {editing ? (
-                <div className="bg-[#F8F6F2] rounded-xl p-4">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Owner Contact</p>
-                  <input
-                    type="tel"
-                    value={editOwnerContact}
-                    onChange={(e) => setEditOwnerContact(e.target.value)}
-                    placeholder="Enter contact number"
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
-              ) : (
-                <DetailField 
-                  label="Owner Contact" 
-                  value={typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '-' : '-'} 
-                />
-              )}
+              {/* Owner Contact Number - read only */}
+              <DetailField
+                label="Owner Contact"
+                value={typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '-' : '-'}
+              />
             </div>
 
             {/* Health Section */}

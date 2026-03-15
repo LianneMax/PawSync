@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
-import { Eye, EyeOff, Lock, Mail, User, X, ChevronDown } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Phone, User, X, ChevronDown } from 'lucide-react'
 import AvatarUpload from '@/components/avatar-upload'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -380,6 +380,7 @@ export default function SettingsPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [contactNumber, setContactNumber] = useState('')
 
   // Photo fields
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(null)
@@ -407,6 +408,7 @@ export default function SettingsPage() {
           setFirstName(u.firstName)
           setLastName(u.lastName)
           setEmail(u.email)
+          setContactNumber(u.contactNumber || '')
           if (u.photo) {
             setCurrentPhoto(u.photo)
             if (authUser) setUser({ ...authUser, avatar: u.photo })
@@ -466,7 +468,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firstName, lastName, email }),
+          body: JSON.stringify({ firstName, lastName, email, contactNumber: contactNumber.trim() || null }),
         },
         token || undefined
       )
@@ -623,6 +625,20 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                     className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.email ? 'border-red-400' : 'border-gray-200'}`}
                   />
                   {profileErrors.email && <p className="text-red-500 text-xs mt-1">{profileErrors.email}</p>}
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[#4F4F4F] mb-2">
+                    <Phone className="w-4 h-4" />
+                    Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="e.g. 09171234567"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all"
+                  />
                 </div>
               </div>
 

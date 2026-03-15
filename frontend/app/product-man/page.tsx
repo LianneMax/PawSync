@@ -22,6 +22,7 @@ interface ProductItem {
 interface VaccineItem {
   id: string
   name: string
+  species: string[]
   pricePerDose: number
 }
 
@@ -1159,6 +1160,7 @@ function VaccinesTab({ token }: { token: string | null }) {
             data.data.vaccineTypes.map((v: any) => ({
               id: v._id,
               name: v.name,
+              species: v.species ?? [],
               pricePerDose: v.pricePerDose ?? 0,
             }))
           )
@@ -1235,6 +1237,7 @@ function VaccinesTab({ token }: { token: string | null }) {
                   <th className="px-5 py-3 text-left">
                     <SortHeader label="Vaccine Name" colKey="name" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Species</th>
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Price Per Dose" colKey="pricePerDose" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
@@ -1248,6 +1251,22 @@ function VaccinesTab({ token }: { token: string | null }) {
                       <div className="flex items-center gap-2">
                         <Syringe className="w-3.5 h-3.5 text-[#7FA5A3] flex-shrink-0" />
                         <span className="text-sm font-medium text-[#476B6B]">{vaccine.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex gap-1 flex-wrap">
+                        {vaccine.species.map((s) => (
+                          <span
+                            key={s}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              s === 'dog' ? 'bg-amber-100 text-amber-700' :
+                              s === 'cat' ? 'bg-purple-100 text-purple-700' :
+                              'bg-teal-100 text-teal-700'
+                            }`}
+                          >
+                            {s === 'dog' ? 'Canine' : s === 'cat' ? 'Feline' : 'Canine + Feline'}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">
@@ -1267,7 +1286,7 @@ function VaccinesTab({ token }: { token: string | null }) {
                 ))}
                 {sorted.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-5 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={4} className="px-5 py-12 text-center text-sm text-gray-400">
                       No vaccines found.
                     </td>
                   </tr>
