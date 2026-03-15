@@ -481,7 +481,7 @@ export default function PetProfilePage() {
   }
 
   const sterilizationLabel = (() => {
-    switch (pet.sterilization) {
+    switch (pet.sterilization as string) {
       case 'spayed':
       case 'unspayed':
       case 'neutered':

@@ -130,7 +130,6 @@ function formatAppointmentTypeDisplay(type: string): string {
     'Grooming': 'Grooming',
     'flea-tick-prevention': 'Flea & Tick Prevention',
     'heartworm': 'Heartworm Prevention',
-    'deworming': 'Deworming',
   }
   
   return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
@@ -1564,59 +1563,26 @@ function ClinicScheduleModal({
       const loadServices = async () => {
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-          const categories = ['General Consultation', 'Preventive Care', 'Surgeries', 'Grooming']
-          const categoryMap: Record<string, any[]> = {}
-          
-          // Fetch services for each category
-          for (const cat of categories) {
-            const res = await fetch(
-              `${apiUrl}/product-services?type=Service&category=${encodeURIComponent(cat)}`,
-              { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-            )
-            const data = await res.json()
-            if (data.status === 'SUCCESS' && data.data?.items) {
-              categoryMap[cat] = data.data.items
+          const res = await fetch(
+            `${apiUrl}/product-services?type=Service`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+          )
+          const data = await res.json()
+          if (data.status === 'SUCCESS' && data.data?.items) {
+            // Group by category dynamically — no hardcoding needed
+            const grouped: Record<string, any[]> = {}
+            for (const item of data.data.items) {
+              const cat = item.category || 'Other'
+              if (!grouped[cat]) grouped[cat] = []
+              grouped[cat].push(item)
             }
+            const formatted = Object.entries(grouped).map(([cat, items]) => ({
+              id: cat.toLowerCase().replace(/\s+/g, '-'),
+              label: cat,
+              services: items.map((item: any) => ({ value: item.name, label: item.name })),
+            }))
+            setServiceCategories(formatted)
           }
-          
-          // Build service categories in the expected format
-          const formatted = [
-            {
-              id: 'general',
-              label: 'General Consultation',
-              services: (categoryMap['General Consultation'] || []).map((item: any) => ({
-                value: item.name,
-                label: item.name,
-              })),
-            },
-            {
-              id: 'preventive',
-              label: 'Preventive Care',
-              services: (categoryMap['Preventive Care'] || []).map((item: any) => ({
-                value: item.name,
-                label: item.name,
-              })),
-            },
-            {
-              id: 'surgery',
-              label: 'Surgical Procedures',
-              services: (categoryMap['Surgeries'] || [])
-                .filter((item: any) => item.name === 'Sterilization')
-                .map((item: any) => ({
-                  value: item.name,
-                  label: item.name,
-                })),
-            },
-            {
-              id: 'grooming',
-              label: 'Grooming',
-              services: (categoryMap['Grooming'] || []).map((item: any) => ({
-                value: item.name,
-                label: item.name,
-              })),
-            },
-          ]
-          setServiceCategories(formatted)
         } catch { /* silent */ }
       }
       loadServices()
