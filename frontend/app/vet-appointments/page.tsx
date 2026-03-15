@@ -28,6 +28,7 @@ import {
   Building2,
   CheckCircle,
   Coffee,
+  Syringe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -607,6 +608,15 @@ export default function VetAppointmentsPage() {
                                           {formatAppointmentTypeDisplay(t)}
                                         </span>
                                       ))}
+                                      {/* Auto-scheduled booster: show vaccine name pill */}
+                                      {(() => {
+                                        const match = appt.notes?.match(/^Auto-scheduled.*for (.+)$/)
+                                        return match ? (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-[#C5D8FF] text-[#4569B1] font-medium">
+                                            <Syringe className="w-3 h-3" />{match[1]}
+                                          </span>
+                                        ) : null
+                                      })()}
                                     </div>
 
                                     {/* Branch info */}

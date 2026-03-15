@@ -806,64 +806,65 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   // Silently save all vaccination rows — used by Save & Close, X, Back, Proceed, and Complete.
+  // Runs sequentially (not Promise.all) so booster appointments don't race for the same time slot.
   const trySaveVaccinations = async () => {
     if (!token || vaccineSaving) return
     setVaccineSaving(true)
     try {
-      const updated = await Promise.all(
-        vaccines.map(async (v) => {
-          if (!v.vaccineTypeId) return v // skip empty rows
-          // Skip ineligible vaccines
-          const vt = vaccineTypes.find((x) => x._id === v.vaccineTypeId)
-          if (vt && pet?.dateOfBirth) {
-            const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
-            if (!validation.isValid) return v
-          }
-          if (!v.vaccineCreated) {
-            try {
-              const res = await createVaccination({
-                petId,
-                vaccineTypeId: v.vaccineTypeId,
-                manufacturer: v.manufacturer || undefined,
-                batchNumber: v.batchNumber || undefined,
-                route: v.route || undefined,
-                dateAdministered: v.dateAdministered,
-                notes: v.notes || undefined,
-                nextDueDate: v.nextDueDate || undefined,
-                medicalRecordId: recordId,
-                appointmentId: appointmentId || undefined,
-                clinicId: clinicId || undefined,
-                clinicBranchId: clinicBranchId || undefined,
-                doseNumber: v.doseNumber,
-              }, token)
-              if (res.boosterDate) {
-                const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                toast.success(`${vt?.name || 'Vaccination'} saved! Next booster auto-scheduled for ${d}.`)
-              }
-              return { ...v, vaccineCreated: true, createdVaccineId: res._id }
-            } catch (err) {
-              console.error('Vaccination creation error:', err)
-              return v
+      const updated: VaccineFormItem[] = []
+      for (const v of vaccines) {
+        if (!v.vaccineTypeId) { updated.push(v); continue }
+        // Skip ineligible vaccines
+        const vt = vaccineTypes.find((x) => x._id === v.vaccineTypeId)
+        if (vt && pet?.dateOfBirth) {
+          const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
+          if (!validation.isValid) { updated.push(v); continue }
+        }
+        if (!v.vaccineCreated) {
+          try {
+            const res = await createVaccination({
+              petId,
+              vaccineTypeId: v.vaccineTypeId,
+              manufacturer: v.manufacturer || undefined,
+              batchNumber: v.batchNumber || undefined,
+              route: v.route || undefined,
+              dateAdministered: v.dateAdministered,
+              notes: v.notes || undefined,
+              nextDueDate: v.nextDueDate || undefined,
+              medicalRecordId: recordId,
+              appointmentId: appointmentId || undefined,
+              clinicId: clinicId || undefined,
+              clinicBranchId: clinicBranchId || undefined,
+              doseNumber: v.doseNumber,
+            }, token)
+            if (res.boosterDate) {
+              const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+              toast.success(`${vt?.name || 'Vaccination'} saved! Next booster auto-scheduled for ${d}.`)
             }
-          } else if (v.createdVaccineId) {
-            try {
-              await updateVaccination(v.createdVaccineId, {
-                vaccineTypeId: v.vaccineTypeId,
-                manufacturer: v.manufacturer || undefined,
-                batchNumber: v.batchNumber || undefined,
-                route: v.route || undefined,
-                dateAdministered: v.dateAdministered,
-                notes: v.notes || undefined,
-                nextDueDate: v.nextDueDate || undefined,
-              }, token)
-            } catch (err) {
-              console.error('Vaccination update error:', err)
-            }
-            return v
+            updated.push({ ...v, vaccineCreated: true, createdVaccineId: res._id })
+          } catch (err) {
+            console.error('Vaccination creation error:', err)
+            updated.push(v)
           }
-          return v
-        })
-      )
+        } else if (v.createdVaccineId) {
+          try {
+            await updateVaccination(v.createdVaccineId, {
+              vaccineTypeId: v.vaccineTypeId,
+              manufacturer: v.manufacturer || undefined,
+              batchNumber: v.batchNumber || undefined,
+              route: v.route || undefined,
+              dateAdministered: v.dateAdministered,
+              notes: v.notes || undefined,
+              nextDueDate: v.nextDueDate || undefined,
+            }, token)
+          } catch (err) {
+            console.error('Vaccination update error:', err)
+          }
+          updated.push(v)
+        } else {
+          updated.push(v)
+        }
+      }
       setVaccines(updated)
     } finally {
       setVaccineSaving(false)
