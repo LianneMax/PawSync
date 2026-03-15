@@ -7,6 +7,11 @@ export type AdministrationMethod =
   | 'pills' | 'capsules' | 'tablets' | 'liquid' | 'suspension'  // oral
   | 'skin' | 'eyes' | 'ears';                                     // topical
 
+export interface IBranchAvailability {
+  branchId: mongoose.Types.ObjectId;
+  isActive: boolean;
+}
+
 export interface IProductService extends Document {
   name: string;
   type: 'Service' | 'Product';
@@ -17,6 +22,7 @@ export interface IProductService extends Document {
   administrationRoute?: AdministrationRoute;
   administrationMethod?: AdministrationMethod;
   intervalDays?: number; // For preventive care services, days until next due
+  branchAvailability: IBranchAvailability[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +57,14 @@ const ProductServiceSchema: Schema = new Schema(
       default: null,
       min: 1,
     },
+    // Branch availability: tracks which branches carry this item and whether it's active there.
+    // Only applicable to Medications (Products) and non-Others Services.
+    branchAvailability: [
+      {
+        branchId: { type: Schema.Types.ObjectId, ref: 'ClinicBranch', required: true },
+        isActive: { type: Boolean, default: true },
+      },
+    ],
   },
   { timestamps: true }
 );

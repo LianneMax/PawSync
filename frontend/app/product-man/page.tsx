@@ -9,6 +9,18 @@ import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe } from 'lu
 
 type Tab = 'Products' | 'Services' | 'Vaccines'
 
+interface BranchInfo {
+  id: string
+  name: string
+  isMain: boolean
+}
+
+interface BranchAvailabilityEntry {
+  branchId: string
+  branchName: string
+  isActive: boolean
+}
+
 interface ProductItem {
   id: string
   name: string
@@ -17,6 +29,13 @@ interface ProductItem {
   lastUpdateDate: string
   administrationRoute?: string
   administrationMethod?: string
+  branchAvailability: BranchAvailabilityEntry[]
+}
+
+/** Returns true if the item type/category qualifies for branch availability tracking */
+function qualifiesForBranchAvailability(tab: 'Products' | 'Services', category: string): boolean {
+  if (tab === 'Products') return category === 'Medication'
+  return category !== 'Others'
 }
 
 interface VaccineItem {
@@ -50,11 +69,12 @@ function formatAdministration(route?: string, method?: string): string {
 interface AddModalProps {
   tab: 'Products' | 'Services'
   token: string | null
+  branches: BranchInfo[]
   onClose: () => void
   onSaved: (item: ProductItem) => void
 }
 
-function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
+function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const isProducts = tab === 'Products'
 
   // --- Simple form state (Services tab + Products "Others") ---
@@ -64,6 +84,11 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
     description: '',
     category: (isProducts ? 'Others' : SERVICE_CATEGORIES[0]) as string,
   })
+
+  // --- Branch availability selection ---
+  const [selectedBranches, setSelectedBranches] = useState<Set<string>>(
+    new Set(branches.map((b) => b.id)) // default: all branches selected
+  )
 
   // --- Products: type selection ---
   const [productType, setProductType] = useState<'medication' | 'others' | null>(null)
@@ -129,6 +154,15 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
     setMedDesc('')
   }
 
+  const branchAvailabilityPayload = Array.from(selectedBranches).map((id) => ({ branchId: id, isActive: true }))
+
+  const mapBranchAvailability = (raw: any[]): BranchAvailabilityEntry[] =>
+    (raw || []).map((ba: any) => ({
+      branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
+      branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
+      isActive: ba.isActive,
+    }))
+
   // ---- SAVE: simple form (Services tab or Products "Others") ----
   const handleSaveSimple = async () => {
     if (!simpleForm.name.trim() || !simpleForm.price) {
@@ -144,6 +178,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
     setError('')
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const qualifies = qualifiesForBranchAvailability(tab, simpleForm.category)
       const res = await fetch(`${apiUrl}/product-services`, {
         method: 'POST',
         headers: {
@@ -156,6 +191,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
           category: simpleForm.category,
           price: parsed,
           description: simpleForm.description.trim(),
+          ...(qualifies ? { branchAvailability: branchAvailabilityPayload } : {}),
         }),
       })
       const data = await res.json()
@@ -168,6 +204,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
           lastUpdateDate: new Date(data.data.item.updatedAt).toLocaleDateString('en-US', {
             year: 'numeric', month: 'short', day: 'numeric',
           }),
+          branchAvailability: mapBranchAvailability(data.data.item.branchAvailability),
         })
         onClose()
       } else {
@@ -202,6 +239,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
         administrationRoute: admRoute,
         price: parsed,
         description: medDesc.trim(),
+        branchAvailability: branchAvailabilityPayload,
       }
       if (admRoute !== 'injection') {
         body.administrationMethod = admMethod.toLowerCase()
@@ -226,6 +264,7 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
           }),
           administrationRoute: data.data.item.administrationRoute,
           administrationMethod: data.data.item.administrationMethod,
+          branchAvailability: mapBranchAvailability(data.data.item.branchAvailability),
         })
         onClose()
       } else {
@@ -471,6 +510,36 @@ function AddModal({ tab, token, onClose, onSaved }: AddModalProps) {
             </>
           )}
 
+          {/* Branch availability — shown for Medication and non-Others services */}
+          {branches.length > 0 && (isMedMode || (!isProducts && simpleForm.category !== 'Others')) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Branch Availability</label>
+              <div className="space-y-2">
+                {branches.map((branch) => (
+                  <button
+                    key={branch.id}
+                    type="button"
+                    onClick={() => setSelectedBranches((prev) => {
+                      const next = new Set(prev)
+                      next.has(branch.id) ? next.delete(branch.id) : next.add(branch.id)
+                      return next
+                    })}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                      selectedBranches.has(branch.id)
+                        ? 'bg-[#EAF1F1] border-[#7FA5A3] text-[#3D5E5C]'
+                        : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    <span className="font-medium">{branch.name}{branch.isMain ? ' (Main)' : ''}</span>
+                    <span className={`text-xs font-semibold ${selectedBranches.has(branch.id) ? 'text-[#476B6B]' : 'text-gray-400'}`}>
+                      {selectedBranches.has(branch.id) ? 'Available' : 'Not Available'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
 
@@ -500,11 +569,12 @@ interface EditModalProps {
   tab: 'Products' | 'Services'
   item: ProductItem
   token: string | null
+  branches: BranchInfo[]
   onClose: () => void
   onSaved: (updated: ProductItem) => void
 }
 
-function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
+function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalProps) {
   const isMedication = item.category === 'Medication'
   const categories = tab === 'Products' ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES
 
@@ -518,8 +588,20 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
   const [admRoute, setAdmRoute] = useState<AdmRoute | null>((item.administrationRoute as AdmRoute) || null)
   const [admMethod, setAdmMethod] = useState(item.administrationMethod || '')
 
+  // Branch availability state: map of branchId -> isActive
+  const [branchState, setBranchState] = useState<Map<string, boolean>>(() => {
+    const map = new Map<string, boolean>()
+    // seed from existing item data
+    item.branchAvailability.forEach((ba) => map.set(ba.branchId, ba.isActive))
+    // ensure all known branches are present (default active if new)
+    branches.forEach((b) => { if (!map.has(b.id)) map.set(b.id, false) })
+    return map
+  })
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const showBranchSection = qualifiesForBranchAvailability(tab, form.category)
 
   // Reset method when route changes
   useEffect(() => {
@@ -561,6 +643,9 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
         body.administrationRoute = admRoute
         body.administrationMethod = admRoute !== 'injection' ? admMethod.toLowerCase() : null
       }
+      if (showBranchSection) {
+        body.branchAvailability = Array.from(branchState.entries()).map(([branchId, isActive]) => ({ branchId, isActive }))
+      }
       const res = await fetch(`${apiUrl}/product-services/${item.id}`, {
         method: 'PUT',
         headers: {
@@ -571,6 +656,7 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
       })
       const data = await res.json()
       if (data.status === 'SUCCESS') {
+        const rawBA: any[] = data.data.item.branchAvailability ?? []
         onSaved({
           id: item.id,
           name: data.data.item.name,
@@ -581,6 +667,11 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
           }),
           administrationRoute: data.data.item.administrationRoute,
           administrationMethod: data.data.item.administrationMethod,
+          branchAvailability: rawBA.map((ba) => ({
+            branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
+            branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
+            isActive: ba.isActive,
+          })),
         })
         onClose()
       } else {
@@ -718,6 +809,34 @@ function EditModal({ tab, item, token, onClose, onSaved }: EditModalProps) {
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
+
+          {/* Branch availability — toggle active/inactive per branch, add missing branches */}
+          {showBranchSection && branches.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Branch Availability</label>
+              <div className="space-y-2">
+                {branches.map((branch) => {
+                  const isActive = branchState.get(branch.id) ?? false
+                  const isInItem = item.branchAvailability.some((ba) => ba.branchId === branch.id)
+                  return (
+                    <div key={branch.id} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50">
+                      <span className="text-sm font-medium text-gray-700">
+                        {branch.name}{branch.isMain ? ' (Main)' : ''}
+                        {!isInItem && <span className="ml-2 text-[10px] text-blue-500 font-semibold">NEW</span>}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setBranchState((prev) => new Map(prev).set(branch.id, !isActive))}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${isActive ? 'bg-[#476B6B]' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
@@ -870,6 +989,7 @@ function SortHeader({
 
 function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token: string | null }) {
   const [data, setData] = useState<ProductItem[]>([])
+  const [branches, setBranches] = useState<BranchInfo[]>([])
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -880,11 +1000,47 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
   const [error, setError] = useState('')
 
   const isProducts = tab === 'Products'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+
+  const mapBranchAvailability = (raw: any[]): BranchAvailabilityEntry[] =>
+    (raw || []).map((ba: any) => ({
+      branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
+      branchName: typeof ba.branchId === 'object' ? ba.branchId.name : '',
+      isActive: ba.isActive,
+    }))
+
+  // Fetch branches once and run migration
+  useEffect(() => {
+    if (!token) return
+    const init = async () => {
+      try {
+        // Use the auth-based endpoint — works without knowing clinicId
+        const branchRes = await fetch(`${apiUrl}/appointments/clinic-branches`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const branchData = await branchRes.json()
+        if (branchData.status === 'SUCCESS') {
+          setBranches((branchData.data.branches ?? []).map((b: any) => ({
+            id: b._id,
+            name: b.name,
+            isMain: b.isMain,
+          })))
+        }
+        // Run idempotent migration for existing records
+        await fetch(`${apiUrl}/product-services/migrate-branches`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      } catch {
+        // non-fatal
+      }
+    }
+    init()
+  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
         const typeParam = isProducts ? 'Product' : 'Service'
         const res = await fetch(`${apiUrl}/product-services?type=${typeParam}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -904,6 +1060,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
             }),
             administrationRoute: item.administrationRoute,
             administrationMethod: item.administrationMethod,
+            branchAvailability: mapBranchAvailability(item.branchAvailability),
           }))
           setData(items)
         } else {
@@ -921,7 +1078,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
     setLoading(true)
     setError('')
     fetchData()
-  }, [tab, token])
+  }, [tab, token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSort = (key: string) => {
     if (sortKey === key) setSortAsc(!sortAsc)
@@ -986,16 +1143,17 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
   }
 
   // Columns: Products tab has Administration column; Services tab does not
-  const colSpan = isProducts ? 7 : 6
+  const colSpan = isProducts ? 8 : 7
 
   return (
     <>
-      {showModal && <AddModal tab={tab} token={token} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
+      {showModal && <AddModal tab={tab} token={token} branches={branches} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
       {editingItem && (
         <EditModal
           tab={tab}
           item={editingItem}
           token={token}
+          branches={branches}
           onClose={() => setEditingItem(null)}
           onSaved={handleUpdated}
         />
@@ -1066,6 +1224,7 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Branches</th>
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Last Update Date" colKey="lastUpdateDate" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
@@ -1111,6 +1270,29 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                       </td>
                     )}
                     <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
+                    <td className="px-4 py-3.5">
+                      {qualifiesForBranchAvailability(tab, item.category) ? (
+                        item.branchAvailability.length === 0 ? (
+                          <span className="text-xs text-gray-400 italic">None</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {item.branchAvailability.map((ba) => (
+                              <span
+                                key={ba.branchId}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                  ba.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                                }`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${ba.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                {ba.branchName || ba.branchId.slice(-6)}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
                     <td className="px-4 py-3.5">
                       <button

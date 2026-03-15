@@ -25,7 +25,9 @@
       "Bash(grep -r \"product-services\\\\|vaccine-types\" /Users/juliannalammoglia/Desktop/PawSync/frontend/components --include=*.tsx)",
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend/components -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
       "Bash(grep -n \"contact\\\\|phone\\\\|Phone\\\\|Contact\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/my-pets/[id]/page.tsx)",
-      "Bash(grep -n \"editOwner\\\\|contactNumber\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/my-pets/[id]/page.tsx)"
+      "Bash(grep -n \"editOwner\\\\|contactNumber\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/my-pets/[id]/page.tsx)",
+      "Bash(grep -n \"clinics\\\\|branches\\\\|branchId\\\\|clinicId\" /Users/juliannalammoglia/Desktop/PawSync/backend/src/routes/*.ts /Users/juliannalammoglia/Desktop/PawSync/backend/src/controllers/clinicController.ts)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
