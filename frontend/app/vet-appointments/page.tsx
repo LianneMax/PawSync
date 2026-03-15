@@ -528,11 +528,14 @@ export default function VetAppointmentsPage() {
                   {/* Current Time Line */}
                   {isCurrentTimeVisible && (
                     <div
-                      className="absolute left-0 right-0 h-0.5 bg-red-500 z-10 pointer-events-none shadow-sm"
-                      style={{ top: `calc(${timelinePercentage}% + 0px)` }}
+                      className="absolute left-0 right-0 z-10 pointer-events-none"
+                      style={{ top: `calc(${timelinePercentage}%)` }}
                     >
-                      <div className="absolute -left-6 -top-2 text-xs font-semibold text-red-500 bg-white px-1.5 rounded">
-                        {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      <div className="relative flex items-center">
+                        <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
+                          {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </span>
+                        <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
                       </div>
                     </div>
                   )}

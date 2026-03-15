@@ -58,6 +58,7 @@ interface FormState {
   lifetimeBooster: boolean
   numberOfBoosters: string
   boosterIntervalDays: string
+  boosterIntervalDaysList: string[] // per-dose overrides, indexed by dose transition
   minAgeMonths: string
   minAgeUnit: 'weeks' | 'months'
   maxAgeMonths: string
@@ -73,6 +74,7 @@ const emptyForm = (): FormState => ({
   lifetimeBooster: false,
   numberOfBoosters: '1',
   boosterIntervalDays: '',
+  boosterIntervalDaysList: [],
   minAgeMonths: '0',
   minAgeUnit: 'months',
   maxAgeMonths: '',
@@ -156,6 +158,7 @@ export default function VaccineTypesPage() {
       lifetimeBooster: vt.lifetimeBooster ?? false,
       numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
       boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '',
+      boosterIntervalDaysList: vt.boosterIntervalDaysList?.map(String) ?? [],
       minAgeMonths: String(vt.minAgeMonths),
       minAgeUnit: vt.minAgeUnit as 'weeks' | 'months' || 'months',
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
@@ -192,6 +195,9 @@ export default function VaccineTypesPage() {
         lifetimeBooster: form.requiresBooster ? form.lifetimeBooster : false,
         numberOfBoosters: form.requiresBooster && !form.lifetimeBooster ? (Number(form.numberOfBoosters) || 1) : 0,
         boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
+        boosterIntervalDaysList: form.requiresBooster && !form.lifetimeBooster
+          ? form.boosterIntervalDaysList.map(Number).filter(n => n > 0)
+          : [],
         minAgeMonths: Number(form.minAgeMonths) || 0,
         minAgeUnit: form.minAgeUnit,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
@@ -480,7 +486,15 @@ export default function VaccineTypesPage() {
                           type="number"
                           min="1"
                           value={form.numberOfBoosters}
-                          onChange={(e) => setForm((f) => ({ ...f, numberOfBoosters: e.target.value }))}
+                          onChange={(e) => {
+                            const n = Math.max(1, parseInt(e.target.value) || 1)
+                            setForm((f) => ({
+                              ...f,
+                              numberOfBoosters: e.target.value,
+                              // resize per-dose list to match number of transitions (= numberOfBoosters)
+                              boosterIntervalDaysList: Array.from({ length: n }, (_, i) => f.boosterIntervalDaysList[i] ?? ''),
+                            }))
+                          }}
                           placeholder="e.g. 3"
                           className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                         />
@@ -488,6 +502,36 @@ export default function VaccineTypesPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Per-dose interval overrides — shown when there are 2+ transitions */}
+                  {!form.lifetimeBooster && Number(form.numberOfBoosters) >= 2 && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                        Per-Dose Intervals (days)
+                        <span className="text-gray-400 font-normal ml-1">— overrides the default above per dose</span>
+                      </label>
+                      <div className="space-y-2">
+                        {Array.from({ length: Number(form.numberOfBoosters) }, (_, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 w-28 shrink-0">Dose {i + 1} → {i + 2}:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              value={form.boosterIntervalDaysList[i] ?? ''}
+                              onChange={(e) => setForm((f) => {
+                                const list = [...f.boosterIntervalDaysList]
+                                list[i] = e.target.value
+                                return { ...f, boosterIntervalDaysList: list }
+                              })}
+                              placeholder={form.boosterIntervalDays || 'days'}
+                              className="w-full bg-[#F8F6F2] rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-1">Leave blank to use the default interval for that dose</p>
+                    </div>
+                  )}
                 </>
               )}
 

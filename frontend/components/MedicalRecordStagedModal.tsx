@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
 import { getPetById, updatePetConfinement, updatePetPregnancyStatus } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
-import { getVaccineTypes, createVaccination, updateVaccination, type VaccineType } from '@/lib/vaccinations'
+import { getVaccineTypes, getVaccinationsByPet, createVaccination, updateVaccination, type VaccineType, type Vaccination } from '@/lib/vaccinations'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
 import SurgeryAppointmentModal from './SurgeryAppointmentModal'
@@ -279,7 +279,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vaccineDateAdministered, setVaccineDateAdministered] = useState(new Date().toISOString().split('T')[0])
   const [vaccineNotes, setVaccineNotes] = useState('')
   const [vaccineNextDueDate, setVaccineNextDueDate] = useState('')
-  const [vaccineSubmitting, setVaccineSubmitting] = useState(false)
+  const [vaccineDoseNumber, setVaccineDoseNumber] = useState(1)
   const [vaccineCreated, setVaccineCreated] = useState(false)
   const [createdVaccineId, setCreatedVaccineId] = useState<string | null>(null)
   const [vaccineSaving, setVaccineSaving] = useState(false)
@@ -296,9 +296,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [objective, setObjective] = useState('') // maps to overallObservation
   const [assessment, setAssessment] = useState('')
   const [plan, setPlan] = useState('')
-  const [xray, setXray] = useState(false)
-  const [ultrasound, setUltrasound] = useState(false)
-  const [availedProducts, setAvailedProducts] = useState(false)
+  const [xray] = useState(false)
+  const [ultrasound] = useState(false)
+  const [availedProducts] = useState(false)
 
   // Pregnancy tracking (from ultrasound diagnostic)
   const [ultrasoundPregnant, setUltrasoundPregnant] = useState(false)
@@ -348,8 +348,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setAssessment(r.assessment || '')
       setPlan(r.plan || '')
       setVisitSummary(r.visitSummary || '')
-      setMedications((r.medications || []).map(({ _id: _, ...rest }) => rest))
-      setDiagnosticTests((r.diagnosticTests || []).map(({ _id: _, ...rest }) => rest))
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      setMedications((r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest))
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      setDiagnosticTests((r.diagnosticTests || []).map(({ _id, ...rest }: Omit<DiagnosticTest, '_id'> & { _id?: string }) => rest))
       if (r.pregnancyRecord) {
         setUltrasoundPregnant(r.pregnancyRecord.isPregnant)
         setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
@@ -367,8 +369,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setDeliveryVetRemarks(r.pregnancyDelivery.vetRemarks || '')
       }
       
-      // Auto-populate preventive care if record doesn't have any AND appointment date exists
-      if ((!r.preventiveCare || r.preventiveCare.length === 0) && appointmentDate) {
+      // Auto-populate preventive care only for preventive care appointment types
+      const isPreventiveCareApptType = appointmentTypes.some((t) =>
+        ['flea-tick-prevention', 'deworming', 'heartworm', 'preventive-care'].includes(t)
+      )
+      if ((!r.preventiveCare || r.preventiveCare.length === 0) && appointmentDate && isPreventiveCareApptType) {
         const addDays = (dateStr: string, days: number): string => {
           let normalized = dateStr
           if (dateStr.includes('T')) {
@@ -411,7 +416,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         ])
       } else {
         // Normalize old 'Flea and Tick Prevention' to new 'Flea & Tick Prevention'
-        const normalizedCare = (r.preventiveCare || []).map(({ _id: _, ...rest }) => ({
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const normalizedCare = (r.preventiveCare || []).map(({ _id, ...rest }: Omit<PreventiveCare, '_id'> & { _id?: string }) => ({
           ...rest,
           product: rest.product === 'Flea and Tick Prevention' ? 'Flea & Tick Prevention' : rest.product
         }))
@@ -427,7 +433,43 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       const stageToStep: Record<string, StepKey> = (isVaccinationAppt || isSurgeryAppt)
         ? { pre_procedure: 1, in_procedure: 2, post_procedure: 4, completed: 4 }
         : { pre_procedure: 1, in_procedure: 2, post_procedure: 3, completed: 3 }
-      const currentStep = stageToStep[r.stage] || 1
+      let currentStep = stageToStep[r.stage] || 1
+
+      // Task 2: if this is a vaccination appt, check whether a vaccination record already
+      // exists for this appointment — pre-fill the vaccine form fields so progress is never
+      // lost on re-open, regardless of which stage the record is currently at.
+      if (isVaccinationAppt && appointmentId && token) {
+        try {
+          const existingVaccinations: Vaccination[] = await getVaccinationsByPet(petId, token)
+          const match = existingVaccinations.find(
+            (v) => v.appointmentId === appointmentId || (typeof v.appointmentId === 'string' && v.appointmentId === appointmentId)
+          )
+          if (match) {
+            setVaccineCreated(true)
+            setCreatedVaccineId(match._id)
+            const vtId = typeof match.vaccineTypeId === 'object' && match.vaccineTypeId !== null
+              ? (match.vaccineTypeId as VaccineType)._id
+              : (match.vaccineTypeId as string) || ''
+            setVaccineTypeId(vtId)
+            setVaccineManufacturer(match.manufacturer || '')
+            setVaccineBatchNumber(match.batchNumber || '')
+            setVaccineRoute(match.route || '')
+            setVaccineDateAdministered(
+              match.dateAdministered
+                ? match.dateAdministered.split('T')[0]
+                : new Date().toISOString().split('T')[0]
+            )
+            setVaccineNotes(match.notes || '')
+            setVaccineNextDueDate(match.nextDueDate ? match.nextDueDate.split('T')[0] : '')
+            setVaccineDoseNumber(match.doseNumber || 1)
+            // Only jump to step 3 if still mid-vaccination (stage not yet advanced past in_procedure)
+            if (r.stage === 'in_procedure') currentStep = 3
+          }
+        } catch {
+          // silent — fall back to step derived from stage
+        }
+      }
+
       setStep(currentStep)
       setAlreadyCompleted(r.stage === 'completed')
       if (isSurgeryAppt && r.surgeryRecord) {
@@ -437,7 +479,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setSurgeryImages((prev) =>
           prev.map((slot) => {
             const saved = r.images.find(
-              (img: any) => img.description === `${slot.type} surgery image` && img.data
+              (img: { description: string; data: string; contentType: string }) => img.description === `${slot.type} surgery image` && img.data
             )
             if (!saved) return slot
             return { ...slot, preview: `data:${saved.contentType};base64,${saved.data}`, file: null }
@@ -502,16 +544,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items) {
       setPreventiveCareServices(prevCareServicesRes.data.items)
     }
-  }, [recordId, petId, token, isVaccinationAppt, appointmentTypes, appointmentDate])
+  }, [recordId, petId, token, isVaccinationAppt, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate])
 
   useEffect(() => {
     loadData()
   }, [loadData])
 
-  // Auto-populate preventive care when appointment date is set
+  // Auto-populate preventive care when appointment date is set — only for preventive care appointments
+  const isPreventiveCareAppt = appointmentTypes.some((t) =>
+    ['flea-tick-prevention', 'deworming', 'heartworm', 'preventive-care'].includes(t)
+  )
+
   useEffect(() => {
-    // Only proceed if we have an appointment date
-    if (!appointmentDate) {
+    // Only proceed if we have an appointment date AND it's a preventive care appointment
+    if (!appointmentDate || !isPreventiveCareAppt) {
       return
     }
 
@@ -570,7 +616,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
     setPreventiveCare(autoPop)
     setPreventiveCareManuallyEdited(new Set()) // Reset manual edits on auto-populate
-  }, [appointmentDate, preventiveCare.length])
+  }, [appointmentDate, isPreventiveCareAppt, preventiveCare.length])
 
   // Auto-fill manufacturer and batch number from vaccine type defaults
   // Also validate pet age against vaccine type age requirements
@@ -692,57 +738,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }
 
-  const handleSubmitVaccine = async () => {
-    if (!token || !vaccineTypeId) return
-    if (!vaccineAgeValid) {
-      toast.error('Cannot save: pet does not meet the age requirements for this vaccine.')
-      return
-    }
-    setVaccineSubmitting(true)
-    try {
-      if (vaccineCreated && createdVaccineId) {
-        // Update the existing record if the vet changes something
-        await updateVaccination(createdVaccineId, {
-          vaccineTypeId,
-          manufacturer: vaccineManufacturer || undefined,
-          batchNumber: vaccineBatchNumber || undefined,
-          route: (vaccineRoute as any) || undefined,
-          dateAdministered: vaccineDateAdministered,
-          notes: vaccineNotes || undefined,
-          nextDueDate: vaccineNextDueDate || undefined,
-        }, token)
-        toast.success('Vaccination record updated')
-      } else {
-        const res = await createVaccination({
-          petId,
-          vaccineTypeId,
-          manufacturer: vaccineManufacturer || undefined,
-          batchNumber: vaccineBatchNumber || undefined,
-          route: (vaccineRoute as any) || undefined,
-          dateAdministered: vaccineDateAdministered,
-          notes: vaccineNotes || undefined,
-          nextDueDate: vaccineNextDueDate || undefined,
-          medicalRecordId: recordId,
-          appointmentId: appointmentId || undefined,
-          clinicId: clinicId || undefined,
-          clinicBranchId: clinicBranchId || undefined,
-        }, token)
-        setVaccineCreated(true)
-        setCreatedVaccineId(res._id)
-        if (res.boosterDate) {
-          const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-          toast.success(`Vaccination saved! Next booster auto-scheduled for ${d}.`)
-        } else {
-          toast.success('Vaccination record saved')
-        }
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save vaccination')
-    } finally {
-      setVaccineSubmitting(false)
-    }
-  }
-
   const buildPregnancyPayload = () => {
     const hasUltrasound = diagnosticTests.some(
       (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
@@ -821,7 +816,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           vaccineTypeId,
           manufacturer: vaccineManufacturer || undefined,
           batchNumber: vaccineBatchNumber || undefined,
-          route: (vaccineRoute as any) || undefined,
+          route: vaccineRoute || undefined,
           dateAdministered: vaccineDateAdministered,
           notes: vaccineNotes || undefined,
           nextDueDate: vaccineNextDueDate || undefined,
@@ -850,7 +845,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           vaccineTypeId,
           manufacturer: vaccineManufacturer || undefined,
           batchNumber: vaccineBatchNumber || undefined,
-          route: (vaccineRoute as any) || undefined,
+          route: vaccineRoute || undefined,
           dateAdministered: vaccineDateAdministered,
           notes: vaccineNotes || undefined,
           nextDueDate: vaccineNextDueDate || undefined,
@@ -910,6 +905,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (!token) return
     setCompleting(true)
     try {
+      // Ensure vaccination is saved (with nextDueDate) before completing so the booster gets scheduled
+      if (isVaccinationAppt) await trySaveVaccination()
+
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       
       // Ensure preventiveCare items have correct careType mapping
@@ -1510,7 +1508,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       />
                     </div>
                     <p className="text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
-                      Completing this visit will automatically update the pet's pregnancy status to <strong>Not Pregnant</strong>.
+                      Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
                   </div>
                 )}
@@ -1572,8 +1570,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     if (!vt) return null
                     const base = new Date(vaccineDateAdministered)
                     const expiry = new Date(base); expiry.setDate(expiry.getDate() + (vt.validityDays || 0))
-                    const nextDue = vt.requiresBooster && vt.boosterIntervalDays != null
-                      ? (() => { const d = new Date(base); d.setDate(d.getDate() + (vt.boosterIntervalDays as number)); return d })()
+                    const doseInterval = (() => {
+                      const list = vt.boosterIntervalDaysList
+                      if (list && list.length > 0) {
+                        const i = list[vaccineDoseNumber - 1]
+                        if (i != null) return i
+                      }
+                      return vt.boosterIntervalDays ?? null
+                    })()
+                    const nextDue = vt.requiresBooster && doseInterval != null
+                      ? (() => { const d = new Date(base); d.setDate(d.getDate() + doseInterval); return d })()
                       : null
                     return (
                       <>
@@ -1657,7 +1663,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <input
                       type="date"
                       value={vaccineDateAdministered}
-                      min={new Date().toISOString().split('T')[0]}
+                      max={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setVaccineDateAdministered(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                     />

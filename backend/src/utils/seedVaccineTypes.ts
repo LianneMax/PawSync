@@ -17,6 +17,8 @@ const VACCINE_SEEDS = [
     requiresBooster: true,
     numberOfBoosters: 2,
     boosterIntervalDays: 21,
+    // dose 1→2: 21 days (puppy series), dose 2→3: 365 days (annual booster)
+    boosterIntervalDaysList: [21, 365],
     minAgeMonths: 1,
     route: 'subcutaneous',
   },
@@ -79,13 +81,13 @@ export async function seedVaccineTypes(): Promise<void> {
         { requiresBooster: true, $or: [{ numberOfBoosters: { $exists: false } }, { numberOfBoosters: 0 }] },
         { $set: { numberOfBoosters: 1 } }
       );
-      // Update specific seeds with known numberOfBoosters values
+      // Update specific seeds with known numberOfBoosters values and per-dose intervals
       for (const seed of VACCINE_SEEDS) {
-        if ('numberOfBoosters' in seed) {
-          await VaccineType.updateOne(
-            { name: seed.name, numberOfBoosters: { $in: [0, 1] } },
-            { $set: { numberOfBoosters: seed.numberOfBoosters } }
-          );
+        const updates: Record<string, unknown> = {};
+        if ('numberOfBoosters' in seed) updates.numberOfBoosters = seed.numberOfBoosters;
+        if ('boosterIntervalDaysList' in seed) updates.boosterIntervalDaysList = seed.boosterIntervalDaysList;
+        if (Object.keys(updates).length > 0) {
+          await VaccineType.updateOne({ name: seed.name }, { $set: updates });
         }
       }
     }

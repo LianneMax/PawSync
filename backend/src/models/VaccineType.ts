@@ -7,6 +7,7 @@ export interface IVaccineType extends Document {
   requiresBooster: boolean;
   numberOfBoosters: number;
   boosterIntervalDays: number | null;
+  boosterIntervalDaysList: number[];
   lifetimeBooster: boolean;
   minAgeMonths: number;
   minAgeUnit: 'weeks' | 'months';
@@ -50,6 +51,10 @@ const VaccineTypeSchema = new Schema(
     boosterIntervalDays: {
       type: Number,
       default: null,
+    },
+    boosterIntervalDaysList: {
+      type: [Number],
+      default: [],
     },
     lifetimeBooster: {
       type: Boolean,

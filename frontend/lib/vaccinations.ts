@@ -8,6 +8,7 @@ export interface VaccineType {
   requiresBooster: boolean;
   numberOfBoosters: number;
   boosterIntervalDays: number | null;
+  boosterIntervalDaysList: number[];
   lifetimeBooster: boolean;
   minAgeMonths: number;
   minAgeUnit: 'weeks' | 'months';
@@ -97,6 +98,7 @@ export interface VaccineTypeInput {
   requiresBooster: boolean;
   numberOfBoosters?: number;
   boosterIntervalDays?: number | null;
+  boosterIntervalDaysList?: number[];
   lifetimeBooster?: boolean;
   minAgeMonths?: number;
   maxAgeMonths?: number | null;
@@ -289,6 +291,7 @@ export interface UpcomingVaccine {
     requiresBooster: boolean;
     numberOfBoosters: number;
     boosterIntervalDays: number | null;
+    boosterIntervalDaysList: number[];
   } | null;
 }
 
@@ -315,6 +318,7 @@ export interface VetUpcomingSchedule {
     requiresBooster: boolean;
     numberOfBoosters: number;
     boosterIntervalDays: number | null;
+    boosterIntervalDaysList: number[];
   } | null;
   clinic: {
     _id: string;
@@ -349,6 +353,7 @@ export interface ClinicUpcomingSchedule {
     requiresBooster: boolean;
     numberOfBoosters: number;
     boosterIntervalDays: number | null;
+    boosterIntervalDaysList: number[];
   } | null;
 }
 

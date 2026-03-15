@@ -55,6 +55,16 @@ function addDays(date: Date, days: number): Date {
   return d
 }
 
+/** Returns the booster interval for the dose being administered (dose 1 → interval to dose 2, etc.) */
+function getIntervalForDose(vt: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] }, doseNumber: number): number | null {
+  const list = vt.boosterIntervalDaysList
+  if (list && list.length > 0) {
+    const interval = list[doseNumber - 1]
+    if (interval != null) return interval
+  }
+  return vt.boosterIntervalDays ?? null
+}
+
 function formatDateInput(date: Date): string {
   return date.toISOString().split('T')[0]
 }
@@ -97,7 +107,12 @@ export default function VaccinationFormClient() {
   const [batchNumber, setBatchNumber] = useState('')
   const [route, setRoute] = useState('')
   const [dateAdministered, setDateAdministered] = useState(formatDateInput(new Date()))
+  const [nextDueDate, setNextDueDate] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Date validation errors
+  const [dateAdminError, setDateAdminError] = useState<string | null>(null)
+  const [nextDueDateError, setNextDueDateError] = useState<string | null>(null)
 
   // Computed preview
   const [selectedVaccineType, setSelectedVaccineType] = useState<VaccineType | null>(null)
@@ -113,6 +128,29 @@ export default function VaccinationFormClient() {
   // Age validation state
   const [ageValid, setAgeValid] = useState(true)
   const [ageMessage, setAgeMessage] = useState<string | null>(null)
+
+  // Date validation: run whenever either date changes
+  useEffect(() => {
+    const today = formatDateInput(new Date())
+    // dateAdministered cannot be in the future
+    if (dateAdministered && dateAdministered > today) {
+      setDateAdminError('Date administered cannot be in the future.')
+    } else {
+      setDateAdminError(null)
+    }
+    // nextDueDate must be after dateAdministered (at least +1 day) and not in the past
+    if (nextDueDate) {
+      if (dateAdministered && nextDueDate <= dateAdministered) {
+        setNextDueDateError('Next due date must be after the date administered.')
+      } else {
+        setNextDueDateError(null)
+      }
+    } else {
+      setNextDueDateError(null)
+    }
+  }, [dateAdministered, nextDueDate])
+
+  const isFormValid = !dateAdminError && !nextDueDateError && ageValid
 
   // Load vaccine types
   useEffect(() => {
@@ -193,6 +231,7 @@ export default function VaccinationFormClient() {
         setDateAdministered(
           vax.dateAdministered ? formatDateInput(new Date(vax.dateAdministered)) : formatDateInput(new Date())
         )
+        setNextDueDate(vax.nextDueDate ? formatDateInput(new Date(vax.nextDueDate)) : '')
         setNotes(vax.notes || '')
       })
       .catch(() => {})
@@ -252,9 +291,10 @@ export default function VaccinationFormClient() {
 
   const totalDoses = selectedVaccineType ? Math.max(selectedVaccineType.numberOfBoosters || 0, 1) + 1 : 1
   const isLastDose = doseNumber >= totalDoses
+  const doseInterval = selectedVaccineType ? getIntervalForDose(selectedVaccineType, doseNumber) : null
   const computedNextDueDate =
-    selectedVaccineType?.requiresBooster && selectedVaccineType.boosterIntervalDays && dateAdministered && !isLastDose
-      ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), selectedVaccineType.boosterIntervalDays)))
+    selectedVaccineType?.requiresBooster && doseInterval && dateAdministered && !isLastDose
+      ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), doseInterval)))
       : null
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -267,6 +307,10 @@ export default function VaccinationFormClient() {
       setError(ageMessage || 'Pet does not meet the age requirements for this vaccine.')
       return
     }
+    if (!isFormValid) {
+      setError('Please fix the date errors before submitting.')
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -275,7 +319,7 @@ export default function VaccinationFormClient() {
       if (editId) {
         await updateVaccination(
           editId,
-          { vaccineTypeId, manufacturer, batchNumber, route, dateAdministered, notes, doseNumber },
+          { vaccineTypeId, manufacturer, batchNumber, route, dateAdministered, nextDueDate: nextDueDate || undefined, notes, doseNumber },
           token
         )
         setSuccess(true)
@@ -290,6 +334,7 @@ export default function VaccinationFormClient() {
             batchNumber,
             route,
             dateAdministered,
+            nextDueDate: nextDueDate || undefined,
             notes,
             doseNumber,
           },
@@ -594,12 +639,43 @@ export default function VaccinationFormClient() {
             <input
               type="date"
               value={dateAdministered}
+              max={formatDateInput(new Date())}
               onChange={(e) => setDateAdministered(e.target.value)}
               required
-              min={formatDateInput(new Date())}
-              className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              className={`w-full bg-[#F8F6F2] border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 ${dateAdminError ? 'border-red-400 focus:ring-red-300' : 'border-transparent focus:ring-[#7FA5A3]'}`}
             />
+            {dateAdminError && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {dateAdminError}
+              </p>
+            )}
           </div>
+
+          {/* Next Due Date */}
+          {selectedVaccineType?.requiresBooster && (
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                Next Due Date <span className="text-gray-400 font-normal">(optional override)</span>
+              </label>
+              <input
+                type="date"
+                value={nextDueDate}
+                onChange={(e) => setNextDueDate(e.target.value)}
+                className={`w-full bg-[#F8F6F2] border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 ${nextDueDateError ? 'border-red-400 focus:ring-red-300' : 'border-transparent focus:ring-[#7FA5A3]'}`}
+              />
+              {nextDueDateError && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {nextDueDateError}
+                </p>
+              )}
+              {!nextDueDateError && !nextDueDate && computedNextDueDate && (
+                <p className="text-xs text-gray-400 mt-1">Auto-scheduled: {computedNextDueDate}</p>
+              )}
+            </div>
+          )}
+
 
           {/* Route */}
           <div>
@@ -659,8 +735,8 @@ export default function VaccinationFormClient() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading || success || !selectedPet || !vaccineTypeId || !ageValid}
-          title={!ageValid ? (ageMessage || 'Pet does not meet age requirements') : undefined}
+          disabled={loading || success || !selectedPet || !vaccineTypeId || !ageValid || !isFormValid}
+          title={!ageValid ? (ageMessage || 'Pet does not meet age requirements') : (!isFormValid ? 'Please fix date errors before submitting' : undefined)}
           className="w-full py-3.5 bg-[#476B6B] text-white rounded-2xl font-semibold text-sm hover:bg-[#3d5c5c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (

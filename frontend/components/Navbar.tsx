@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
+import { authenticatedFetch } from '@/lib/auth'
 import {
   Search,
   Home,
@@ -71,16 +72,22 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
   ],
   'clinic-admin': [
     { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" />, section: 'MAIN MENU' },
-    { label: 'Patients', href: '/clinic-admin/patients', icon: <PawPrint className="w-5 h-5" />, badge: '1,247' },
-    { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" />, badge: '12' },
+    { label: 'Patients', href: '/clinic-admin/patients', icon: <PawPrint className="w-5 h-5" /> },
+    { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccinations', href: '/clinic-admin/vaccinations', icon: <Syringe className="w-5 h-5" /> },
     { label: 'Analytics', href: '/clinic-admin/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
-    { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" />, badge: '2' },
+    { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" /> },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
+}
+
+interface ClinicNavStats {
+  patientCount: number | null
+  appointmentCount: number | null
+  pendingVetCount: number | null
 }
 
 export default function Navbar({
@@ -96,9 +103,37 @@ export default function Navbar({
   const [isHovering, setIsHovering] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [clinicStats, setClinicStats] = useState<ClinicNavStats>({ patientCount: null, appointmentCount: null, pendingVetCount: null })
   const pathname = usePathname()
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
+  const token = useAuthStore((state) => state.token)
+
+  useEffect(() => {
+    if (userType !== 'clinic-admin' || !token) return
+
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const todayStr = `${yyyy}-${mm}-${dd}`
+
+    Promise.all([
+      authenticatedFetch('/clinics/mine/patients', { method: 'GET' }, token),
+      authenticatedFetch(`/appointments/clinic?date=${todayStr}&filter=upcoming`, { method: 'GET' }, token),
+      authenticatedFetch('/verifications/clinic', { method: 'GET' }, token),
+    ]).then(([patientsRes, apptRes, verifyRes]) => {
+      setClinicStats({
+        patientCount: patientsRes?.data?.patients?.length ?? null,
+        appointmentCount: apptRes?.data?.appointments?.filter(
+          (a: { status: string }) => a.status === 'confirmed' || a.status === 'pending' || a.status === 'in_progress'
+        ).length ?? null,
+        pendingVetCount: verifyRes?.data?.verifications?.filter(
+          (v: { status: string }) => v.status === 'pending'
+        ).length ?? null,
+      })
+    }).catch(() => { /* silent */ })
+  }, [userType, token])
   const collapseTimer = useRef<NodeJS.Timeout | null>(null)
   const hoverTimer = useRef<NodeJS.Timeout | null>(null)
   const navRef = useRef<HTMLElement>(null)
@@ -106,7 +141,18 @@ export default function Navbar({
   // Expand on hover or while the dropdown menu is open
   const isExpanded = controlledExpanded ?? (isHovering || menuOpen)
 
-  const navItems = navItemsByUserType[userType]
+  const baseNavItems = navItemsByUserType[userType]
+  const navItems = userType === 'clinic-admin'
+    ? baseNavItems.map((item) => {
+        if (item.href === '/clinic-admin/patients' && clinicStats.patientCount !== null)
+          return { ...item, badge: clinicStats.patientCount.toLocaleString() }
+        if (item.href === '/clinic-admin/appointments' && clinicStats.appointmentCount !== null)
+          return { ...item, badge: String(clinicStats.appointmentCount) }
+        if (item.href === '/clinic-admin/verification' && clinicStats.pendingVetCount !== null && clinicStats.pendingVetCount > 0)
+          return { ...item, badge: String(clinicStats.pendingVetCount) }
+        return item
+      })
+    : baseNavItems
 
   const handleMouseEnter = useCallback(() => {
     if (collapseTimer.current) {

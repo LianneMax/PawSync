@@ -30,6 +30,21 @@ function addMinutesToTime(time: string, minutes: number): string {
 }
 
 /**
+ * Helper: get the booster interval for a specific dose number.
+ * Uses boosterIntervalDaysList[doseNumber - 1] when available, falls back to boosterIntervalDays.
+ * doseNumber is the dose being ADMINISTERED (so we want the interval to the NEXT dose).
+ */
+function getIntervalForDose(vaccineType: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] }, doseNumber: number): number | null {
+  const list = vaccineType.boosterIntervalDaysList;
+  if (list && list.length > 0) {
+    // index = doseNumber - 1 (dose 1 → index 0, dose 2 → index 1, ...)
+    const interval = list[doseNumber - 1];
+    if (interval != null) return interval;
+  }
+  return vaccineType.boosterIntervalDays ?? null;
+}
+
+/**
  * Helper: compute pet age in months from dateOfBirth.
  */
 function petAgeInMonths(dateOfBirth: Date): number {
@@ -142,14 +157,13 @@ export const createVaccination = async (req: Request, res: Response) => {
     const totalDoses = (vaccineType.numberOfBoosters || 0) + 1;
     const isLastDose = doseNumber >= totalDoses;
     
-    // Use provided nextDueDate if available, otherwise auto-calculate
+    // Use provided nextDueDate if available, otherwise auto-calculate using per-dose interval
     let computedNextDueDate: Date | null = null;
     if (nextDueDate) {
-      // User provided a specific date
       computedNextDueDate = new Date(nextDueDate);
-    } else if (vaccineType.requiresBooster && vaccineType.boosterIntervalDays && !isLastDose) {
-      // Auto-calculate based on vaccine type
-      computedNextDueDate = addDays(adminDate, vaccineType.boosterIntervalDays);
+    } else if (vaccineType.requiresBooster && !isLastDose) {
+      const interval = getIntervalForDose(vaccineType, doseNumber);
+      if (interval) computedNextDueDate = addDays(adminDate, interval);
     }
 
     // Resolve clinicId/clinicBranchId — priority: body → JWT → appointmentId lookup → vet user doc
@@ -546,6 +560,9 @@ export const updateVaccination = async (req: Request, res: Response) => {
       medicalRecordId,
     } = req.body;
 
+    // Capture original nextDueDate before any mutations so we can detect changes later
+    const originalNextDueDate = vaccination.nextDueDate ? new Date(vaccination.nextDueDate) : null;
+
     // If vaccine type changed, recompute dates
     if (vaccineTypeId && vaccineTypeId.toString() !== vaccination.vaccineTypeId?.toString()) {
       const vaccineType = await VaccineType.findById(vaccineTypeId);
@@ -556,14 +573,12 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.vaccineTypeId = vaccineTypeId;
       vaccination.vaccineName = vaccineType.name;
       vaccination.expiryDate = addDays(adminDate, vaccineType.validityDays);
-      // Use provided nextDueDate if available, otherwise auto-calculate
+      // Use provided nextDueDate if available, otherwise auto-calculate using per-dose interval
       if (nextDueDate) {
         vaccination.nextDueDate = new Date(nextDueDate);
       } else {
-        vaccination.nextDueDate =
-          vaccineType.requiresBooster && vaccineType.boosterIntervalDays
-            ? addDays(adminDate, vaccineType.boosterIntervalDays)
-            : null;
+        const interval = getIntervalForDose(vaccineType, vaccination.doseNumber || 1);
+        vaccination.nextDueDate = vaccineType.requiresBooster && interval ? addDays(adminDate, interval) : null;
       }
       vaccination.dateAdministered = adminDate;
     } else if (dateAdministered) {
@@ -573,14 +588,12 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.dateAdministered = adminDate;
       if (vaccineType) {
         vaccination.expiryDate = addDays(adminDate, vaccineType.validityDays);
-        // Use provided nextDueDate if available, otherwise auto-calculate
+        // Use provided nextDueDate if available, otherwise auto-calculate using per-dose interval
         if (nextDueDate) {
           vaccination.nextDueDate = new Date(nextDueDate);
         } else {
-          vaccination.nextDueDate =
-            vaccineType.requiresBooster && vaccineType.boosterIntervalDays
-              ? addDays(adminDate, vaccineType.boosterIntervalDays)
-              : null;
+          const interval = getIntervalForDose(vaccineType, vaccination.doseNumber || 1);
+          vaccination.nextDueDate = vaccineType.requiresBooster && interval ? addDays(adminDate, interval) : null;
         }
       }
     }
@@ -591,23 +604,18 @@ export const updateVaccination = async (req: Request, res: Response) => {
     if (notes !== undefined) vaccination.notes = notes;
     if (medicalRecordId !== undefined) vaccination.medicalRecordId = medicalRecordId || null;
 
-    // Handle nextDueDate changes — delete/recreate booster appointment if date changed
-    let nextDueDateChanged = false;
-    if (nextDueDate !== undefined) {
-      const oldNextDueDate = vaccination.nextDueDate;
-      const newNextDueDate = nextDueDate ? new Date(nextDueDate) : null;
-      
-      // Check if the date actually changed
-      if (
-        (oldNextDueDate === null && newNextDueDate !== null) ||
-        (oldNextDueDate !== null && newNextDueDate === null) ||
-        (oldNextDueDate && newNextDueDate && oldNextDueDate.toISOString() !== newNextDueDate.toISOString())
-      ) {
-        nextDueDateChanged = true;
-      }
-      
-      vaccination.nextDueDate = newNextDueDate;
+    // If nextDueDate was explicitly provided and not yet applied (i.e. neither date-change branch ran), apply it now
+    if (nextDueDate !== undefined && !dateAdministered && !(vaccineTypeId && vaccineTypeId.toString() !== vaccination.vaccineTypeId?.toString())) {
+      vaccination.nextDueDate = nextDueDate ? new Date(nextDueDate) : null;
     }
+
+    // Detect whether nextDueDate actually changed vs the originally stored value
+    const finalNextDueDate = vaccination.nextDueDate;
+    const nextDueDateChanged =
+      (originalNextDueDate === null && finalNextDueDate !== null) ||
+      (originalNextDueDate !== null && finalNextDueDate === null) ||
+      (originalNextDueDate !== null && finalNextDueDate !== null &&
+        originalNextDueDate.toISOString() !== finalNextDueDate.toISOString());
 
     // If nextDueDate changed, update or delete the booster appointment
     if (nextDueDateChanged && vaccination.boosterAppointmentId) {
