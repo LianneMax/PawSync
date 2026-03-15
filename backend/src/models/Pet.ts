@@ -14,7 +14,7 @@ export interface IPet extends Document {
   nfcTagId: string | null;
   qrCode: string | null;
   photo: string | null;
-  notes: string | null;
+  color: string | null;
   bloodType: string | null;
   allergies: string[];
   pregnancyStatus: 'pregnant' | 'not_pregnant';
@@ -94,7 +94,7 @@ const PetSchema = new Schema(
       type: String,
       default: null
     },
-    notes: {
+    color: {
       type: String,
       default: null
     },

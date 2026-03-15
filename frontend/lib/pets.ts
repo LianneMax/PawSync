@@ -15,7 +15,7 @@ export interface Pet {
   nfcTagId: string | null;
   qrCode: string | null;
   photo: string | null;
-  notes: string | null;
+  color: string | null;
   bloodType: string | null;
   allergies: string[];
   pregnancyStatus: 'pregnant' | 'not_pregnant';
@@ -75,7 +75,7 @@ export const createPet = async (petData: {
   microchipNumber?: string;
   nfcTagId?: string;
   photo?: string;
-  notes?: string;
+  color?: string;
   allergies?: string[];
 }, token?: string): Promise<PetResponse> => {
   return authenticatedFetch('/pets', {

@@ -73,7 +73,7 @@ export const createPet = async (req: Request, res: Response) => {
     const {
       name, species, breed, secondaryBreed, sex,
       dateOfBirth, weight, sterilization, microchipNumber,
-      nfcTagId, photo, notes, allergies
+      nfcTagId, photo, color, allergies
     } = req.body;
 
     const pet = await Pet.create({
@@ -89,7 +89,7 @@ export const createPet = async (req: Request, res: Response) => {
       microchipNumber: microchipNumber || null,
       nfcTagId: nfcTagId || null,
       photo: photo || null,
-      notes: notes || null,
+      color: color || null,
       allergies: allergies || []
     });
 
@@ -216,7 +216,7 @@ export const updatePet = async (req: Request, res: Response) => {
     const allowedFields = [
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
       'dateOfBirth', 'weight', 'sterilization', 'microchipNumber',
-      'nfcTagId', 'photo', 'notes', 'allergies', 'isLost', 'isConfined',
+      'nfcTagId', 'photo', 'color', 'allergies', 'isLost', 'isConfined',
       'lostContactName', 'lostContactNumber', 'lostMessage', 'lostReportedByStranger',
       'pregnancyStatus'
     ];

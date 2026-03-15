@@ -67,7 +67,7 @@ function PetOnboardingContent() {
   const [sterilization, setSterilization] = useState('')
   const [weight, setWeight] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
-  const [notes, setNotes] = useState('')
+  const [color, setColor] = useState('')
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -177,7 +177,7 @@ function PetOnboardingContent() {
         weight: parseFloat(weight),
         sterilization: sterilization as 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown',
         photo: photoPreview || undefined,
-        notes: notes || undefined,
+        color: color || undefined,
       }, token || undefined)
 
       if (response.status === 'ERROR') {
@@ -607,9 +607,9 @@ function PetOnboardingContent() {
 
                 <div className="mb-4">
                   <textarea
-                    placeholder="Notes&#10;Ex. Markings, Color"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Pet color (ex. white, brown, bicolor, tricolor)"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
                     rows={4}
                     className="w-full px-4 py-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all resize-none"
                   />
