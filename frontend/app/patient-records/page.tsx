@@ -19,6 +19,8 @@ import {
   type Medication,
   type DiagnosticTest,
   type PreventiveCare,
+  type PregnancyRecord,
+  type PregnancyDelivery,
 } from '@/lib/medicalRecords'
 import {
   Search,
@@ -49,6 +51,8 @@ import {
   Receipt,
   Syringe,
   StickyNote,
+  Baby,
+  Heart,
 } from 'lucide-react'
 import { getVaccinationsByPet, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 import { toast } from 'sonner'
@@ -2057,6 +2061,103 @@ function ViewRecordModal({
                         {test.notes && <p className="text-xs text-gray-500 mt-1 italic">{test.notes}</p>}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ===== PREGNANCY RESULTS ===== */}
+              {record.pregnancyRecord && record.pregnancyRecord.isPregnant && (
+                <div className="border border-pink-200 rounded-xl overflow-hidden bg-pink-50/30">
+                  <div className="bg-pink-100/50 px-4 py-2 border-b border-pink-200">
+                    <h2 className="text-xs font-semibold text-pink-900 uppercase tracking-wider flex items-center gap-2">
+                      <Baby className="w-3.5 h-3.5" />
+                      Pregnancy Results
+                    </h2>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white rounded-lg p-3 border border-pink-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Pregnancy Status</p>
+                        <p className="text-sm font-bold text-pink-700 flex items-center gap-1.5">
+                          <Heart className="w-4 h-4 fill-pink-500" />
+                          Pregnant
+                        </p>
+                      </div>
+                      {record.pregnancyRecord.gestationDate && (
+                        <div className="bg-white rounded-lg p-3 border border-pink-100">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Gestation Date</p>
+                          <p className="text-sm text-[#4F4F4F]">{new Date(record.pregnancyRecord.gestationDate).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      {record.pregnancyRecord.expectedDueDate && (
+                        <div className="bg-white rounded-lg p-3 border border-pink-100">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Expected Due Date</p>
+                          <p className="text-sm text-[#4F4F4F]">{new Date(record.pregnancyRecord.expectedDueDate).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      {record.pregnancyRecord.litterNumber && (
+                        <div className="bg-white rounded-lg p-3 border border-pink-100">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Expected Litter Size</p>
+                          <p className="text-sm font-semibold text-[#4F4F4F]">{record.pregnancyRecord.litterNumber} puppies/kittens</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== DELIVERY RESULTS ===== */}
+              {record.pregnancyDelivery && (
+                <div className="border border-green-200 rounded-xl overflow-hidden bg-green-50/30">
+                  <div className="bg-green-100/50 px-4 py-2 border-b border-green-200">
+                    <h2 className="text-xs font-semibold text-green-900 uppercase tracking-wider flex items-center gap-2">
+                      <Heart className="w-3.5 h-3.5" />
+                      Delivery Results
+                    </h2>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white rounded-lg p-3 border border-green-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Delivery Date</p>
+                        <p className="text-sm text-[#4F4F4F]">{new Date(record.pregnancyDelivery.deliveryDate).toLocaleDateString()}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-green-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Delivery Type</p>
+                        <p className="text-sm font-semibold text-[#4F4F4F] capitalize">{record.pregnancyDelivery.deliveryType}</p>
+                      </div>
+                      {record.pregnancyDelivery.laborDuration && (
+                        <div className="bg-white rounded-lg p-3 border border-green-100">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Labor Duration</p>
+                          <p className="text-sm text-[#4F4F4F]">{record.pregnancyDelivery.laborDuration}</p>
+                        </div>
+                      )}
+                      <div className="bg-white rounded-lg p-3 border border-green-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Mother Condition</p>
+                        <p className={`text-sm font-semibold capitalize ${
+                          record.pregnancyDelivery.motherCondition === 'stable' ? 'text-green-700' :
+                          record.pregnancyDelivery.motherCondition === 'recovering' ? 'text-blue-700' :
+                          'text-red-700'
+                        }`}>
+                          {record.pregnancyDelivery.motherCondition}
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-green-100">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Live Births</p>
+                        <p className="text-sm font-bold text-green-700">{record.pregnancyDelivery.liveBirths}</p>
+                      </div>
+                      {record.pregnancyDelivery.stillBirths > 0 && (
+                        <div className="bg-white rounded-lg p-3 border border-amber-200">
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Still Births</p>
+                          <p className="text-sm font-semibold text-amber-700">{record.pregnancyDelivery.stillBirths}</p>
+                        </div>
+                      )}
+                    </div>
+                    {record.pregnancyDelivery.vetRemarks && (
+                      <div className="bg-white rounded-lg p-3 border border-green-100 mt-2">
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Vet Remarks</p>
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.pregnancyDelivery.vetRemarks}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

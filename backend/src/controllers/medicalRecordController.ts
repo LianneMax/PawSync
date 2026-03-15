@@ -594,7 +594,7 @@ export const updateRecord = async (req: Request, res: Response) => {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
       medications, diagnosticTests, preventiveCare, confinementAction, confinementDays,
-      surgeryRecord
+      surgeryRecord, pregnancyRecord, pregnancyDelivery
     } = req.body;
 
     if (vitals) record.vitals = vitals;
@@ -602,6 +602,8 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;
     if (surgeryRecord !== undefined) (record as any).surgeryRecord = surgeryRecord;
+    if (pregnancyRecord !== undefined) (record as any).pregnancyRecord = pregnancyRecord;
+    if (pregnancyDelivery !== undefined) (record as any).pregnancyDelivery = pregnancyDelivery;
     if (sharedWithOwner !== undefined) record.sharedWithOwner = sharedWithOwner;
     if (stage !== undefined) record.stage = stage;
     if (chiefComplaint !== undefined) record.chiefComplaint = chiefComplaint;
