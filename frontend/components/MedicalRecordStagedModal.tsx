@@ -1211,23 +1211,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         )}
                       </div>
                     ))}
-                    {/* Checkboxes */}
-                    <div className="flex gap-4 pt-3 border-t border-gray-50">
-                      {([
-                        { key: 'pregnancy' as const, label: 'Pregnancy' },
-                        { key: 'vaccinated' as const, label: 'Vaccinated' },
-                      ] as const).map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={vitals[key]?.value === 'yes'}
-                            onChange={(e) => updateVital(key, 'value', e.target.checked ? 'yes' : 'no')}
-                            className="w-4 h-4 accent-[#476B6B]"
-                          />
-                          <span className="text-sm text-gray-600">{label}</span>
-                        </label>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>
