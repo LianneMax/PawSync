@@ -41,7 +41,7 @@ export const getVetsForBranch = async (branchId: string, token?: string): Promis
 export interface ClinicPatient {
   _id: string;
   name: string;
-  species: 'dog' | 'cat';
+  species: 'canine' | 'feline';
   breed: string;
   sex: 'male' | 'female';
   dateOfBirth: string;

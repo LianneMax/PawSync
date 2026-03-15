@@ -4,7 +4,7 @@ export interface Pet {
   _id: string;
   ownerId: string;
   name: string;
-  species: 'dog' | 'cat';
+  species: 'canine' | 'feline';
   breed: string;
   secondaryBreed: string | null;
   sex: 'male' | 'female';
@@ -65,7 +65,7 @@ export const getPetById = async (id: string, token?: string): Promise<PetRespons
  */
 export const createPet = async (petData: {
   name: string;
-  species: 'dog' | 'cat';
+  species: 'canine' | 'feline';
   breed: string;
   secondaryBreed?: string;
   sex: 'male' | 'female';

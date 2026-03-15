@@ -41,7 +41,7 @@ function formatBreedName(breed: string, sub?: string): string {
 }
 
 interface BreedComboboxProps {
-  species: 'dog' | 'cat' | null;
+  species: 'canine' | 'feline' | null;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -56,12 +56,12 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (species === 'cat') {
+    if (species === 'feline') {
       setBreeds(CAT_BREEDS.map((b) => ({ value: b.toLowerCase(), label: b })));
       return;
     }
 
-    if (species === 'dog') {
+    if (species === 'canine') {
       setLoading(true);
       fetch('https://dog.ceo/api/breeds/list/all')
         .then((res) => res.json())

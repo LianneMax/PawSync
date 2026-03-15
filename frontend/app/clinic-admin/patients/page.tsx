@@ -985,7 +985,7 @@ export default function PatientManagementPage() {
   const [patients, setPatients] = useState<ClinicPatient[]>([])
   const [filteredPatients, setFilteredPatients] = useState<ClinicPatient[]>([])
   const [loading, setLoading] = useState(true)
-  const [speciesFilter, setSpeciesFilter] = useState<'all' | 'dog' | 'cat'>('all')
+  const [speciesFilter, setSpeciesFilter] = useState<'all' | 'canine' | 'feline'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<ClinicPatient | null>(null)
 
@@ -1041,7 +1041,7 @@ export default function PatientManagementPage() {
     setFilteredPatients(filtered)
   }
 
-  const handleSpeciesChange = (species: 'all' | 'dog' | 'cat') => {
+  const handleSpeciesChange = (species: 'all' | 'canine' | 'feline') => {
     setSpeciesFilter(species)
     applyFilters(patients, species, searchQuery)
   }
@@ -1116,7 +1116,7 @@ export default function PatientManagementPage() {
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-600">Select Species:</span>
             <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
-              {(['all', 'dog', 'cat'] as const).map((species) => (
+              {(['all', 'canine', 'feline'] as const).map((species) => (
                 <button
                   key={species}
                   onClick={() => handleSpeciesChange(species)}
@@ -1126,7 +1126,7 @@ export default function PatientManagementPage() {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {species === 'all' ? 'All' : species === 'dog' ? 'Dogs' : 'Cats'}
+                  {species === 'all' ? 'All' : species === 'canine' ? 'Dogs' : 'Cats'}
                 </button>
               ))}
             </div>
@@ -1221,7 +1221,7 @@ export default function PatientManagementPage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-[#4F4F4F] mb-1">{patient.name}</h3>
                         <p className="text-sm text-gray-600 mb-3">
-                          {patient.breed} · {patient.species === 'dog' ? 'Dog' : 'Cat'} · {patient.sex === 'male' ? 'Male' : 'Female'}
+                          {patient.breed} · {patient.species === 'canine' ? 'Dog' : 'Cat'} · {patient.sex === 'male' ? 'Male' : 'Female'}
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                           <div>

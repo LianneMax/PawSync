@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 interface Pet {
   _id: string
   name: string
-  species: 'dog' | 'cat'
+  species: 'canine' | 'feline'
   breed: string
   photo?: string
   nfcTagId?: string

@@ -30,7 +30,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/a
 interface PetOption {
   _id: string
   name: string
-  species: 'dog' | 'cat'
+  species: 'canine' | 'feline'
   breed: string
   photo?: string | null
   dateOfBirth?: string
@@ -158,7 +158,7 @@ export default function VaccinationFormClient() {
 
   // Load vaccine types
   useEffect(() => {
-    const species = selectedPet?.species
+    const species = selectedPet?.species === 'canine' ? 'dog' : selectedPet?.species === 'feline' ? 'cat' : undefined
     getVaccineTypes(species).then(setVaccineTypes).catch(() => {})
   }, [selectedPet?.species])
 

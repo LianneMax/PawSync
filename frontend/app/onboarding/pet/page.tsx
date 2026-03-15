@@ -169,7 +169,7 @@ function PetOnboardingContent() {
       const token = useAuthStore.getState().token || localStorage.getItem('authToken')
       const response = await createPet({
         name: fullName,
-        species: species as 'dog' | 'cat',
+        species: species as 'canine' | 'feline',
         breed,
         secondaryBreed: secondaryBreed || undefined,
         sex: sex as 'male' | 'female',
@@ -311,16 +311,16 @@ function PetOnboardingContent() {
               <div className="grid grid-cols-2 gap-6">
                 <button
                   type="button"
-                  onClick={() => setSpecies('dog')}
+                  onClick={() => setSpecies('canine')}
                   className={`p-8 rounded-2xl border-2 transition-all ${
-                    species === 'dog'
+                    species === 'canine'
                       ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
                   <div className="flex flex-col items-center gap-4">
                     <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
-                      species === 'dog' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
+                      species === 'canine' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
                     }`}>
                       <Dog className="w-10 h-10 text-white" />
                     </div>
@@ -330,16 +330,16 @@ function PetOnboardingContent() {
 
                 <button
                   type="button"
-                  onClick={() => setSpecies('cat')}
+                  onClick={() => setSpecies('feline')}
                   className={`p-8 rounded-2xl border-2 transition-all ${
-                    species === 'cat'
+                    species === 'feline'
                       ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
                   <div className="flex flex-col items-center gap-4">
                     <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
-                      species === 'cat' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
+                      species === 'feline' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
                     }`}>
                       <Cat className="w-10 h-10 text-white" />
                     </div>
@@ -409,7 +409,7 @@ function PetOnboardingContent() {
             {/* Header */}
             <div className="text-center mb-10">
               <h1 className="text-4xl font-bold text-[#5A7C7A] mb-3">
-                Tell us about your {species === 'dog' ? 'Dog' : species === 'cat' ? 'Cat' : 'Pet'}
+                Tell us about your {species === 'canine' ? 'Dog' : species === 'feline' ? 'Cat' : 'Pet'}
               </h1>
               <p className="text-gray-600">
                 Fill in the basic details about your pet. This information<br />

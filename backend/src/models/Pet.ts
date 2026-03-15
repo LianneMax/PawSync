@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IPet extends Document {
   ownerId: mongoose.Types.ObjectId;
   name: string;
-  species: 'dog' | 'cat';
+  species: 'canine' | 'feline';
   breed: string;
   secondaryBreed: string | null;
   sex: 'male' | 'female';
@@ -48,7 +48,7 @@ const PetSchema = new Schema(
     },
     species: {
       type: String,
-      enum: ['dog', 'cat'],
+      enum: ['canine', 'feline'],
       required: [true, 'Please specify the species']
     },
     breed: {

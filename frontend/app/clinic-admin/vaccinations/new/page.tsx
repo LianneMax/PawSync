@@ -45,7 +45,7 @@ interface Owner {
 interface Pet {
   _id: string
   name: string
-  species: 'dog' | 'cat' | string
+  species: 'canine' | 'feline' | string
   breed: string
   dateOfBirth?: string
   photo?: string
@@ -166,7 +166,8 @@ function ClinicVaccinationFormInner() {
   // Load vaccine types when pet selected
   useEffect(() => {
     if (!selectedPet) return
-    getVaccineTypes(selectedPet.species === 'dog' || selectedPet.species === 'cat' ? selectedPet.species : undefined)
+    const vaccineSpecies = selectedPet.species === 'canine' ? 'dog' : selectedPet.species === 'feline' ? 'cat' : undefined
+    getVaccineTypes(vaccineSpecies)
       .then((types) => setVaccineTypes(types || []))
       .catch(() => { /* ignore */ })
   }, [selectedPet])
