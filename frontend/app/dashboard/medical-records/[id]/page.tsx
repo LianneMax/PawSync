@@ -29,9 +29,6 @@ const vitalsConfig: { key: string; label: string; type: 'number' | 'yesno'; unit
   { key: 'bodyConditionScore', label: 'Body Condition Score', type: 'number', unit: '/5' },
   { key: 'dentalScore', label: 'Dental Score', type: 'number', unit: '/3' },
   { key: 'crt', label: 'CRT', type: 'number', unit: 'sec' },
-  { key: 'pregnancy', label: 'Pregnancy', type: 'yesno' },
-  { key: 'xray', label: 'X-Ray', type: 'yesno' },
-  { key: 'vaccinated', label: 'Vaccinated', type: 'yesno' },
 ]
 
 function formatDate(dateStr: string) {
