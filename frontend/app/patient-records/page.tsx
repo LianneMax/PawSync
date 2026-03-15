@@ -1986,23 +1986,6 @@ function ViewRecordModal({
                 </div>
               )}
 
-              {/* ===== CONFINEMENT LOG ===== */}
-              {record.confinementAction && record.confinementAction !== 'none' && (
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${record.confinementAction === 'confined' ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
-                  <span className="text-lg shrink-0">{record.confinementAction === 'confined' ? '🔒' : '🔓'}</span>
-                  <div>
-                    <p className={`text-sm font-semibold ${record.confinementAction === 'confined' ? 'text-amber-800' : 'text-green-800'}`}>
-                      {record.confinementAction === 'confined'
-                        ? 'Pet was confined during this visit'
-                        : `Pet was released from confinement${record.confinementDays ? ` after ${record.confinementDays} day${record.confinementDays !== 1 ? 's' : ''}` : ' during this visit'}`}
-                    </p>
-                    <p className={`text-xs ${record.confinementAction === 'confined' ? 'text-amber-600' : 'text-green-600'}`}>
-                      Logged on {new Date(record.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {/* ===== MEDICATIONS ===== */}
               {record.medications && record.medications.length > 0 && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -2169,39 +2152,6 @@ function ViewRecordModal({
                       </div>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* ===== REFERRAL, DISCHARGE & SCHEDULED SURGERY ===== */}
-              {(record.referral || record.discharge || record.scheduledSurgery) && (
-                <div className="grid grid-cols-2 gap-3">
-                  {record.discharge && (
-                    <div className="border border-green-200 rounded-xl bg-green-50/30 p-4 flex items-start gap-3">
-                      <div className="text-xl shrink-0">✓</div>
-                      <div>
-                        <p className="text-xs font-semibold text-green-900 uppercase tracking-wider">Discharge for At-Home Care</p>
-                        <p className="text-sm text-green-700 mt-1">Patient cleared for discharge</p>
-                      </div>
-                    </div>
-                  )}
-                  {record.referral && (
-                    <div className="border border-blue-200 rounded-xl bg-blue-50/30 p-4 flex items-start gap-3">
-                      <div className="text-xl shrink-0">→</div>
-                      <div>
-                        <p className="text-xs font-semibold text-blue-900 uppercase tracking-wider">Referral to Another Vet</p>
-                        <p className="text-sm text-blue-700 mt-1">Patient requires specialist consultation</p>
-                      </div>
-                    </div>
-                  )}
-                  {record.scheduledSurgery && (
-                    <div className="border border-red-200 rounded-xl bg-red-50/30 p-4 flex items-start gap-3">
-                      <Scissors className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold text-red-900 uppercase tracking-wider">Surgery Scheduled</p>
-                        <p className="text-sm text-red-700 mt-1">Surgical procedure has been recommended</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -2394,6 +2344,56 @@ function ViewRecordModal({
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ===== CONFINEMENT LOG ===== */}
+              {record.confinementAction && record.confinementAction !== 'none' && (
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${record.confinementAction === 'confined' ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+                  <span className="text-lg shrink-0">{record.confinementAction === 'confined' ? '🔒' : '🔓'}</span>
+                  <div>
+                    <p className={`text-sm font-semibold ${record.confinementAction === 'confined' ? 'text-amber-800' : 'text-green-800'}`}>
+                      {record.confinementAction === 'confined'
+                        ? 'Pet was confined during this visit'
+                        : `Pet was released from confinement${record.confinementDays ? ` after ${record.confinementDays} day${record.confinementDays !== 1 ? 's' : ''}` : ' during this visit'}`}
+                    </p>
+                    <p className={`text-xs ${record.confinementAction === 'confined' ? 'text-amber-600' : 'text-green-600'}`}>
+                      Logged on {new Date(record.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== REFERRAL, DISCHARGE & SCHEDULED SURGERY ===== */}
+              {(record.referral || record.discharge || record.scheduledSurgery) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {record.discharge && (
+                    <div className="border border-green-200 rounded-xl bg-green-50/30 p-4 flex items-start gap-3">
+                      <div className="text-xl shrink-0">✓</div>
+                      <div>
+                        <p className="text-xs font-semibold text-green-900 uppercase tracking-wider">Discharge for At-Home Care</p>
+                        <p className="text-sm text-green-700 mt-1">Patient cleared for discharge</p>
+                      </div>
+                    </div>
+                  )}
+                  {record.referral && (
+                    <div className="border border-blue-200 rounded-xl bg-blue-50/30 p-4 flex items-start gap-3">
+                      <div className="text-xl shrink-0">→</div>
+                      <div>
+                        <p className="text-xs font-semibold text-blue-900 uppercase tracking-wider">Referral to Another Vet</p>
+                        <p className="text-sm text-blue-700 mt-1">Patient requires specialist consultation</p>
+                      </div>
+                    </div>
+                  )}
+                  {record.scheduledSurgery && (
+                    <div className="border border-red-200 rounded-xl bg-red-50/30 p-4 flex items-start gap-3">
+                      <Scissors className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-red-900 uppercase tracking-wider">Surgery Scheduled</p>
+                        <p className="text-sm text-red-700 mt-1">Surgical procedure has been recommended</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
