@@ -5,7 +5,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import User from '../models/User';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -221,7 +221,7 @@ export const updateReport = async (req: Request, res: Response) => {
     if (vetContextNotes !== undefined) report.vetContextNotes = vetContextNotes;
     if (status !== undefined) report.status = status;
     if (sections) {
-      report.sections = { ...report.sections.toObject?.() ?? report.sections, ...sections };
+      report.sections = { ...report.sections, ...sections };
     }
 
     await report.save();
@@ -279,6 +279,10 @@ export const generateReport = async (req: Request, res: Response) => {
     let record: any = {};
     if (report.medicalRecordId) {
       record = await MedicalRecord.findById(report.medicalRecordId).lean() || {};
+    }
+
+    if (!openai) {
+      return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
     }
 
     const prompt = buildAIPrompt(pet, record, vet, report.vetContextNotes);
