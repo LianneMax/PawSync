@@ -110,10 +110,12 @@ export default function BillingFromRecordModal({
   const isReadOnly = mode === 'view'
   const total = items.reduce((sum, item) => sum + item.price, 0)
 
-  // ---- Fetch catalog & populate items when modal opens in create/update mode ----
+  // ---- Fetch catalog & populate items when modal opens ----
   useEffect(() => {
-    if (!open || isReadOnly) return
-    if (!record) return
+    if (!open) return
+    // View mode needs an existingBillingId; create/update need a record
+    if (isReadOnly && !existingBillingId) return
+    if (!isReadOnly && !record) return
 
     const run = async () => {
       setLoading(true)
@@ -152,8 +154,8 @@ export default function BillingFromRecordModal({
         const allCatalog = [...productServices, ...vaccineTypes]
         setCatalog(allCatalog)
 
-        // 2. In update mode, load the existing billing items instead of re-matching
-        if (mode === 'update' && existingBillingId) {
+        // 2. In view or update mode, load the existing billing items
+        if ((mode === 'view' || mode === 'update') && existingBillingId) {
           const billingRes = await authenticatedFetch(
             `/billings/${existingBillingId}`,
             { method: 'GET' },
@@ -179,6 +181,7 @@ export default function BillingFromRecordModal({
         }
 
         // 3. Create mode: fetch vaccinations for this pet on the same day as the record
+        if (!record) return
         const petObj = typeof record.petId === 'object' ? (record.petId as any) : null
         const petId = petObj?._id ?? record.petId
         let petVaccinations: any[] = []

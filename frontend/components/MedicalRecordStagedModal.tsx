@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/dialog'
 import { getPetNotes, savePetNotes } from '@/lib/petNotes'
 import { Switch } from '@/components/ui/switch'
+import { syncBillingFromRecord } from '@/lib/billingSync'
 
 interface Props {
   recordId: string
@@ -267,6 +268,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
   const [preventiveCareServices, setPreventiveCareServices] = useState<ProductService[]>([])
   
+  // Billing sync
+  const [billingId, setBillingId] = useState<string | null>(null)
+  const [recordCreatedAt, setRecordCreatedAt] = useState<string>('')
+
   // Clinic and vet info for surgery appointment modal
   const [clinicId, setClinicId] = useState<string>('')
   const [clinicBranchId, setClinicBranchId] = useState<string>('')
@@ -518,6 +523,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }
       setSharedWithOwner(r.sharedWithOwner || false)
       
+      // Store billing id and record creation date for auto-sync
+      if (r.billingId) {
+        const bid = typeof r.billingId === 'object' ? (r.billingId as any)._id ?? String(r.billingId) : String(r.billingId)
+        setBillingId(bid)
+      }
+      setRecordCreatedAt(r.createdAt)
+
       // Store clinic and vet info for surgery appointment modal
       if (r.clinicId?._id) setClinicId(r.clinicId._id)
       if (r.clinicBranchId?._id) setClinicBranchId(r.clinicBranchId._id)
@@ -831,6 +843,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           },
         } : {}),
       }, token)
+      if (billingId && recordCreatedAt) {
+        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare, recordCreatedAt, token }).catch(() => {})
+      }
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
       toast.success('Progress saved')
@@ -1136,6 +1151,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           },
         } : {}),
       }, token)
+      if (billingId && recordCreatedAt) {
+        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token }).catch(() => {})
+      }
       await syncPregnancyStatus()
       if (!alreadyCompleted && appointmentId) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
