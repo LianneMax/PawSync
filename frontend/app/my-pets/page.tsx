@@ -233,8 +233,22 @@ export default function MyPetsPage() {
                 </div>
 
                 <div className="bg-[#F8F6F2] rounded-xl px-3 py-2 mb-5">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Last Checkup</p>
-                  <p className="text-sm font-bold text-[#4F4F4F]">-</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Sex and Sterilization</p>
+                  <p className="text-sm font-bold text-[#4F4F4F]">
+                    {pet.sex && pet.sterilization
+                      ? `${pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1)} - ${
+                          pet.sterilization === 'spayed'
+                            ? 'Spayed'
+                            : pet.sterilization === 'unspayed'
+                            ? 'Unspayed'
+                            : pet.sterilization === 'neutered'
+                            ? 'Neutered'
+                            : pet.sterilization === 'unneutered'
+                            ? 'Unneutered'
+                            : 'Unknown'
+                        }`
+                      : '-'}
+                  </p>
                 </div>
 
                 {/* Action Buttons */}
