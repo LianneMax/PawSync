@@ -63,6 +63,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu'
 import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
@@ -2771,74 +2778,105 @@ function FollowUpRecordModal({
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="!max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-[#4F4F4F] flex items-center gap-2">
-            <FileText className="w-5 h-5 text-purple-500" />
+          <DialogTitle className="text-xl text-gray-900 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-purple-500" />
             Follow-up Record — {patient.name}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-xs text-purple-700 mt-2">
-          Record the pet owner's observations and your clinical notes for this follow-up.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800 mt-1">
+          Record the pet owner's observations and your clinical notes for this follow-up visit.
         </div>
 
-        <div className="space-y-5 mt-4">
+        <div className="space-y-7 mt-6">
           {/* Owner Observations — structured */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <h3 className="text-sm font-semibold text-[#2C3E2D]">Owner's Observations <span className="text-red-400">*</span></h3>
-              <p className="text-xs text-gray-400 mt-0.5">Fill in what the pet owner reports since the last visit.</p>
+              <h3 className="text-base font-semibold text-gray-900">Owner's Observations <span className="text-red-500">*</span></h3>
+              <p className="text-sm text-gray-500 mt-1">Fill in what the pet owner reports since the last visit.</p>
             </div>
 
             {/* helper styles */}
             {(() => {
-              const selectCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-white"
               const textCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
-              const labelCls = "block text-xs font-medium text-[#4F4F4F] mb-1"
-              const rowCls = "grid grid-cols-2 gap-4"
+              const labelCls = "block text-sm font-semibold text-[#2C3E2D] mb-2.5"
+              const helpTextCls = "text-xs text-gray-500 mt-0.5"
+              const rowCls = "grid grid-cols-2 gap-6"
+              const sectionCls = "space-y-6 bg-gray-50 border border-gray-100 rounded-xl p-6"
+              
+              // Reusable dropdown component
+              const SelectField = ({ 
+                value, 
+                onChange, 
+                options, 
+                placeholder = '— Select —' 
+              }: { 
+                value: string
+                onChange: (v: string) => void
+                options: string[]
+                placeholder?: string
+              }) => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-200 flex items-center justify-between">
+                      <span className={value ? 'text-gray-900' : 'text-gray-400'}>{value || placeholder}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+                      {options.map(opt => (
+                        <DropdownMenuRadioItem key={opt} value={opt} className="cursor-pointer">
+                          {opt}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )
+
               const checkboxes = (key: 'moodChanges' | 'urinationChanges' | 'breathingChanges' | 'woundAppearance', options: string[]) => (
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="flex flex-wrap gap-3 mt-2.5">
                   {options.map(opt => (
-                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
-                      <input type="checkbox" checked={(obs[key] as string[]).includes(opt)} onChange={() => toggleCheck(key, opt)} className="accent-purple-500 w-3.5 h-3.5" />
-                      <span className="text-xs text-gray-600">{opt}</span>
+                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={(obs[key] as string[]).includes(opt)} onChange={() => toggleCheck(key, opt)} className="accent-purple-500 w-4 h-4 rounded" />
+                      <span className="text-sm text-gray-700">{opt}</span>
                     </label>
                   ))}
                 </div>
               )
+              
               const yesNoRadio = (key: keyof typeof emptyObs) => (
-                <div className="flex gap-4 mt-1">
+                <div className="flex gap-6 mt-2.5">
                   {['yes', 'no'].map(v => (
-                    <label key={v} className="flex items-center gap-1.5 cursor-pointer">
-                      <input type="radio" name={key} value={v} checked={obs[key as keyof typeof obs] === v} onChange={() => setField(key, v)} className="accent-purple-500 w-3.5 h-3.5" />
-                      <span className="text-xs text-gray-600 capitalize">{v}</span>
+                    <label key={v} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name={key} value={v} checked={obs[key as keyof typeof obs] === v} onChange={() => setField(key, v)} className="accent-purple-500 w-4 h-4" />
+                      <span className="text-sm text-gray-700 capitalize">{v}</span>
                     </label>
                   ))}
                 </div>
               )
 
               return (
-                <div className="space-y-3 bg-gray-50/60 border border-gray-100 rounded-xl p-4">
+                <div className={sectionCls}>
 
                   {/* Row 1: Appetite + Water Intake */}
                   <div className={rowCls}>
                     <div>
                       <label className={labelCls}>Appetite</label>
-                      <select value={obs.appetite} onChange={e => setField('appetite', e.target.value)} className={selectCls}>
-                        <option value="">— Select —</option>
-                        <option>Normal</option>
-                        <option>Eating more</option>
-                        <option>Eating less</option>
-                        <option>Refusing food</option>
-                      </select>
+                      <SelectField 
+                        value={obs.appetite} 
+                        onChange={v => setField('appetite', v)} 
+                        options={['Normal', 'Eating more', 'Eating less', 'Refusing food']}
+                      />
                     </div>
                     <div>
                       <label className={labelCls}>Water Intake</label>
-                      <select value={obs.waterIntake} onChange={e => setField('waterIntake', e.target.value)} className={selectCls}>
-                        <option value="">— Select —</option>
-                        <option>Normal</option>
-                        <option>Drinking more than usual</option>
-                        <option>Drinking less than usual</option>
-                      </select>
+                      <SelectField 
+                        value={obs.waterIntake} 
+                        onChange={v => setField('waterIntake', v)} 
+                        options={['Normal', 'Drinking more than usual', 'Drinking less than usual']}
+                      />
                     </div>
                   </div>
 
@@ -2846,28 +2884,26 @@ function FollowUpRecordModal({
                   <div className={rowCls}>
                     <div>
                       <label className={labelCls}>Energy / Activity Level</label>
-                      <select value={obs.energyLevel} onChange={e => setField('energyLevel', e.target.value)} className={selectCls}>
-                        <option value="">— Select —</option>
-                        <option>Normal</option>
-                        <option>Lethargic</option>
-                        <option>Hyperactive</option>
-                      </select>
+                      <SelectField 
+                        value={obs.energyLevel} 
+                        onChange={v => setField('energyLevel', v)} 
+                        options={['Normal', 'Lethargic', 'Hyperactive']}
+                      />
                     </div>
                     <div>
                       <label className={labelCls}>Sleep Pattern</label>
-                      <select value={obs.sleepChanges} onChange={e => setField('sleepChanges', e.target.value)} className={selectCls}>
-                        <option value="">— Select —</option>
-                        <option>Normal</option>
-                        <option>Sleeping more</option>
-                        <option>Sleeping less</option>
-                        <option>Restless / Disturbed</option>
-                      </select>
+                      <SelectField 
+                        value={obs.sleepChanges} 
+                        onChange={v => setField('sleepChanges', v)} 
+                        options={['Normal', 'Sleeping more', 'Sleeping less', 'Restless / Disturbed']}
+                      />
                     </div>
                   </div>
 
                   {/* Mood/Behavior */}
                   <div>
-                    <label className={labelCls}>Mood / Behavior Changes <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    <label className={labelCls}>Mood / Behavior Changes</label>
+                    <p className={helpTextCls}>Select all that apply</p>
                     {checkboxes('moodChanges', ['None', 'Anxious', 'Aggressive', 'Withdrawn', 'Clingy'])}
                   </div>
 
@@ -2876,27 +2912,27 @@ function FollowUpRecordModal({
                     <label className={labelCls}>Vomiting</label>
                     {yesNoRadio('vomiting')}
                     {obs.vomiting === 'yes' && (
-                      <textarea value={obs.vomitingDetails} onChange={e => setField('vomitingDetails', e.target.value)} placeholder="Frequency, appearance, timing..." rows={2} className={`${textCls} mt-2`} />
+                      <textarea value={obs.vomitingDetails} onChange={e => setField('vomitingDetails', e.target.value)} placeholder="Frequency, appearance, timing..." rows={2} className={`${textCls} mt-2.5`} />
                     )}
                   </div>
 
                   {/* Stool */}
                   <div>
                     <label className={labelCls}>Diarrhea / Constipation</label>
-                    <select value={obs.stoolChanges} onChange={e => setField('stoolChanges', e.target.value)} className={selectCls}>
-                      <option value="">— Select —</option>
-                      <option>Normal</option>
-                      <option>Diarrhea</option>
-                      <option>Constipation</option>
-                    </select>
+                    <SelectField 
+                      value={obs.stoolChanges} 
+                      onChange={v => setField('stoolChanges', v)} 
+                      options={['Normal', 'Diarrhea', 'Constipation']}
+                    />
                     {obs.stoolChanges && obs.stoolChanges !== 'Normal' && (
-                      <textarea value={obs.stoolDetails} onChange={e => setField('stoolDetails', e.target.value)} placeholder="Frequency, consistency, color..." rows={2} className={`${textCls} mt-2`} />
+                      <textarea value={obs.stoolDetails} onChange={e => setField('stoolDetails', e.target.value)} placeholder="Frequency, consistency, color..." rows={2} className={`${textCls} mt-2.5`} />
                     )}
                   </div>
 
                   {/* Urination */}
                   <div>
-                    <label className={labelCls}>Urination Changes <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    <label className={labelCls}>Urination Changes</label>
+                    <p className={helpTextCls}>Select all that apply</p>
                     {checkboxes('urinationChanges', ['Normal', 'More frequent', 'Less frequent', 'Unusual color', 'Straining', 'Accidents'])}
                   </div>
 
@@ -2905,32 +2941,33 @@ function FollowUpRecordModal({
                     <label className={labelCls}>Coughing or Sneezing</label>
                     {yesNoRadio('coughing')}
                     {obs.coughing === 'yes' && (
-                      <textarea value={obs.coughingDetails} onChange={e => setField('coughingDetails', e.target.value)} placeholder="Frequency, severity (mild / moderate / severe)..." rows={2} className={`${textCls} mt-2`} />
+                      <textarea value={obs.coughingDetails} onChange={e => setField('coughingDetails', e.target.value)} placeholder="Frequency, severity (mild / moderate / severe)..." rows={2} className={`${textCls} mt-2.5`} />
                     )}
                   </div>
 
                   {/* Breathing */}
                   <div>
-                    <label className={labelCls}>Breathing Changes <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    <label className={labelCls}>Breathing Changes</label>
+                    <p className={helpTextCls}>Select all that apply</p>
                     {checkboxes('breathingChanges', ['Normal', 'Labored', 'Rapid', 'Noisy'])}
                   </div>
 
                   {/* Row: Weight + Limping */}
                   <div className={rowCls}>
                     <div>
-                      <label className={labelCls}>Weight Changes (noticed at home)</label>
-                      <select value={obs.weightChanges} onChange={e => setField('weightChanges', e.target.value)} className={selectCls}>
-                        <option value="">— Select —</option>
-                        <option>No change</option>
-                        <option>Gained weight</option>
-                        <option>Lost weight</option>
-                      </select>
+                      <label className={labelCls}>Weight Changes</label>
+                      <p className={helpTextCls}>Noticed at home</p>
+                      <SelectField 
+                        value={obs.weightChanges} 
+                        onChange={v => setField('weightChanges', v)} 
+                        options={['No change', 'Gained weight', 'Lost weight']}
+                      />
                     </div>
                     <div>
                       <label className={labelCls}>Limping / Difficulty Moving</label>
                       {yesNoRadio('limping')}
                       {obs.limping === 'yes' && (
-                        <input type="text" value={obs.limpingDetails} onChange={e => setField('limpingDetails', e.target.value)} placeholder="Which limb, description..." className={`${selectCls} mt-2`} />
+                        <input type="text" value={obs.limpingDetails} onChange={e => setField('limpingDetails', e.target.value)} placeholder="Which limb, description..." className={`w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 mt-2.5`} />
                       )}
                     </div>
                   </div>
@@ -2940,29 +2977,30 @@ function FollowUpRecordModal({
                     <label className={labelCls}>Scratching, Licking, or Biting a Specific Area</label>
                     {yesNoRadio('scratchingLicking')}
                     {obs.scratchingLicking === 'yes' && (
-                      <input type="text" value={obs.scratchingDetails} onChange={e => setField('scratchingDetails', e.target.value)} placeholder="Which area..." className={`${selectCls} mt-2`} />
+                      <input type="text" value={obs.scratchingDetails} onChange={e => setField('scratchingDetails', e.target.value)} placeholder="Which area..." className={`w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 mt-2.5`} />
                     )}
                   </div>
 
                   {/* Wound Appearance */}
                   <div>
-                    <label className={labelCls}>Wound / Incision Appearance <span className="text-gray-400 font-normal">(select all that apply)</span></label>
+                    <label className={labelCls}>Wound / Incision Appearance</label>
+                    <p className={helpTextCls}>Select all that apply</p>
                     {checkboxes('woundAppearance', ['Looks normal', 'Redness', 'Swelling', 'Discharge', 'Pet licking it'])}
                   </div>
 
                   {/* Medication */}
                   <div>
                     <label className={labelCls}>Medication Given as Directed</label>
-                    <div className="flex gap-4 mt-1">
+                    <div className="flex gap-6 mt-2.5">
                       {['Yes, as directed', 'Had difficulties', 'Not on medication'].map(v => (
-                        <label key={v} className="flex items-center gap-1.5 cursor-pointer">
-                          <input type="radio" name="medicationCompliance" value={v} checked={obs.medicationCompliance === v} onChange={() => setField('medicationCompliance', v)} className="accent-purple-500 w-3.5 h-3.5" />
-                          <span className="text-xs text-gray-600">{v}</span>
+                        <label key={v} className="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" name="medicationCompliance" value={v} checked={obs.medicationCompliance === v} onChange={() => setField('medicationCompliance', v)} className="accent-purple-500 w-4 h-4" />
+                          <span className="text-sm text-gray-700">{v}</span>
                         </label>
                       ))}
                     </div>
                     {obs.medicationCompliance === 'Had difficulties' && (
-                      <textarea value={obs.medicationDifficulties} onChange={e => setField('medicationDifficulties', e.target.value)} placeholder="Describe the difficulties..." rows={2} className={`${textCls} mt-2`} />
+                      <textarea value={obs.medicationDifficulties} onChange={e => setField('medicationDifficulties', e.target.value)} placeholder="Describe the difficulties..." rows={2} className={`${textCls} mt-2.5`} />
                     )}
                   </div>
 
@@ -2971,7 +3009,7 @@ function FollowUpRecordModal({
                     <label className={labelCls}>Side Effects Noticed After Medication</label>
                     {yesNoRadio('sideEffects')}
                     {obs.sideEffects === 'yes' && (
-                      <textarea value={obs.sideEffectsDetails} onChange={e => setField('sideEffectsDetails', e.target.value)} placeholder="Describe the side effects..." rows={2} className={`${textCls} mt-2`} />
+                      <textarea value={obs.sideEffectsDetails} onChange={e => setField('sideEffectsDetails', e.target.value)} placeholder="Describe the side effects..." rows={2} className={`${textCls} mt-2.5`} />
                     )}
                   </div>
 
@@ -2980,18 +3018,18 @@ function FollowUpRecordModal({
                     <label className={labelCls}>New or Worsening Symptoms Since Last Visit</label>
                     {yesNoRadio('newSymptoms')}
                     {obs.newSymptoms === 'yes' && (
-                      <textarea value={obs.newSymptomsDetails} onChange={e => setField('newSymptomsDetails', e.target.value)} placeholder="Describe the new or worsening symptoms..." rows={2} className={`${textCls} mt-2`} />
+                      <textarea value={obs.newSymptomsDetails} onChange={e => setField('newSymptomsDetails', e.target.value)} placeholder="Describe the new or worsening symptoms..." rows={2} className={`${textCls} mt-2.5`} />
                     )}
                   </div>
 
                   {/* Overall Impression — required */}
-                  <div className="border-t border-gray-200 pt-3">
-                    <label className={labelCls}>Overall Impression <span className="text-red-400">*</span></label>
-                    <div className="flex gap-6 mt-1">
+                  <div className="border-t border-gray-200 pt-6">
+                    <label className={labelCls}>Overall Impression <span className="text-red-500">*</span></label>
+                    <div className="flex gap-6 mt-2.5">
                       {['Better', 'Same', 'Worse'].map(v => (
-                        <label key={v} className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border transition-colors ${obs.overallImpression === v ? 'bg-purple-50 border-purple-300 text-purple-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                          <input type="radio" name="overallImpression" value={v} checked={obs.overallImpression === v} onChange={() => setField('overallImpression', v)} className="accent-purple-500 w-3.5 h-3.5" />
-                          <span className="text-sm font-medium">{v}</span>
+                        <label key={v} className={`flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-lg border-2 transition-colors font-medium ${obs.overallImpression === v ? 'bg-purple-50 border-purple-400 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                          <input type="radio" name="overallImpression" value={v} checked={obs.overallImpression === v} onChange={() => setField('overallImpression', v)} className="accent-purple-500 w-4 h-4" />
+                          <span className="text-sm">{v}</span>
                         </label>
                       ))}
                     </div>
@@ -3004,28 +3042,28 @@ function FollowUpRecordModal({
 
           {/* Vet Notes */}
           <div>
-            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">Vet Notes / Assessment</h3>
-            <p className="text-xs text-gray-400 mb-2">Your clinical impression and any recommendations based on the online consultation.</p>
+            <h3 className="text-base font-semibold text-[#2C3E2D] mb-1">Vet Notes / Assessment</h3>
+            <p className="text-sm text-gray-500 mb-3">Your clinical impression and any recommendations based on the online consultation.</p>
             <textarea
               value={vetNotes}
               onChange={(e) => setVetNotes(e.target.value)}
               placeholder="Based on the owner's description, possible differential diagnosis, advice given, next steps..."
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+              rows={5}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
             />
           </div>
 
           {/* Media Upload */}
           <div>
-            <h3 className="text-sm font-semibold text-[#2C3E2D] mb-1.5">Photos, Images & Videos</h3>
-            <p className="text-xs text-gray-400 mb-2">Attach images or videos shared during the consultation (e.g. lesion photos, movement videos).</p>
+            <h3 className="text-base font-semibold text-[#2C3E2D] mb-1">Photos, Images & Videos</h3>
+            <p className="text-sm text-gray-500 mb-3">Attach images or videos shared during the consultation (e.g. lesion photos, movement videos).</p>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-200 rounded-xl p-5 text-center cursor-pointer hover:border-purple-300 hover:bg-purple-50/40 transition-colors"
+              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/50 transition-colors"
             >
-              <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
-              <p className="text-sm text-gray-500">Click to upload</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">Images (JPG, PNG) and videos (MP4, MOV) supported</p>
+              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-medium text-gray-700">Click to upload</p>
+              <p className="text-xs text-gray-500 mt-1">Images (JPG, PNG) and videos (MP4, MOV) supported</p>
             </div>
             <input
               ref={fileInputRef}
@@ -3036,14 +3074,14 @@ function FollowUpRecordModal({
               className="hidden"
             />
             {media.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 mt-4">
                 {media.map((item, idx) => {
                   const isVideo = item.contentType.startsWith('video/')
                   return (
-                    <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-1.5">
+                    <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-2">
                       {isVideo
-                        ? <FileText className="w-3 h-3 text-purple-400 shrink-0" />
-                        : <ImageIcon className="w-3 h-3 text-blue-400 shrink-0" />
+                        ? <FileText className="w-4 h-4 text-purple-400 shrink-0" />
+                        : <ImageIcon className="w-4 h-4 text-blue-400 shrink-0" />
                       }
                       <span className="truncate max-w-[140px]">{item.description || `File ${idx + 1}`}</span>
                       <button
@@ -3060,28 +3098,30 @@ function FollowUpRecordModal({
           </div>
 
           {/* Share with owner toggle */}
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <div
-              onClick={() => setSharedWithOwner((v) => !v)}
-              className={`w-10 h-6 rounded-full relative transition-colors ${sharedWithOwner ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
-            >
-              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${sharedWithOwner ? 'left-5' : 'left-1'}`} />
-            </div>
-            <span className="text-sm text-[#4F4F4F]">Share this record with the pet owner</span>
-          </label>
+          <div className="bg-purple-50/50 border border-purple-100 rounded-lg p-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setSharedWithOwner((v) => !v)}
+                className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${sharedWithOwner ? 'bg-purple-500' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sharedWithOwner ? 'left-5' : 'left-0.5'}`} />
+              </div>
+              <span className="text-sm font-medium text-[#2C3E2D]">Share this record with the pet owner</span>
+            </label>
+          </div>
         </div>
 
-        <div className="flex gap-3 mt-6">
+        <div className="flex gap-3 mt-8">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-3 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Saving...' : 'Save Follow-up Record'}
           </button>
