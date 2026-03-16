@@ -115,13 +115,14 @@ const emptyMedication = (): Omit<Medication, '_id'> => ({
   status: 'active',
 })
 
-const emptyDiagnosticTest = (): Omit<DiagnosticTest, '_id'> => ({
+const emptyDiagnosticTest = (): Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] } => ({
   testType: 'other',
   name: '',
   date: null,
   result: '',
   normalRange: '',
   notes: '',
+  images: [],
 })
 
 const emptyPreventiveCare = (): Omit<PreventiveCare, '_id'> => ({
@@ -352,7 +353,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Step 3 fields
   const [visitSummary, setVisitSummary] = useState('')
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
-  const [diagnosticTests, setDiagnosticTests] = useState<Omit<DiagnosticTest, '_id'>[]>([])
+  const [diagnosticTests, setDiagnosticTests] = useState<(Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] })[]>([])
   const [preventiveCare, setPreventiveCare] = useState<Omit<PreventiveCare, '_id'>[]>([])
   const [preventiveCareManuallyEdited, setPreventiveCareManuallyEdited] = useState<Set<number>>(new Set())
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
@@ -386,7 +387,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       setMedications((r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest))
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      setDiagnosticTests((r.diagnosticTests || []).map(({ _id, ...rest }: Omit<DiagnosticTest, '_id'> & { _id?: string }) => rest))
+      setDiagnosticTests((r.diagnosticTests || []).map(({ _id, ...rest }: Omit<DiagnosticTest, '_id'> & { _id?: string } & { images?: any[] }) => ({
+        ...rest,
+        images: rest.images || [],
+      })))
       if (r.pregnancyRecord) {
         setUltrasoundPregnant(r.pregnancyRecord.isPregnant)
         setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
@@ -666,6 +670,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         description: `${img.type} surgery image`,
       }))
 
+  const buildDiagnosticTestImages = () => {
+    const diagImages: { data: string; contentType: string; description: string }[] = []
+    diagnosticTests.forEach((test, idx) => {
+      if (test.images && test.images.length > 0) {
+        test.images.forEach((img, imgIdx) => {
+          diagImages.push({
+            data: img.data,
+            contentType: img.contentType,
+            description: `${test.name ? test.name : 'Diagnostic Test'} #${idx + 1} - ${img.description || `Image ${imgIdx + 1}`}`,
+          })
+        })
+      }
+    })
+    return diagImages
+  }
+
   const buildExtraObservation = () => {
     const extras: string[] = []
     if (xray) extras.push('X-Ray')
@@ -700,7 +720,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
+      const diagImgs = buildDiagnosticTestImages()
       const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
+      
+      // Combine all images: diagnostic test images + general images
+      const allImages = [...diagImgs, ...images]
+      
+      // Remove images from diagnostic tests before sending to API
+      const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      
       await updateMedicalRecord(recordId, {
         chiefComplaint,
         vitals,
@@ -710,7 +738,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         plan,
         visitSummary,
         medications,
-        diagnosticTests,
+        diagnosticTests: diagnosticTestsToSend,
         preventiveCare,
         sharedWithOwner,
         confinementAction,
@@ -718,6 +746,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         referral,
         discharge,
         scheduledSurgery: surgery,
+        ...(allImages.length > 0 ? { images: allImages } : {}),
         ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
           ...(surgImgs && surgImgs.length > 0 ? { images: surgImgs } : {}),
@@ -801,17 +830,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setSaving(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
+      const diagImgs = buildDiagnosticTestImages()
+      const allImages = [...diagImgs, ...images]
+      const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      
       await updateMedicalRecord(recordId, {
         subjective,
         overallObservation: buildExtraObservation(),
         assessment,
         plan,
-        diagnosticTests,
+        diagnosticTests: diagnosticTestsToSend,
         confinementAction,
         confinementDays,
         referral,
         discharge,
         scheduledSurgery: surgery,
+        ...(allImages.length > 0 ? { images: allImages } : {}),
         ...buildPregnancyPayload(),
         // Only advance stage to post_procedure if not a vaccination or surgery appointment
         // (those have an intermediate step 3)
@@ -956,14 +990,19 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         notes: care.notes,
       }))
       
+      // Extract diagnostic test images and combine with general images
+      const diagImgs = buildDiagnosticTestImages()
+      const allImages = [...diagImgs, ...images]
+      const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      
       await updateMedicalRecord(recordId, {
         stage: 'completed',
         visitSummary,
         medications,
-        diagnosticTests,
+        diagnosticTests: diagnosticTestsToSend,
         preventiveCare: sanitizedPreventiveCare,
         sharedWithOwner,
-        images,
+        ...(allImages.length > 0 ? { images: allImages } : {}),
         confinementAction,
         confinementDays,
         referral,
@@ -1005,6 +1044,26 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         const result = ev.target?.result as string
         const base64 = result.split(',')[1]
         setImages((prev) => [...prev, { data: base64, contentType: file.type, description: file.name }])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleDiagnosticTestImageUpload = (testIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    files.forEach((file) => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string
+        const base64 = result.split(',')[1]
+        setDiagnosticTests((prev) => {
+          const updated = [...prev]
+          if (!updated[testIndex].images) {
+            updated[testIndex].images = []
+          }
+          updated[testIndex].images!.push({ data: base64, contentType: file.type, description: file.name })
+          return updated
+        })
       }
       reader.readAsDataURL(file)
     })
@@ -1373,7 +1432,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 {testsOpen && (
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
                     {diagnosticTests.map((test, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
+                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-500">Test {i + 1}</span>
                           <button onClick={() => setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
@@ -1396,6 +1455,35 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         </div>
                         <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
                         <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                        
+                        {/* Image Upload for Diagnostic Test */}
+                        <div className="border-t border-gray-200 pt-2 mt-2">
+                          <label className="flex text-xs font-semibold text-gray-600 mb-2 items-center gap-1.5">
+                            <Upload className="w-3.5 h-3.5 text-[#7FA5A3]" />
+                            Test Images
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer px-2.5 py-1.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#7FA5A3] transition-colors w-fit bg-white">
+                            <Upload className="w-3 h-3 text-gray-400" />
+                            <span className="text-xs text-gray-500">Upload images</span>
+                            <input type="file" accept="image/*" multiple onChange={(e) => handleDiagnosticTestImageUpload(i, e)} className="hidden" />
+                          </label>
+                          {test.images && test.images.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {test.images.map((img, imgIdx) => (
+                                <div key={imgIdx} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1">
+                                  <span className="text-xs text-blue-700">{img.description}</span>
+                                  <button onClick={() => setDiagnosticTests((prev) => {
+                                    const updated = [...prev]
+                                    updated[i].images = updated[i].images!.filter((_, j) => j !== imgIdx)
+                                    return updated
+                                  })} className="text-blue-400 hover:text-red-500">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                     <button onClick={() => setDiagnosticTests((prev) => [...prev, emptyDiagnosticTest()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
