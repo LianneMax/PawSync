@@ -215,9 +215,9 @@ export default function VetAppointmentsPage() {
     loadSchedules()
   }, [loadSchedules])
 
-  // Filter confirmed + in_progress appointments for the selected calendar date
+  // Filter confirmed + in_clinic + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
-    if (a.status !== 'confirmed' && a.status !== 'in_progress') return false
+    if (a.status !== 'confirmed' && a.status !== 'in_clinic' && a.status !== 'in_progress') return false
     const d = new Date(a.date)
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -226,11 +226,11 @@ export default function VetAppointmentsPage() {
     return apptDate === calendarDate
   })
 
-  // Upcoming = confirmed/in_progress and not yet passed, sorted by date asc
+  // Upcoming = confirmed/in_clinic/in_progress and not yet passed, sorted by date asc
   const upcomingAppointments = appointments
     .filter((a) => {
       const ds = getDisplayStatus(a)
-      if (ds !== 'confirmed' && ds !== 'in_progress') return false
+      if (ds !== 'confirmed' && ds !== 'in_clinic' && ds !== 'in_progress') return false
       // Parse date correctly - a.date is already in ISO format (YYYY-MM-DD)
       const [year, month, day] = a.date.split('-').map(Number)
       const [hours, minutes] = a.startTime.split(':').map(Number)
@@ -276,7 +276,7 @@ export default function VetAppointmentsPage() {
     const day = String(d.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}` === today
   })
-  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_progress').length
+  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
 
   const handleCheckIn = async (appt: Appointment) => {
@@ -636,6 +636,16 @@ export default function VetAppointmentsPage() {
                                         >
                                           <LogIn className="w-3 h-3" />
                                           {checkingIn === appt._id ? 'Checking in…' : 'Check In Patient'}
+                                        </button>
+                                      )}
+                                      {appt.status === 'in_clinic' && (
+                                        <button
+                                          onClick={() => handleCheckIn(appt)}
+                                          disabled={checkingIn === appt._id}
+                                          className="inline-flex items-center gap-1 px-3 py-1 text-[10px] font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
+                                        >
+                                          <PlayCircle className="w-3 h-3" />
+                                          {checkingIn === appt._id ? 'Starting…' : 'Begin Visit'}
                                         </button>
                                       )}
                                       {appt.status === 'in_progress' && (
