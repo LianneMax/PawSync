@@ -893,6 +893,7 @@ export default function ClinicAdminAppointmentsPage() {
       if (!petResponse.ok) {
         setScanError('Pet not found. This NFC tag may not be registered.')
         setIsCheckingInFromScan(false)
+        setNfcScanningActive(false)
         return
       }
 
@@ -900,21 +901,30 @@ export default function ClinicAdminAppointmentsPage() {
       if (!petData.data?.pet?._id) {
         setScanError('Unable to identify pet from NFC tag.')
         setIsCheckingInFromScan(false)
+        setNfcScanningActive(false)
         return
       }
 
       const petId = petData.data.pet._id
-      // Find appointments for this pet that are confirmed or pending
+      // Find appointments for this pet that are active today
       const selectedDate = new Date().toISOString().split('T')[0]
       const appointmentForPet = appointments.find(
-        appt => appt.petId?._id === petId && 
-                (appt.status === 'confirmed' || appt.status === 'pending') &&
+        appt => appt.petId?._id?.toString() === petId.toString() &&
+                (appt.status === 'confirmed' || appt.status === 'pending' || appt.status === 'in_clinic') &&
                 new Date(appt.date).toISOString().split('T')[0] === selectedDate
       )
 
       if (!appointmentForPet) {
         setScanError('No active appointment found for this pet today.')
         setIsCheckingInFromScan(false)
+        setNfcScanningActive(false)
+        return
+      }
+
+      if (appointmentForPet.status === 'in_clinic') {
+        setScanError('This patient is already checked in.')
+        setIsCheckingInFromScan(false)
+        setNfcScanningActive(false)
         return
       }
 
@@ -943,11 +953,13 @@ export default function ClinicAdminAppointmentsPage() {
       } else {
         setScanError(checkInRes.message || 'Failed to check in patient.')
         setIsCheckingInFromScan(false)
+        setNfcScanningActive(false)
       }
     } catch (error) {
       console.error('Error checking in by NFC tag:', error)
       setScanError('Failed to check in patient. Please try again.')
       setIsCheckingInFromScan(false)
+      setNfcScanningActive(false)
     }
   }, [appointments, token, loadAppointments])
 
@@ -967,6 +979,7 @@ export default function ClinicAdminAppointmentsPage() {
         ws.close()
         nfcWsRef.current = null
         setScanError('No NFC tag detected. Please try again.')
+        setNfcScanningActive(false)
       }, 30000)
 
       ws.onmessage = (event) => {
@@ -985,9 +998,11 @@ export default function ClinicAdminAppointmentsPage() {
         if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
         nfcWsRef.current = null
         setScanError('NFC reader not available.')
+        setNfcScanningActive(false)
       }
     } catch {
       setScanError('NFC scanning not supported on this device.')
+      setNfcScanningActive(false)
     }
   }, [checkInByNfcTagId])
 
