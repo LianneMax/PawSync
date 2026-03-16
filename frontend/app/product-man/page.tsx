@@ -86,9 +86,14 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   })
 
   // --- Branch availability selection ---
-  const [selectedBranches, setSelectedBranches] = useState<Set<string>>(
-    new Set(branches.map((b) => b.id)) // default: all branches selected
-  )
+  const [selectedBranches, setSelectedBranches] = useState<Set<string>>(new Set())
+
+  // Initialize all branches as selected once the list loads
+  useEffect(() => {
+    if (branches.length > 0 && selectedBranches.size === 0) {
+      setSelectedBranches(new Set(branches.map((b) => b.id)))
+    }
+  }, [branches]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Products: type selection ---
   const [productType, setProductType] = useState<'medication' | 'others' | null>(null)
@@ -511,32 +516,36 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           )}
 
           {/* Branch availability — shown for Medication and non-Others services */}
-          {branches.length > 0 && (isMedMode || (!isProducts && simpleForm.category !== 'Others')) && (
+          {(isMedMode || (!isProducts && simpleForm.category !== 'Others')) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Branch Availability</label>
-              <div className="space-y-2">
-                {branches.map((branch) => (
-                  <button
-                    key={branch.id}
-                    type="button"
-                    onClick={() => setSelectedBranches((prev) => {
-                      const next = new Set(prev)
-                      next.has(branch.id) ? next.delete(branch.id) : next.add(branch.id)
-                      return next
-                    })}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
-                      selectedBranches.has(branch.id)
-                        ? 'bg-[#EAF1F1] border-[#7FA5A3] text-[#3D5E5C]'
-                        : 'bg-white border-gray-200 text-gray-500'
-                    }`}
-                  >
-                    <span className="font-medium">{branch.name}{branch.isMain ? ' (Main)' : ''}</span>
-                    <span className={`text-xs font-semibold ${selectedBranches.has(branch.id) ? 'text-[#476B6B]' : 'text-gray-400'}`}>
-                      {selectedBranches.has(branch.id) ? 'Available' : 'Not Available'}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {branches.length === 0 ? (
+                <p className="text-xs text-gray-400 py-1">Loading branches...</p>
+              ) : (
+                <div className="space-y-2">
+                  {branches.map((branch) => (
+                    <button
+                      key={branch.id}
+                      type="button"
+                      onClick={() => setSelectedBranches((prev) => {
+                        const next = new Set(prev)
+                        next.has(branch.id) ? next.delete(branch.id) : next.add(branch.id)
+                        return next
+                      })}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                        selectedBranches.has(branch.id)
+                          ? 'bg-[#EAF1F1] border-[#7FA5A3] text-[#3D5E5C]'
+                          : 'bg-white border-gray-200 text-gray-500'
+                      }`}
+                    >
+                      <span className="font-medium">{branch.name}{branch.isMain ? ' (Main)' : ''}</span>
+                      <span className={`text-xs font-semibold ${selectedBranches.has(branch.id) ? 'text-[#476B6B]' : 'text-gray-400'}`}>
+                        {selectedBranches.has(branch.id) ? 'Available' : 'Not Available'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -602,6 +611,16 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [error, setError] = useState('')
 
   const showBranchSection = qualifiesForBranchAvailability(tab, form.category)
+
+  // When branches load after modal opens, add any missing ones to branchState
+  useEffect(() => {
+    if (branches.length === 0) return
+    setBranchState((prev) => {
+      const updated = new Map(prev)
+      branches.forEach((b) => { if (!updated.has(b.id)) updated.set(b.id, false) })
+      return updated
+    })
+  }, [branches])
 
   // Reset method when route changes
   useEffect(() => {
@@ -686,6 +705,20 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
 
   const label = tab === 'Products' ? 'Product' : 'Service'
   const methodOptions = admRoute === 'oral' ? ORAL_METHODS : admRoute === 'topical' ? TOPICAL_METHODS : []
+
+  // Build the branch display list from item's own embedded data (always available)
+  // plus any additional branches from the fetched list (marked NEW)
+  const existingBranchIds = new Set(item.branchAvailability.map((ba) => ba.branchId))
+  const displayBranches: { id: string; name: string; isNew: boolean }[] = [
+    ...item.branchAvailability.map((ba) => ({
+      id: ba.branchId,
+      name: ba.branchName || ba.branchId.slice(-6),
+      isNew: false,
+    })),
+    ...branches
+      .filter((b) => !existingBranchIds.has(b.id))
+      .map((b) => ({ id: b.id, name: b.name + (b.isMain ? ' (Main)' : ''), isNew: true })),
+  ]
 
   return (
     <div
@@ -810,31 +843,34 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
             />
           </div>
 
-          {/* Branch availability — toggle active/inactive per branch, add missing branches */}
-          {showBranchSection && branches.length > 0 && (
+          {/* Branch availability */}
+          {showBranchSection && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Branch Availability</label>
-              <div className="space-y-2">
-                {branches.map((branch) => {
-                  const isActive = branchState.get(branch.id) ?? false
-                  const isInItem = item.branchAvailability.some((ba) => ba.branchId === branch.id)
-                  return (
-                    <div key={branch.id} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50">
-                      <span className="text-sm font-medium text-gray-700">
-                        {branch.name}{branch.isMain ? ' (Main)' : ''}
-                        {!isInItem && <span className="ml-2 text-[10px] text-blue-500 font-semibold">NEW</span>}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setBranchState((prev) => new Map(prev).set(branch.id, !isActive))}
-                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${isActive ? 'bg-[#476B6B]' : 'bg-gray-300'}`}
-                      >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
+              {displayBranches.length === 0 ? (
+                <p className="text-xs text-gray-400 py-1">No branches found.</p>
+              ) : (
+                <div className="space-y-2">
+                  {displayBranches.map((branch) => {
+                    const isActive = branchState.get(branch.id) ?? false
+                    return (
+                      <div key={branch.id} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50">
+                        <span className="text-sm font-medium text-gray-700">
+                          {branch.name}
+                          {branch.isNew && <span className="ml-2 text-[10px] text-blue-500 font-semibold">NEW</span>}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setBranchState((prev) => new Map(prev).set(branch.id, !isActive))}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${isActive ? 'bg-[#476B6B]' : 'bg-gray-300'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1015,15 +1051,16 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
     const init = async () => {
       try {
         // Use the auth-based endpoint — works without knowing clinicId
-        const branchRes = await fetch(`${apiUrl}/appointments/clinic-branches`, {
+        const branchRes = await fetch(`${apiUrl}/appointments/clinic-branches?all=true`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         const branchData = await branchRes.json()
         if (branchData.status === 'SUCCESS') {
-          setBranches((branchData.data.branches ?? []).map((b: any) => ({
+          const list = Array.isArray(branchData.data) ? branchData.data : (branchData.data.branches ?? [])
+          setBranches(list.map((b: any) => ({
             id: b._id,
             name: b.name,
-            isMain: b.isMain,
+            isMain: b.isMain ?? false,
           })))
         }
         // Run idempotent migration for existing records
@@ -1274,6 +1311,11 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                       {qualifiesForBranchAvailability(tab, item.category) ? (
                         item.branchAvailability.length === 0 ? (
                           <span className="text-xs text-gray-400 italic">None</span>
+                        ) : item.branchAvailability.every((ba) => ba.isActive) ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                            All
+                          </span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {item.branchAvailability.map((ba) => (

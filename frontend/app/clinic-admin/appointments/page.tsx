@@ -342,9 +342,9 @@ function CalendarGridView({
     year: 'numeric',
   })
 
-  // Show active appointments (pending, confirmed, in_progress) for the selected date in the calendar view
+  // Show active appointments (pending, confirmed, in_clinic, in_progress) for the selected date in the calendar view
   const confirmedAppointments = appointments.filter((a) => {
-    if (!['pending', 'confirmed', 'in_progress'].includes(a.status)) return false
+    if (!['pending', 'confirmed', 'in_clinic', 'in_progress'].includes(a.status)) return false
     // Match by date (compare YYYY-MM-DD)
     const apptDate = new Date(a.date).toISOString().split('T')[0]
     return apptDate === selectedDate
@@ -777,7 +777,7 @@ export default function ClinicAdminAppointmentsPage() {
 
         // On initial calendar load, auto-navigate to the first active appointment's date
         if (activeTab === 'upcoming' && viewMode === 'calendar' && filtered.length > 0) {
-          const firstConfirmed = filtered.find((a) => ['confirmed', 'in_progress', 'pending'].includes(a.status))
+          const firstConfirmed = filtered.find((a) => ['confirmed', 'in_clinic', 'in_progress', 'pending'].includes(a.status))
           if (firstConfirmed) {
             const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
             setCalendarDate((prev) => {
@@ -1165,8 +1165,10 @@ export default function ClinicAdminAppointmentsPage() {
                   <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
                     appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
                     appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                    appt.status === 'in_clinic' ? 'bg-blue-100 text-blue-700' :
+                    appt.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
                     appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                    appt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                    appt.status === 'completed' ? 'bg-gray-100 text-gray-600' :
                     'bg-gray-100 text-gray-600'
                   }`}>
                     {appt.status}

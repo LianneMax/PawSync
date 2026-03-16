@@ -1185,7 +1185,7 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
 
     const now = new Date();
     if (filter === 'upcoming') {
-      query.status = { $in: ['pending', 'confirmed', 'in_progress'] };
+      query.status = { $in: ['pending', 'confirmed', 'in_clinic', 'in_progress'] };
       if (!date) {
         query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
       }
@@ -1318,18 +1318,25 @@ export const getClinicBranches = async (req: Request, res: Response) => {
       }
       clinicId = (branch.clinicId as any).toString();
     } else if (req.user.clinicId) {
-      // If user is a clinic admin or pet owner, use their clinicId
       clinicId = req.user.clinicId;
+    } else if (req.user.branchId || req.user.clinicBranchId) {
+      // Branch-admin: derive clinicId from their branch document
+      const branchId = req.user.branchId || req.user.clinicBranchId;
+      const branch = await ClinicBranch.findById(branchId).select('clinicId');
+      if (!branch?.clinicId) {
+        return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
+      }
+      clinicId = (branch.clinicId as any).toString();
     } else {
       return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with user' });
     }
 
-    // Fetch all active branches for this clinic
-    const branches = await ClinicBranch.find({
-      clinicId: clinicId,
-      isActive: true
-    })
-      .select('_id name')
+    // Fetch branches for this clinic; pass ?all=true to include inactive ones
+    const includeInactive = req.query.all === 'true';
+    const branchFilter: any = { clinicId };
+    if (!includeInactive) branchFilter.isActive = true;
+    const branches = await ClinicBranch.find(branchFilter)
+      .select('_id name isMain')
       .sort({ isMain: -1, name: 1 });
 
     return res.status(200).json({
