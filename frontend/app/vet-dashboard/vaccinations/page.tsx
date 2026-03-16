@@ -32,7 +32,7 @@ import {
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
-const STATUS_TABS = ['all', 'active', 'pending', 'overdue', 'expired', 'declined'] as const
+const STATUS_TABS = ['all', 'active', 'pending', 'overdue'] as const
 type StatusTab = (typeof STATUS_TABS)[number]
 
 function formatDate(d: string | null | undefined) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getStatusLabel, getStatusClasses, deleteVaccineType, type Vaccination, type VaccineType } from '@/lib/vaccinations'
+import { getStatusLabel, getStatusClasses, deleteVaccineType, deleteVaccination, getClinicVaccinations, type Vaccination, type VaccineType } from '@/lib/vaccinations'
 import {
   Syringe,
   Plus,
@@ -23,7 +23,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/a
 
 // ── Shared ──────────────────────────────────────────────────────────────────
 
-const STATUS_TABS = ['all', 'active', 'pending', 'overdue', 'expired', 'declined'] as const
+const STATUS_TABS = ['all', 'active', 'pending', 'overdue'] as const
 type StatusTab = (typeof STATUS_TABS)[number]
 
 function formatDate(d: string | null | undefined) {
@@ -143,16 +143,8 @@ export default function ClinicAdminVaccinationsPage() {
     if (!token) return
     setRecLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (activeTab !== 'all') params.set('status', activeTab)
-      const res = await fetch(
-        `${API_BASE_URL}/vaccinations/clinic/records?${params.toString()}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
-        setVaccinations(data.data.vaccinations || [])
-      }
+      const data = await getClinicVaccinations(token, { status: activeTab !== 'all' ? activeTab : undefined })
+      setVaccinations(data)
     } finally {
       setRecLoading(false)
     }
@@ -170,18 +162,25 @@ export default function ClinicAdminVaccinationsPage() {
   })
 
   function getPetPhoto(v: Vaccination) {
-    const pet = v.petId as any
-    return typeof pet === 'object' ? pet?.photo ?? null : null
+    const pet = typeof v.petId === 'object' ? (v.petId as any) : null
+    return pet?.photo ?? null
   }
 
   function getPetInitial(v: Vaccination) {
-    const pet = v.petId as any
-    return typeof pet === 'object' ? (pet?.name?.[0] ?? '?').toUpperCase() : '?'
+    const pet = typeof v.petId === 'object' ? (v.petId as any) : null
+    if (pet?.name) return pet.name[0].toUpperCase()
+    return '?'
   }
 
   function getPetName(v: Vaccination) {
-    const pet = v.petId as any
-    return typeof pet === 'object' ? pet?.name ?? '—' : '—'
+    const pet = typeof v.petId === 'object' ? (v.petId as any) : null
+    return pet?.name ?? '—'
+  }
+
+  function getVetName(v: Vaccination) {
+    const vet = typeof v.vetId === 'object' ? (v.vetId as any) : null
+    if (!vet) return '—'
+    return `${vet.firstName || ''} ${vet.lastName || ''}`.trim() || '—'
   }
 
   function getVetName(v: Vaccination) {
@@ -453,7 +452,7 @@ export default function ClinicAdminVaccinationsPage() {
                   {filtered.map((v) => (
                     <button
                       key={v._id}
-                      onClick={() => router.push(`/clinic-admin/vaccinations/new?edit=${v._id}`)}
+                      onClick={() => router.push(`/clinic-admin/vaccinations/new?view=${v._id}`)}
                       className="w-full text-left hover:bg-[#f8fbfb] transition-colors"
                     >
                       {/* Mobile card */}
@@ -483,8 +482,14 @@ export default function ClinicAdminVaccinationsPage() {
 
                       {/* Desktop row */}
                       <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px] gap-4 items-center px-5 py-3.5">
-                        <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {getPetInitial(v)}
+                        <div>
+                          {getPetPhoto(v) ? (
+                            <img src={getPetPhoto(v)!} alt={getPetName(v)} className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {getPetInitial(v)}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="font-medium text-[#4F4F4F] text-sm">{getPetName(v)}</p>

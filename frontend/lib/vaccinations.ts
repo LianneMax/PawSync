@@ -23,7 +23,7 @@ export interface VaccineType {
 export interface Vaccination {
   _id: string;
   petId: string | { _id: string; name: string; species: string; breed: string; photo?: string };
-  vetId: string | { _id: string; firstName: string; lastName: string };
+  vetId: string | { _id: string; firstName: string; lastName: string; email?: string; profilePhoto?: string | null };
   clinicId: string | { _id: string; name: string };
   clinicBranchId: string | { _id: string; name: string } | null;
   vaccineTypeId: string | VaccineType | null;
@@ -38,7 +38,7 @@ export interface Vaccination {
   appointmentId?: string | null;
   medicalRecordId?: string | null;
   doseNumber: number;
-  status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
+  status: 'active' | 'overdue' | 'pending' | 'declined';
   isUpToDate: boolean;
   notes: string;
   declinedReason: string | null;
@@ -185,6 +185,19 @@ export async function getVetVaccinations(
   return json.data.vaccinations;
 }
 
+export async function getClinicVaccinations(
+  token: string,
+  params?: { status?: string; petId?: string }
+): Promise<Vaccination[]> {
+  const url = new URL(`${API_BASE_URL}/vaccinations/clinic/records`);
+  if (params?.status && params.status !== 'all') url.searchParams.set('status', params.status);
+  if (params?.petId) url.searchParams.set('petId', params.petId);
+  const res = await fetch(url.toString(), { headers: authHeaders(token) });
+  const json = await res.json();
+  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to fetch vaccinations');
+  return json.data.vaccinations;
+}
+
 /** Get a single vaccination by ID. */
 export async function getVaccinationById(id: string, token: string): Promise<Vaccination> {
   const res = await fetch(`${API_BASE_URL}/vaccinations/${id}`, {
@@ -263,7 +276,6 @@ export async function declineVaccination(
 export function getStatusLabel(status: Vaccination['status']): string {
   const labels: Record<Vaccination['status'], string> = {
     active: 'Active',
-    expired: 'Expired',
     overdue: 'Overdue',
     pending: 'Pending',
     declined: 'Declined',
@@ -275,7 +287,6 @@ export function getStatusLabel(status: Vaccination['status']): string {
 export function getStatusClasses(status: Vaccination['status']): string {
   const classes: Record<Vaccination['status'], string> = {
     active: 'bg-green-100 text-green-700 border-green-200',
-    expired: 'bg-red-100 text-red-700 border-red-200',
     overdue: 'bg-orange-100 text-orange-700 border-orange-200',
     pending: 'bg-blue-100 text-blue-700 border-blue-200',
     declined: 'bg-gray-100 text-gray-600 border-gray-200',
