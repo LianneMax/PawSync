@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, togglePetLost, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
+import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
 import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin } from 'lucide-react'
@@ -81,6 +82,9 @@ export default function PetProfilePage() {
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false)
+  const [healthMetrics, setHealthMetrics] = useState<{ lastVisit: string; nextVisit: string; lastSpo2: string }>({ lastVisit: '-', nextVisit: '-', lastSpo2: '-' })
   const [showQRCodeModal, setShowQRCodeModal] = useState(false)
   const [tagRequests, setTagRequests] = useState<TagRequest[]>([])
   const [loadingTagRequests, setLoadingTagRequests] = useState(false)
@@ -130,7 +134,6 @@ export default function PetProfilePage() {
         setMedicalRecords([])
       }
     } catch (err) {
-      console.error('Failed to load medical records:', err)
       setMedicalRecords([])
     } finally {
       setRecordsLoading(false)
@@ -154,12 +157,82 @@ export default function PetProfilePage() {
         setTagRequests([])
       }
     } catch (err) {
-      console.error('Failed to load tag requests:', err)
       setTagRequests([])
     } finally {
       setLoadingTagRequests(false)
     }
   }, [token, petId])
+
+  const fetchAppointments = useCallback(async () => {
+    if (!token) return
+    setAppointmentsLoading(true)
+    try {
+      const res = await getMyAppointments(undefined, token)
+      if (res.status === 'SUCCESS' && res.data?.appointments) {
+        setAppointments(res.data.appointments)
+      } else {
+        setAppointments([])
+      }
+    } catch (err) {
+      setAppointments([])
+    } finally {
+      setAppointmentsLoading(false)
+    }
+  }, [token])
+
+  const computeHealthMetrics = useCallback(() => {
+    if (!petId) return
+
+    const now = new Date()
+
+    // Filter appointments for this pet
+    const petAppts = appointments.filter((a) => {
+      const apptPetId = typeof a.petId === 'object' ? a.petId?._id : a.petId
+      return apptPetId === petId
+    })
+
+    // Get last visit: most recent completed appointment
+    const completed = petAppts
+      .filter((a) => a.status === 'completed')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const lastVisitDate = completed[0] ? new Date(completed[0].date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '-'
+
+    // Get next visit: next upcoming appointment
+    const upcoming = petAppts
+      .filter(
+        (a) =>
+          ['pending', 'confirmed', 'in_progress'].includes(a.status) &&
+          new Date(a.date) >= now
+      )
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    const nextVisitDate = upcoming[0] ? new Date(upcoming[0].date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '-'
+
+    // Get last SpO2: most recent medical record with spo2 value
+    let lastSpo2Value = '-'
+    
+    if (medicalRecords.length > 0) {
+      // Sort records by createdAt descending (most recent first)
+      const sortedRecords = [...medicalRecords].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      
+      // Find first record with non-empty spo2 value
+      const recordWithSpo2 = sortedRecords.find((r) => {
+        const spo2Val = r.vitals?.spo2?.value
+        return spo2Val !== undefined && spo2Val !== null && spo2Val !== ''
+      })
+      
+      if (recordWithSpo2?.vitals?.spo2?.value !== undefined && recordWithSpo2?.vitals?.spo2?.value !== null && recordWithSpo2?.vitals?.spo2?.value !== '') {
+        lastSpo2Value = `${recordWithSpo2.vitals.spo2.value}%`
+      }
+    }
+
+    setHealthMetrics({
+      lastVisit: lastVisitDate,
+      nextVisit: nextVisitDate,
+      lastSpo2: lastSpo2Value
+    })
+  }, [petId, appointments, medicalRecords])
 
   const handleViewRecord = async (recordId: string) => {
     if (!token) return
@@ -172,7 +245,6 @@ export default function PetProfilePage() {
         toast.error('Failed to load record')
       }
     } catch (err) {
-      console.error('Failed to load record:', err)
       toast.error('An error occurred')
     } finally {
       setViewLoading(false)
@@ -185,11 +257,52 @@ export default function PetProfilePage() {
     }
   }, [activeTab, medicalRecords, recordsLoading, fetchMedicalRecords])
 
+  // Fetch medical records on mount to compute health metrics
+  useEffect(() => {
+    if (medicalRecords.length === 0 && !recordsLoading) {
+      fetchMedicalRecords()
+    }
+  }, [token, petId])
+
+  // Auto-refresh medical records every 15 seconds for dynamic updates
+  useEffect(() => {
+    if (!token || !petId) return
+    
+    const interval = setInterval(() => {
+      fetchMedicalRecords()
+    }, 15000) // 15 seconds
+    
+    return () => clearInterval(interval)
+  }, [token, petId, fetchMedicalRecords])
+
   useEffect(() => {
     if (activeTab === 'nfc' && tagRequests.length === 0 && !loadingTagRequests) {
       fetchTagRequests()
     }
   }, [activeTab, tagRequests, loadingTagRequests, fetchTagRequests])
+
+  // Fetch appointments on mount and recompute health metrics when they change
+  useEffect(() => {
+    if (appointments.length === 0 && !appointmentsLoading) {
+      fetchAppointments()
+    }
+  }, [appointments.length, appointmentsLoading, fetchAppointments])
+
+  // Auto-refresh appointments every 15 seconds for dynamic updates
+  useEffect(() => {
+    if (!token) return
+    
+    const interval = setInterval(() => {
+      fetchAppointments()
+    }, 15000) // 15 seconds
+    
+    return () => clearInterval(interval)
+  }, [token, fetchAppointments])
+
+  // Compute health metrics when appointments or medical records change
+  useEffect(() => {
+    computeHealthMetrics()
+  }, [computeHealthMetrics])
 
   useEffect(() => {
     const fetchClinics = async () => {
@@ -237,8 +350,6 @@ export default function PetProfilePage() {
       const updates: Record<string, unknown> = {}
 
       if (editName.trim() && editName !== pet.name) updates.name = editName.trim()
-      if (editSex && editSex !== pet.sex) updates.sex = editSex
-      if (editWeight && parseFloat(editWeight) !== pet.weight) updates.weight = parseFloat(editWeight)
       if (editMicrochip !== (pet.microchipNumber || '')) updates.microchipNumber = editMicrochip || null
       if (editNotes !== (pet.notes || '')) updates.notes = editNotes || null
       if (editPhoto) updates.photo = editPhoto
@@ -688,22 +799,8 @@ export default function PetProfilePage() {
                 value={pet.breed + (pet.secondaryBreed ? ` × ${pet.secondaryBreed}` : '')}
               />
 
-              {/* Sex - editable */}
-              {editing ? (
-                <div className="bg-[#F8F6F2] rounded-xl p-4">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Sex</p>
-                  <select
-                    value={editSex}
-                    onChange={(e) => setEditSex(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
-                </div>
-              ) : (
-                <DetailField label="Sex" value={pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1)} />
-              )}
+              {/* Sex - read only */}
+              <DetailField label="Sex" value={pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1)} />
 
               {/* Age - read only (derived from birthday) */}
               <DetailField label="Age" value={calculateAge(pet.dateOfBirth)} />
@@ -711,20 +808,8 @@ export default function PetProfilePage() {
               {/* Birthday - read only */}
               <DetailField label="Date of Birth" value={formatDate(pet.dateOfBirth)} />
 
-              {/* Weight - editable */}
-              {editing ? (
-                <div className="bg-[#F8F6F2] rounded-xl p-4">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Weight (kg)</p>
-                  <input
-                    type="number"
-                    value={editWeight}
-                    onChange={(e) => setEditWeight(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
-              ) : (
-                <DetailField label="Weight" value={`${pet.weight} kg`} />
-              )}
+              {/* Weight - read only */}
+              <DetailField label="Weight" value={`${pet.weight} kg`} />
 
               {/* Sterilization - read only */}
               <DetailField label="Sterilization" value={sterilizationLabel} />
@@ -772,9 +857,9 @@ export default function PetProfilePage() {
             {/* Health Section */}
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Health</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <DetailField label="Last Visit" value="-" />
-              <DetailField label="Next Visit" value="-" />
-              <DetailField label="SpO2" value="-" />
+              <DetailField label="Last Visit" value={healthMetrics.lastVisit} />
+              <DetailField label="Next Visit" value={healthMetrics.nextVisit} />
+              <DetailField label="Last SpO2" value={healthMetrics.lastSpo2} />
 
               {/* Allergies - editable */}
               {editing ? (
@@ -828,7 +913,7 @@ export default function PetProfilePage() {
             {activeTab === 'medical-records' && (
               <>
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Medical Records</h3>
-                {medicalRecords.length === 0 ? (
+                {medicalRecords.filter((record) => record.sharedWithOwner).length === 0 ? (
                   <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
                     <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <h4 className="text-lg font-semibold text-gray-500 mb-1">No medical records</h4>
@@ -838,7 +923,7 @@ export default function PetProfilePage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {medicalRecords.map((record) => (
+                    {medicalRecords.filter((record) => record.sharedWithOwner).map((record) => (
                       <button
                         key={record._id}
                         onClick={() => handleViewRecord(record._id)}

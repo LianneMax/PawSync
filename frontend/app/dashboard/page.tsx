@@ -901,7 +901,7 @@ export default function DashboardPage() {
         setPets(response.data.pets.map(apiPetToDashboardPet))
       }
     } catch (error) {
-      console.error('Failed to fetch pets:', error)
+      // Handle error silently
     } finally {
       setPetsLoading(false)
     }
@@ -929,15 +929,22 @@ export default function DashboardPage() {
       const dashboardAppointments = upcoming.map(apiAppointmentToDashboard).slice(0, 5)
       setAppointments(dashboardAppointments)
     } catch (error) {
-      console.error('Failed to fetch appointments:', error)
+      // Handle error silently
     } finally {
       setAppointmentsLoading(false)
     }
   }, [token])
 
   useEffect(() => {
-    fetchAppointments()
-  }, [fetchAppointments])
+    if (token) {
+      fetchAppointments()
+      // Auto-refresh appointments every 15 seconds
+      const interval = setInterval(() => {
+        fetchAppointments()
+      }, 15000)
+      return () => clearInterval(interval)
+    }
+  }, [token])
 
   // Derive last visit / next visit per pet card from fetched appointments
   useEffect(() => {

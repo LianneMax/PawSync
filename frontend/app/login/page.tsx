@@ -612,9 +612,9 @@ export default function LoginPage() {
 
               {/* Clinic Login Link */}
               <p className="text-center mt-3 text-xs text-gray-400">
-                Register your Clinic?{' '}
+                Clinic Portal?{' '}
                 <Link href="/clinic-login" className="text-gray-400 hover:text-[#5A7C7A] underline underline-offset-2 transition-colors">
-                  Clinic Login
+                  Login
                 </Link>
               </p>
             </form>

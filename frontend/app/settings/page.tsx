@@ -7,6 +7,8 @@ import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { Eye, EyeOff, Lock, Mail, Phone, User, X, ChevronDown } from 'lucide-react'
 import AvatarUpload from '@/components/avatar-upload'
+import { PhoneInput } from '@/components/ui/phone-input'
+import { useRef } from 'react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -459,6 +461,9 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
     if (!lastName.trim()) errors.lastName = 'Last name is required'
     if (!email.trim()) errors.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Please enter a valid email'
+    if (contactNumber && !/^\+63\d{10}$/.test(contactNumber.replace(/\s/g, ''))) {
+      errors.contactNumber = 'Please enter a valid Philippine phone number'
+    }
     if (Object.keys(errors).length) { setProfileErrors(errors); return }
     setProfileErrors({})
     setSaving(true)
@@ -632,13 +637,13 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                     <Phone className="w-4 h-4" />
                     Contact Number
                   </label>
-                  <input
-                    type="tel"
+                  <PhoneInput
                     value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                    placeholder="e.g. 09171234567"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all"
+                    onChange={(phone) => { setContactNumber(phone); setProfileErrors((p) => ({ ...p, contactNumber: '' })) }}
+                    placeholder="Enter phone number"
                   />
+                  {profileErrors.contactNumber && <p className="text-red-500 text-xs mt-1">{profileErrors.contactNumber}</p>}
+                  <p className="text-xs text-gray-400 mt-2">Philippine mobile number (e.g. 9XX XXX XXXX)</p>
                 </div>
               </div>
 

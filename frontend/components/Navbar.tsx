@@ -78,7 +78,6 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccinations', href: '/clinic-admin/vaccinations', icon: <Syringe className="w-5 h-5" /> },
-    { label: 'Analytics', href: '/clinic-admin/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     { label: 'Services', href: '/product-man', icon: <Briefcase className="w-5 h-5" /> },
     { label: 'Clinic Management', href: '/clinic-admin/clinic-management', icon: <Building2 className="w-5 h-5" />, section: 'ADMINISTRATION' },
     { label: 'Vet Applications', href: '/clinic-admin/verification', icon: <UserCog className="w-5 h-5" /> },
@@ -312,12 +311,6 @@ export default function Navbar({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end" className="w-48 mb-2">
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      Profile
-                    </Link>
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     className="flex items-center gap-2"
                     onSelect={() => onOpenNotifications?.()}

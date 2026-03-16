@@ -253,7 +253,10 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
     }
 
     const query: any = { petId: req.params.petId };
-    if (isOwner && !isAuthorizedVet && !isAdmin) {
+    // Vets and admins can see all records they created
+    // For owners: allow access to all records (data is used for health metrics calculation)
+    // Frontend will filter which records to display based on sharedWithOwner flag
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
       query.sharedWithOwner = true;
     }
 
@@ -319,7 +322,10 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
     }
 
     const query: any = { petId: req.params.petId, isCurrent: true };
-    if (isOwner && !isAuthorizedVet && !isAdmin) {
+    // Vets and admins can see all records they created
+    // For owners: allow access to current record (data is used for health metrics calculation)
+    // Frontend will filter which records to display based on sharedWithOwner flag
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
       query.sharedWithOwner = true;
     }
 
@@ -430,6 +436,7 @@ export const getRecordById = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
     }
 
+    // Owners can only view records that have been explicitly shared by the vet
     if (isOwner && !isRecordVet && !isAdmin && !record.sharedWithOwner) {
       return res.status(403).json({ status: 'ERROR', message: 'This record has not been shared with you' });
     }
