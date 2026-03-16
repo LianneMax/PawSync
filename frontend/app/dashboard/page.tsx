@@ -867,6 +867,7 @@ export default function DashboardPage() {
   const [petsLoading, setPetsLoading] = useState(true)
   const [appointments, setAppointments] = useState<DashboardAppointment[]>([])
   const [appointmentsLoading, setAppointmentsLoading] = useState(true)
+  const [allApiAppointments, setAllApiAppointments] = useState<APIAppointment[]>([])
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [petModalOpen, setPetModalOpen] = useState(false)
   const [reportLostOpen, setReportLostOpen] = useState(false)
@@ -918,13 +919,15 @@ export default function DashboardPage() {
     }
     try {
       setAppointmentsLoading(true)
-      const response = await getMyAppointments('upcoming', token)
-      if (response.status === 'SUCCESS' && response.data?.appointments) {
-        const dashboardAppointments = response.data.appointments
-          .map(apiAppointmentToDashboard)
-          .slice(0, 5) // Show only first 5
-        setAppointments(dashboardAppointments)
-      }
+      const [upcomingRes, previousRes] = await Promise.all([
+        getMyAppointments('upcoming', token),
+        getMyAppointments('previous', token),
+      ])
+      const upcoming = upcomingRes.status === 'SUCCESS' ? upcomingRes.data?.appointments ?? [] : []
+      const previous = previousRes.status === 'SUCCESS' ? previousRes.data?.appointments ?? [] : []
+      setAllApiAppointments([...upcoming, ...previous])
+      const dashboardAppointments = upcoming.map(apiAppointmentToDashboard).slice(0, 5)
+      setAppointments(dashboardAppointments)
     } catch (error) {
       console.error('Failed to fetch appointments:', error)
     } finally {
@@ -935,6 +938,33 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchAppointments()
   }, [fetchAppointments])
+
+  // Derive last visit / next visit per pet card from fetched appointments
+  useEffect(() => {
+    if (allApiAppointments.length === 0) return
+    const now = new Date()
+    setPets((prev) =>
+      prev.map((pet) => {
+        const petAppts = allApiAppointments.filter((a) => {
+          const apptPetId = typeof a.petId === 'object' ? a.petId?._id : a.petId
+          return apptPetId === pet.id
+        })
+        const completed = petAppts
+          .filter((a) => a.status === 'completed')
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        const lastVisitDate = completed[0] ? formatDate(completed[0].date) : '-'
+        const upcoming = petAppts
+          .filter(
+            (a) =>
+              ['pending', 'confirmed', 'in_progress'].includes(a.status) &&
+              new Date(a.date) >= now,
+          )
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        const nextVisitDate = upcoming[0] ? formatDate(upcoming[0].date) : '-'
+        return { ...pet, lastVisit: lastVisitDate, nextVisit: nextVisitDate }
+      }),
+    )
+  }, [allApiAppointments])
 
   // Show login toast notifications on first load
   useEffect(() => {

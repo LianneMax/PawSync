@@ -324,6 +324,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [chiefComplaint, setChiefComplaint] = useState('')
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
   const [vitalsErrors, setVitalsErrors] = useState<Partial<Record<keyof Vitals, string>>>({})
+  const [showRequiredErrors, setShowRequiredErrors] = useState(false)
 
   // Step 2 fields
   const [subjective, setSubjective] = useState('')
@@ -376,7 +377,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (recordRes.status === 'SUCCESS' && recordRes.data?.record) {
       const r = recordRes.data.record
       setChiefComplaint(r.chiefComplaint || '')
-      setVitals(r.vitals || emptyVitals())
+      const baseVitals = r.vitals || emptyVitals()
+      // Auto-fill weight from pet registration if not yet recorded by vet
+      const petWeight = petRes.status === 'SUCCESS' ? petRes.data?.pet?.weight : null
+      if (!baseVitals.weight?.value && petWeight) {
+        baseVitals.weight = { value: petWeight, notes: '' }
+      }
+      setVitals(baseVitals)
       setSubjective(r.subjective || r.chiefComplaint || '')
       setObjective(r.overallObservation || '')
       setAssessment(r.assessment || '')
@@ -768,8 +775,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
   }
 
+  const REQUIRED_VITAL_KEYS = ['weight', 'temperature', 'pulseRate', 'spo2', 'bodyConditionScore', 'dentalScore', 'crt'] as const
+
   const handleProceedStep1 = async () => {
     if (!token) return
+    // Check all required fields are filled
+    const hasVitalsErrors = Object.values(vitalsErrors).some((e) => !!e)
+    const missingVitals = REQUIRED_VITAL_KEYS.some((k) => !vitals[k]?.value && vitals[k]?.value !== 0)
+    const missingComplaint = !chiefComplaint.trim()
+    if (hasVitalsErrors || missingVitals || missingComplaint) {
+      setShowRequiredErrors(true)
+      toast.error('Please fill in all required fields before proceeding')
+      return
+    }
+    setShowRequiredErrors(false)
     setSaving(true)
     try {
       await updateMedicalRecord(recordId, {
@@ -1070,17 +1089,32 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
-    setVitals((prev) => ({ ...prev, [key]: { ...prev[key], [field]: val } }))
-    if (field === 'value') {
-      if (key === 'bodyConditionScore') {
-        const num = Number(val)
-        const hasError = val !== '' && (isNaN(num) || num < 1 || num > 5)
-        setVitalsErrors((prev) => ({ ...prev, bodyConditionScore: hasError ? 'Must be between 1 and 5' : '' }))
-      } else if (key === 'dentalScore') {
-        const num = Number(val)
-        const hasError = val !== '' && (isNaN(num) || num < 1 || num > 3)
-        setVitalsErrors((prev) => ({ ...prev, dentalScore: hasError ? 'Must be between 1 and 3' : '' }))
+    setVitals((prev) => {
+      const updated = { ...prev, [key]: { ...prev[key], [field]: val } }
+      if (showRequiredErrors && field === 'value') {
+        const allFilled = REQUIRED_VITAL_KEYS.every((k) => !!updated[k]?.value || updated[k]?.value === 0)
+        if (allFilled && chiefComplaint.trim()) setShowRequiredErrors(false)
       }
+      return updated
+    })
+    if (field === 'value') {
+      const num = Number(val)
+      const isEmpty = val === ''
+      let error = ''
+      if (key === 'bodyConditionScore') {
+        if (!isEmpty && (isNaN(num) || num < 1 || num > 5 || !Number.isInteger(num)))
+          error = 'Must be a whole number between 1 and 5'
+      } else if (key === 'dentalScore') {
+        if (!isEmpty && (isNaN(num) || num < 1 || num > 3 || !Number.isInteger(num)))
+          error = 'Must be a whole number between 1 and 3'
+      } else if (key === 'spo2') {
+        if (!isEmpty && (isNaN(num) || num < 0 || num > 100))
+          error = 'Must be between 0 and 100'
+      } else if (['weight', 'temperature', 'pulseRate', 'crt'].includes(key)) {
+        if (!isEmpty && (isNaN(num) || num < 0))
+          error = 'Must be a valid number'
+      }
+      setVitalsErrors((prev) => ({ ...prev, [key]: error }))
     }
   }
 
@@ -1257,15 +1291,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               {/* Chief complaint */}
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-2">
-                  Chief Complaint / Reason for Visit
+                  Chief Complaint / Reason for Visit <span className="text-[#900B09]">*</span>
                 </label>
                 <textarea
                   value={chiefComplaint}
-                  onChange={(e) => setChiefComplaint(e.target.value)}
+                  onChange={(e) => { setChiefComplaint(e.target.value); if (showRequiredErrors && e.target.value.trim()) setShowRequiredErrors(false) }}
                   rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 resize-none ${showRequiredErrors && !chiefComplaint.trim() ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                   placeholder="Describe the owner's complaint and reason for today's visit…"
                 />
+                {showRequiredErrors && !chiefComplaint.trim() && (
+                  <p className="text-xs text-[#900B09] mt-1">Chief complaint is required</p>
+                )}
               </div>
 
               {/* Vitals */}
@@ -1283,27 +1320,30 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 {vitalsOpen && (
                   <div className="px-4 pb-4 space-y-3 border-t border-gray-50">
                     {([
-                      { key: 'weight' as const, label: 'Weight', unit: 'kg' },
-                      { key: 'temperature' as const, label: 'Temperature', unit: '°C' },
-                      { key: 'pulseRate' as const, label: 'Pulse Rate', unit: 'bpm' },
-                      { key: 'spo2' as const, label: 'SpO₂', unit: '%' },
-                      { key: 'bodyConditionScore' as const, label: 'Body Condition Score', unit: '/5' },
-                      { key: 'dentalScore' as const, label: 'Dental Score', unit: '/3' },
-                      { key: 'crt' as const, label: 'CRT', unit: 'sec' },
-                    ] as const).map(({ key, label, unit }) => (
+                      { key: 'weight' as const, label: 'Weight', unit: 'kg', min: 0, max: undefined, step: 'any' },
+                      { key: 'temperature' as const, label: 'Temperature', unit: '°C', min: 0, max: undefined, step: 'any' },
+                      { key: 'pulseRate' as const, label: 'Pulse Rate', unit: 'bpm', min: 0, max: undefined, step: 1 },
+                      { key: 'spo2' as const, label: 'SpO₂', unit: '%', min: 0, max: 100, step: 'any' },
+                      { key: 'bodyConditionScore' as const, label: 'Body Condition Score', unit: '1–5', min: 1, max: 5, step: 1 },
+                      { key: 'dentalScore' as const, label: 'Dental Score', unit: '1–3', min: 1, max: 3, step: 1 },
+                      { key: 'crt' as const, label: 'CRT', unit: 'sec', min: 0, max: undefined, step: 'any' },
+                    ] as const).map(({ key, label, unit, min, max, step }) => (
                       <div key={key} className="grid grid-cols-2 gap-2 pt-3 first:pt-0 border-t border-gray-50 first:border-0">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">{label} <span className="text-gray-300">({unit})</span></label>
+                          <label className="block text-xs text-gray-400 mb-1">{label} <span className="text-gray-300">({unit})</span> <span className="text-[#900B09]">*</span></label>
                           <input
-                            type="text"
+                            type="number"
+                            min={min}
+                            max={max}
+                            step={step}
                             value={String(vitals[key]?.value ?? '')}
                             onChange={(e) => updateVital(key, 'value', e.target.value)}
-                            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${vitalsErrors[key] ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${vitalsErrors[key] ? 'border-[#900B09] focus:ring-[#900B09]' : showRequiredErrors && !vitals[key]?.value && vitals[key]?.value !== 0 ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                             placeholder={unit}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Notes</label>
+                          <label className="block text-xs text-gray-400 mb-1">Notes <span className="text-gray-300">(optional)</span></label>
                           <input
                             type="text"
                             value={vitals[key]?.notes ?? ''}
@@ -1312,9 +1352,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             placeholder="Optional"
                           />
                         </div>
-                        {vitalsErrors[key] && (
-                          <p className="col-span-2 text-xs text-red-500 -mt-1">{vitalsErrors[key]}</p>
-                        )}
+                        {vitalsErrors[key] ? (
+                          <p className="col-span-2 text-xs text-[#900B09] -mt-1">{vitalsErrors[key]}</p>
+                        ) : showRequiredErrors && !vitals[key]?.value && vitals[key]?.value !== 0 ? (
+                          <p className="col-span-2 text-xs text-[#900B09] -mt-1">This field is required</p>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -1435,7 +1477,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-500">Test {i + 1}</span>
-                          <button onClick={() => setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                          <button onClick={() => setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))} className="text-[#900B09] hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -1709,7 +1751,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <button
                             type="button"
                             onClick={() => setVaccines((prev) => prev.filter((_, j) => j !== i))}
-                            className="text-red-400 hover:text-red-600"
+                            className="text-[#900B09] hover:text-red-600"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1808,7 +1850,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         return (
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] text-gray-400 mb-1">Date Administered <span className="text-red-400">*</span></label>
+                              <label className="block text-[10px] text-gray-400 mb-1">Date Administered <span className="text-[#900B09]">*</span></label>
                               <input
                                 type="date"
                                 value={v.dateAdministered}
@@ -2086,7 +2128,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-500">Medication {i + 1}</span>
-                          <button onClick={() => setMedications((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                          <button onClick={() => setMedications((prev) => prev.filter((_, j) => j !== i))} className="text-[#900B09] hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -2147,7 +2189,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-gray-500">Preventive Care {i + 1}</span>
-                            <button onClick={() => setPreventiveCare((prev) => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                            <button onClick={() => setPreventiveCare((prev) => prev.filter((_, j) => j !== i))} className="text-[#900B09] hover:text-red-600">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
