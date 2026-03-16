@@ -8,6 +8,7 @@ import User from '../models/User';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
+import { updateBranchStatus } from '../services/branchStatusService';
 
 /**
  * Helper: get clinic for the authenticated admin using clinicId from JWT.
@@ -419,6 +420,9 @@ export const assignVetToBranch = async (req: Request, res: Response) => {
       assignedAt: new Date()
     });
 
+    // Update the branch status (mark as active if it has vets)
+    await updateBranchStatus(branchId);
+
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Vet assigned to branch successfully',
@@ -457,6 +461,9 @@ export const removeVetFromBranch = async (req: Request, res: Response) => {
 
     assignment.isActive = false;
     await assignment.save();
+
+    // Update the branch status (mark as inactive if it has no vets)
+    await updateBranchStatus(assignment.clinicBranchId?.toString() || '');
 
     return res.status(200).json({
       status: 'SUCCESS',
