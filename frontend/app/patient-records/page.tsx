@@ -213,6 +213,9 @@ export default function PatientRecordsPage() {
   const [billingModalExistingId, setBillingModalExistingId] = useState<string | undefined>(undefined)
   const [currentBillingStatus, setCurrentBillingStatus] = useState<string | null>(null)
 
+  // Medical history modal
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+
   // Follow-up modal
   const [followUpOpen, setFollowUpOpen] = useState(false)
 
@@ -535,15 +538,24 @@ export default function PatientRecordsPage() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setFollowUpOpen(true)}
-                    disabled={!currentRecord?.isCurrent}
-                    title={!currentRecord?.isCurrent ? 'Follow-ups can only be added to the active medical record' : 'Add a follow-up to the current record'}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#476B6B]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Follow-up Record
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setHistoryModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#476B6B]/5 transition-colors"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Medical History
+                    </button>
+                    <button
+                      onClick={() => setFollowUpOpen(true)}
+                      disabled={!currentRecord?.isCurrent}
+                      title={!currentRecord?.isCurrent ? 'Follow-ups can only be added to the active medical record' : 'Add a follow-up to the current record'}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#476B6B]"
+                    >
+                      <Plus className="w-4 h-4" />
+                      New Follow-up Record
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -966,6 +978,20 @@ export default function PatientRecordsPage() {
           handleToggleShare(id, shared)
         }}
       />
+
+      {/* Medical History Modal */}
+      <Dialog open={historyModalOpen} onOpenChange={setHistoryModalOpen}>
+        <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-[#4F4F4F]">
+              Medical History — {selectedPatient?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPatient && token && (
+            <HistoricalMedicalRecord petId={selectedPatient._id} token={token} isReadOnly={true} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Billing Modal */}
       <BillingFromRecordModal
