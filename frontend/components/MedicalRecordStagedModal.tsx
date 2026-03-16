@@ -1154,7 +1154,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <p className="text-gray-400 text-xs mb-0.5">Pregnancy</p>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                           pet.pregnancyStatus === 'pregnant'
-                            ? 'bg-pink-100 text-pink-700 border border-pink-300'
+                            ? 'bg-green-100 text-green-700 border border-green-300'
                             : 'bg-gray-100 text-gray-500 border border-gray-200'
                         }`}>
                           {pet.pregnancyStatus === 'pregnant' ? 'Pregnant' : 'Not Pregnant'}
@@ -1165,12 +1165,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {pet.allergies && pet.allergies.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-[#7FA5A3]/20">
                       <p className="text-gray-400 text-xs mb-1.5 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                        <AlertCircle className="w-3.5 h-3.5 text-blue-500" />
                         Allergies
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {pet.allergies.map((a, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">{a}</span>
+                          <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{a}</span>
                         ))}
                       </div>
                     </div>
@@ -1180,11 +1180,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
               {/* Confinement alert */}
               {pet?.isConfined && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
-                  <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-2xl">
+                  <Lock className="w-4 h-4 text-blue-500 shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-800">This pet is currently confined</p>
-                    <p className="text-xs text-amber-600">
+                    <p className="text-sm font-semibold text-blue-800">This pet is currently confined</p>
+                    <p className="text-xs text-blue-600">
                       {(() => {
                         if (!pet.confinedSince) return 'Release the pet from confinement in the Post-Procedure step.'
                         const days = Math.max(1, Math.ceil((Date.now() - new Date(pet.confinedSince).getTime()) / 86400000))
@@ -1406,10 +1406,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </div>
 
               {/* ── ULTRASOUND PREGNANCY RESULT ── */}
-              {diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')) && (
-                <div className="border border-pink-100 rounded-2xl overflow-hidden bg-pink-50/30">
-                  <div className="px-4 py-3 flex items-center gap-2 border-b border-pink-100">
-                    <span className="text-sm font-semibold text-pink-700">Ultrasound — Pregnancy Result</span>
+              {pet?.sex === 'female' && diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')) && (
+                <div className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
+                  <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
+                    <span className="text-sm font-semibold text-green-700">Ultrasound — Pregnancy Result</span>
                   </div>
                   <div className="px-4 py-3 space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1417,7 +1417,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         type="checkbox"
                         checked={ultrasoundPregnant}
                         onChange={(e) => setUltrasoundPregnant(e.target.checked)}
-                        className="w-4 h-4 accent-pink-600"
+                        className="w-4 h-4 accent-green-600"
                       />
                       <span className="text-sm text-gray-700 font-medium">Pet is Pregnant</span>
                     </label>
@@ -1429,7 +1429,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             type="date"
                             value={gestationDate}
                             onChange={(e) => setGestationDate(e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                           />
                         </div>
                         <div>
@@ -1438,7 +1438,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             type="date"
                             value={expectedDueDate}
                             onChange={(e) => setExpectedDueDate(e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                           />
                         </div>
                         <div>
@@ -1449,7 +1449,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             value={litterNumber}
                             onChange={(e) => setLitterNumber(e.target.value)}
                             placeholder="e.g. 1"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                           />
                         </div>
                       </div>
@@ -1459,16 +1459,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
 
               {/* ── PREGNANCY DELIVERY ── */}
-              <div className="border border-purple-100 rounded-2xl overflow-hidden bg-purple-50/30">
-                <div className="px-4 py-3 border-b border-purple-100">
+              {pet?.sex === 'female' && <div className="border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
+                <div className="px-4 py-3 border-b border-blue-100">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={pregnancyDelivery}
                       onChange={(e) => setPregnancyDelivery(e.target.checked)}
-                      className="w-4 h-4 accent-purple-600"
+                      className="w-4 h-4 accent-blue-600"
                     />
-                    <span className="text-sm font-semibold text-purple-700">Pregnancy Delivery Performed</span>
+                    <span className="text-sm font-semibold text-blue-700">Pregnancy Delivery Performed</span>
                   </label>
                 </div>
                 {pregnancyDelivery && (
@@ -1480,7 +1480,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           type="date"
                           value={deliveryDate}
                           onChange={(e) => setDeliveryDate(e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       </div>
                       <div>
@@ -1488,7 +1488,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <select
                           value={deliveryType}
                           onChange={(e) => setDeliveryType(e.target.value as 'natural' | 'c-section')}
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         >
                           <option value="natural">Natural</option>
                           <option value="c-section">C-Section</option>
@@ -1501,7 +1501,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           value={laborDuration}
                           onChange={(e) => setLaborDuration(e.target.value)}
                           placeholder="e.g. 3 hours"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       </div>
                       <div>
@@ -1509,7 +1509,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <select
                           value={motherCondition}
                           onChange={(e) => setMotherCondition(e.target.value as 'stable' | 'critical' | 'recovering')}
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         >
                           <option value="stable">Stable</option>
                           <option value="recovering">Recovering</option>
@@ -1524,7 +1524,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           value={liveBirths}
                           onChange={(e) => setLiveBirths(e.target.value)}
                           placeholder="0"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       </div>
                       <div>
@@ -1535,7 +1535,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           value={stillBirths}
                           onChange={(e) => setStillBirths(e.target.value)}
                           placeholder="0"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       </div>
                     </div>
@@ -1546,15 +1546,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         value={deliveryVetRemarks}
                         onChange={(e) => setDeliveryVetRemarks(e.target.value)}
                         placeholder="Post-delivery observations, complications, instructions…"
-                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
                       />
                     </div>
-                    <p className="text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                    <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
                   </div>
                 )}
               </div>
+              }
 
 
             </>
@@ -2227,7 +2228,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <Switch
                         checked={confined}
                         onCheckedChange={setConfined}
-                        className="data-checked:bg-amber-500"
+                        className="data-checked:bg-green-600"
                       />
                     </div>
 

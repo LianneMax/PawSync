@@ -1027,8 +1027,10 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
   const [data, setData] = useState<ProductItem[]>([])
   const [branches, setBranches] = useState<BranchInfo[]>([])
   const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterBranch, setFilterBranch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<string | null>('category')
   const [sortAsc, setSortAsc] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<ProductItem | null>(null)
@@ -1112,6 +1114,8 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
 
     setSelected(new Set())
     setSearch('')
+    setFilterCategory('')
+    setFilterBranch('')
     setLoading(true)
     setError('')
     fetchData()
@@ -1159,9 +1163,18 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
     }
   }
 
-  const filtered = data.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = data.filter((item) => {
+    if (!item.name.toLowerCase().includes(search.toLowerCase())) return false
+    if (filterCategory && item.category !== filterCategory) return false
+    if (filterBranch) {
+      // Only filter by branch for items that track branch availability
+      if (qualifiesForBranchAvailability(tab, item.category) && item.branchAvailability.length > 0) {
+        const ba = item.branchAvailability.find((b) => b.branchId === filterBranch)
+        if (!ba || !ba.isActive) return false
+      }
+    }
+    return true
+  })
 
   const sorted = [...filtered].sort((a, b) => {
     if (!sortKey) return 0
@@ -1218,14 +1231,46 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
               className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
             />
           </div>
-          <button
-            onClick={handleDelete}
-            disabled={selected.size === 0}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors ml-auto"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors"
+            >
+              <option value="">All Categories</option>
+              {(isProducts ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES).map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            {branches.length > 0 && (
+              <select
+                value={filterBranch}
+                onChange={(e) => setFilterBranch(e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors"
+              >
+                <option value="">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}{b.isMain ? ' (Main)' : ''}</option>
+                ))}
+              </select>
+            )}
+            {(filterCategory || filterBranch) && (
+              <button
+                onClick={() => { setFilterCategory(''); setFilterBranch('') }}
+                className="text-xs text-[#476B6B] hover:text-[#3D5E5C] font-medium transition-colors"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              onClick={handleDelete}
+              disabled={selected.size === 0}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

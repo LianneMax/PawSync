@@ -1009,7 +1009,14 @@ function ScheduleModal({
                 <AppointmentServiceSelector
                   values={selectedTypes}
                   onChange={handleTypeChange}
-                  categories={serviceCategories}
+                  categories={serviceCategories.map((cat) => ({
+                    ...cat,
+                    services: cat.services?.filter((svc: any) =>
+                      pets.find((p) => p._id === selectedPetId)?.sex === 'male'
+                        ? !svc.label.toLowerCase().includes('maternity')
+                        : true
+                    ),
+                  }))}
                 />
               )}
             </div>

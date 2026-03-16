@@ -198,13 +198,13 @@ export function HistoricalMedicalRecord({
 
       {/* ─── OPERATIONS ─── */}
       {data.operations.length > 0 && (
-        <div className="border border-amber-200 rounded-2xl overflow-hidden bg-amber-50/30">
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
           <button
             onClick={() => toggleSection('operations')}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50 transition-colors border-b border-amber-200"
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
           >
             <div className="flex items-center gap-2">
-              <Scissors className="w-4 h-4 text-amber-600" />
+              <Scissors className="w-4 h-4 text-blue-600" />
               <h3 className="font-semibold text-[#4F4F4F]">
                 Operations ({data.operations.length})
               </h3>
@@ -217,12 +217,12 @@ export function HistoricalMedicalRecord({
           </button>
 
           {expandedSections.operations && (
-            <div className="px-4 py-3 space-y-3 border-t border-amber-200">
+            <div className="px-4 py-3 space-y-3 border-t border-blue-200">
               {data.operations.map((op, i) => (
-                <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-amber-100">
+                <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-blue-100">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-amber-900">{op.surgeryType}</p>
-                    <span className="text-xs text-amber-600 font-medium">{formatDate(op.date)}</span>
+                    <p className="font-semibold text-blue-900">{op.surgeryType}</p>
+                    <span className="text-xs text-blue-600 font-medium">{formatDate(op.date)}</span>
                   </div>
                   {op.vetRemarks && (
                     <p className="text-sm text-gray-600 mt-1">{op.vetRemarks}</p>
@@ -236,13 +236,13 @@ export function HistoricalMedicalRecord({
 
       {/* ─── MEDICATIONS ─── */}
       {data.medications.length > 0 && (
-        <div className="border border-purple-200 rounded-2xl overflow-hidden bg-purple-50/30">
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
           <button
             onClick={() => toggleSection('medications')}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-purple-50 transition-colors border-b border-purple-200"
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
           >
             <div className="flex items-center gap-2">
-              <Pill className="w-4 h-4 text-purple-600" />
+              <Pill className="w-4 h-4 text-blue-600" />
               <h3 className="font-semibold text-[#4F4F4F]">
                 Medications ({data.medications.length})
               </h3>
@@ -255,11 +255,11 @@ export function HistoricalMedicalRecord({
           </button>
 
           {expandedSections.medications && (
-            <div className="px-4 py-3 space-y-3 border-t border-purple-200">
+            <div className="px-4 py-3 space-y-3 border-t border-blue-200">
               {data.medications.map((med, i) => (
-                <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-purple-100">
+                <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-blue-100">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-purple-900">{med.name}</p>
+                    <p className="font-semibold text-blue-900">{med.name}</p>
                     <div
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
                         med.status === 'active'
@@ -291,13 +291,13 @@ export function HistoricalMedicalRecord({
 
       {/* ─── LATEST SOAP NOTES ─── */}
       {data.latestSOAP && (
-        <div className="border border-indigo-200 rounded-2xl overflow-hidden bg-indigo-50/30">
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
           <button
             onClick={() => toggleSection('soap')}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-indigo-50 transition-colors border-b border-indigo-200"
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
           >
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-indigo-600" />
+              <AlertCircle className="w-4 h-4 text-blue-600" />
               <h3 className="font-semibold text-[#4F4F4F]">Most Recent SOAP Notes</h3>
             </div>
             {expandedSections.soap ? (
@@ -308,32 +308,32 @@ export function HistoricalMedicalRecord({
           </button>
 
           {expandedSections.soap && (
-            <div className="px-4 py-3 space-y-3 border-t border-indigo-200">
+            <div className="px-4 py-3 space-y-3 border-t border-blue-200">
               <div>
-                <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Date</p>
+                <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Date</p>
                 <p className="text-sm text-gray-600">{formatDate(data.latestSOAP.date)}</p>
               </div>
               {data.latestSOAP.subjective && (
                 <div>
-                  <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Subjective (S)</p>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Subjective (S)</p>
                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.subjective}</p>
                 </div>
               )}
               {data.latestSOAP.objective && (
                 <div>
-                  <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Objective (O)</p>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Objective (O)</p>
                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.objective}</p>
                 </div>
               )}
               {data.latestSOAP.assessment && (
                 <div>
-                  <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Assessment (A)</p>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Assessment (A)</p>
                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.assessment}</p>
                 </div>
               )}
               {data.latestSOAP.plan && (
                 <div>
-                  <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">Plan (P)</p>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Plan (P)</p>
                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.plan}</p>
                 </div>
               )}
@@ -397,13 +397,13 @@ export function HistoricalMedicalRecord({
 
       {/* ─── PREGNANCY RECORDS (only for females) ─── */}
       {pet.sex === 'female' && data.pregnancyRecords.length > 0 && (
-        <div className="border border-pink-200 rounded-2xl overflow-hidden bg-pink-50/30">
+        <div className="border border-green-200 rounded-2xl overflow-hidden bg-green-50/30">
           <button
             onClick={() => toggleSection('pregnancy')}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-pink-50 transition-colors border-b border-pink-200"
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-green-50 transition-colors border-b border-green-200"
           >
             <div className="flex items-center gap-2">
-              <Baby className="w-4 h-4 text-pink-600" />
+              <Baby className="w-4 h-4 text-green-600" />
               <h3 className="font-semibold text-[#4F4F4F]">
                 Pregnancy Records ({data.pregnancyRecords.length})
               </h3>
@@ -416,10 +416,10 @@ export function HistoricalMedicalRecord({
           </button>
 
           {expandedSections.pregnancy && (
-            <div className="px-4 py-3 space-y-3 border-t border-pink-200">
+            <div className="px-4 py-3 space-y-3 border-t border-green-200">
               {data.pregnancyRecords.map((preg, i) => (
-                <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-pink-100">
-                  <p className="text-xs font-semibold text-pink-900 uppercase tracking-wide mb-2">
+                <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-green-100">
+                  <p className="text-xs font-semibold text-green-900 uppercase tracking-wide mb-2">
                     {formatDate(preg.date || '')}
                   </p>
                   {preg.isPregnant !== undefined && (
