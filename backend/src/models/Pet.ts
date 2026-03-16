@@ -17,7 +17,7 @@ export interface IPet extends Document {
   color: string | null;
   bloodType: string | null;
   allergies: string[];
-  pregnancyStatus: 'pregnant' | 'not_pregnant';
+  pregnancyStatus?: 'pregnant' | 'not_pregnant' | null;
   isLost: boolean;
   lostContactName: string | null;
   lostContactNumber: string | null;
@@ -108,8 +108,17 @@ const PetSchema = new Schema(
     },
     pregnancyStatus: {
       type: String,
-      enum: ['pregnant', 'not_pregnant'],
-      default: 'not_pregnant'
+      enum: ['pregnant', 'not_pregnant', null],
+      default: null,
+      validate: {
+        validator(this: any, value: string | null) {
+          if (value !== null && value !== undefined && this.sex === 'male') {
+            return false;
+          }
+          return true;
+        },
+        message: 'Male pets cannot have a pregnancy status'
+      }
     },
     isLost: {
       type: Boolean,
@@ -164,5 +173,11 @@ const PetSchema = new Schema(
     timestamps: true
   }
 );
+
+PetSchema.pre('save', async function () {
+  if (this.sex === 'male') {
+    this.pregnancyStatus = null as any;
+  }
+});
 
 export default mongoose.model<IPet>('Pet', PetSchema);

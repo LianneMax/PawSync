@@ -621,6 +621,10 @@ export const updatePetPregnancyStatus = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this pet\'s pregnancy status' });
     }
 
+    if (pet.sex === 'male') {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot set pregnancy status on a male pet' });
+    }
+
     const { pregnancyStatus } = req.body;
     if (pregnancyStatus !== 'pregnant' && pregnancyStatus !== 'not_pregnant') {
       return res.status(400).json({ status: 'ERROR', message: 'pregnancyStatus must be "pregnant" or "not_pregnant"' });
