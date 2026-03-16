@@ -313,7 +313,7 @@ export const getBillingById = async (req: Request, res: Response) => {
     const isOwner = billing.ownerId.toString() === req.user.userId;
     const isVet = billing.vetId ? billing.vetId.toString() === req.user.userId : false;
     const isClinicStaff =
-      req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+      req.user.userType === 'clinic-admin';
 
     if (!isOwner && !isVet && !isClinicStaff) {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
@@ -348,7 +348,7 @@ export const updateBilling = async (req: Request, res: Response) => {
     }
 
     const isClinicStaff =
-      req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+      req.user.userType === 'clinic-admin';
     const isVet = req.user.userType === 'veterinarian';
 
     if (!isClinicStaff && !isVet) {

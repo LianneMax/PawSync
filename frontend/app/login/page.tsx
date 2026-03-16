@@ -168,7 +168,7 @@ export default function LoginPage() {
 
       if (response.data) {
         // Clinic admins must use /clinic-login — reject before setting any session
-        if (response.data.user.userType === 'clinic-admin' || response.data.user.userType === 'branch-admin') {
+        if (response.data.user.userType === 'clinic-admin') {
           setError('This portal is for pet owners and veterinarians. Please use the Clinic Login portal.')
           setLoading(false)
           return
@@ -272,7 +272,7 @@ export default function LoginPage() {
           const { user, token, isNewUser } = response.data
 
           // Clinic admins must use /clinic-login — reject before setting any session
-          if (user.userType === 'clinic-admin' || user.userType === 'branch-admin') {
+          if (user.userType === 'clinic-admin') {
             setError('This portal is for pet owners and veterinarians. Please use the Clinic Login portal.')
             return
           }

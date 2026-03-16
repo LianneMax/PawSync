@@ -390,7 +390,7 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
     if (req.user) {
       const isOwner = pet.ownerId.toString() === req.user.userId;
       const isClinicAdmin =
-        req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+        req.user.userType === 'clinic-admin';
       let isAuthorizedVet = false;
 
       if (req.user.userType === 'veterinarian') {
@@ -896,7 +896,7 @@ export const getVetVaccinations = async (req: Request, res: Response) => {
 
 /**
  * GET /api/vaccinations/clinic/records
- * Clinic-admin / branch-admin — all vaccinations in their clinic (or branch).
+ * Clinic-admin / clinic-admin — all vaccinations in their clinic (or branch).
  *
  * Query params:
  *  - status: filter by vaccination status
@@ -915,8 +915,8 @@ export const getClinicVaccinations = async (req: Request, res: Response) => {
     if (req.user.clinicId) {
       query.clinicId = req.user.clinicId;
     }
-    // branch-admin is scoped to their branch
-    if (req.user.userType === 'branch-admin' && req.user.clinicBranchId) {
+    // clinic-admin is scoped to their branch
+    if (req.user.userType === 'clinic-admin' && req.user.clinicBranchId) {
       query.clinicBranchId = req.user.clinicBranchId;
     } else if (branchId) {
       query.clinicBranchId = branchId;
@@ -989,7 +989,7 @@ export const getUpcomingVaccineDates = async (req: Request, res: Response) => {
     // Auth check
     if (req.user) {
       const isOwner = pet.ownerId.toString() === req.user.userId;
-      const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+      const isClinicAdmin = req.user.userType === 'clinic-admin';
       let isAuthorizedVet = false;
 
       if (req.user.userType === 'veterinarian') {
@@ -1085,7 +1085,7 @@ export const getVetUpcomingVaccineSchedule = async (req: Request, res: Response)
     
     // Auth check: only the vet or clinic admins can view this
     const isRequestingVet = req.user.userId === vetId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin';
 
     if (!isRequestingVet && !isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized' });
@@ -1160,7 +1160,7 @@ export const getClinicUpcomingVaccineSchedule = async (req: Request, res: Respon
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin';
     if (!isClinicAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Only clinic admins can access this' });
     }

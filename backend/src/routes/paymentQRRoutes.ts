@@ -1,6 +1,6 @@
 import express from 'express';
 import { listPaymentQRs, createPaymentQR, deletePaymentQR } from '../controllers/paymentQRController';
-import { authMiddleware, clinicOrBranchAdminOnly } from '../middleware/auth';
+import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -8,9 +8,9 @@ const router = express.Router();
 router.get('/', authMiddleware, listPaymentQRs);
 
 // POST /api/payment-qr — clinic/branch admin only
-router.post('/', authMiddleware, clinicOrBranchAdminOnly, createPaymentQR);
+router.post('/', authMiddleware, clinicAdminOnly, createPaymentQR);
 
 // DELETE /api/payment-qr/:id — clinic/branch admin only
-router.delete('/:id', authMiddleware, clinicOrBranchAdminOnly, deletePaymentQR);
+router.delete('/:id', authMiddleware, clinicAdminOnly, deletePaymentQR);
 
 export default router;

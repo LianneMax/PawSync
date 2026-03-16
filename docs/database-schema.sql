@@ -32,10 +32,10 @@ CREATE TABLE users (
     first_name                  VARCHAR(255)    NOT NULL,
     last_name                   VARCHAR(255)    NOT NULL,
     contact_number              VARCHAR(50)     DEFAULT NULL,
-    user_type                   ENUM('pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin')
+    user_type                   ENUM('pet-owner', 'veterinarian', 'clinic-admin')
                                                 NOT NULL,
-    clinic_id                   CHAR(24)        DEFAULT NULL,           -- FK to clinics._id (for vet/branch-admin)
-    clinic_branch_id            CHAR(24)        DEFAULT NULL,           -- FK to clinic_branches._id (for branch-admin)
+    clinic_id                   CHAR(24)        DEFAULT NULL,           -- FK to clinics._id (for vet/clinic-admin)
+    clinic_branch_id            CHAR(24)        DEFAULT NULL,           -- FK to clinic_branches._id (for clinic-admin)
     branch_id                   CHAR(24)        DEFAULT NULL,           -- Alias of clinic_branch_id (legacy)
     is_main_branch              BOOLEAN         NOT NULL DEFAULT FALSE, -- True if user manages the main branch
     is_verified                 BOOLEAN         NOT NULL DEFAULT FALSE, -- PRC license verification for vets

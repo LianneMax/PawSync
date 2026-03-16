@@ -21,7 +21,7 @@ import {
   authMiddleware,
   veterinarianOnly,
   vetOrClinicAdminOnly,
-  clinicOrBranchAdminOnly,
+  clinicAdminOnly,
 } from '../middleware/auth';
 
 const router = express.Router();
@@ -36,7 +36,7 @@ router.get('/vet/:vetId/upcoming-schedule', authMiddleware, getVetUpcomingVaccin
 
 // Clinic's upcoming vaccine schedule
 // GET /api/vaccinations/clinic/:clinicId/upcoming-schedule
-router.get('/clinic/:clinicId/upcoming-schedule', authMiddleware, clinicOrBranchAdminOnly, getClinicUpcomingVaccineSchedule);
+router.get('/clinic/:clinicId/upcoming-schedule', authMiddleware, clinicAdminOnly, getClinicUpcomingVaccineSchedule);
 
 // Vet's own vaccination records (list view / filter)
 // GET /api/vaccinations/vet/my-records
@@ -44,7 +44,7 @@ router.get('/vet/my-records', authMiddleware, veterinarianOnly, getVetVaccinatio
 
 // Clinic admin — all vaccinations for their clinic/branch
 // GET /api/vaccinations/clinic/records
-router.get('/clinic/records', authMiddleware, clinicOrBranchAdminOnly, getClinicVaccinations);
+router.get('/clinic/records', authMiddleware, clinicAdminOnly, getClinicVaccinations);
 
 // Patient search (for vet / clinic-admin form)
 // GET /api/vaccinations/search/owners?q=

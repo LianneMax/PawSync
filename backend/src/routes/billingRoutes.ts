@@ -12,7 +12,7 @@ import {
 } from '../controllers/billingController';
 import {
   authMiddleware,
-  clinicOrBranchAdminOnly,
+  clinicAdminOnly,
   veterinarianOnly,
   vetOrClinicAdminOnly,
 } from '../middleware/auth';
@@ -33,11 +33,11 @@ router.get('/medical-record/:medicalRecordId', authMiddleware, vetOrClinicAdminO
 
 // Clinic admin — all billings for their clinic
 // GET /api/billings
-router.get('/', authMiddleware, clinicOrBranchAdminOnly, listBillingsForClinic);
+router.get('/', authMiddleware, clinicAdminOnly, listBillingsForClinic);
 
 // Clinic admin — create billing
 // POST /api/billings
-router.post('/', authMiddleware, clinicOrBranchAdminOnly, createBilling);
+router.post('/', authMiddleware, clinicAdminOnly, createBilling);
 
 // Clinic admin or vet — update billing / vet approval
 // PATCH /api/billings/:id
@@ -45,7 +45,7 @@ router.patch('/:id', authMiddleware, vetOrClinicAdminOnly, updateBilling);
 
 // Clinic admin — mark billing as paid
 // PATCH /api/billings/:id/pay
-router.patch('/:id/pay', authMiddleware, clinicOrBranchAdminOnly, markBillingAsPaid);
+router.patch('/:id/pay', authMiddleware, clinicAdminOnly, markBillingAsPaid);
 
 // Clinic admin — get single billing
 // GET /api/billings/:id
@@ -53,6 +53,6 @@ router.get('/:id', authMiddleware, getBillingById);
 
 // Clinic admin — bulk delete
 // DELETE /api/billings
-router.delete('/', authMiddleware, clinicOrBranchAdminOnly, deleteBillings);
+router.delete('/', authMiddleware, clinicAdminOnly, deleteBillings);
 
 export default router;

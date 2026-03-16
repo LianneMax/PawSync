@@ -686,7 +686,7 @@ interface ClinicInfo {
 export default function ClinicAdminAppointmentsPage() {
   const { token } = useAuthStore()
   const user = useAuthStore((state) => state.user)
-  const isBranchAdmin = user?.userType === 'branch-admin'
+  const isClinicAdmin = user?.userType === 'clinic-admin'
   
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
@@ -724,7 +724,7 @@ export default function ClinicAdminAppointmentsPage() {
           setClinic({ _id: c._id, name: c.name })
 
           // Only fetch branches for clinic admins
-          if (!isBranchAdmin) {
+          if (!isClinicAdmin) {
             const branchRes = await authenticatedFetch(`/clinics/${c._id}/branches`, {}, token || undefined)
             if (branchRes.status === 'SUCCESS' && branchRes.data?.branches) {
               setBranches(branchRes.data.branches)
@@ -734,7 +734,7 @@ export default function ClinicAdminAppointmentsPage() {
       } catch { /* silent */ }
     }
     if (token) load()
-  }, [token, isBranchAdmin])
+  }, [token, isClinicAdmin])
 
   // Load all vets for the clinic (for calendar headers)
   useEffect(() => {

@@ -21,15 +21,15 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/vet-dashboard/reports': ['veterinarian'],
 
   // Clinic admin / branch admin routes
-  '/clinic-admin': ['clinic-admin', 'branch-admin'],
-  '/clinic-admin/vaccinations': ['clinic-admin', 'branch-admin'],
-  '/clinic-admin/medical-records': ['clinic-admin', 'branch-admin'],
-  '/clinic-admin/vaccine-types': ['clinic-admin', 'branch-admin'],
-  '/clinic-admin/analytics': ['clinic-admin', 'branch-admin'],
+  '/clinic-admin': ['clinic-admin'],
+  '/clinic-admin/vaccinations': ['clinic-admin'],
+  '/clinic-admin/medical-records': ['clinic-admin'],
+  '/clinic-admin/vaccine-types': ['clinic-admin'],
+  '/clinic-admin/analytics': ['clinic-admin'],
 
   // Any authenticated user
-  '/billing': ['pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin'],
-  '/product-man': ['pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin'],
+  '/billing': ['pet-owner', 'veterinarian', 'clinic-admin'],
+  '/product-man': ['pet-owner', 'veterinarian', 'clinic-admin'],
 }
 
 // Pages that redirect already-logged-in users away (so you can't visit /login while logged in)
@@ -45,7 +45,7 @@ function getDashboardForUserType(userType: string): string {
     case 'veterinarian':
       return '/vet-dashboard'
     case 'clinic-admin':
-    case 'branch-admin':
+    case 'clinic-admin':
       return '/clinic-admin'
     default:
       return '/login'

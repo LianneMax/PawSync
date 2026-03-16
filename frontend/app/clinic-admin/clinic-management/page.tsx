@@ -323,7 +323,7 @@ export default function ClinicManagementPage() {
         const b = res.data.branch
         
         // Step 2: Create the branch admin user for this new branch
-        const adminRes = await authenticatedFetch('/clinics/branch-admin', {
+        const adminRes = await authenticatedFetch('/clinics/clinic-admin', {
           method: 'POST',
           body: JSON.stringify({
             firstName: addForm.adminFirstName,

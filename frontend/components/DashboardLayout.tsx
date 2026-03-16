@@ -123,8 +123,7 @@ function timeAgo(dateStr: string): string {
 function getDashboardPath(userType: string): string {
   switch (userType) {
     case 'veterinarian': return '/vet-dashboard'
-    case 'clinic-admin':
-    case 'branch-admin': return '/clinic-admin'
+    case 'clinic-admin': return '/clinic-admin'
     default: return '/dashboard'
   }
 }
@@ -164,14 +163,8 @@ export default function DashboardLayout({
 
     // If a specific userType is required for this page, enforce it
     if (userTypeOverride && authUser.userType !== userTypeOverride) {
-      // Special case: branch-admin can access clinic-admin pages
-      const isBranchAdminOnClinicPage =
-        authUser.userType === 'branch-admin' && userTypeOverride === 'clinic-admin'
-
-      if (!isBranchAdminOnClinicPage) {
-        router.replace(getDashboardPath(authUser.userType))
-        return
-      }
+      router.replace(getDashboardPath(authUser.userType))
+      return
     }
 
     const resolvedUserType: UserType =

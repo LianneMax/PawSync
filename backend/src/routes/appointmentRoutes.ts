@@ -18,7 +18,7 @@ import {
   getClinicBranches,
   getVetsByBranchId,
 } from '../controllers/appointmentController';
-import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly, clinicOrBranchAdminOnly } from '../middleware/auth';
+import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -83,25 +83,25 @@ router.get('/vet', authMiddleware, getVetAppointments);
  * GET /api/appointments/clinic/search-owners?q=...
  * Search pet owners by name (clinic admin)
  */
-router.get('/clinic/search-owners', authMiddleware, clinicOrBranchAdminOnly, searchPetOwners);
+router.get('/clinic/search-owners', authMiddleware, clinicAdminOnly, searchPetOwners);
 
 /**
  * GET /api/appointments/clinic/owner-pets?ownerId=...
  * Get pets for a specific owner (clinic admin)
  */
-router.get('/clinic/owner-pets', authMiddleware, clinicOrBranchAdminOnly, getPetsForOwner);
+router.get('/clinic/owner-pets', authMiddleware, clinicAdminOnly, getPetsForOwner);
 
 /**
  * POST /api/appointments/clinic
  * Create appointment on behalf of a pet owner (clinic admin)
  */
-router.post('/clinic', authMiddleware, clinicOrBranchAdminOnly, createClinicAppointment);
+router.post('/clinic', authMiddleware, clinicAdminOnly, createClinicAppointment);
 
 /**
  * GET /api/appointments/clinic?date=...&branchId=...&filter=upcoming|previous
  * Get all appointments for the clinic (clinic admin)
  */
-router.get('/clinic', authMiddleware, clinicOrBranchAdminOnly, getClinicAppointments);
+router.get('/clinic', authMiddleware, clinicAdminOnly, getClinicAppointments);
 
 /**
  * GET /api/appointments/:id
@@ -125,6 +125,6 @@ router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
  * PATCH /api/appointments/:id/reschedule
  * Reschedule an appointment to a new date/time (clinic admin)
  */
-router.patch('/:id/reschedule', authMiddleware, clinicOrBranchAdminOnly, rescheduleAppointment);
+router.patch('/:id/reschedule', authMiddleware, clinicAdminOnly, rescheduleAppointment);
 
 export default router;

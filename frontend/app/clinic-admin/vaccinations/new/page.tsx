@@ -4,7 +4,7 @@
  * Clinic Admin — Create / Edit Vaccination Record
  *
  * Same flow as the vet vaccination form but:
- *  - Accessible to clinic-admin and branch-admin roles
+ *  - Accessible to clinic-admin and clinic-admin roles
  *  - Requires selecting which vet administered the vaccine (vetId from body)
  *  - Clinic/branch pre-filled from auth context
  */

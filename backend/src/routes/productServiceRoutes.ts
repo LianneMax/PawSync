@@ -6,7 +6,7 @@ import {
   deleteProductService,
   migrateBranchAvailability,
 } from '../controllers/productServiceController';
-import { authMiddleware, clinicOrBranchAdminOnly } from '../middleware/auth';
+import { authMiddleware, clinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -16,16 +16,16 @@ router.get('/', authMiddleware, listProductServices);
 
 // Clinic admin / branch admin only
 // POST /api/product-services
-router.post('/', authMiddleware, clinicOrBranchAdminOnly, createProductService);
+router.post('/', authMiddleware, clinicAdminOnly, createProductService);
 
 // PUT /api/product-services/:id
-router.put('/:id', authMiddleware, clinicOrBranchAdminOnly, updateProductService);
+router.put('/:id', authMiddleware, clinicAdminOnly, updateProductService);
 
 // DELETE /api/product-services/:id
-router.delete('/:id', authMiddleware, clinicOrBranchAdminOnly, deleteProductService);
+router.delete('/:id', authMiddleware, clinicAdminOnly, deleteProductService);
 
 // POST /api/product-services/migrate-branches
 // One-time idempotent migration: assigns all active branches to qualifying items with no branch availability
-router.post('/migrate-branches', authMiddleware, clinicOrBranchAdminOnly, migrateBranchAvailability);
+router.post('/migrate-branches', authMiddleware, clinicAdminOnly, migrateBranchAvailability);
 
 export default router;

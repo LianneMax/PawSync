@@ -1755,7 +1755,7 @@ export default function BillingInvoicing() {
 
   return (
     <DashboardLayout>
-      {userType === 'clinic-admin' || userType === 'branch-admin' ? (
+      {userType === 'clinic-admin' ? (
         <ClinicAdminBilling currentUser={user} />
       ) : userType === 'veterinarian' ? (
         <VetBilling />

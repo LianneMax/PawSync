@@ -143,7 +143,7 @@ export const listReports = async (req: Request, res: Response) => {
     if (user.userType === 'veterinarian') {
       filter.vetId = user.userId;
     } else {
-      // clinic-admin / branch-admin
+      // clinic-admin / clinic-admin
       filter.clinicId = user.clinicId;
     }
     if (petId) filter.petId = petId;

@@ -246,7 +246,7 @@ export default function ClinicMedicalRecordsPage() {
               {hasFilters
                 ? `${totalFiltered} of ${total} record${total !== 1 ? 's' : ''}`
                 : `${total} record${total !== 1 ? 's' : ''}`}{' '}
-              across your {user?.userType === 'branch-admin' ? 'branch' : 'clinic'}
+              across your {user?.userType === 'clinic-admin' ? 'branch' : 'clinic'}
             </p>
           </div>
           <button

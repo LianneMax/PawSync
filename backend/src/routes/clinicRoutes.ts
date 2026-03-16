@@ -11,10 +11,10 @@ import {
   getClinicDashboardStats,
   getClinicVets,
   getClinicPatients,
-  createBranchAdmin,
+  createClinicAdmin,
   getBranchStats
 } from '../controllers/clinicController';
-import { authMiddleware, clinicAdminOnly, clinicOrBranchAdminOnly, mainBranchOnly } from '../middleware/auth';
+import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ router.get('/', getAllClinics);
  * GET /api/clinics/mine
  * Get clinics managed by the authenticated admin
  */
-router.get('/mine', authMiddleware, clinicOrBranchAdminOnly, getMyClinics);
+router.get('/mine', authMiddleware, clinicAdminOnly, getMyClinics);
 
 /**
  * GET /api/clinics/mine/stats
@@ -46,7 +46,7 @@ router.get('/mine/vets', authMiddleware, clinicAdminOnly, getClinicVets);
  * GET /api/clinics/mine/patients
  * Get all patients for the authenticated clinic or branch admin (no clinicId param needed)
  */
-router.get('/mine/patients', authMiddleware, clinicOrBranchAdminOnly, getClinicPatients);
+router.get('/mine/patients', authMiddleware, clinicAdminOnly, getClinicPatients);
 
 /**
  * GET /api/clinics/:clinicId/branches
@@ -94,12 +94,12 @@ router.delete('/:clinicId/vets/:assignmentId', authMiddleware, clinicAdminOnly, 
  * GET /api/clinics/:clinicId/patients
  * Get all patients (pets) for a clinic
  */
-router.get('/:clinicId/patients', authMiddleware, clinicOrBranchAdminOnly, getClinicPatients);
+router.get('/:clinicId/patients', authMiddleware, clinicAdminOnly, getClinicPatients);
 
 /**
- * POST /api/clinics/branch-admin
- * Create a new branch admin account
+ * POST /api/clinics/clinic-admin
+ * Create a new clinic admin account for a branch
  */
-router.post('/branch-admin', authMiddleware, clinicAdminOnly, mainBranchOnly, createBranchAdmin);
+router.post('/clinic-admin', authMiddleware, clinicAdminOnly, mainBranchOnly, createClinicAdmin);
 
 export default router;

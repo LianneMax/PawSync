@@ -5,7 +5,7 @@ import {
   updateVaccineType,
   deleteVaccineType,
 } from '../controllers/vaccineTypeController';
-import { authMiddleware, clinicOrBranchAdminOnly, vetOrClinicAdminOnly } from '../middleware/auth';
+import { authMiddleware, clinicAdminOnly, vetOrClinicAdminOnly } from '../middleware/auth';
 
 const router = express.Router();
 

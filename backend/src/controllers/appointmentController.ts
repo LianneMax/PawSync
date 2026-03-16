@@ -496,7 +496,7 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
     const isOwner = appointment.ownerId.toString() === req.user.userId;
     const isVet = appointment.vetId.toString() === req.user.userId;
-    const isAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = req.user.userType === 'clinic-admin';
 
     if (!isOwner && !isVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to cancel this appointment' });
@@ -1203,9 +1203,9 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     const query: any = { clinicId: clinic._id };
 
     // Branch filtering:
-    // - branch-admin: always restrict to their assigned branch
+    // - clinic-admin: always restrict to their assigned branch
     // - clinic-admin: sees all branches unless a specific branchId is passed as a query param
-    if (req.user.userType === 'branch-admin') {
+    if (req.user.userType === 'clinic-admin') {
       // Prefer JWT branchId; fall back to User document if JWT is stale
       let resolvedBranchId = req.user.branchId;
       if (!resolvedBranchId) {
@@ -1325,7 +1325,7 @@ export const getAppointmentById = async (req: Request, res: Response) => {
     // Access: vet on the appointment, clinic-admin, or the pet owner
     const isVet = appointment.vetId.toString() === req.user.userId;
     const isOwner = appointment.ownerId.toString() === req.user.userId;
-    const isAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = req.user.userType === 'clinic-admin';
 
     if (!isVet && !isOwner && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this appointment' });

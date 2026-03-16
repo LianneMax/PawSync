@@ -163,7 +163,7 @@ export const getPetById = async (req: Request, res: Response) => {
 
     // Only the owner, an authorized vet, or a clinic/branch admin can view the pet
     const isOwner = pet.ownerId._id.toString() === req.user.userId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin';
     let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {
@@ -552,7 +552,7 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin';
     let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {
@@ -609,7 +609,7 @@ export const updatePetPregnancyStatus = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    const isClinicAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isClinicAdmin = req.user.userType === 'clinic-admin';
     let isAuthorizedVet = false;
 
     if (req.user.userType === 'veterinarian') {

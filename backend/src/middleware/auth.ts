@@ -8,7 +8,7 @@ declare global {
       user?: {
         userId: string;
         email: string;
-        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
+        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
         clinicId?: string;
         clinicBranchId?: string;
         branchId?: string;
@@ -142,25 +142,10 @@ export const mainBranchOnly = (req: Request, res: Response, next: NextFunction) 
 };
 
 /**
- * Middleware to check if user is a branch admin
+ * Middleware to check if user is a clinic admin (branch-level)
+ * @deprecated Use clinicAdminOnly instead
  */
-export const branchAdminOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    return res.status(401).json({
-      status: 'ERROR',
-      message: 'Authentication required'
-    });
-  }
-
-  if (req.user.userType !== 'branch-admin') {
-    return res.status(403).json({
-      status: 'ERROR',
-      message: 'This endpoint is only available for branch admins'
-    });
-  }
-
-  next();
-};
+export const branchAdminOnly = clinicAdminOnly;
 
 /**
  * Middleware to check if user is a veterinarian OR clinic/branch admin
@@ -174,7 +159,7 @@ export const vetOrClinicAdminOnly = (req: Request, res: Response, next: NextFunc
   }
 
   const { userType } = req.user;
-  if (userType !== 'veterinarian' && userType !== 'clinic-admin' && userType !== 'branch-admin') {
+  if (userType !== 'veterinarian' && userType !== 'clinic-admin') {
     return res.status(403).json({
       status: 'ERROR',
       message: 'This endpoint is only available for veterinarians and clinic admins'
@@ -185,22 +170,6 @@ export const vetOrClinicAdminOnly = (req: Request, res: Response, next: NextFunc
 };
 
 /**
- * Middleware to check if user is clinic admin or branch admin
+ * @deprecated Use clinicAdminOnly instead
  */
-export const clinicOrBranchAdminOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    return res.status(401).json({
-      status: 'ERROR',
-      message: 'Authentication required'
-    });
-  }
-
-  if (req.user.userType !== 'clinic-admin' && req.user.userType !== 'branch-admin') {
-    return res.status(403).json({
-      status: 'ERROR',
-      message: 'This endpoint is only available for clinic or branch admins'
-    });
-  }
-
-  next();
-};
+export const clinicOrBranchAdminOnly = clinicAdminOnly;

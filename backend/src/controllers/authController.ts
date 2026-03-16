@@ -50,8 +50,8 @@ const generateToken = (user: IUser, isMainBranch?: boolean): string => {
     payload.isMainBranch = !!isMainBranch;
   }
 
-  // Include clinic and branch info for branch-admin users
-  if (user.userType === 'branch-admin') {
+  // Include clinic and branch info for clinic-admin users
+  if (user.userType === 'clinic-admin') {
     if (user.clinicId) payload.clinicId = user.clinicId;
     if (user.branchId) payload.branchId = user.branchId;
     payload.isMainBranch = !!isMainBranch;
@@ -282,7 +282,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if this clinic-admin or branch-admin is on the main branch
+    // Check if this clinic-admin or clinic-admin is on the main branch
     let isMainBranch = false;
     if (user.userType === 'clinic-admin' && user.clinicBranchId) {
       const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain');
@@ -293,7 +293,7 @@ export const login = async (req: Request, res: Response) => {
     } else if (user.userType === 'clinic-admin' && !user.clinicId && !user.clinicBranchId) {
       // Clinic admin with no clinic/branch link — treat as main branch admin
       isMainBranch = true;
-    } else if (user.userType === 'branch-admin' && user.branchId) {
+    } else if (user.userType === 'clinic-admin' && user.branchId) {
       // For branch admins, get isMainBranch from the branch and derive clinicId if missing
       const branch = await ClinicBranch.findById(user.branchId).select('isMain clinicId');
       isMainBranch = !!branch?.isMain;
@@ -325,8 +325,8 @@ export const login = async (req: Request, res: Response) => {
       userData.isMainBranch = isMainBranch;
     }
 
-    // Include clinic/branch info for branch-admin users
-    if (user.userType === 'branch-admin') {
+    // Include clinic/branch info for clinic-admin users
+    if (user.userType === 'clinic-admin') {
       if (user.clinicId) userData.clinicId = user.clinicId;
       if (user.branchId) userData.branchId = user.branchId;
       userData.isMainBranch = isMainBranch;
@@ -846,7 +846,7 @@ export const googleAuth = async (req: Request, res: Response) => {
       isMainBranch = !!branch?.isMain;
     } else if (user.userType === 'clinic-admin' && !user.clinicBranchId) {
       isMainBranch = true;
-    } else if (user.userType === 'branch-admin' && user.branchId) {
+    } else if (user.userType === 'clinic-admin' && user.branchId) {
       const branch = await ClinicBranch.findById(user.branchId).select('isMain clinicId');
       isMainBranch = !!branch?.isMain;
       if (!user.clinicId && branch?.clinicId) {
@@ -872,7 +872,7 @@ export const googleAuth = async (req: Request, res: Response) => {
       userData.isMainBranch = isMainBranch;
     }
 
-    if (user.userType === 'branch-admin') {
+    if (user.userType === 'clinic-admin') {
       if (user.clinicId) userData.clinicId = user.clinicId;
       if (user.branchId) userData.branchId = user.branchId;
       userData.isMainBranch = isMainBranch;

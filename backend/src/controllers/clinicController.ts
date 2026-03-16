@@ -26,7 +26,7 @@ async function getClinicForAdmin(req: Request): Promise<any> {
     }
   }
   // Stale-JWT fallback: look up branchId/clinicId from the User document via userId
-  if (req.user?.userId && req.user?.userType === 'branch-admin') {
+  if (req.user?.userId && req.user?.userType === 'clinic-admin') {
     const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
     if (dbUser?.clinicId) {
       return Clinic.findOne({ _id: dbUser.clinicId, isActive: true });
@@ -43,13 +43,13 @@ async function getClinicForAdmin(req: Request): Promise<any> {
 }
 
 /**
- * Helper: resolve the branchId for a branch-admin, even if missing from JWT.
+ * Helper: resolve the branchId for a clinic-admin, even if missing from JWT.
  */
 async function getBranchIdForAdmin(req: Request): Promise<string | undefined> {
   if (req.user?.branchId) return req.user.branchId;
   if (req.user?.clinicBranchId) return req.user.clinicBranchId;
   // Stale-JWT: look up from User document
-  if (req.user?.userId && req.user?.userType === 'branch-admin') {
+  if (req.user?.userId && req.user?.userType === 'clinic-admin') {
     const dbUser = await User.findById(req.user.userId).select('branchId');
     if (dbUser?.branchId) return dbUser.branchId.toString();
   }
@@ -318,7 +318,7 @@ export const deleteBranch = async (req: Request, res: Response) => {
 /**
  * Create a new branch admin account for the same clinic
  */
-export const createBranchAdmin = async (req: Request, res: Response) => {
+export const createClinicAdmin = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
@@ -355,7 +355,7 @@ export const createBranchAdmin = async (req: Request, res: Response) => {
       password,
       firstName,
       lastName,
-      userType: 'branch-admin',
+      userType: 'clinic-admin',
       clinicId: clinic._id,
       branchId: branchId,
       isMainBranch: branch.isMain,
@@ -616,7 +616,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
 
 /**
  * Get all patients (pets) for a clinic or branch, derived from appointments.
- * Accessible by: clinic-admin, branch-admin.
+ * Accessible by: clinic-admin, clinic-admin.
  * Branch-admins see only patients who have had appointments at their branch.
  */
 export const getClinicPatients = async (req: Request, res: Response) => {
@@ -625,7 +625,7 @@ export const getClinicPatients = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    if (req.user.userType !== 'clinic-admin' && req.user.userType !== 'branch-admin') {
+    if (req.user.userType !== 'clinic-admin') {
       return res.status(403).json({ status: 'ERROR', message: 'Only clinic or branch admins can access this' });
     }
 
@@ -635,9 +635,9 @@ export const getClinicPatients = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    // branch-admin: filter by their branch; clinic-admin: optionally filter by clinicBranchId
+    // clinic-admin: filter by their branch; clinic-admin: optionally filter by clinicBranchId
     // getBranchIdForAdmin handles stale JWTs by falling back to the User document
-    const branchId = req.user.userType === 'branch-admin'
+    const branchId = req.user.userType === 'clinic-admin'
       ? await getBranchIdForAdmin(req)
       : req.user.clinicBranchId;
 

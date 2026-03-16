@@ -8,10 +8,10 @@ import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
 
 /**
- * Helper — returns true if req.user is a clinic-admin or branch-admin.
+ * Helper — returns true if req.user is a clinic-admin or clinic-admin.
  */
 function isClinicAdminUser(req: Request): boolean {
-  return req.user?.userType === 'clinic-admin' || req.user?.userType === 'branch-admin';
+  return req.user?.userType === 'clinic-admin';
 }
 
 /**
@@ -109,7 +109,7 @@ async function autoSchedulePreventiveCareAppointments(
 
 /**
  * Create a new medical record.
- * Accessible by: veterinarian, clinic-admin, branch-admin.
+ * Accessible by: veterinarian, clinic-admin, clinic-admin.
  *
  * Business Rules:
  *  BR-MR-01: Only one record can be isCurrent=true per pet; creating a new one marks all previous as historical.
@@ -507,7 +507,7 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
 
 /**
  * Get all medical records created by the current vet (or all records in clinic for clinic-admin).
- * Accessible by: veterinarian, clinic-admin, branch-admin.
+ * Accessible by: veterinarian, clinic-admin, clinic-admin.
  *
  * Query params:
  *  - petId: filter by pet
@@ -525,7 +525,7 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
 
     if (req.user.userType === 'veterinarian') {
       query.vetId = req.user.userId;
-    } else if (req.user.userType === 'branch-admin') {
+    } else if (req.user.userType === 'clinic-admin') {
       let clinicId: string | undefined = req.user.clinicId;
       let branchId: string | undefined = req.user.branchId || req.user.clinicBranchId;
 
@@ -577,7 +577,7 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
 
 /**
  * Update a medical record.
- * Accessible by: the creating vet OR clinic-admin/branch-admin.
+ * Accessible by: the creating vet OR clinic-admin/clinic-admin.
  *
  * Business Rule BR-MR-07: Clinic admins can update any record in their clinic.
  */
@@ -696,7 +696,7 @@ export const updateRecord = async (req: Request, res: Response) => {
 
 /**
  * Toggle sharing a medical record with the pet owner.
- * Accessible by: creating vet OR clinic-admin/branch-admin.
+ * Accessible by: creating vet OR clinic-admin/clinic-admin.
  *
  * Business Rule BR-MR-05: Records are private by default; must be explicitly shared.
  */
@@ -871,7 +871,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
 
     // Authorization: owner, vet who treated this pet or is assigned to it, or clinic admin
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    const isAdmin = req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
+    const isAdmin = req.user.userType === 'clinic-admin';
     let isAuthorizedVet = false;
     if (req.user.userType === 'veterinarian') {
       const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId });

@@ -94,7 +94,7 @@ export const getClinicVerifications = async (req: Request, res: Response) => {
         return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
       }
       filter.clinicId = clinic._id;
-    } else if (req.user.userType === 'branch-admin') {
+    } else if (req.user.userType === 'clinic-admin') {
       // Branch admin only sees verifications for their branch
       filter.branchId = req.user.branchId;
     } else {
@@ -143,7 +143,7 @@ export const approveVerification = async (req: Request, res: Response) => {
     };
 
     // Branch admin can only verify verifications for their branch
-    if (req.user.userType === 'branch-admin') {
+    if (req.user.userType === 'clinic-admin') {
       query.branchId = req.user.branchId;
     }
 
@@ -230,7 +230,7 @@ export const rejectVerification = async (req: Request, res: Response) => {
     };
 
     // Branch admin can only reject verifications for their branch
-    if (req.user.userType === 'branch-admin') {
+    if (req.user.userType === 'clinic-admin') {
       query.branchId = req.user.branchId;
     }
 

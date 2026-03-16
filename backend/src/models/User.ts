@@ -8,7 +8,7 @@ export interface IUser extends Document {
   lastName: string;
   contactNumber: string;
   photo?: string;
-  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'branch-admin';
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   clinicId: mongoose.Types.ObjectId | null;
   clinicBranchId: mongoose.Types.ObjectId | null;
   branchId: mongoose.Types.ObjectId | null;
@@ -60,7 +60,7 @@ const UserSchema = new Schema(
     },
     userType: {
       type: String,
-      enum: ['pet-owner', 'veterinarian', 'clinic-admin', 'branch-admin'],
+      enum: ['pet-owner', 'veterinarian', 'clinic-admin'],
       required: [true, 'Please specify user type']
     },
     clinicId: {
