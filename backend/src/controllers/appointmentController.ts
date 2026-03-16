@@ -1181,11 +1181,11 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     }
     // Stale-JWT fallback: look up from the User document directly
     if (!clinic) {
-      const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
+      const dbUser = await User.findById(req.user.userId).select('clinicId clinicBranchId');
       if (dbUser?.clinicId) {
         clinic = await Clinic.findOne({ _id: dbUser.clinicId, isActive: true });
-      } else if (dbUser?.branchId) {
-        const branch = await ClinicBranch.findById(dbUser.branchId).select('clinicId');
+      } else if (dbUser?.clinicBranchId) {
+        const branch = await ClinicBranch.findById(dbUser.clinicBranchId).select('clinicId');
         if (branch?.clinicId) {
           clinic = await Clinic.findOne({ _id: branch.clinicId, isActive: true });
         }
@@ -1203,18 +1203,10 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     const query: any = { clinicId: clinic._id };
 
     // Branch filtering:
-    // - clinic-admin: always restrict to their assigned branch
-    // - clinic-admin: sees all branches unless a specific branchId is passed as a query param
-    if (req.user.userType === 'clinic-admin') {
-      // Prefer JWT branchId; fall back to User document if JWT is stale
-      let resolvedBranchId = req.user.branchId;
-      if (!resolvedBranchId) {
-        const dbUser = await User.findById(req.user.userId).select('branchId');
-        resolvedBranchId = dbUser?.branchId?.toString();
-      }
-      if (resolvedBranchId) {
-        query.clinicBranchId = resolvedBranchId;
-      }
+    // - non-main admins: always restrict to their assigned branch
+    // - main admins: see all branches unless a specific branchId is passed as a query param
+    if (req.user.clinicBranchId && !req.user.isMainBranch) {
+      query.clinicBranchId = req.user.clinicBranchId;
     } else if (branchId) {
       query.clinicBranchId = branchId;
     }
@@ -1364,10 +1356,9 @@ export const getClinicBranches = async (req: Request, res: Response) => {
       clinicId = (branch.clinicId as any).toString();
     } else if (req.user.clinicId) {
       clinicId = req.user.clinicId;
-    } else if (req.user.branchId || req.user.clinicBranchId) {
-      // Branch-admin: derive clinicId from their branch document
-      const branchId = req.user.branchId || req.user.clinicBranchId;
-      const branch = await ClinicBranch.findById(branchId).select('clinicId');
+    } else if (req.user.clinicBranchId) {
+      // Branch-level admin: derive clinicId from their branch document
+      const branch = await ClinicBranch.findById(req.user.clinicBranchId).select('clinicId');
       if (!branch?.clinicId) {
         return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
       }

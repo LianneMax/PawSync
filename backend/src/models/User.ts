@@ -11,7 +11,6 @@ export interface IUser extends Document {
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   clinicId: mongoose.Types.ObjectId | null;
   clinicBranchId: mongoose.Types.ObjectId | null;
-  branchId: mongoose.Types.ObjectId | null;
   isMainBranch: boolean;
   isVerified: boolean;
   emailVerified: boolean;
@@ -69,11 +68,6 @@ const UserSchema = new Schema(
       default: null
     },
     clinicBranchId: {
-      type: Schema.Types.ObjectId,
-      ref: 'ClinicBranch',
-      default: null
-    },
-    branchId: {
       type: Schema.Types.ObjectId,
       ref: 'ClinicBranch',
       default: null

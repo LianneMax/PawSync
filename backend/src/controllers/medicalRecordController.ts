@@ -527,27 +527,18 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
       query.vetId = req.user.userId;
     } else if (req.user.userType === 'clinic-admin') {
       let clinicId: string | undefined = req.user.clinicId;
-      let branchId: string | undefined = req.user.branchId || req.user.clinicBranchId;
+      let branchId: string | undefined = req.user.clinicBranchId;
 
       // Stale-JWT fallback: look up missing fields from the User document
       if (!clinicId || !branchId) {
-        const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
+        const dbUser = await User.findById(req.user.userId).select('clinicId clinicBranchId');
         if (!clinicId && dbUser?.clinicId) clinicId = dbUser.clinicId.toString();
-        if (!branchId && dbUser?.branchId) branchId = dbUser.branchId.toString();
+        if (!branchId && dbUser?.clinicBranchId) branchId = dbUser.clinicBranchId.toString();
       }
 
       if (clinicId) query.clinicId = clinicId;
-      if (branchId) query.clinicBranchId = branchId;
-    } else if (req.user.userType === 'clinic-admin') {
-      let clinicId: string | undefined = req.user.clinicId;
-
-      // Stale-JWT fallback: look up clinicId from the User document
-      if (!clinicId) {
-        const dbUser = await User.findById(req.user.userId).select('clinicId');
-        if (dbUser?.clinicId) clinicId = dbUser.clinicId.toString();
-      }
-
-      if (clinicId) query.clinicId = clinicId;
+      // Only scope to branch if this is a non-main admin
+      if (branchId && !req.user.isMainBranch) query.clinicBranchId = branchId;
     }
 
     if (petId) query.petId = petId;

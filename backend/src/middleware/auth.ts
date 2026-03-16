@@ -11,7 +11,6 @@ declare global {
         userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
         clinicId?: string;
         clinicBranchId?: string;
-        branchId?: string;
         isMainBranch?: boolean;
       };
     }
@@ -44,7 +43,6 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
       userType: decoded.userType,
       clinicId: decoded.clinicId || undefined,
       clinicBranchId: decoded.clinicBranchId || undefined,
-      branchId: decoded.branchId || undefined,
       isMainBranch: decoded.isMainBranch || false
     };
 

@@ -14,31 +14,31 @@ import { updateBranchStatus } from '../services/branchStatusService';
  * Helper: get clinic for the authenticated admin using clinicId from JWT.
  * Multiple fallbacks handle stale JWTs that may be missing clinicId/branchId.
  */
-async function getClinicForAdmin(req: Request): Promise<any> {
+export async function getClinicForAdmin(req: Request): Promise<any> {
   if (req.user?.clinicId) {
     return Clinic.findOne({ _id: req.user.clinicId, isActive: true });
   }
-  // Branch-admin fallback: derive clinic from their branch document (JWT has branchId)
-  if (req.user?.branchId) {
-    const branch = await ClinicBranch.findById(req.user.branchId).select('clinicId');
+  // clinicBranchId in JWT: derive clinic from the branch document
+  if (req.user?.clinicBranchId) {
+    const branch = await ClinicBranch.findById(req.user.clinicBranchId).select('clinicId');
     if (branch?.clinicId) {
       return Clinic.findOne({ _id: branch.clinicId, isActive: true });
     }
   }
-  // Stale-JWT fallback: look up branchId/clinicId from the User document via userId
+  // Stale-JWT fallback: look up clinicId/clinicBranchId from the User document
   if (req.user?.userId && req.user?.userType === 'clinic-admin') {
-    const dbUser = await User.findById(req.user.userId).select('clinicId branchId');
+    const dbUser = await User.findById(req.user.userId).select('clinicId clinicBranchId');
     if (dbUser?.clinicId) {
       return Clinic.findOne({ _id: dbUser.clinicId, isActive: true });
     }
-    if (dbUser?.branchId) {
-      const branch = await ClinicBranch.findById(dbUser.branchId).select('clinicId');
+    if (dbUser?.clinicBranchId) {
+      const branch = await ClinicBranch.findById(dbUser.clinicBranchId).select('clinicId');
       if (branch?.clinicId) {
         return Clinic.findOne({ _id: branch.clinicId, isActive: true });
       }
     }
   }
-  // Legacy fallback: look up by adminId (clinic-admin accounts)
+  // Legacy fallback: look up by adminId (original clinic owner account)
   return Clinic.findOne({ adminId: req.user?.userId, isActive: true });
 }
 
@@ -46,12 +46,11 @@ async function getClinicForAdmin(req: Request): Promise<any> {
  * Helper: resolve the branchId for a clinic-admin, even if missing from JWT.
  */
 async function getBranchIdForAdmin(req: Request): Promise<string | undefined> {
-  if (req.user?.branchId) return req.user.branchId;
   if (req.user?.clinicBranchId) return req.user.clinicBranchId;
   // Stale-JWT: look up from User document
   if (req.user?.userId && req.user?.userType === 'clinic-admin') {
-    const dbUser = await User.findById(req.user.userId).select('branchId');
-    if (dbUser?.branchId) return dbUser.branchId.toString();
+    const dbUser = await User.findById(req.user.userId).select('clinicBranchId');
+    if (dbUser?.clinicBranchId) return dbUser.clinicBranchId.toString();
   }
   return undefined;
 }
@@ -357,7 +356,7 @@ export const createClinicAdmin = async (req: Request, res: Response) => {
       lastName,
       userType: 'clinic-admin',
       clinicId: clinic._id,
-      branchId: branchId,
+      clinicBranchId: branchId,
       isMainBranch: branch.isMain,
       isVerified: true
     });
@@ -563,8 +562,9 @@ export const getClinicVets = async (req: Request, res: Response) => {
 
     // Query active clinic-level assignments (petId: null = clinic assignment, not pet assignment)
     const assignmentFilter: any = { clinicId: clinic._id, isActive: true, petId: null };
-    if (req.user.clinicBranchId) {
-      assignmentFilter.clinicBranchId = req.user.clinicBranchId;
+    const branchId = await getBranchIdForAdmin(req);
+    if (branchId) {
+      assignmentFilter.clinicBranchId = branchId;
     }
 
     const activeAssignments = await AssignedVet.find(assignmentFilter)
