@@ -17,8 +17,9 @@ import {
   Smartphone, Search, FileText, Calendar, PawPrint,
   ChevronRight, Info, Clock, User, Syringe, Stethoscope,
   Pill, FolderOpen, Printer, Share2, Edit, Upload, X, CheckCircle, AlertCircle,
-  QrCode, Loader
+  QrCode, Loader, Receipt
 } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { Html5Qrcode } from 'html5-qrcode'
 
@@ -389,6 +390,19 @@ function MedicalRecordTab({ records, loading }: { records: MedicalRecord[]; load
                         <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">
                           {record.overallObservation}
                         </p>
+                      </div>
+                    )}
+
+                    {/* View Billing */}
+                    {record.billingId && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <Link
+                          href={`/clinic-admin/medical-records/${record._id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5A7C7A] hover:bg-[#476B6B] text-white text-xs font-medium rounded-lg transition-colors"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                          View Bill
+                        </Link>
                       </div>
                     )}
                   </div>

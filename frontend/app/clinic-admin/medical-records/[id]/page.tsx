@@ -183,17 +183,15 @@ export default function ClinicAdminMedicalRecordViewPage() {
               <div className="text-right">
                 <p className="text-white/70 text-xs">Record ID</p>
                 <p className="text-sm font-mono font-medium">{record._id.slice(-8).toUpperCase()}</p>
-                <button
-                  onClick={() => setShowBillingModal(true)}
-                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors print:hidden"
-                >
-                  <Receipt className="w-3.5 h-3.5" />
-                  {billingStatus === 'paid'
-                    ? 'View Billing'
-                    : billingStatus != null
-                    ? 'Edit Billing'
-                    : 'Create Billing'}
-                </button>
+                {billingStatus != null && (
+                  <button
+                    onClick={() => setShowBillingModal(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors print:hidden"
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    View Billing
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -676,7 +674,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
 
       <BillingFromRecordModal
         open={showBillingModal}
-        mode={billingStatus === 'paid' ? 'view' : billingStatus != null ? 'update' : 'create'}
+        mode='view'
         onClose={() => setShowBillingModal(false)}
         patientName={pet.name || ''}
         appointmentId={record.appointmentId?._id || record.appointmentId || null}

@@ -7,7 +7,6 @@ import {
   Search,
   Plus,
   Trash2,
-  Edit2,
   ChevronDown,
   Receipt,
   Download,
@@ -251,6 +250,27 @@ function PetOwnerBilling() {
       )}
     </div>
   )
+}
+
+// ==================== HELPERS ====================
+
+const CATEGORY_ORDER_BILLING = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Vaccines', 'Others']
+
+function groupByCategory(items: ProductServiceOption[]) {
+  const map = new Map<string, ProductServiceOption[]>()
+  for (const item of items) {
+    const cat = (item as any).category || item.type
+    if (!map.has(cat)) map.set(cat, [])
+    map.get(cat)!.push(item)
+  }
+  const result: { category: string; items: ProductServiceOption[] }[] = []
+  for (const cat of CATEGORY_ORDER_BILLING) {
+    if (map.has(cat)) result.push({ category: cat, items: map.get(cat)! })
+  }
+  for (const [cat, items] of map) {
+    if (!CATEGORY_ORDER_BILLING.includes(cat)) result.push({ category: cat, items })
+  }
+  return result
 }
 
 // ==================== VET APPROVAL MODAL ====================
@@ -1061,236 +1081,6 @@ function CreateBillingModal({
   )
 }
 
-// ==================== EDIT BILLING MODAL ====================
-
-const CATEGORY_ORDER_BILLING = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Vaccines', 'Others']
-
-function groupByCategory(items: ProductServiceOption[]) {
-  const map = new Map<string, ProductServiceOption[]>()
-  for (const item of items) {
-    const cat = (item as any).category || item.type
-    if (!map.has(cat)) map.set(cat, [])
-    map.get(cat)!.push(item)
-  }
-  const result: { category: string; items: ProductServiceOption[] }[] = []
-  for (const cat of CATEGORY_ORDER_BILLING) {
-    if (map.has(cat)) result.push({ category: cat, items: map.get(cat)! })
-  }
-  for (const [cat, items] of map) {
-    if (!CATEGORY_ORDER_BILLING.includes(cat)) result.push({ category: cat, items })
-  }
-  return result
-}
-
-function EditBillingModal({
-  billing,
-  onClose,
-  onUpdated,
-}: {
-  billing: ApiBilling
-  currentUser: { clinicId?: string; clinicBranchId?: string } | null
-  onClose: () => void
-  onUpdated: () => void
-}) {
-  const [catalog, setCatalog] = useState<(ProductServiceOption & { category: string })[]>([])
-  const [catalogLoading, setCatalogLoading] = useState(false)
-  const [showAddPanel, setShowAddPanel] = useState(false)
-  const [addSearch, setAddSearch] = useState('')
-  const [selectedProducts, setSelectedProducts] = useState<{ _id: string; name: string; type: 'Service' | 'Product'; price: number }[]>(
-    billing.items.map((item) => ({
-      _id: item.productServiceId || item._id,
-      name: item.name,
-      type: item.type,
-      price: item.unitPrice,
-    }))
-  )
-  const [submitting, setSubmitting] = useState(false)
-
-  // Load full catalog on mount
-  useEffect(() => {
-    setCatalogLoading(true)
-    fetch(`${API_BASE}/product-services`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.status === 'SUCCESS') {
-          setCatalog((data.data.items || []).map((i: any) => ({
-            _id: i._id,
-            name: i.name,
-            type: i.type,
-            price: i.price,
-            category: i.category || i.type,
-          })))
-        }
-      })
-      .catch(() => {})
-      .finally(() => setCatalogLoading(false))
-  }, [])
-
-  const filteredGrouped = useMemo(() => {
-    const q = addSearch.toLowerCase()
-    const filtered = q
-      ? catalog.filter((c) => c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q))
-      : catalog
-    return groupByCategory(filtered)
-  }, [addSearch, catalog])
-
-  const total = selectedProducts.reduce((s, p) => s + p.price, 0)
-
-  const addProduct = (p: ProductServiceOption & { category: string }) => {
-    if (!selectedProducts.find((s) => s._id === p._id)) {
-      setSelectedProducts((prev) => [...prev, p])
-    }
-    setAddSearch('')
-    setShowAddPanel(false)
-  }
-
-  const removeProduct = (id: string) => {
-    setSelectedProducts((prev) => prev.filter((p) => p._id !== id))
-  }
-
-  const handleSave = async () => {
-    setSubmitting(true)
-    try {
-      const body = {
-        items: selectedProducts.map((p) => ({
-          productServiceId: p._id,
-          name: p.name,
-          type: p.type,
-          unitPrice: p.price,
-        })),
-      }
-      const res = await fetch(`${API_BASE}/billings/${billing._id}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
-        onUpdated()
-        onClose()
-      } else {
-        alert(data.message || 'Failed to update billing')
-      }
-    } catch (e) {
-      console.error('Update billing error:', e)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Edit Billing</h2>
-          <p className="text-sm text-gray-400">Add or remove products and services</p>
-        </div>
-
-        {/* Selected items table */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {selectedProducts.map((p) => (
-                <ProductItemRow key={p._id} item={p} onRemove={removeProduct} />
-              ))}
-              {selectedProducts.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">No products or services added yet</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Add product/service panel */}
-        <div className="mb-5">
-          {!showAddPanel ? (
-            <button
-              onClick={() => setShowAddPanel(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-[#476B6B] hover:text-[#3a5858] transition-colors py-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Product / Service
-            </button>
-          ) : (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <input
-                  type="text"
-                  value={addSearch}
-                  onChange={(e) => setAddSearch(e.target.value)}
-                  placeholder="Search products and services…"
-                  className="flex-1 text-xs bg-transparent outline-none text-[#4F4F4F] placeholder:text-gray-400"
-                  autoFocus
-                />
-                <button onClick={() => { setShowAddPanel(false); setAddSearch('') }} className="text-gray-400 hover:text-gray-600">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="max-h-52 overflow-y-auto">
-                {catalogLoading ? (
-                  <p className="text-xs text-gray-400 text-center py-5">Loading…</p>
-                ) : filteredGrouped.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-5">No results found</p>
-                ) : (
-                  filteredGrouped.map(({ category, items: catItems }) => (
-                    <div key={category}>
-                      <div className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
-                      </div>
-                      {catItems
-                        .filter((c) => !selectedProducts.find((s) => s._id === c._id))
-                        .map((entry) => (
-                          <button
-                            key={entry._id}
-                            onClick={() => addProduct(entry as any)}
-                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#f0f7f7] text-left border-t border-gray-50 transition-colors"
-                          >
-                            <p className="text-sm font-medium text-[#4F4F4F]">{entry.name}</p>
-                            <span className="text-xs font-semibold text-[#476B6B] shrink-0 ml-4">Php {entry.price.toLocaleString()}</span>
-                          </button>
-                        ))}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <p className="text-center text-sm font-medium text-[#4F4F4F] mb-6">
-          Total amount : Php {total.toLocaleString()}
-        </p>
-
-        <div className="flex gap-3 justify-center">
-          <button
-            onClick={handleSave}
-            disabled={submitting || selectedProducts.length === 0}
-            className="px-8 py-2 bg-[#3D5A58] text-white rounded-lg text-sm font-medium hover:bg-[#2e4341] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Saving...' : 'Save Changes'}
-          </button>
-          <button
-            onClick={onClose}
-            className="px-8 py-2 border border-gray-300 text-[#4F4F4F] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ==================== UPLOAD QR MODAL ====================
 
 function UploadQRModal({ onClose }: { onClose: () => void }) {
@@ -1722,9 +1512,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingBilling, setEditingBilling] = useState<ApiBilling | null>(null)
   const [showQRModal, setShowQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
   const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
@@ -1812,16 +1599,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-[#4F4F4F]">Invoices</h2>
-        </div>
-
-        <div className="mb-6 flex justify-center">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center px-6 py-2.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Billing
-          </button>
         </div>
 
         <div className="mb-4 flex items-center justify-between gap-4">
@@ -1916,23 +1693,13 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                             Mark as Paid
                           </button>
                         )}
-                        {b.status === 'paid' ? (
-                          <button
-                            onClick={() => setViewingBilling(b)}
-                            className="text-gray-400 hover:text-[#476B6B] transition-colors"
-                            title="View billing details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => { setEditingBilling(b); setShowEditModal(true) }}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                            title="Edit billing"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setViewingBilling(b)}
+                          className="text-gray-400 hover:text-[#476B6B] transition-colors"
+                          title="View billing details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1950,23 +1717,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
 
         </div>
       </div>
-
-      {showCreateModal && (
-        <CreateBillingModal
-          currentUser={currentUser}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={fetchBillings}
-        />
-      )}
-
-      {showEditModal && editingBilling && (
-        <EditBillingModal
-          billing={editingBilling}
-          currentUser={currentUser}
-          onClose={() => { setShowEditModal(false); setEditingBilling(null) }}
-          onUpdated={fetchBillings}
-        />
-      )}
 
       {markingPaidBilling && (
         <MarkAsPaidModal
