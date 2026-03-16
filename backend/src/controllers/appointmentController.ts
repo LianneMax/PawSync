@@ -1185,7 +1185,7 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
 
     const now = new Date();
     if (filter === 'upcoming') {
-      query.status = { $in: ['pending', 'confirmed', 'in_progress'] };
+      query.status = { $in: ['pending', 'confirmed', 'in_clinic', 'in_progress'] };
       if (!date) {
         query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
       }
