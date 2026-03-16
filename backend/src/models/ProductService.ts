@@ -22,6 +22,9 @@ export interface IProductService extends Document {
   administrationRoute?: AdministrationRoute;
   administrationMethod?: AdministrationMethod;
   intervalDays?: number; // For preventive care services, days until next due
+  dosageAmount?: string;  // e.g. "500mg", "5ml" — medication standard info
+  frequency?: number;     // doses per day — medication standard info
+  duration?: number;      // treatment duration in days — medication standard info
   branchAvailability: IBranchAvailability[];
   createdAt: Date;
   updatedAt: Date;
@@ -57,6 +60,9 @@ const ProductServiceSchema: Schema = new Schema(
       default: null,
       min: 1,
     },
+    dosageAmount: { type: String, default: null },
+    frequency: { type: Number, default: null, min: 1 },
+    duration: { type: Number, default: null, min: 1 },
     // Branch availability: tracks which branches carry this item and whether it's active there.
     // Only applicable to Medications (Products) and non-Others Services.
     branchAvailability: [

@@ -46,7 +46,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability } = req.body;
+    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, duration } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -118,6 +118,11 @@ export const createProductService = async (req: Request, res: Response) => {
       description: description || '',
       administrationRoute: resolvedRoute,
       administrationMethod: resolvedMethod,
+      ...(resolvedCategory === 'Medication' ? {
+        dosageAmount: dosageAmount || null,
+        frequency: frequency != null ? Number(frequency) : null,
+        duration: duration != null ? Number(duration) : null,
+      } : {}),
       branchAvailability: resolvedBranchAvailability,
     } as any);
 
@@ -153,7 +158,7 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability } = req.body;
+    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, duration } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
@@ -166,6 +171,9 @@ export const updateProductService = async (req: Request, res: Response) => {
     if (item.category === 'Medication' || category === 'Medication') {
       if (administrationRoute !== undefined) item.administrationRoute = administrationRoute || null;
       if (administrationMethod !== undefined) item.administrationMethod = administrationMethod || null;
+      if (dosageAmount !== undefined) (item as any).dosageAmount = dosageAmount || null;
+      if (frequency !== undefined) (item as any).frequency = frequency != null ? Number(frequency) : null;
+      if (duration !== undefined) (item as any).duration = duration != null ? Number(duration) : null;
     }
 
     // Update branch availability if provided and item qualifies

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import DashboardLayout from '@/components/DashboardLayout'
-import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe } from 'lucide-react'
+import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe, Eye } from 'lucide-react'
 
 // ==================== TYPES ====================
 
@@ -29,6 +29,9 @@ interface ProductItem {
   lastUpdateDate: string
   administrationRoute?: string
   administrationMethod?: string
+  dosageAmount?: string
+  frequency?: number
+  duration?: number
   branchAvailability: BranchAvailabilityEntry[]
 }
 
@@ -107,6 +110,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [admMethod, setAdmMethod] = useState('')
   const [medPrice, setMedPrice] = useState('')
   const [medDesc, setMedDesc] = useState('')
+  const [medDosageAmount, setMedDosageAmount] = useState('')
+  const [medFrequency, setMedFrequency] = useState('')
+  const [medDuration, setMedDuration] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -157,6 +163,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setAdmMethod('')
     setMedPrice('')
     setMedDesc('')
+    setMedDosageAmount('')
+    setMedFrequency('')
+    setMedDuration('')
   }
 
   const branchAvailabilityPayload = Array.from(selectedBranches).map((id) => ({ branchId: id, isActive: true }))
@@ -245,6 +254,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         price: parsed,
         description: medDesc.trim(),
         branchAvailability: branchAvailabilityPayload,
+        ...(medDosageAmount.trim() ? { dosageAmount: medDosageAmount.trim() } : {}),
+        ...(medFrequency ? { frequency: parseInt(medFrequency) } : {}),
+        ...(medDuration ? { duration: parseInt(medDuration) } : {}),
       }
       if (admRoute !== 'injection') {
         body.administrationMethod = admMethod.toLowerCase()
@@ -269,6 +281,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           }),
           administrationRoute: data.data.item.administrationRoute,
           administrationMethod: data.data.item.administrationMethod,
+          dosageAmount: data.data.item.dosageAmount,
+          frequency: data.data.item.frequency,
+          duration: data.data.item.duration,
           branchAvailability: mapBranchAvailability(data.data.item.branchAvailability),
         })
         onClose()
@@ -435,7 +450,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
 
               {/* Price */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Price <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>
+                </label>
                 <input
                   type="number"
                   value={medPrice}
@@ -456,6 +473,49 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                   placeholder="Enter description"
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
                 />
+              </div>
+
+              {/* Standard Information */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Standard Information <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Dosage Amount</label>
+                    <input
+                      type="text"
+                      value={medDosageAmount}
+                      onChange={(e) => setMedDosageAmount(e.target.value)}
+                      placeholder="e.g. 500mg, 5ml"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency (per day)</label>
+                      <input
+                        type="number"
+                        value={medFrequency}
+                        onChange={(e) => setMedFrequency(e.target.value)}
+                        placeholder="e.g. 2"
+                        min="1"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Duration (days)</label>
+                      <input
+                        type="number"
+                        value={medDuration}
+                        onChange={(e) => setMedDuration(e.target.value)}
+                        placeholder="e.g. 7"
+                        min="1"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -596,6 +656,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
 
   const [admRoute, setAdmRoute] = useState<AdmRoute | null>((item.administrationRoute as AdmRoute) || null)
   const [admMethod, setAdmMethod] = useState(item.administrationMethod || '')
+  const [dosageAmount, setDosageAmount] = useState(item.dosageAmount || '')
+  const [frequency, setFrequency] = useState(item.frequency != null ? String(item.frequency) : '')
+  const [duration, setDuration] = useState(item.duration != null ? String(item.duration) : '')
 
   // Branch availability state: map of branchId -> isActive
   const [branchState, setBranchState] = useState<Map<string, boolean>>(() => {
@@ -661,6 +724,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       if (isMedication) {
         body.administrationRoute = admRoute
         body.administrationMethod = admRoute !== 'injection' ? admMethod.toLowerCase() : null
+        body.dosageAmount = dosageAmount.trim() || null
+        body.frequency = frequency ? parseInt(frequency) : null
+        body.duration = duration ? parseInt(duration) : null
       }
       if (showBranchSection) {
         body.branchAvailability = Array.from(branchState.entries()).map(([branchId, isActive]) => ({ branchId, isActive }))
@@ -686,6 +752,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           }),
           administrationRoute: data.data.item.administrationRoute,
           administrationMethod: data.data.item.administrationMethod,
+          dosageAmount: data.data.item.dosageAmount,
+          frequency: data.data.item.frequency,
+          duration: data.data.item.duration,
           branchAvailability: rawBA.map((ba) => ({
             branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
             branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
@@ -819,7 +888,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Price{isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
+            </label>
             <input
               type="number"
               name="price"
@@ -842,6 +913,51 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
+
+          {/* Standard Information — Medications only */}
+          {isMedication && (
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                Standard Information <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Dosage Amount</label>
+                  <input
+                    type="text"
+                    value={dosageAmount}
+                    onChange={(e) => setDosageAmount(e.target.value)}
+                    placeholder="e.g. 500mg, 5ml"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Frequency (per day)</label>
+                    <input
+                      type="number"
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value)}
+                      placeholder="e.g. 2"
+                      min="1"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Duration (days)</label>
+                    <input
+                      type="number"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      placeholder="e.g. 7"
+                      min="1"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Branch availability */}
           {showBranchSection && (
@@ -1034,6 +1150,8 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
   const [sortAsc, setSortAsc] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<ProductItem | null>(null)
+  const [popoverItemId, setPopoverItemId] = useState<string | null>(null)
+  const [popoverPos, setPopoverPos] = useState({ top: 0, right: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -1099,6 +1217,9 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
             }),
             administrationRoute: item.administrationRoute,
             administrationMethod: item.administrationMethod,
+            dosageAmount: item.dosageAmount,
+            frequency: item.frequency,
+            duration: item.duration,
             branchAvailability: mapBranchAvailability(item.branchAvailability),
           }))
           setData(items)
@@ -1382,12 +1503,61 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                     </td>
                     <td className="px-4 py-3.5 text-sm text-gray-700">{item.lastUpdateDate}</td>
                     <td className="px-4 py-3.5">
-                      <button
-                        onClick={() => setEditingItem(item)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {item.category === 'Medication' && (
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                if (popoverItemId === item.id) {
+                                  setPopoverItemId(null)
+                                } else {
+                                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                                  setPopoverPos({ top: rect.top + rect.height / 2, right: window.innerWidth - rect.left + 8 })
+                                  setPopoverItemId(item.id)
+                                }
+                              }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
+                            </button>
+                            {popoverItemId === item.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setPopoverItemId(null)} />
+                                <div
+                                  className="fixed z-20 w-52 bg-white border border-gray-200 rounded-xl shadow-lg p-3.5 -translate-y-1/2"
+                                  style={{ top: popoverPos.top, right: popoverPos.right }}
+                                >
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Standard Information</p>
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs text-gray-500">Dosage Amount</span>
+                                      <span className="text-xs font-medium text-gray-800">{item.dosageAmount || '—'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs text-gray-500">Frequency</span>
+                                      <span className="text-xs font-medium text-gray-800">
+                                        {item.frequency != null ? `${item.frequency}x / day` : '—'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs text-gray-500">Duration</span>
+                                      <span className="text-xs font-medium text-gray-800">
+                                        {item.duration != null ? `${item.duration} day${item.duration !== 1 ? 's' : ''}` : '—'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => setEditingItem(item)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
