@@ -1406,7 +1406,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </div>
 
               {/* ── ULTRASOUND PREGNANCY RESULT ── */}
-              {diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')) && (
+              {pet?.sex === 'female' && diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')) && (
                 <div className="border border-pink-100 rounded-2xl overflow-hidden bg-pink-50/30">
                   <div className="px-4 py-3 flex items-center gap-2 border-b border-pink-100">
                     <span className="text-sm font-semibold text-pink-700">Ultrasound — Pregnancy Result</span>
@@ -1459,7 +1459,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
 
               {/* ── PREGNANCY DELIVERY ── */}
-              <div className="border border-purple-100 rounded-2xl overflow-hidden bg-purple-50/30">
+              {pet?.sex === 'female' && <div className="border border-purple-100 rounded-2xl overflow-hidden bg-purple-50/30">
                 <div className="px-4 py-3 border-b border-purple-100">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -1555,6 +1555,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </div>
                 )}
               </div>
+              }
 
 
             </>
