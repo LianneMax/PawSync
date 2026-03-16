@@ -7,7 +7,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
-  Search,
   Home,
   PawPrint,
   Calendar,
@@ -103,7 +102,6 @@ export default function Navbar({
 }: NavbarProps) {
   const [isHovering, setIsHovering] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [clinicStats, setClinicStats] = useState<ClinicNavStats>({ patientCount: null, appointmentCount: null, pendingVetCount: null })
   const pathname = usePathname()
   const router = useRouter()
@@ -218,30 +216,13 @@ export default function Navbar({
                 : 'opacity-0 -translate-x-2 pointer-events-none'
             }`}
           >
-            PawSync Clinic
+            PawSync
           </span>
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="px-4 mb-4">
-        {isExpanded ? (
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-white/50 transition-all text-sm"
-            />
-          </div>
-        ) : (
-          <button className="w-full flex justify-center p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
-            <Search className="w-5 h-5 text-white" />
-          </button>
-        )}
-      </div>
+      {/* Divider */}
+      <div className="h-px bg-white/20 mx-4 my-2" />
 
       {/* Navigation Items */}
       <div className="flex-1 px-2 overflow-y-auto">

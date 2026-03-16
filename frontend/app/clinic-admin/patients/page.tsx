@@ -1107,177 +1107,176 @@ export default function PatientManagementPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-7xl">
+      <div className="p-6 lg:p-8 max-w-7xl w-full h-screen flex flex-col">
         {/* Header */}
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-[#4F4F4F] mb-2">Patient Management</h1>
-            <p className="text-gray-500">Stay on top of your patients&apos; care</p>
-          </div>
-          <div className="flex-shrink-0 bg-white rounded-2xl border border-dashed border-[#7FA5A3] px-5 py-4 flex items-center gap-4 cursor-pointer hover:border-[#4A8A87] transition-colors">
-            <div>
-              <p className="text-sm font-semibold text-[#4F4F4F]">Search Patient</p>
-              <p className="text-xs text-gray-400 mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-[#4A8A87] flex items-center justify-center flex-shrink-0">
-              <Smartphone className="w-5 h-5 text-white" />
-            </div>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-[#4F4F4F] mb-2">Patient Management</h1>
+          <p className="text-gray-500">Stay on top of your patients&apos; care</p>
         </div>
 
-        {/* Species Filter & Actions */}
-        <div className="flex items-center justify-between mb-6 gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-gray-600">Select Species:</span>
-            <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
-              {(['all', 'canine', 'feline'] as const).map((species) => (
-                <button
-                  key={species}
-                  onClick={() => handleSpeciesChange(species)}
-                  className={`px-5 py-1.5 rounded-lg font-medium text-sm transition-colors ${
-                    speciesFilter === species
-                      ? 'bg-white text-[#4F4F4F] shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {species === 'all' ? 'All' : species === 'canine' ? 'Dogs' : 'Cats'}
-                </button>
-              ))}
-            </div>
+        {/* Species Filter Pill */}
+        <div className="flex items-center justify-center gap-4 mb-6">
+          <span className="text-sm font-semibold text-[#2D5353]">Select Species:</span>
+          <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+            {(['all', 'canine', 'feline'] as const).map((species) => (
+              <button
+                key={species}
+                onClick={() => handleSpeciesChange(species)}
+                className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+                  speciesFilter === species
+                    ? 'bg-[#476B6B] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-gray-50'
+                }`}
+              >
+                {species === 'all' ? 'All' : species === 'canine' ? 'Dogs' : 'Cats'}
+              </button>
+            ))}
           </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <Search className="w-4 h-4" />
-              Filters
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <FileText className="w-4 h-4" />
-              Export
-            </button>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Enter a Client Name, Patients Name or ID Tag"
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-          />
         </div>
 
         {/* Scan Buttons */}
-        <div className="flex gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <button
             onClick={() => handleStartScan('nfc')}
-            className="flex items-center gap-2 px-5 py-3 bg-[#4A8A87] hover:bg-[#3d7370] text-white rounded-lg font-medium text-sm transition-colors"
+            className="bg-white rounded-lg border border-dashed border-[#476B6B] px-6 py-4 flex items-center gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
           >
-            <Smartphone className="w-4 h-4" />
-            Scan Pet Tag
+            <PawPrint className="w-8 h-8 text-[#476B6B] flex-shrink-0" />
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-[#476B6B]">Scan NFC Tag</p>
+              <p className="text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center flex-shrink-0">
+              <Smartphone className="w-5 h-5 text-white" />
+            </div>
           </button>
           <button
             onClick={() => handleStartScan('qr')}
-            className="flex items-center gap-2 px-5 py-3 border border-[#4A8A87] text-[#4A8A87] hover:bg-[#4A8A87]/5 rounded-lg font-medium text-sm transition-colors"
+            className="bg-white rounded-lg border border-dashed border-[#476B6B] px-6 py-4 flex items-center gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
           >
-            <QrCode className="w-4 h-4" />
-            Scan QR Code
+            <PawPrint className="w-8 h-8 text-[#476B6B] flex-shrink-0" />
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-[#476B6B]">Scan QR Code</p>
+              <p className="text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center flex-shrink-0">
+              <QrCode className="w-5 h-5 text-white" />
+            </div>
           </button>
         </div>
 
         {/* Patients List */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col shadow-md flex-1">
+          {/* Search & Actions Container */}
+          <div className="bg-white px-6 py-5 border-b border-[#EAECF0] shadow-sm flex-shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-3 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Enter a Client Name, Patients Name or ID Tag"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                />
+              </div>
+              <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap">
+                <FileText className="w-4 h-4" />
+                Export
+              </button>
             </div>
-          ) : filteredPatients.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-6">
-              <FileText className="w-16 h-16 text-gray-300 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-500 mb-2">No patients found</h3>
-              <p className="text-gray-400 text-center">
-                {patients.length === 0
-                  ? 'No medical records have been created yet'
-                  : 'Try adjusting your filters or search query'}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {filteredPatients.map((patient) => (
-                <button
-                  key={patient._id}
-                  onClick={() => setSelectedPatient(patient)}
-                  className={`w-full hover:bg-gray-50 p-6 transition-colors text-left ${
-                    selectedPatient?._id === patient._id ? 'bg-[#7FA5A3]/5 border-l-2 border-[#4A8A87]' : 'bg-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex gap-4 flex-1">
-                      {patient.photo ? (
-                        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
-                          <Image
-                            src={patient.photo}
-                            alt={patient.name}
-                            width={64}
-                            height={64}
-                            className="w-full h-full object-cover"
-                            unoptimized
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <PawPrint className="w-8 h-8 text-gray-400" />
-                        </div>
-                      )}
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-[#4F4F4F] mb-1">{patient.name}</h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                          {patient.breed} · {patient.species === 'canine' ? 'Dog' : 'Cat'} · {patient.sex === 'male' ? 'Male' : 'Female'}
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                          <div>
-                            <p className="text-gray-400 uppercase font-semibold mb-1">Owner</p>
-                            <p className="text-gray-700 font-medium">
-                              {patient.owner.firstName} {patient.owner.lastName}
-                            </p>
+          </div>
+          
+          <div className="overflow-y-auto flex-1">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
+              </div>
+            ) : filteredPatients.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <FileText className="w-16 h-16 text-gray-300 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-500 mb-2">No patients found</h3>
+                <p className="text-gray-400 text-center">
+                  {patients.length === 0
+                    ? 'No medical records have been created yet'
+                    : 'Try adjusting your filters or search query'}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {filteredPatients.map((patient) => (
+                  <button
+                    key={patient._id}
+                    onClick={() => setSelectedPatient(patient)}
+                    className={`w-full hover:bg-gray-50 p-6 transition-colors text-left ${
+                      selectedPatient?._id === patient._id ? 'bg-[#7FA5A3]/5 border-l-2 border-[#4A8A87]' : 'bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex gap-4 flex-1">
+                        {patient.photo ? (
+                          <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                            <Image
+                              src={patient.photo}
+                              alt={patient.name}
+                              width={64}
+                              height={64}
+                              className="w-full h-full object-cover"
+                              unoptimized
+                            />
                           </div>
-                          <div>
-                            <p className="text-gray-400 uppercase font-semibold mb-1">Contact</p>
-                            <p className="text-gray-700 font-medium">{patient.owner.contactNumber}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400 uppercase font-semibold mb-1">Blood Type</p>
-                            <p className="text-gray-700 font-medium">{patient.bloodType || '—'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400 uppercase font-semibold mb-1">Records</p>
-                            <p className="text-gray-700 font-medium">{patient.recordCount}</p>
-                          </div>
-                        </div>
-                        {patient.lastVisit && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-3">
-                            <Calendar className="w-3 h-3" />
-                            <span>
-                              Last visit:{' '}
-                              {new Date(patient.lastVisit).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </span>
+                        ) : (
+                          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <PawPrint className="w-8 h-8 text-gray-400" />
                           </div>
                         )}
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-[#4F4F4F] mb-1">{patient.name}</h3>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {patient.breed} · {patient.species === 'canine' ? 'Dog' : 'Cat'} · {patient.sex === 'male' ? 'Male' : 'Female'}
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                              <p className="text-gray-400 uppercase font-semibold mb-1">Owner</p>
+                              <p className="text-gray-700 font-medium">
+                                {patient.owner.firstName} {patient.owner.lastName}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 uppercase font-semibold mb-1">Contact</p>
+                              <p className="text-gray-700 font-medium">{patient.owner.contactNumber}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 uppercase font-semibold mb-1">Blood Type</p>
+                              <p className="text-gray-700 font-medium">{patient.bloodType || '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 uppercase font-semibold mb-1">Records</p>
+                              <p className="text-gray-700 font-medium">{patient.recordCount}</p>
+                            </div>
+                          </div>
+                          {patient.lastVisit && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-3">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                Last visit:{' '}
+                                {new Date(patient.lastVisit).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
+                      <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-2" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-2" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
