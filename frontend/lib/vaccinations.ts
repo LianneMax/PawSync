@@ -35,6 +35,8 @@ export interface Vaccination {
   expiryDate: string | null;
   nextDueDate: string | null;
   boosterAppointmentId: string | null;
+  appointmentId?: string | null;
+  medicalRecordId?: string | null;
   doseNumber: number;
   status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
   isUpToDate: boolean;

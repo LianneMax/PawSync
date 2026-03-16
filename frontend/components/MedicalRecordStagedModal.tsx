@@ -515,7 +515,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setSurgeryImages((prev) =>
           prev.map((slot) => {
             const saved = r.images.find(
-              (img: { description: string; data: string; contentType: string }) => img.description === `${slot.type} surgery image` && img.data
+              (img) => img.description === `${slot.type} surgery image` && !!img.data
             )
             if (!saved) return slot
             return { ...slot, preview: `data:${saved.contentType};base64,${saved.data}`, file: null }

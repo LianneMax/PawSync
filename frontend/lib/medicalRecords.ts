@@ -128,9 +128,14 @@ export interface MedicalRecord {
   confinementDays: number;
   pregnancyRecord?: PregnancyRecord | null;
   pregnancyDelivery?: PregnancyDelivery | null;
-  surgeryRecord?: { surgeryType: string; vetRemarks: string } | null;
+  surgeryRecord?: { surgeryType: string; vetRemarks: string; images?: ImageFragment[] } | null;
   billingId?: string;
   followUps?: FollowUp[];
+  referral?: boolean;
+  discharge?: boolean;
+  scheduledSurgery?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  vaccinations?: any[];
   createdAt: string;
   updatedAt: string;
 }
@@ -143,13 +148,17 @@ export interface Vaccination {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicId: any;
   clinicBranchId: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  vaccineTypeId?: any;
   vaccineName: string;
-  dateAdministered: string;
+  dateAdministered: string | null;
   expiryDate: string | null;
   nextDueDate: string | null;
   manufacturer?: string;
   batchNumber?: string;
   route?: string | null;
+  doseNumber?: number;
+  notes?: string;
   status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
   isUpToDate: boolean;
   createdAt: string;
@@ -300,9 +309,12 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   sharedWithOwner: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
-  surgeryRecord: { surgeryType: string; vetRemarks: string } | null;
+  surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { data: string; contentType: string; description: string }[] } | null;
   pregnancyRecord: PregnancyRecord | null;
   pregnancyDelivery: PregnancyDelivery | null;
+  referral: boolean;
+  discharge: boolean;
+  scheduledSurgery: boolean;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

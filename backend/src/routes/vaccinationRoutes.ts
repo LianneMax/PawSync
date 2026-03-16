@@ -2,6 +2,7 @@ import express from 'express';
 import {
   createVaccination,
   getVaccinationsByPet,
+  getVaccinationsByMedicalRecord,
   getPublicVaccinationsByPet,
   getVaccinationById,
   updateVaccination,
@@ -58,6 +59,10 @@ router.get('/pet/:petId/public', getPublicVaccinationsByPet);
 // Authenticated pet vaccinations
 // GET /api/vaccinations/pet/:petId
 router.get('/pet/:petId', authMiddleware, getVaccinationsByPet);
+
+// Vaccinations linked to a specific medical record
+// GET /api/vaccinations/medical-record/:medicalRecordId
+router.get('/medical-record/:medicalRecordId', authMiddleware, getVaccinationsByMedicalRecord);
 
 // Public verification by token (for QR codes)
 // GET /api/vaccinations/verify/:token

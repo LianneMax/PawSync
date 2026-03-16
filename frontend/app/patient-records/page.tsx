@@ -1720,7 +1720,7 @@ function ViewRecordModal({
                     </button>
                   ) : (
                     <button
-                      onClick={() => { setBillingModalMode('view'); setBillingModalExistingId(typeof record?.billingId === 'object' ? (record?.billingId as any)?._id : record?.billingId ?? undefined); setBillingModalOpen(true) }}
+                      onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
                     >
                       <Receipt className="w-3.5 h-3.5" />
@@ -2115,7 +2115,7 @@ function ViewRecordModal({
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-white rounded-lg p-3 border border-green-100">
                         <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Delivery Date</p>
-                        <p className="text-sm text-[#4F4F4F]">{new Date(record.pregnancyDelivery.deliveryDate).toLocaleDateString()}</p>
+                        <p className="text-sm text-[#4F4F4F]">{record.pregnancyDelivery.deliveryDate ? new Date(record.pregnancyDelivery.deliveryDate).toLocaleDateString() : '—'}</p>
                       </div>
                       <div className="bg-white rounded-lg p-3 border border-green-100">
                         <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Delivery Type</p>
