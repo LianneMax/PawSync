@@ -9,6 +9,7 @@ import AssignedVet from '../models/AssignedVet';
 import VetSchedule from '../models/VetSchedule';
 import Vaccination from '../models/Vaccination';
 import MedicalRecord from '../models/MedicalRecord';
+import Billing from '../models/Billing';
 import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 
@@ -605,11 +606,53 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
         medicalRecordId = record._id.toString();
         appointment.medicalRecordId = record._id;
         await appointment.save();
+
+        // Auto-create a billing record linked to this medical record
+        const existingBilling = await Billing.findOne({ medicalRecordId: record._id });
+        if (!existingBilling) {
+          const billing = await Billing.create({
+            ownerId: appointment.ownerId,
+            petId: appointment.petId,
+            vetId: appointment.vetId,
+            clinicId: appointment.clinicId,
+            clinicBranchId: appointment.clinicBranchId,
+            medicalRecordId: record._id,
+            appointmentId: appointment._id,
+            items: [],
+            subtotal: 0,
+            discount: 0,
+            totalAmountDue: 0,
+            serviceLabel: '',
+            serviceDate: new Date(),
+          });
+          await MedicalRecord.findByIdAndUpdate(record._id, { billingId: billing._id });
+        }
       } else {
         medicalRecordId = existingRecord._id.toString();
         if (!appointment.medicalRecordId) {
           appointment.medicalRecordId = existingRecord._id;
           await appointment.save();
+        }
+
+        // Auto-create billing if it doesn't exist yet for this record
+        const existingBilling = await Billing.findOne({ medicalRecordId: existingRecord._id });
+        if (!existingBilling) {
+          const billing = await Billing.create({
+            ownerId: appointment.ownerId,
+            petId: appointment.petId,
+            vetId: appointment.vetId,
+            clinicId: appointment.clinicId,
+            clinicBranchId: appointment.clinicBranchId,
+            medicalRecordId: existingRecord._id,
+            appointmentId: appointment._id,
+            items: [],
+            subtotal: 0,
+            discount: 0,
+            totalAmountDue: 0,
+            serviceLabel: '',
+            serviceDate: new Date(),
+          });
+          await MedicalRecord.findByIdAndUpdate(existingRecord._id, { billingId: billing._id });
         }
       }
     }

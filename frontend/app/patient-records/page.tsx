@@ -214,11 +214,9 @@ export default function PatientRecordsPage() {
   // Edit modal (staged visit)
   const [stagedEdit, setStagedEdit] = useState<{ recordId: string; appointmentId?: string; petId: string; appointmentTypes: string[] } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
-  const [currentRecordEdited, setCurrentRecordEdited] = useState(false)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
-  const [billingModalMode, setBillingModalMode] = useState<'create' | 'view' | 'update'>('create')
+  const [billingModalMode, setBillingModalMode] = useState<'view'>('view')
   const [billingModalExistingId, setBillingModalExistingId] = useState<string | undefined>(undefined)
-  const [currentBillingStatus, setCurrentBillingStatus] = useState<string | null>(null)
 
   // Medical history modal
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
@@ -304,23 +302,6 @@ export default function PatientRecordsPage() {
     }
   }, [token])
 
-  // Fetch billing status whenever the current record changes
-  useEffect(() => {
-    const billingId = currentRecord?.billingId
-    if (!billingId || !token) {
-      setCurrentBillingStatus(null)
-      return
-    }
-    const id = typeof billingId === 'object' ? (billingId as any)._id : billingId
-    authenticatedFetch(`/billings/${id}`, { method: 'GET' }, token)
-      .then((res) => {
-        if (res?.status === 'SUCCESS') {
-          setCurrentBillingStatus(res.data?.billing?.status ?? null)
-        }
-      })
-      .catch(() => {})
-  }, [currentRecord?.billingId, token]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const loadVaccinations = useCallback(async (petId: string) => {
     if (!token) return
     setLoadingVaccinations(true)
@@ -336,7 +317,6 @@ export default function PatientRecordsPage() {
 
   const handleSelectPatient = (pet: PatientPet) => {
     setSelectedPatient(pet)
-    setCurrentRecordEdited(false)
     setPatientTab('records')
     setVaccinations([])
     loadRecords(pet._id)
@@ -744,23 +724,13 @@ export default function PatientRecordsPage() {
                     {/* Billing button */}
                     {currentRecord.billingId && (
                       <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
-                        {currentRecordEdited && currentBillingStatus !== 'paid' ? (
-                          <button
-                            onClick={() => { setBillingModalMode('update'); setBillingModalExistingId(typeof currentRecord?.billingId === 'object' ? (currentRecord?.billingId as any)?._id : currentRecord?.billingId ?? undefined); setBillingModalOpen(true) }}
-                            className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-xl hover:bg-amber-600 transition-colors"
-                          >
-                            <Receipt className="w-4 h-4" />
-                            Update Billing
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => { setBillingModalMode('view'); setBillingModalExistingId(typeof currentRecord?.billingId === 'object' ? (currentRecord?.billingId as any)?._id : currentRecord?.billingId ?? undefined); setBillingModalOpen(true) }}
-                            className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors"
-                          >
-                            <Receipt className="w-4 h-4" />
-                            View Billing
-                          </button>
-                        )}
+                        <button
+                          onClick={() => { setBillingModalMode('view'); setBillingModalExistingId(typeof currentRecord?.billingId === 'object' ? (currentRecord?.billingId as any)?._id : currentRecord?.billingId ?? undefined); setBillingModalOpen(true) }}
+                          className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors"
+                        >
+                          <Receipt className="w-4 h-4" />
+                          View Billing
+                        </button>
                       </div>
                     )}
                   </div>
@@ -966,7 +936,6 @@ export default function PatientRecordsPage() {
           petId={stagedEdit.petId}
           appointmentTypes={stagedEdit.appointmentTypes}
           onComplete={() => {
-            if (stagedEdit?.recordId === currentRecord?._id) setCurrentRecordEdited(true)
             setStagedEdit(null)
             if (selectedPatient) loadRecords(selectedPatient._id)
           }}
@@ -1351,20 +1320,6 @@ function ViewRecordModal({
   const [followUpsMinimized, setFollowUpsMinimized] = useState(false)
   const [lightboxMedia, setLightboxMedia] = useState<{ src: string; contentType: string; description?: string } | null>(null)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
-  const [billingModalMode, setBillingModalMode] = useState<'create' | 'view' | 'update'>('create')
-  const [billingStatus, setBillingStatus] = useState<string | null>(null)
-
-  // Fetch billing status whenever the record changes
-  useEffect(() => {
-    const billingId = record?.billingId
-    if (!billingId || !token) { setBillingStatus(null); return }
-    const id = typeof billingId === 'object' ? (billingId as any)._id : billingId
-    authenticatedFetch(`/billings/${id}`, { method: 'GET' }, token)
-      .then((res) => {
-        if (res?.status === 'SUCCESS') setBillingStatus(res.data?.billing?.status ?? null)
-      })
-      .catch(() => {})
-  }, [record?.billingId, token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Vet notepad (pet-level, same across all visits)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -1743,17 +1698,9 @@ function ViewRecordModal({
                     <p className="text-xs text-white/60">Record ID</p>
                     <p className="text-sm font-mono text-white/90">{record._id.slice(-8).toUpperCase()}</p>
                   </div>
-                  {!record.billingId && billingStatus !== 'paid' ? (
+                  {record.billingId && (
                     <button
-                      onClick={() => { setBillingModalMode('create'); setBillingModalOpen(true) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
-                    >
-                      <Receipt className="w-3.5 h-3.5" />
-                      Create Bill
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => { setBillingModalMode('view'); setBillingModalOpen(true) }}
+                      onClick={() => { setBillingModalOpen(true) }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
                     >
                       <Receipt className="w-3.5 h-3.5" />
@@ -2589,7 +2536,7 @@ function ViewRecordModal({
       {/* ===== BILLING MODAL ===== */}
       <BillingFromRecordModal
         open={billingModalOpen}
-        mode={billingModalMode}
+        mode='view'
         onClose={() => setBillingModalOpen(false)}
         patientName={typeof record?.petId === 'object' ? (record?.petId as any)?.name ?? '' : ''}
         appointmentId={
