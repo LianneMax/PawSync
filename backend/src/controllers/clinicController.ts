@@ -545,7 +545,9 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
 };
 
 /**
- * Get approved vets for a clinic (filtered by branch)
+ * Get active vets for a clinic (filtered by branch).
+ * Uses AssignedVet as the source of truth so vets added via direct assignment
+ * (assignVetToBranch) are included alongside those added via VetApplication.
  */
 export const getClinicVets = async (req: Request, res: Response) => {
   try {
@@ -559,33 +561,48 @@ export const getClinicVets = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const vetAppFilter: any = { clinicId: clinic._id, status: 'approved' };
+    // Query active clinic-level assignments (petId: null = clinic assignment, not pet assignment)
+    const assignmentFilter: any = { clinicId: clinic._id, isActive: true, petId: null };
     if (req.user.clinicBranchId) {
-      vetAppFilter.branchId = req.user.clinicBranchId;
+      assignmentFilter.clinicBranchId = req.user.clinicBranchId;
     }
 
-    const approvedApplications = await VetApplication.find(vetAppFilter)
+    const activeAssignments = await AssignedVet.find(assignmentFilter)
       .populate('vetId', 'firstName lastName email')
-      .populate('branchId', 'name')
-      .populate('verificationId', 'prcLicenseNumber')
-      .sort({ createdAt: -1 });
+      .populate('clinicBranchId', 'name')
+      .sort({ assignedAt: -1 });
 
-    const vets = approvedApplications.map((app) => {
-      const vet = app.vetId as any;
-      const branch = app.branchId as any;
-      const verification = app.verificationId as any;
+    // Enrich with prcLicenseNumber from VetApplication where available
+    const vetIds = activeAssignments.map((a) => (a.vetId as any)?._id).filter(Boolean);
+    const approvedApplications = await VetApplication.find({
+      clinicId: clinic._id,
+      vetId: { $in: vetIds },
+      status: 'approved',
+    }).populate('verificationId', 'prcLicenseNumber');
 
-      return {
-        _id: app._id,
-        vetId: vet?._id || null,
-        name: vet ? `Dr. ${vet.firstName} ${vet.lastName}` : 'Unknown',
-        email: vet?.email || '',
-        initials: vet ? `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}` : '??',
-        branch: branch?.name || 'Unassigned',
-        prcLicense: verification?.prcLicenseNumber || '-',
-        status: 'Active',
-      };
-    });
+    const appByVetId = new Map(
+      approvedApplications.map((app) => [app.vetId.toString(), app])
+    );
+
+    const vets = activeAssignments
+      .filter((a) => a.vetId)
+      .map((a) => {
+        const vet = a.vetId as any;
+        const branch = a.clinicBranchId as any;
+        const app = appByVetId.get(vet._id.toString());
+        const verification = (app?.verificationId) as any;
+
+        return {
+          _id: app?._id || a._id,
+          vetId: vet._id,
+          name: `Dr. ${vet.firstName} ${vet.lastName}`,
+          email: vet.email || '',
+          initials: `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}`,
+          branch: branch?.name || a.clinicName || 'Unassigned',
+          prcLicense: verification?.prcLicenseNumber || '-',
+          status: 'Active',
+        };
+      });
 
     return res.status(200).json({
       status: 'SUCCESS',

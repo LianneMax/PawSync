@@ -5,6 +5,7 @@ import User from '../models/User';
 import Clinic from '../models/Clinic';
 import VetApplication from '../models/VetApplication';
 import ClinicBranch from '../models/ClinicBranch';
+import AssignedVet from '../models/AssignedVet';
 import VetSchedule from '../models/VetSchedule';
 import Vaccination from '../models/Vaccination';
 import MedicalRecord from '../models/MedicalRecord';
@@ -744,22 +745,23 @@ export const getVetsForBranch = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'branchId is required' });
     }
 
-    // Verify branch exists and is active
-    const branch = await ClinicBranch.findOne({ _id: branchId, isActive: true });
+    // Verify branch exists
+    const branch = await ClinicBranch.findOne({ _id: branchId });
     if (!branch) {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
 
-    // Find approved vet applications for this branch
-    const approvedApplications = await VetApplication.find({
-      branchId: branchId as string,
-      status: 'approved'
+    // Find active vet assignments for this branch
+    const activeAssignments = await AssignedVet.find({
+      clinicBranchId: branchId as string,
+      isActive: true,
+      petId: null,
     }).populate('vetId', 'firstName lastName email');
 
-    const vets = approvedApplications
-      .filter((app) => app.vetId)
-      .map((app) => {
-        const vet = app.vetId as any;
+    const vets = activeAssignments
+      .filter((a) => a.vetId)
+      .map((a) => {
+        const vet = a.vetId as any;
         return {
           _id: vet._id,
           firstName: vet.firstName,
@@ -1364,8 +1366,8 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'branchId is required' });
     }
 
-    // Verify branch exists and is active
-    const branch = await ClinicBranch.findOne({ _id: branchId, isActive: true });
+    // Verify branch exists
+    const branch = await ClinicBranch.findOne({ _id: branchId });
     if (!branch) {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
@@ -1392,16 +1394,17 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'You do not have access to this branch' });
     }
 
-    // Find approved vet applications for this branch
-    const approvedApplications = await VetApplication.find({
-      branchId: branchId,
-      status: 'approved'
+    // Find active vet assignments for this branch
+    const activeAssignments = await AssignedVet.find({
+      clinicBranchId: branchId,
+      isActive: true,
+      petId: null,
     }).populate('vetId', 'firstName lastName email');
 
-    const vets = approvedApplications
-      .filter((app) => app.vetId)
-      .map((app) => {
-        const vet = app.vetId as any;
+    const vets = activeAssignments
+      .filter((a) => a.vetId)
+      .map((a) => {
+        const vet = a.vetId as any;
         return {
           _id: vet._id,
           firstName: vet.firstName,

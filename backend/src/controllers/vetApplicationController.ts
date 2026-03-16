@@ -4,6 +4,7 @@ import VetVerification from '../models/VetVerification';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 import AssignedVet from '../models/AssignedVet';
+import { updateBranchStatus } from '../services/branchStatusService';
 
 /**
  * Submit a vet application to a clinic (vet during onboarding)
@@ -157,6 +158,9 @@ export const approveApplication = async (req: Request, res: Response) => {
       clinicAddress: branch?.address || null,
       assignedAt: new Date()
     });
+
+    // Update branch status to active since it now has a vet assigned
+    await updateBranchStatus(application.branchId.toString());
 
     return res.status(200).json({
       status: 'SUCCESS',
