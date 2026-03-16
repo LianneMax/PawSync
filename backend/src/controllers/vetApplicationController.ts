@@ -29,7 +29,7 @@ export const applyToClinic = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId, isActive: true });
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId });
     if (!branch) {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }

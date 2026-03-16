@@ -143,7 +143,7 @@ export default function ClinicManagementPage() {
           // Fetch vets and branches in parallel
           const [vetsRes, branchesRes] = await Promise.all([
             authenticatedFetch('/clinics/mine/vets', {}, token),
-            authenticatedFetch(`/clinics/${myClinic._id}/branches`, {}, token),
+            authenticatedFetch(`/clinics/${myClinic._id}/branches?includeInactive=true`, {}, token),
           ])
 
           if (vetsRes.status === 'SUCCESS') {

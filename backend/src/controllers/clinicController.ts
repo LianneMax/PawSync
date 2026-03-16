@@ -94,7 +94,7 @@ export const getAllClinics = async (req: Request, res: Response) => {
 
     const clinicsWithBranches = await Promise.all(
       clinics.map(async (clinic) => {
-        const branches = await ClinicBranch.find({ clinicId: clinic._id, isActive: true })
+        const branches = await ClinicBranch.find({ clinicId: clinic._id })
           .select('name address isMain')
           .sort({ isMain: -1, name: 1 });
 
@@ -136,7 +136,14 @@ export const getBranches = async (req: Request, res: Response) => {
     }
 
     // Non-main branch admins only see their own branch
-    const branchQuery: any = { clinicId: clinic._id, isActive: true };
+    const branchQuery: any = { clinicId: clinic._id };
+    
+    // Only filter by isActive if includeInactive is not true
+    const includeInactive = req.query.includeInactive === 'true';
+    if (!includeInactive) {
+      branchQuery.isActive = true;
+    }
+    
     if (req.user.clinicBranchId && !req.user.isMainBranch) {
       branchQuery._id = req.user.clinicBranchId;
     }
@@ -398,7 +405,7 @@ export const assignVetToBranch = async (req: Request, res: Response) => {
 
     const { branchId, vetId } = req.body;
 
-    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id, isActive: true });
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id });
 
     if (!branch) {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
