@@ -338,6 +338,16 @@ export default function VetAppointmentsPage() {
                           {checkingIn === appt._id ? 'Checking in…' : 'Check In Patient'}
                         </button>
                       )}
+                      {appt.status === 'in_clinic' && (
+                        <button
+                          onClick={() => handleCheckIn(appt)}
+                          disabled={checkingIn === appt._id}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-xl text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-60"
+                        >
+                          <PlayCircle className="w-3.5 h-3.5" />
+                          {checkingIn === appt._id ? 'Starting…' : 'Begin Visit'}
+                        </button>
+                      )}
                       {appt.status === 'in_progress' && (
                         <button
                           onClick={() => handleContinueVisit(appt)}
