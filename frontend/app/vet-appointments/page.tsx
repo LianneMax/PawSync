@@ -231,11 +231,13 @@ export default function VetAppointmentsPage() {
     .filter((a) => {
       const ds = getDisplayStatus(a)
       if (ds !== 'confirmed' && ds !== 'in_clinic' && ds !== 'in_progress') return false
-      // Parse date correctly - a.date is already in ISO format (YYYY-MM-DD)
+      // Active appointments (in_clinic / in_progress) always show regardless of time
+      if (ds === 'in_clinic' || ds === 'in_progress') return true
+      // Confirmed: only show if appointment hasn't passed yet
       const [year, month, day] = a.date.split('-').map(Number)
       const [hours, minutes] = a.startTime.split(':').map(Number)
       const apptTime = new Date(year, month - 1, day, hours, minutes, 0)
-      return apptTime > new Date() // Only include future appointments
+      return apptTime > new Date()
     })
     .sort((a, b) => {
       const [yearA, monthA, dayA] = a.date.split('-').map(Number)
