@@ -11,7 +11,7 @@ export interface IBillingItem {
 export interface IBilling extends Document {
   ownerId: mongoose.Types.ObjectId;
   petId: mongoose.Types.ObjectId;
-  vetId: mongoose.Types.ObjectId;
+  vetId: mongoose.Types.ObjectId | null;
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
   medicalRecordId: mongoose.Types.ObjectId | null;
@@ -77,7 +77,7 @@ const BillingSchema = new Schema(
     vetId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Veterinarian is required'],
+      default: null,
       index: true,
     },
     clinicId: {

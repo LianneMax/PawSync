@@ -835,16 +835,76 @@ export default function ClinicAdminAppointmentsPage() {
     setAppointmentToCheckIn(id)
   }
 
+  const GROOMING_TYPES = ['basic-grooming', 'full-grooming']
+  const GROOMING_LABEL_MAP: Record<string, string> = {
+    'basic-grooming': 'Basic Grooming',
+    'full-grooming': 'Full Grooming',
+  }
+
+  const createGroomingBilling = async (appointment: Appointment) => {
+    try {
+      const groomingType = appointment.types?.find(t => GROOMING_TYPES.includes(t))
+      if (!groomingType) return
+
+      const groomingLabel = GROOMING_LABEL_MAP[groomingType] || 'Grooming'
+
+      // Fetch the product catalog to find the matching grooming service
+      const psRes = await authenticatedFetch('/product-services', { method: 'GET' }, token || undefined)
+      const allServices: any[] = psRes?.data?.items ?? []
+      const groomingService = allServices.find(
+        (s: any) => s.isActive && s.category === 'Grooming' &&
+          s.name.toLowerCase().replace(/\s+/g, ' ').trim() === groomingLabel.toLowerCase()
+      ) || allServices.find(
+        (s: any) => s.isActive && s.category === 'Grooming'
+      )
+
+      const petId = appointment.petId?._id ?? appointment.petId
+      const ownerId = appointment.ownerId?._id ?? appointment.ownerId
+      const clinicBranchId = appointment.clinicBranchId?._id ?? appointment.clinicBranchId
+
+      const billingItem = groomingService
+        ? { productServiceId: groomingService._id, name: groomingService.name, type: 'Service', unitPrice: groomingService.price, quantity: 1 }
+        : { name: groomingLabel, type: 'Service', unitPrice: 0, quantity: 1 }
+
+      await authenticatedFetch(
+        '/billings',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            ownerId,
+            petId,
+            clinicBranchId,
+            appointmentId: appointment._id,
+            items: [billingItem],
+            serviceLabel: groomingLabel,
+            status: 'pending_payment',
+          }),
+        },
+        token || undefined,
+      )
+    } catch (err) {
+      console.error('Failed to auto-create grooming billing:', err)
+    }
+  }
+
   const confirmCheckIn = async () => {
     if (!appointmentToCheckIn) return
     setCheckInSubmitting(true)
     try {
       const res = await clinicCheckInAppointment(appointmentToCheckIn, token || undefined)
       if (res.status === 'SUCCESS') {
-        // Get appointment details for toast
         const appointment = appointments.find(a => a._id === appointmentToCheckIn)
         const petName = appointment?.petId?.name || 'Pet'
-        
+
+        // Auto-create billing for grooming appointments (no vet approval needed)
+        if (appointment) {
+          const isGroomingOnly = appointment.types?.some(t => GROOMING_TYPES.includes(t)) &&
+            !appointment.types?.some(t => !GROOMING_TYPES.includes(t))
+          if (isGroomingOnly) {
+            await createGroomingBilling(appointment)
+          }
+        }
+
         toast(
           <div className="flex gap-2">
             <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -931,6 +991,13 @@ export default function ClinicAdminAppointmentsPage() {
       // Check in the appointment
       const checkInRes = await clinicCheckInAppointment(appointmentForPet._id, token || undefined)
       if (checkInRes.status === 'SUCCESS') {
+        // Auto-create billing for grooming appointments (no vet approval needed)
+        const isGroomingOnly = appointmentForPet.types?.some((t: string) => GROOMING_TYPES.includes(t)) &&
+          !appointmentForPet.types?.some((t: string) => !GROOMING_TYPES.includes(t))
+        if (isGroomingOnly) {
+          await createGroomingBilling(appointmentForPet)
+        }
+
         const petName = petData.data.pet.name || 'Pet'
         toast(
           <div className="flex gap-2">

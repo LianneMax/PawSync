@@ -844,7 +844,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         } : {}),
       }, token)
       if (billingId && recordCreatedAt) {
-        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare, recordCreatedAt, token }).catch(() => {})
+        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })) }).catch(() => {})
       }
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
@@ -1152,7 +1152,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         } : {}),
       }, token)
       if (billingId && recordCreatedAt) {
-        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token }).catch(() => {})
+        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })) }).catch(() => {})
       }
       await syncPregnancyStatus()
       if (!alreadyCompleted && appointmentId) {

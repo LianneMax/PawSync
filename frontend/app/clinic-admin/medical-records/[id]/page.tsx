@@ -121,6 +121,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
       diagnosticTests: record.diagnosticTests || [],
       preventiveCare: record.preventiveCare || [],
       recordCreatedAt: record.createdAt,
+      recordVaccinations: record.vaccinations || [],
       token,
     }).catch(() => {})
   }, [record, existingBillingId, token])

@@ -28,7 +28,8 @@
       "Bash(grep -n \"editOwner\\\\|contactNumber\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/my-pets/[id]/page.tsx)",
       "Bash(grep -n \"clinics\\\\|branches\\\\|branchId\\\\|clinicId\" /Users/juliannalammoglia/Desktop/PawSync/backend/src/routes/*.ts /Users/juliannalammoglia/Desktop/PawSync/backend/src/controllers/clinicController.ts)",
       "Bash(npx tsc:*)",
-      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -type f \\\\\\(-name *product* -o -name *medication* \\\\\\) ! -path */node_modules/* ! -path */.git/*)"
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync/backend -type f \\\\\\(-name *product* -o -name *medication* \\\\\\) ! -path */node_modules/* ! -path */.git/*)",
+      "Bash(wc -l /Users/juliannalammoglia/Desktop/PawSync/frontend/app/clinic-admin/medical-records/[id]/page.tsx)"
     ]
   }
 }

@@ -34,6 +34,7 @@ export async function syncBillingFromRecord({
   diagnosticTests,
   preventiveCare,
   recordCreatedAt,
+  recordVaccinations,
   token,
 }: {
   billingId: string
@@ -42,6 +43,7 @@ export async function syncBillingFromRecord({
   diagnosticTests: Omit<DiagnosticTest, '_id'>[]
   preventiveCare: Omit<PreventiveCare, '_id'>[]
   recordCreatedAt: string
+  recordVaccinations?: any[]
   token: string
 }): Promise<void> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -83,16 +85,25 @@ export async function syncBillingFromRecord({
 
   const allCatalog = [...productServices, ...vaccineTypes]
 
-  // Filter vaccinations to same calendar day as the record
-  const recordDate = new Date(recordCreatedAt)
-  const petVaccinations: any[] = (vacRes?.data?.vaccinations ?? []).filter((v: any) => {
+  // Collect vaccinations: embedded in record first, then same-day pet records
+  const recordDateStr = recordCreatedAt.split('T')[0]
+  let petVaccinations: any[] = Array.isArray(recordVaccinations) ? [...recordVaccinations] : []
+  const sameDayVax = (vacRes?.data?.vaccinations ?? []).filter((v: any) => {
     if (!v.dateAdministered) return false
-    const vDate = new Date(v.dateAdministered)
-    return (
-      vDate.getFullYear() === recordDate.getFullYear() &&
-      vDate.getMonth() === recordDate.getMonth() &&
-      vDate.getDate() === recordDate.getDate()
-    )
+    return new Date(v.dateAdministered).toISOString().split('T')[0] === recordDateStr
+  })
+  const seenIds = new Set(petVaccinations.map((v: any) => v._id).filter(Boolean))
+  for (const v of sameDayVax) {
+    if (!seenIds.has(v._id)) petVaccinations.push(v)
+  }
+  // Deduplicate by vaccineTypeId
+  const seenVtIds = new Set<string>()
+  petVaccinations = petVaccinations.filter((v: any) => {
+    const vtId = typeof v.vaccineTypeId === 'object' ? v.vaccineTypeId?._id : v.vaccineTypeId
+    const key = vtId || v.vaccineName
+    if (seenVtIds.has(key)) return false
+    seenVtIds.add(key)
+    return true
   })
 
   const billingItems: any[] = []
@@ -141,11 +152,14 @@ export async function syncBillingFromRecord({
     })
   }
 
-  // Vaccines administered on the same visit day
+  // Vaccines administered on this visit
   for (const vax of petVaccinations) {
-    const match = vaccineTypes.find(
-      (v) => normalizeName(v.name) === normalizeName(vax.vaccineName),
-    )
+    const vaccTypeId = typeof vax.vaccineTypeId === 'object'
+      ? (vax.vaccineTypeId as any)?._id
+      : vax.vaccineTypeId
+    // ID match first (guarantees current pricePerDose from product-man); fall back to name
+    const match = (vaccTypeId ? vaccineTypes.find((v) => v.id === vaccTypeId) : undefined) ||
+      vaccineTypes.find((v) => normalizeName(v.name) === normalizeName(vax.vaccineName))
     billingItems.push({
       ...(match ? { vaccineTypeId: match.id } : {}),
       name: match ? match.name : vax.vaccineName,
@@ -164,4 +178,63 @@ export async function syncBillingFromRecord({
     },
     token,
   )
+}
+
+/**
+ * Re-prices an existing billing's items from the current catalog without needing
+ * the full medical record. Safe to call from any billing view — skips paid bills.
+ * Returns the refreshed billing object, or null if skipped/failed.
+ */
+export async function refreshBillingPrices(
+  billingId: string,
+  token: string,
+): Promise<any | null> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+
+  const [billingRes, psRes, vtRes] = await Promise.all([
+    authenticatedFetch(`/billings/${billingId}`, { method: 'GET' }, token).catch(() => null),
+    authenticatedFetch('/product-services', { method: 'GET' }, token).catch(() => null),
+    fetch(`${apiBase}/vaccine-types`).then((r) => r.json()).catch(() => null),
+  ])
+
+  const billing = billingRes?.data?.billing
+  if (!billing || billing.status === 'paid') return billing ?? null
+
+  // Build price lookup maps by catalog ID
+  const psMap = new Map<string, number>(
+    (psRes?.data?.items ?? [])
+      .filter((p: any) => p.isActive)
+      .map((p: any) => [p._id as string, p.price as number]),
+  )
+  const vtMap = new Map<string, number>(
+    (vtRes?.data?.vaccineTypes ?? [])
+      .filter((v: any) => v.isActive)
+      .map((v: any) => [v._id as string, v.pricePerDose as number]),
+  )
+
+  const existingItems: any[] = billing.items ?? []
+  let hasChanges = false
+  const updatedItems = existingItems.map((item: any) => {
+    const currentPrice =
+      (item.productServiceId && psMap.has(item.productServiceId)
+        ? psMap.get(item.productServiceId)
+        : item.vaccineTypeId && vtMap.has(item.vaccineTypeId)
+          ? vtMap.get(item.vaccineTypeId)
+          : undefined)
+    if (currentPrice !== undefined && currentPrice !== item.unitPrice) {
+      hasChanges = true
+      return { ...item, unitPrice: currentPrice }
+    }
+    return item
+  })
+
+  if (!hasChanges) return billing
+
+  const patchRes = await authenticatedFetch(
+    `/billings/${billingId}`,
+    { method: 'PATCH', body: JSON.stringify({ items: updatedItems }) },
+    token,
+  ).catch(() => null)
+
+  return patchRes?.data?.billing ?? { ...billing, items: updatedItems }
 }

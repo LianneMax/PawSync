@@ -21,6 +21,7 @@ interface BillingLineItem {
   tempId: string
   name: string
   price: number
+  quantity: number
   type: 'Service' | 'Product' | 'Vaccine'
   category: string
   catalogId: string | null
@@ -108,7 +109,13 @@ export default function BillingFromRecordModal({
   const [addSearch, setAddSearch] = useState('')
 
   const isReadOnly = mode === 'view'
-  const total = items.reduce((sum, item) => sum + item.price, 0)
+  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  const updateQuantity = (tempId: string, qty: number) => {
+    setItems((prev) =>
+      prev.map((i) => (i.tempId === tempId ? { ...i, quantity: Math.max(1, qty) } : i)),
+    )
+  }
 
   // ---- Fetch catalog & populate items when modal opens ----
   useEffect(() => {
@@ -170,6 +177,7 @@ export default function BillingFromRecordModal({
               tempId: nextTempId(),
               name: item.name,
               price: item.unitPrice ?? 0,
+              quantity: item.quantity ?? 1,
               type: isVaccine ? 'Vaccine' : (item.type as 'Service' | 'Product'),
               category: catalogEntry?.category ?? (isVaccine ? 'Vaccines' : item.type),
               catalogId: catalogId,
@@ -180,11 +188,14 @@ export default function BillingFromRecordModal({
           return
         }
 
-        // 3. Create mode: fetch vaccinations for this pet on the same day as the record
+        // 3. Create mode: collect vaccinations from the record and from the pet's vaccination history
         if (!record) return
         const petObj = typeof record.petId === 'object' ? (record.petId as any) : null
         const petId = petObj?._id ?? record.petId
-        let petVaccinations: any[] = []
+
+        // Use vaccinations embedded in the record first, then supplement with same-day pet records
+        const recordDateStr = record.createdAt.split('T')[0]
+        let petVaccinations: any[] = Array.isArray(record.vaccinations) ? [...record.vaccinations] : []
         if (petId) {
           try {
             const vacRes = await authenticatedFetch(
@@ -192,20 +203,28 @@ export default function BillingFromRecordModal({
               { method: 'GET' },
               token,
             )
-            const recordDate = new Date(record.createdAt)
-            petVaccinations = (vacRes?.data?.vaccinations ?? []).filter((v: any) => {
+            const sameDayVax = (vacRes?.data?.vaccinations ?? []).filter((v: any) => {
               if (!v.dateAdministered) return false
-              const vDate = new Date(v.dateAdministered)
-              return (
-                vDate.getFullYear() === recordDate.getFullYear() &&
-                vDate.getMonth() === recordDate.getMonth() &&
-                vDate.getDate() === recordDate.getDate()
-              )
+              return new Date(v.dateAdministered).toISOString().split('T')[0] === recordDateStr
             })
+            // Merge: add any same-day records not already represented by the embedded list
+            const seenIds = new Set(petVaccinations.map((v: any) => v._id).filter(Boolean))
+            for (const v of sameDayVax) {
+              if (!seenIds.has(v._id)) petVaccinations.push(v)
+            }
           } catch {
             // non-fatal – vaccinations may not be available
           }
         }
+        // Deduplicate by vaccineTypeId so the same vaccine isn't billed twice
+        const seenVaccTypeIds = new Set<string>()
+        petVaccinations = petVaccinations.filter((v: any) => {
+          const vtId = typeof v.vaccineTypeId === 'object' ? v.vaccineTypeId?._id : v.vaccineTypeId
+          const key = vtId || v.vaccineName
+          if (seenVaccTypeIds.has(key)) return false
+          seenVaccTypeIds.add(key)
+          return true
+        })
 
         // 4. Auto-match record entries to catalog items
         const autoItems: BillingLineItem[] = []
@@ -224,6 +243,7 @@ export default function BillingFromRecordModal({
             tempId: nextTempId(),
             name: match ? match.name : med.name,
             price: match ? match.price : 0,
+            quantity: 1,
             type: 'Product',
             category: 'Medication',
             catalogId: match ? match.id : null,
@@ -240,6 +260,7 @@ export default function BillingFromRecordModal({
             tempId: nextTempId(),
             name: match ? match.name : test.name,
             price: match ? match.price : 0,
+            quantity: 1,
             type: 'Service',
             category: 'Diagnostic Tests',
             catalogId: match ? match.id : null,
@@ -256,6 +277,7 @@ export default function BillingFromRecordModal({
             tempId: nextTempId(),
             name: match ? match.name : care.product,
             price: match ? match.price : 0,
+            quantity: 1,
             type: 'Service',
             category: 'Preventive Care',
             catalogId: match ? match.id : null,
@@ -263,15 +285,19 @@ export default function BillingFromRecordModal({
           })
         }
 
-        // Vaccines administered on the same visit day
+        // Vaccines administered on this visit
         for (const vax of petVaccinations) {
-          const match = vaccineTypes.find(
-            (v) => normalizeName(v.name) === normalizeName(vax.vaccineName),
-          )
+          const vaccTypeId = typeof vax.vaccineTypeId === 'object'
+            ? (vax.vaccineTypeId as any)?._id
+            : vax.vaccineTypeId
+          // ID match first (guarantees current price from product-man); fall back to name
+          const match = (vaccTypeId ? vaccineTypes.find((v) => v.id === vaccTypeId) : undefined) ||
+            vaccineTypes.find((v) => normalizeName(v.name) === normalizeName(vax.vaccineName))
           autoItems.push({
             tempId: nextTempId(),
             name: match ? match.name : vax.vaccineName,
             price: match ? match.price : 0,
+            quantity: 1,
             type: 'Vaccine',
             category: 'Vaccines',
             catalogId: match ? match.id : null,
@@ -299,6 +325,7 @@ export default function BillingFromRecordModal({
         tempId: nextTempId(),
         name: entry.name,
         price: entry.price,
+        quantity: 1,
         type: entry.type,
         category: entry.category,
         catalogId: entry.id,
@@ -351,6 +378,7 @@ export default function BillingFromRecordModal({
         name: item.name,
         type: item.type === 'Vaccine' ? 'Service' : item.type,
         unitPrice: item.price,
+        quantity: item.quantity,
       }))
 
       // UPDATE existing billing via PATCH
@@ -469,8 +497,14 @@ export default function BillingFromRecordModal({
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">
                         Category
                       </th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500">
+                        Qty
+                      </th>
                       <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">
-                        Price
+                        Unit Price
+                      </th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">
+                        Total
                       </th>
                       {!isReadOnly && (
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">
@@ -483,7 +517,7 @@ export default function BillingFromRecordModal({
                     {items.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={isReadOnly ? 3 : 4}
+                          colSpan={isReadOnly ? 5 : 6}
                           className="text-center py-8 text-gray-400 text-xs"
                         >
                           No services matched from this record.{' '}
@@ -507,11 +541,33 @@ export default function BillingFromRecordModal({
                           <td className="px-4 py-3 text-gray-400 text-xs capitalize">
                             {item.category}
                           </td>
+                          <td className="px-4 py-3 text-center">
+                            {isReadOnly ? (
+                              <span className="text-sm text-[#4F4F4F]">{item.quantity}</span>
+                            ) : (
+                              <input
+                                type="number"
+                                min={1}
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateQuantity(item.tempId, parseInt(e.target.value) || 1)
+                                }
+                                className="w-14 text-center text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#476B6B]"
+                              />
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-right text-[#4F4F4F]">
                             {item.catalogId === null ? (
                               <span className="text-amber-500 text-xs">₱ 0.00</span>
                             ) : (
                               formatCurrency(item.price)
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-[#4F4F4F]">
+                            {item.catalogId === null ? (
+                              <span className="text-amber-500 text-xs">₱ 0.00</span>
+                            ) : (
+                              formatCurrency(item.price * item.quantity)
                             )}
                           </td>
                           {!isReadOnly && (

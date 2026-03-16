@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
+import { refreshBillingPrices } from '@/lib/billingSync'
 import {
   Search,
   Plus,
@@ -1214,13 +1215,23 @@ function UploadQRModal({ onClose }: { onClose: () => void }) {
 // ==================== VIEW BILLING MODAL (read-only) ====================
 
 function ViewBillingModal({
-  billing,
+  billing: initialBilling,
   onClose,
 }: {
   billing: ApiBilling
   onClose: () => void
 }) {
   const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Cash', card: 'Card', qr: 'QR' }
+  const { token } = useAuthStore()
+  const [billing, setBilling] = useState<ApiBilling>(initialBilling)
+
+  // Refresh prices from the current catalog whenever this modal opens for an unpaid bill
+  useEffect(() => {
+    if (initialBilling.status === 'paid' || !token) return
+    refreshBillingPrices(initialBilling._id, token)
+      .then((updated) => { if (updated) setBilling(updated as ApiBilling) })
+      .catch(() => {})
+  }, [initialBilling._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

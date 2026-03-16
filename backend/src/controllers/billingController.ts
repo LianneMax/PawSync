@@ -39,11 +39,15 @@ export const createBilling = async (req: Request, res: Response) => {
       discount = 0,
       serviceLabel,
       serviceDate,
+      status,
     } = req.body;
 
-    if (!ownerId || !petId || !vetId) {
-      return res.status(400).json({ status: 'ERROR', message: 'ownerId, petId, and vetId are required' });
+    if (!ownerId || !petId) {
+      return res.status(400).json({ status: 'ERROR', message: 'ownerId and petId are required' });
     }
+
+    // Only allow valid non-paid statuses to be set at creation time
+    const resolvedStatus = (status === 'pending_payment') ? 'pending_payment' : 'awaiting_approval';
 
     let clinicId = req.user.clinicId;
 
@@ -79,8 +83,9 @@ export const createBilling = async (req: Request, res: Response) => {
     const billing = await Billing.create({
       ownerId,
       petId,
-      vetId,
+      vetId: vetId || null,
       clinicId,
+      status: resolvedStatus,
       clinicBranchId: clinicBranchId || req.user.clinicBranchId || null,
       medicalRecordId: medicalRecordId || null,
       appointmentId: appointmentId || null,
@@ -306,7 +311,7 @@ export const getBillingById = async (req: Request, res: Response) => {
 
     // Guard: only the owner, the vet, or clinic staff can view
     const isOwner = billing.ownerId.toString() === req.user.userId;
-    const isVet = billing.vetId.toString() === req.user.userId;
+    const isVet = billing.vetId ? billing.vetId.toString() === req.user.userId : false;
     const isClinicStaff =
       req.user.userType === 'clinic-admin' || req.user.userType === 'branch-admin';
 
@@ -352,7 +357,7 @@ export const updateBilling = async (req: Request, res: Response) => {
 
     // Vet can only approve (awaiting_approval → pending_payment)
     if (isVet) {
-      if (billing.vetId.toString() !== req.user.userId) {
+      if (!billing.vetId || billing.vetId.toString() !== req.user.userId) {
         return res.status(403).json({ status: 'ERROR', message: 'You are not the assigned veterinarian for this billing' });
       }
       if (billing.status !== 'awaiting_approval') {
