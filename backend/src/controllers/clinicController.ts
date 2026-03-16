@@ -136,7 +136,7 @@ export const getBranches = async (req: Request, res: Response) => {
     }
 
     // Non-main branch admins only see their own branch
-    const branchQuery: any = { clinicId: clinic._id };
+    const branchQuery: any = { clinicId: clinic._id, isActive: true };
     if (req.user.clinicBranchId && !req.user.isMainBranch) {
       branchQuery._id = req.user.clinicBranchId;
     }
