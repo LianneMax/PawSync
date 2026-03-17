@@ -238,13 +238,35 @@ export default function ClinicManagementPage() {
     setEditBranchOpen(true)
   }
 
-  const handleSaveBranch = () => {
-    if (!selectedBranch) return
-    const daysStr = editForm.operatingDays.join(', ')
-    setBranches(prev => prev.map(b =>
-      b.id === selectedBranch.id ? { ...b, ...editForm, operatingDays: daysStr, hours: editForm.openingTime && editForm.closingTime ? `${editForm.openingTime} - ${editForm.closingTime}` : '-' } : b
-    ))
-    setEditBranchOpen(false)
+  const handleSaveBranch = async () => {
+    if (!selectedBranch || !clinicId || !token) return
+    try {
+      const res = await authenticatedFetch(`/clinics/${clinicId}/branches/${selectedBranch.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: editForm.name,
+          address: editForm.address,
+          city: editForm.city || null,
+          province: editForm.province || null,
+          phone: editForm.phone || null,
+          email: editForm.email || null,
+          openingTime: editForm.openingTime || null,
+          closingTime: editForm.closingTime || null,
+          operatingDays: editForm.operatingDays,
+        }),
+      }, token)
+      if (res.status === 'SUCCESS') {
+        const daysStr = editForm.operatingDays.join(', ')
+        setBranches(prev => prev.map(b =>
+          b.id === selectedBranch.id ? { ...b, ...editForm, operatingDays: daysStr, hours: editForm.openingTime && editForm.closingTime ? `${editForm.openingTime} - ${editForm.closingTime}` : '-' } : b
+        ))
+        setEditBranchOpen(false)
+      } else {
+        console.error('Failed to update branch:', res.message)
+      }
+    } catch (err) {
+      console.error('Failed to update branch:', err)
+    }
   }
 
   const openChangeMain = () => {

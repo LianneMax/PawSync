@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button, ButtonArrow } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandCheck,
@@ -113,7 +114,7 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
           )}
         >
           <span className="truncate">{selectedLabel || placeholder}</span>
-          <ButtonArrow />
+          <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popper-anchor-width) p-0" align="start">
