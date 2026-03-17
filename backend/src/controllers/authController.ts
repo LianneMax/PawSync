@@ -6,7 +6,7 @@ import axios from 'axios';
 import User, { IUser } from '../models/User';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
-import { getResend } from '../services/emailService';
+import { getResend, FROM } from '../services/emailService';
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'your-secret-key';
 const getJwtExpire = () => process.env.JWT_EXPIRE || '7d';
@@ -149,7 +149,7 @@ export const register = async (req: Request, res: Response) => {
     const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
     try {
       await getResend().emails.send({
-        from: 'PawSync <onboarding@resend.dev>',
+        from: FROM,
         to: newUser.email,
         subject: 'PawSync – Verify your email address',
         html: `
@@ -423,7 +423,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     // Send OTP via email
     try {
       await getResend().emails.send({
-        from: 'PawSync <onboarding@resend.dev>',
+        from: FROM,
         to: user.email,
         subject: 'PawSync - Password Reset OTP',
         html: `
@@ -709,7 +709,7 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
     const verifyUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
     try {
       await getResend().emails.send({
-        from: 'PawSync <onboarding@resend.dev>',
+        from: FROM,
         to: user.email,
         subject: 'PawSync – New verification link',
         html: `
