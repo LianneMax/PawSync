@@ -48,7 +48,7 @@ async function seedClinic() {
       name: 'Baivet Paranaque',
       address: 'Merville Paranaque Metro Manila',
       isMain: true,
-      isActive: true,
+      isActive: false,
     });
     console.log(`✅ Branch created: ${branch.name} (${branch._id})`);
 

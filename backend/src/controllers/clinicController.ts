@@ -92,7 +92,7 @@ export const getAllClinics = async (req: Request, res: Response) => {
 
     const clinicsWithBranches = await Promise.all(
       clinics.map(async (clinic) => {
-        const branches = await ClinicBranch.find({ clinicId: clinic._id })
+        const branches = await ClinicBranch.find({ clinicId: clinic._id, isActive: true })
           .select('name address isMain')
           .sort({ isMain: -1, name: 1 });
 
@@ -202,6 +202,9 @@ export const addBranch = async (req: Request, res: Response) => {
     if (isMain) {
       await Clinic.findByIdAndUpdate(clinic._id, { mainBranchId: branch._id });
     }
+
+    // New branches start inactive until a vet is assigned
+    await updateBranchStatus(branch._id.toString());
 
     return res.status(201).json({
       status: 'SUCCESS',
