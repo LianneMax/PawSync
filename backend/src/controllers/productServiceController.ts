@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import ProductService from '../models/ProductService';
 import ClinicBranch from '../models/ClinicBranch';
+import { getClinicForAdmin } from './clinicController';
 
 /** Returns true for item types that support branch availability tracking */
 function qualifiesForBranchAvailability(type: string, category: string): boolean {
@@ -46,7 +47,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, duration } = req.body;
+    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, intervalDays, weightMin, weightMax } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -66,8 +67,8 @@ export const createProductService = async (req: Request, res: Response) => {
     let resolvedMethod: string | null = null;
 
     if (resolvedCategory === 'Medication') {
-      if (!administrationRoute || !['oral', 'topical', 'injection'].includes(administrationRoute)) {
-        return res.status(400).json({ status: 'ERROR', message: 'administrationRoute is required for medications (oral, topical, or injection)' });
+      if (!administrationRoute || !['oral', 'topical', 'injection', 'preventive'].includes(administrationRoute)) {
+        return res.status(400).json({ status: 'ERROR', message: 'administrationRoute is required for medications (oral, topical, injection, or preventive)' });
       }
       resolvedRoute = administrationRoute;
 
@@ -83,8 +84,19 @@ export const createProductService = async (req: Request, res: Response) => {
           return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for topical medications (skin, eyes, or ears)' });
         }
         resolvedMethod = administrationMethod;
+      } else if (administrationRoute === 'injection') {
+        const validInjection = ['iv', 'im', 'sc'];
+        if (administrationMethod && !validInjection.includes(administrationMethod)) {
+          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod for injections must be iv, im, or sc' });
+        }
+        resolvedMethod = administrationMethod || null;
+      } else if (administrationRoute === 'preventive') {
+        const validPreventive = ['spot-on', 'chewable'];
+        if (!administrationMethod || !validPreventive.includes(administrationMethod)) {
+          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for preventive medications (spot-on or chewable)' });
+        }
+        resolvedMethod = administrationMethod;
       }
-      // injection has no sub-method
 
       // Uniqueness check for medications: name + route + method
       const existing = await ProductService.findOne({
@@ -105,10 +117,23 @@ export const createProductService = async (req: Request, res: Response) => {
       }
     }
 
-    // Only persist branchAvailability for qualifying types
-    const resolvedBranchAvailability = qualifiesForBranchAvailability(type, resolvedCategory)
-      ? (Array.isArray(branchAvailability) ? branchAvailability : [])
-      : [];
+    // Only persist branchAvailability for qualifying types.
+    // If not explicitly provided, auto-assign all active branches from the admin's clinic.
+    let resolvedBranchAvailability: { branchId: any; isActive: boolean }[] = [];
+    if (qualifiesForBranchAvailability(type, resolvedCategory)) {
+      if (Array.isArray(branchAvailability) && branchAvailability.length > 0) {
+        resolvedBranchAvailability = branchAvailability;
+      } else {
+        const clinic = await getClinicForAdmin(req);
+        if (clinic) {
+          const clinicBranches = await ClinicBranch.find(
+            { clinicId: clinic._id, isActive: true },
+            '_id'
+          );
+          resolvedBranchAvailability = clinicBranches.map((b: any) => ({ branchId: b._id, isActive: true }));
+        }
+      }
+    }
 
     const item = await ProductService.create({
       name: name.trim(),
@@ -120,8 +145,15 @@ export const createProductService = async (req: Request, res: Response) => {
       administrationMethod: resolvedMethod,
       ...(resolvedCategory === 'Medication' ? {
         dosageAmount: dosageAmount || null,
+        dosePerKg: dosePerKg != null ? Number(dosePerKg) : null,
+        doseUnit: doseUnit || null,
         frequency: frequency != null ? Number(frequency) : null,
+        frequencyLabel: frequencyLabel || null,
         duration: duration != null ? Number(duration) : null,
+        durationLabel: durationLabel || null,
+        intervalDays: intervalDays != null ? Number(intervalDays) : null,
+        weightMin: weightMin != null ? Number(weightMin) : null,
+        weightMax: weightMax != null ? Number(weightMax) : null,
       } : {}),
       branchAvailability: resolvedBranchAvailability,
     } as any);
@@ -158,7 +190,7 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, duration } = req.body;
+    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, intervalDays, weightMin, weightMax } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
@@ -172,8 +204,15 @@ export const updateProductService = async (req: Request, res: Response) => {
       if (administrationRoute !== undefined) item.administrationRoute = administrationRoute || null;
       if (administrationMethod !== undefined) item.administrationMethod = administrationMethod || null;
       if (dosageAmount !== undefined) (item as any).dosageAmount = dosageAmount || null;
+      if (dosePerKg !== undefined) (item as any).dosePerKg = dosePerKg != null ? Number(dosePerKg) : null;
+      if (doseUnit !== undefined) (item as any).doseUnit = doseUnit || null;
       if (frequency !== undefined) (item as any).frequency = frequency != null ? Number(frequency) : null;
+      if (frequencyLabel !== undefined) (item as any).frequencyLabel = frequencyLabel || null;
       if (duration !== undefined) (item as any).duration = duration != null ? Number(duration) : null;
+      if (durationLabel !== undefined) (item as any).durationLabel = durationLabel || null;
+      if (intervalDays !== undefined) (item as any).intervalDays = intervalDays != null ? Number(intervalDays) : null;
+      if (weightMin !== undefined) (item as any).weightMin = weightMin != null ? Number(weightMin) : null;
+      if (weightMax !== undefined) (item as any).weightMax = weightMax != null ? Number(weightMax) : null;
     }
 
     // Update branch availability if provided and item qualifies
@@ -288,7 +327,11 @@ export const migrateBranchAvailability = async (req: Request, res: Response) => 
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const branches = await ClinicBranch.find({ isActive: true }, '_id');
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(400).json({ status: 'ERROR', message: 'Could not determine clinic for this admin' });
+    }
+    const branches = await ClinicBranch.find({ clinicId: clinic._id, isActive: true }, '_id');
     if (branches.length === 0) {
       return res.status(200).json({ status: 'SUCCESS', message: 'No active branches found', data: { updated: 0 } });
     }
