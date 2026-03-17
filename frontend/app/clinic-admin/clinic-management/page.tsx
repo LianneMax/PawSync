@@ -113,7 +113,6 @@ export default function ClinicManagementPage() {
   const [invitingVetId, setInvitingVetId] = useState<string | null>(null)
   const [inviteSuccessVetId, setInviteSuccessVetId] = useState<string | null>(null)
   const [inviteErrorMsg, setInviteErrorMsg] = useState<string | null>(null)
-  const [inviteBranchId, setInviteBranchId] = useState<string>('')
 
   // Modal states
   const [removeVetOpen, setRemoveVetOpen] = useState(false)
@@ -406,9 +405,6 @@ export default function ClinicManagementPage() {
     setInviteVetSearch('')
     setInviteSuccessVetId(null)
     setInviteErrorMsg(null)
-    // Default invite branch: admin's own branch, or first branch for main admins
-    const defaultBranchId = user?.clinicBranchId || branches[0]?.id || ''
-    setInviteBranchId(defaultBranchId)
     setLoadingAllVets(true)
     try {
       const res = await authenticatedFetch('/clinics/mine/registered-vets', {}, token)
@@ -423,8 +419,9 @@ export default function ClinicManagementPage() {
   }
 
   const handleInviteVet = async (vetId: string) => {
-    if (!inviteBranchId) {
-      setInviteErrorMsg('Please select a branch to invite to.')
+    const branchId = user?.clinicBranchId
+    if (!branchId) {
+      setInviteErrorMsg('Could not determine your current branch. Please refresh and try again.')
       return
     }
     setInvitingVetId(vetId)
@@ -432,7 +429,7 @@ export default function ClinicManagementPage() {
     try {
       const res = await authenticatedFetch('/clinics/mine/invite-vet', {
         method: 'POST',
-        body: JSON.stringify({ vetId, branchId: inviteBranchId }),
+        body: JSON.stringify({ vetId, branchId }),
       }, token)
       if (res.status === 'SUCCESS') {
         setInviteSuccessVetId(vetId)
@@ -723,22 +720,16 @@ export default function ClinicManagementPage() {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Branch selector for main branch admins */}
-          {isMainBranch && branches.length > 0 && (
-            <div className="mt-2">
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Invite to Branch</label>
-              <select
-                value={inviteBranchId}
-                onChange={(e) => { setInviteBranchId(e.target.value); setInviteSuccessVetId(null); setInviteErrorMsg(null) }}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm bg-white"
-              >
-                <option value="">Select a branch...</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}{b.isMain ? ' (Main)' : ''}</option>
-                ))}
-              </select>
+          {/* Read-only current branch display */}
+          <div className="mt-2 flex items-center gap-3 bg-[#F8F6F2] px-4 py-3 rounded-xl">
+            <Building2 className="w-4 h-4 text-[#7FA5A3] shrink-0" />
+            <div>
+              <p className="text-xs text-gray-500">Inviting to Branch</p>
+              <p className="text-sm font-semibold text-[#4F4F4F]">
+                {branches.find(b => b.id === user?.clinicBranchId)?.name || 'Current Branch'}
+              </p>
             </div>
-          )}
+          </div>
 
           {/* Search */}
           <div className="relative mt-2">
@@ -790,7 +781,7 @@ export default function ClinicManagementPage() {
                       ) : (
                         <button
                           onClick={() => handleInviteVet(vet._id)}
-                          disabled={invitingVetId === vet._id || !inviteBranchId}
+                          disabled={invitingVetId === vet._id}
                           className="text-xs font-medium text-white bg-[#476B6B] hover:bg-[#3a5a5a] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 shrink-0"
                         >
                           {invitingVetId === vet._id ? 'Sending...' : 'Invite'}
