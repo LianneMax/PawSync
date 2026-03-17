@@ -92,7 +92,11 @@ export const getAllClinics = async (req: Request, res: Response) => {
 
     const clinicsWithBranches = await Promise.all(
       clinics.map(async (clinic) => {
-        const branches = await ClinicBranch.find({ clinicId: clinic._id, isActive: true })
+        const branchFilter: any = { clinicId: clinic._id };
+        if (req.query.allBranches !== 'true') {
+          branchFilter.isActive = true;
+        }
+        const branches = await ClinicBranch.find(branchFilter)
           .select('name address isMain')
           .sort({ isMain: -1, name: 1 });
 

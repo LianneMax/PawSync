@@ -73,7 +73,7 @@ export default function VetOnboardingPage() {
     const fetchClinics = async () => {
       setLoadingClinics(true)
       try {
-        const res = await fetch(`${API_URL}/clinics`)
+        const res = await fetch(`${API_URL}/clinics?allBranches=true`)
         const data = await res.json()
         if (data.status === 'SUCCESS') {
           setClinics(data.data.clinics)
