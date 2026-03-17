@@ -59,6 +59,12 @@ function matchByName(name: string, catalog: CatalogEntry[]): CatalogEntry | unde
   )
 }
 
+function findConfinementService(catalog: CatalogEntry[]): CatalogEntry | undefined {
+  return catalog.find(
+    (c) => c.type === 'Service' && normalizeName(c.name).includes('confinement'),
+  )
+}
+
 let tempIdCounter = 0
 function nextTempId() {
   return `tmp-${++tempIdCounter}`
@@ -184,6 +190,27 @@ export default function BillingFromRecordModal({
               catalogKind: isVaccine ? 'vaccine' : catalogId ? 'product-service' : 'unmatched',
             }
           })
+
+          // Sync confinement line item with latest days from record + current catalog price
+          if (record && record.confinementAction !== 'none' && record.confinementDays > 0) {
+            const confService = findConfinementService(allCatalog)
+            const existingIdx = mapped.findIndex((i) =>
+              normalizeName(i.name).includes('confinement'),
+            )
+            const confinementItem: BillingLineItem = {
+              tempId: existingIdx >= 0 ? mapped[existingIdx].tempId : nextTempId(),
+              name: confService ? confService.name : 'Confinement',
+              price: confService ? confService.price : (existingIdx >= 0 ? mapped[existingIdx].price : 0),
+              quantity: record.confinementDays,
+              type: 'Service',
+              category: confService ? confService.category : 'Others',
+              catalogId: confService ? confService.id : (existingIdx >= 0 ? mapped[existingIdx].catalogId : null),
+              catalogKind: confService ? 'product-service' : 'unmatched',
+            }
+            if (existingIdx >= 0) mapped[existingIdx] = confinementItem
+            else mapped.push(confinementItem)
+          }
+
           setItems(mapped)
           return
         }
@@ -302,6 +329,21 @@ export default function BillingFromRecordModal({
             category: 'Vaccines',
             catalogId: match ? match.id : null,
             catalogKind: match ? 'vaccine' : 'unmatched',
+          })
+        }
+
+        // Confinement fee — quantity represents number of days; price pulled from catalog
+        if (record.confinementAction !== 'none' && record.confinementDays > 0) {
+          const confService = findConfinementService(allCatalog)
+          autoItems.push({
+            tempId: nextTempId(),
+            name: confService ? confService.name : 'Confinement',
+            price: confService ? confService.price : 0,
+            quantity: record.confinementDays,
+            type: 'Service',
+            category: confService ? confService.category : 'Others',
+            catalogId: confService ? confService.id : null,
+            catalogKind: confService ? 'product-service' : 'unmatched',
           })
         }
 
@@ -713,7 +755,7 @@ export default function BillingFromRecordModal({
               {/* Status badge */}
               <div className="flex justify-center mb-5">
                 <span className="px-5 py-1.5 text-xs font-medium text-green-600 border border-green-200 bg-green-50 rounded-full">
-                  For Veterinarian Approval
+                  Running
                 </span>
               </div>
 

@@ -5,7 +5,7 @@ import ClinicBranch from '../models/ClinicBranch';
 /** Returns true for item types that support branch availability tracking */
 function qualifiesForBranchAvailability(type: string, category: string): boolean {
   if (type === 'Product') return category === 'Medication';
-  return category !== 'Others'; // Services: all except Others
+  return true; // Services: all categories including Others
 }
 
 /**
@@ -301,7 +301,7 @@ export const migrateBranchAvailability = async (req: Request, res: Response) => 
           {
             $or: [
               { type: 'Product', category: 'Medication' },
-              { type: 'Service', category: { $ne: 'Others' } },
+              { type: 'Service' },
             ],
           },
           {
