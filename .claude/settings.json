@@ -32,7 +32,8 @@
       "Bash(wc -l /Users/juliannalammoglia/Desktop/PawSync/frontend/app/clinic-admin/medical-records/[id]/page.tsx)",
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync/frontend -name *product* -o -name *catalog* -o -name *service*)",
       "Bash(npx ts-node:*)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5001/api/clinics/mine/branches)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5001/api/clinics/mine/branches)",
+      "Bash(grep -n \"medication\\\\|Medication\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/dashboard/medical-records/[id]/page.tsx)"
     ]
   }
 }

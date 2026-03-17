@@ -1670,7 +1670,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
 
   // Columns: Products tab has Administration column; Services tab does not
   // Main branch has an extra checkbox column for bulk delete
-  const colSpan = isProducts ? (isMainBranch ? 8 : 7) : (isMainBranch ? 7 : 6)
+  const colSpan = isProducts ? (isMainBranch ? 9 : 8) : (isMainBranch ? 7 : 6)
 
   return (
     <>
@@ -1786,6 +1786,9 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                   {isProducts && (
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Administration</th>
                   )}
+                  {isProducts && (
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">mg/kg</th>
+                  )}
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
@@ -1834,6 +1837,11 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                         ) : (
                           <span className="text-sm text-gray-400">—</span>
                         )}
+                      </td>
+                    )}
+                    {isProducts && (
+                      <td className="px-4 py-3.5 text-sm text-gray-700">
+                        {item.administrationRoute === 'preventive' ? '—' : (item.dosePerKg != null ? item.dosePerKg : '—')}
                       </td>
                     )}
                     <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>
