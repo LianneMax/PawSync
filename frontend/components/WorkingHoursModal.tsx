@@ -33,17 +33,33 @@ const DAY_LABELS: Record<string, string> = {
   Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday',
 }
 
+function normalizeTime(time: string | null): string | null {
+  if (!time) return null
+  if (/^\d{2}:\d{2}$/.test(time)) return time
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (match) {
+    let h = parseInt(match[1])
+    const m = match[2]
+    const ampm = match[3].toUpperCase()
+    if (ampm === 'PM' && h < 12) h += 12
+    if (ampm === 'AM' && h === 12) h = 0
+    return `${h.toString().padStart(2, '0')}:${m}`
+  }
+  return time
+}
+
 function formatTime(time: string | null) {
   if (!time) return '—'
-  const [h, m] = time.split(':').map(Number)
+  const normalized = normalizeTime(time) || time
+  const [h, m] = normalized.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'
   const display = h > 12 ? h - 12 : h === 0 ? 12 : h
   return `${display}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
 function generateTimeOptions(openingTime: string | null, closingTime: string | null) {
-  const start = openingTime || '07:00'
-  const end = closingTime || '17:00'
+  const start = normalizeTime(openingTime) || '07:00'
+  const end = normalizeTime(closingTime) || '17:00'
   const options: { value: string; label: string }[] = []
   let [h, m] = start.split(':').map(Number)
   const [endH, endM] = end.split(':').map(Number)
@@ -62,8 +78,8 @@ function generateTimeOptions(openingTime: string | null, closingTime: string | n
 // ==================== BRANCH EDITOR ====================
 
 function BranchEditor({ entry, token, onSaved }: { entry: BranchSchedule; token: string; onSaved: () => void }) {
-  const defaultStart = entry.schedule?.startTime || entry.branchOpeningTime || '09:00'
-  const defaultEnd = entry.schedule?.endTime || entry.branchClosingTime || '17:00'
+  const defaultStart = entry.schedule?.startTime || normalizeTime(entry.branchOpeningTime) || '09:00'
+  const defaultEnd = entry.schedule?.endTime || normalizeTime(entry.branchClosingTime) || '17:00'
   const defaultDays = entry.schedule?.workingDays || entry.branchOperatingDays || []
 
   const [workingDays, setWorkingDays] = useState<string[]>(defaultDays)
@@ -78,8 +94,8 @@ function BranchEditor({ entry, token, onSaved }: { entry: BranchSchedule; token:
 
   useEffect(() => {
     setWorkingDays(entry.schedule?.workingDays || entry.branchOperatingDays || [])
-    setStartTime(entry.schedule?.startTime || entry.branchOpeningTime || '09:00')
-    setEndTime(entry.schedule?.endTime || entry.branchClosingTime || '17:00')
+    setStartTime(entry.schedule?.startTime || normalizeTime(entry.branchOpeningTime) || '09:00')
+    setEndTime(entry.schedule?.endTime || normalizeTime(entry.branchClosingTime) || '17:00')
     const hasBreak = !!(entry.schedule?.breakStart && entry.schedule?.breakEnd)
     setBreakEnabled(hasBreak)
     setBreakStart(entry.schedule?.breakStart || '12:00')
