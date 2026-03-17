@@ -2009,6 +2009,19 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                                 >
                                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Standard Information</p>
                                   <div className="space-y-2">
+                                    {/* Net Content — oral, topical, injection */}
+                                    {item.administrationRoute !== 'preventive' && (
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-500">
+                                          {['tablets', 'capsules'].includes(item.administrationMethod?.toLowerCase() ?? '') ? 'mg/piece' : 'mL/piece'}
+                                        </span>
+                                        <span className="text-xs font-medium text-gray-800">
+                                          {item.netContent != null
+                                            ? `${item.netContent} ${['tablets', 'capsules'].includes(item.administrationMethod?.toLowerCase() ?? '') ? 'mg' : 'mL'}`
+                                            : '—'}
+                                        </span>
+                                      </div>
+                                    )}
                                     {/* mg/kg — oral and injection only */}
                                     {(item.administrationRoute === 'oral' || item.administrationRoute === 'injection') && (
                                       <>

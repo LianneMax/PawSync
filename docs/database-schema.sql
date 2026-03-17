@@ -683,14 +683,29 @@ CREATE TABLE confinement_records (
 -- OUTPUTS: All fields. Used in billing creation form.
 -- ============================================================
 CREATE TABLE product_services (
-    _id             CHAR(24)        PRIMARY KEY,
-    name            VARCHAR(255)    NOT NULL UNIQUE,
-    type            ENUM('Service', 'Product') NOT NULL,
-    price           DECIMAL(10,2)   NOT NULL,
-    description     TEXT            DEFAULT '',
-    is_active       BOOLEAN         NOT NULL DEFAULT TRUE,
-    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    _id                     CHAR(24)        PRIMARY KEY,
+    name                    VARCHAR(255)    NOT NULL UNIQUE,
+    type                    ENUM('Service', 'Product') NOT NULL,
+    category                ENUM('Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'General Consultation', 'Grooming', 'Others') NOT NULL DEFAULT 'Others',
+    price                   DECIMAL(10,2)   NOT NULL,
+    description             TEXT            DEFAULT '',
+    is_active               BOOLEAN         NOT NULL DEFAULT TRUE,
+    administration_route    ENUM('oral', 'topical', 'injection', 'preventive') DEFAULT NULL,
+    administration_method   ENUM('tablets', 'capsules', 'syrup', 'skin', 'ears', 'eyes', 'wounds', 'iv', 'im', 'sc', 'spot-on', 'chewable') DEFAULT NULL,
+    net_content             DECIMAL(10,4)   DEFAULT NULL,           -- mg per tablet/capsule or mL per vial/dose
+    dose_per_kg             DECIMAL(10,4)   DEFAULT NULL,
+    dose_unit               VARCHAR(20)     DEFAULT NULL,
+    dosage_amount           VARCHAR(50)     DEFAULT NULL,
+    frequency_notes         TEXT            DEFAULT NULL,
+    frequency               TINYINT         DEFAULT NULL,
+    frequency_label         VARCHAR(100)    DEFAULT NULL,
+    duration                SMALLINT        DEFAULT NULL,
+    duration_label          VARCHAR(100)    DEFAULT NULL,
+    interval_days           SMALLINT        DEFAULT NULL,
+    weight_min              DECIMAL(6,2)    DEFAULT NULL,
+    weight_max              DECIMAL(6,2)    DEFAULT NULL,
+    created_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_type (type),
     INDEX idx_is_active (is_active)
