@@ -870,7 +870,7 @@ export default function DashboardPage() {
     }
   }, [user])
 
-  // Fetch pets from API
+  // Fetch pets from API — redirect to onboarding if pet-owner has no pets
   const fetchPets = useCallback(async () => {
     if (!token) {
       setPetsLoading(false)
@@ -880,6 +880,10 @@ export default function DashboardPage() {
       setPetsLoading(true)
       const response = await getMyPets(token)
       if (response.status === 'SUCCESS' && response.data?.pets) {
+        if (response.data.pets.length === 0) {
+          router.replace('/onboarding/pet')
+          return
+        }
         setPets(response.data.pets.map(apiPetToDashboardPet))
       }
     } catch (error) {
@@ -887,7 +891,7 @@ export default function DashboardPage() {
     } finally {
       setPetsLoading(false)
     }
-  }, [token])
+  }, [token, router])
 
   useEffect(() => {
     fetchPets()

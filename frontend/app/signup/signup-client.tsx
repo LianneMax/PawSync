@@ -46,6 +46,17 @@ export default function SignUpClient() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [exitingSlide, setExitingSlide] = useState<number | null>(null)
 
+  // If redirected from login due to unverified email, show the verify screen immediately
+  useEffect(() => {
+    if (searchParams.get('unverified') === 'true') {
+      const emailParam = searchParams.get('email')
+      if (emailParam) {
+        setRegisteredEmail(emailParam)
+        setVerifyEmailPending(true)
+      }
+    }
+  }, [searchParams])
+
   // Pre-fill name/email if redirected from login after a Google "no account" response
   useEffect(() => {
     if (searchParams.get('via') === 'google') {
@@ -84,7 +95,7 @@ export default function SignUpClient() {
     if (!lastName.trim()) newFieldErrors.lastName = 'This field is required'
     if (!email.trim()) {
       newFieldErrors.email = 'This field is required'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+    } else if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email.trim())) {
       newFieldErrors.email = 'Please enter a valid email address (e.g. name@gmail.com)'
     }
     if (!mobileNumber.trim()) newFieldErrors.mobileNumber = 'This field is required'
