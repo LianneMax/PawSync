@@ -38,8 +38,7 @@ export async function getClinicForAdmin(req: Request): Promise<any> {
       }
     }
   }
-  // Legacy fallback: look up by adminId (original clinic owner account)
-  return Clinic.findOne({ adminId: req.user?.userId, isActive: true });
+  return null;
 }
 
 /**

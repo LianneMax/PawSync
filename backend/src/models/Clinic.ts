@@ -2,7 +2,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IClinic extends Document {
   name: string;
-  adminId: mongoose.Types.ObjectId;
   mainBranchId: mongoose.Types.ObjectId | null;
   logo: string | null;
   address: string | null;
@@ -19,12 +18,6 @@ const ClinicSchema = new Schema(
       type: String,
       required: [true, 'Clinic name is required'],
       trim: true
-    },
-    adminId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Clinic admin is required'],
-      index: true
     },
     mainBranchId: {
       type: Schema.Types.ObjectId,

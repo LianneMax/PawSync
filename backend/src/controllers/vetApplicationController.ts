@@ -80,13 +80,7 @@ export const getClinicApplications = async (req: Request, res: Response) => {
     }
 
     const { status } = req.query;
-    // Use clinicId from JWT if available, otherwise fallback to adminId lookup
-    let clinic;
-    if (req.user.clinicId) {
-      clinic = await Clinic.findOne({ _id: req.user.clinicId, isActive: true });
-    } else {
-      clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
-    }
+    const clinic = await Clinic.findOne({ _id: req.user.clinicId, isActive: true });
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -125,9 +119,7 @@ export const approveApplication = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const clinic = req.user.clinicId
-      ? await Clinic.findOne({ _id: req.user.clinicId, isActive: true })
-      : await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    const clinic = await Clinic.findOne({ _id: req.user.clinicId, isActive: true });
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
@@ -183,9 +175,7 @@ export const rejectApplication = async (req: Request, res: Response) => {
     }
 
     const { reason } = req.body;
-    const clinic = req.user.clinicId
-      ? await Clinic.findOne({ _id: req.user.clinicId, isActive: true })
-      : await Clinic.findOne({ adminId: req.user.userId, isActive: true });
+    const clinic = await Clinic.findOne({ _id: req.user.clinicId, isActive: true });
 
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });

@@ -63,12 +63,6 @@ export const createBilling = async (req: Request, res: Response) => {
       clinicId = (linkedRecord as any)?.clinicId?.toString();
     }
 
-    // Fall back 3: legacy clinic-admin linked via Clinic.adminId
-    if (!clinicId) {
-      const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true }).select('_id').lean();
-      clinicId = (clinic as any)?._id?.toString();
-    }
-
     if (!clinicId) {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
     }
@@ -132,12 +126,6 @@ export const listBillingsForClinic = async (req: Request, res: Response) => {
       const dbUser = await User.findById(req.user.userId).select('clinicId').lean();
       clinicId = (dbUser as any)?.clinicId?.toString();
       console.log('[listBillingsForClinic] clinicId from DB:', clinicId);
-    }
-    // Legacy fallback: clinic-admin may be linked via Clinic.adminId instead of User.clinicId
-    if (!clinicId) {
-      const clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true }).select('_id').lean();
-      clinicId = (clinic as any)?._id?.toString();
-      console.log('[listBillingsForClinic] clinicId from Clinic.adminId lookup:', clinicId);
     }
     if (!clinicId) {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
