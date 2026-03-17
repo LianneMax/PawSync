@@ -376,6 +376,46 @@ export async function sendLostPetScanAlert(params: {
   }
 }
 
+// ─── Vet Branch Invitation ────────────────────────────────────────────────────
+
+export async function sendVetInvitation(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  vetLastName: string;
+  branchName: string;
+  clinicName: string;
+  acceptUrl: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `Invitation to Join ${params.branchName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">You've Been Invited!</h2>
+          <p>Hello Dr. ${params.vetFirstName} ${params.vetLastName},</p>
+          <p>You have been invited to join <strong>${params.branchName}</strong> in our veterinary system.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Branch:</strong> ${params.branchName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+          </div>
+          <p>Please confirm your acceptance by clicking the button below:</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${params.acceptUrl}" style="background: #5A7C7A; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; display: inline-block;">Accept Invitation</a>
+          </div>
+          <p style="color: #666;">If you accept this invitation, your current branch assignment will be updated to <strong>${params.branchName}</strong>.</p>
+          <p style="color: #999; font-size: 12px;">If you did not expect this invitation, you may ignore this email.</p>
+          <p style="color: #999; font-size: 12px;">This invitation link expires in 7 days.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendVetInvitation error:', err);
+  }
+}
+
 // ─── Billing – Payment Due (vet approved invoice) ─────────────────────────────
 
 export async function sendBillingPendingPayment(params: {

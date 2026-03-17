@@ -105,6 +105,16 @@ export default function ClinicManagementPage() {
   const [branchStats, setBranchStats] = useState<Record<string, { vets: number; patients: number; appointments: number }>>({})
   const [loadingStats, setLoadingStats] = useState(false)
 
+  // Invite vet modal states
+  const [inviteVetOpen, setInviteVetOpen] = useState(false)
+  const [allVets, setAllVets] = useState<{ _id: string; firstName: string; lastName: string; email: string; currentBranch: string | null }[]>([])
+  const [loadingAllVets, setLoadingAllVets] = useState(false)
+  const [inviteVetSearch, setInviteVetSearch] = useState('')
+  const [invitingVetId, setInvitingVetId] = useState<string | null>(null)
+  const [inviteSuccessVetId, setInviteSuccessVetId] = useState<string | null>(null)
+  const [inviteErrorMsg, setInviteErrorMsg] = useState<string | null>(null)
+  const [inviteBranchId, setInviteBranchId] = useState<string>('')
+
   // Modal states
   const [removeVetOpen, setRemoveVetOpen] = useState(false)
   const [selectedVet, setSelectedVet] = useState<Veterinarian | null>(null)
@@ -391,6 +401,52 @@ export default function ClinicManagementPage() {
     }
   }
 
+  const handleOpenInviteModal = async () => {
+    setInviteVetOpen(true)
+    setInviteVetSearch('')
+    setInviteSuccessVetId(null)
+    setInviteErrorMsg(null)
+    // Default invite branch: admin's own branch, or first branch for main admins
+    const defaultBranchId = user?.clinicBranchId || branches[0]?.id || ''
+    setInviteBranchId(defaultBranchId)
+    setLoadingAllVets(true)
+    try {
+      const res = await authenticatedFetch('/clinics/mine/registered-vets', {}, token)
+      if (res.status === 'SUCCESS') {
+        setAllVets(res.data.vets || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch registered vets:', err)
+    } finally {
+      setLoadingAllVets(false)
+    }
+  }
+
+  const handleInviteVet = async (vetId: string) => {
+    if (!inviteBranchId) {
+      setInviteErrorMsg('Please select a branch to invite to.')
+      return
+    }
+    setInvitingVetId(vetId)
+    setInviteErrorMsg(null)
+    try {
+      const res = await authenticatedFetch('/clinics/mine/invite-vet', {
+        method: 'POST',
+        body: JSON.stringify({ vetId, branchId: inviteBranchId }),
+      }, token)
+      if (res.status === 'SUCCESS') {
+        setInviteSuccessVetId(vetId)
+      } else {
+        setInviteErrorMsg(res.message || 'Failed to send invitation.')
+      }
+    } catch (err) {
+      console.error('Failed to invite vet:', err)
+      setInviteErrorMsg('An unexpected error occurred.')
+    } finally {
+      setInvitingVetId(null)
+    }
+  }
+
   return (
     <DashboardLayout userType="clinic-admin">
       <div className="p-6 lg:p-8">
@@ -458,7 +514,10 @@ export default function ClinicManagementPage() {
                 <h2 className="text-2xl font-bold text-[#4F4F4F]">Veterinarians</h2>
                 <p className="text-gray-500 text-sm">Manage your clinic&apos;s veterinary staff</p>
               </div>
-              <button className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium">
+              <button
+                onClick={handleOpenInviteModal}
+                className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium"
+              >
                 <UserPlus className="w-4 h-4" />
                 Invite Veterinarian
               </button>
@@ -653,6 +712,106 @@ export default function ClinicManagementPage() {
           </div>
         )}
       </div>
+
+      {/* ==================== INVITE VET MODAL ==================== */}
+      <Dialog open={inviteVetOpen} onOpenChange={(v) => { if (!v) { setInviteVetOpen(false); setInviteSuccessVetId(null); setInviteErrorMsg(null) } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#4F4F4F]">
+              <UserPlus className="w-5 h-5 text-[#476B6B]" />
+              Invite Veterinarian
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Branch selector for main branch admins */}
+          {isMainBranch && branches.length > 0 && (
+            <div className="mt-2">
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Invite to Branch</label>
+              <select
+                value={inviteBranchId}
+                onChange={(e) => { setInviteBranchId(e.target.value); setInviteSuccessVetId(null); setInviteErrorMsg(null) }}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm bg-white"
+              >
+                <option value="">Select a branch...</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}{b.isMain ? ' (Main)' : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={inviteVetSearch}
+              onChange={(e) => setInviteVetSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+            />
+          </div>
+
+          {/* Error message */}
+          {inviteErrorMsg && (
+            <p className="text-sm text-red-500 mt-1">{inviteErrorMsg}</p>
+          )}
+
+          {/* Vet list */}
+          <div className="mt-2 max-h-80 overflow-y-auto space-y-2 pr-1">
+            {loadingAllVets ? (
+              <div className="text-center py-8 text-sm text-gray-400">Loading veterinarians...</div>
+            ) : allVets.length === 0 ? (
+              <div className="text-center py-8 text-sm text-gray-400">No registered veterinarians found.</div>
+            ) : (
+              allVets
+                .filter((v) => {
+                  const q = inviteVetSearch.toLowerCase()
+                  return `${v.firstName} ${v.lastName}`.toLowerCase().includes(q) || v.email.toLowerCase().includes(q)
+                })
+                .map((vet) => {
+                  const alreadySent = inviteSuccessVetId === vet._id
+                  return (
+                    <div key={vet._id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50/60">
+                      <div className="w-9 h-9 bg-[#F1F0ED] rounded-full flex items-center justify-center shrink-0">
+                        <span className="text-[#4F4F4F] font-medium text-xs">
+                          {vet.firstName[0]}{vet.lastName[0]}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-[#4F4F4F] truncate">Dr. {vet.firstName} {vet.lastName}</p>
+                        <p className="text-xs text-gray-500 truncate">{vet.email}</p>
+                        {vet.currentBranch && (
+                          <p className="text-xs text-[#7FA5A3] truncate">Current: {vet.currentBranch}</p>
+                        )}
+                      </div>
+                      {alreadySent ? (
+                        <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg shrink-0">Sent!</span>
+                      ) : (
+                        <button
+                          onClick={() => handleInviteVet(vet._id)}
+                          disabled={invitingVetId === vet._id || !inviteBranchId}
+                          className="text-xs font-medium text-white bg-[#476B6B] hover:bg-[#3a5a5a] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                        >
+                          {invitingVetId === vet._id ? 'Sending...' : 'Invite'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })
+            )}
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={() => { setInviteVetOpen(false); setInviteSuccessVetId(null); setInviteErrorMsg(null) }}
+              className="px-5 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ==================== REMOVE VET MODAL ==================== */}
       <Dialog open={removeVetOpen} onOpenChange={setRemoveVetOpen}>
