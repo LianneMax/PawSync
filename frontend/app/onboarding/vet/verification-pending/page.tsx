@@ -16,7 +16,7 @@ interface SubmissionData {
 
 export default function VerificationPendingPage() {
   const router = useRouter()
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
   const [submissionData, setSubmissionData] = useState<SubmissionData | null>(null)
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function VerificationPendingPage() {
 
         {/* Back to Login */}
         <button
-          onClick={() => router.push('/login')}
+          onClick={() => { logout(); router.push('/login') }}
           className="w-full py-3 bg-[#5A7C7A] text-white rounded-xl font-semibold hover:bg-[#4A6C6A] transition-colors text-sm"
         >
           Back to Login
