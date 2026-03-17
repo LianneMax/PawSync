@@ -469,7 +469,8 @@ export const getVetAppointments = async (req: Request, res: Response) => {
       .populate('ownerId', 'firstName lastName email')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
-      .sort({ date: -1, startTime: 1 });
+      .sort({ date: -1, startTime: 1 })
+      .lean();
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -477,7 +478,8 @@ export const getVetAppointments = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get vet appointments error:', error);
-    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching appointments' });
+    const message = error instanceof Error ? error.message : 'An error occurred while fetching appointments';
+    return res.status(500).json({ status: 'ERROR', message });
   }
 };
 

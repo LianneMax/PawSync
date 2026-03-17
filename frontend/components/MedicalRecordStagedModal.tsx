@@ -2602,14 +2602,32 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <select value={med.name} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, name: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
+                          <select value={med.name} onChange={(e) => {
+                            const selectedName = e.target.value
+                            const selectedService = medicationServices.find((s) => s.name === selectedName)
+                            setMedications((prev) => prev.map((m, j) => {
+                              if (j !== i) return m
+                              // Auto-populate from service data when a medication is selected
+                              if (selectedService) {
+                                return {
+                                  ...m,
+                                  name: selectedName,
+                                  dosage: selectedService.dosageAmount || m.dosage,
+                                  route: (selectedService.administrationRoute as Medication['route']) || m.route,
+                                  frequency: selectedService.frequency?.toString() || m.frequency,
+                                  duration: selectedService.duration?.toString() || m.duration,
+                                }
+                              }
+                              return { ...m, name: selectedName }
+                            }))
+                          }} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
                             <option value="">Select a medication</option>
                             {medicationServices.map((service) => (
                               <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
                             ))}
                           </select>
                           <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <select value={med.route} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, route: e.target.value as Medication['route'] } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
+                          <select value={med.route} disabled className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
                             <option value="oral">Oral</option>
                             <option value="topical">Topical</option>
                             <option value="injection">Injection</option>

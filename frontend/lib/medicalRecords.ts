@@ -351,6 +351,11 @@ export interface ProductService {
   description: string;
   isActive: boolean;
   intervalDays?: number;
+  administrationRoute?: 'oral' | 'topical' | 'injection';
+  administrationMethod?: string;
+  dosageAmount?: string;
+  frequency?: number;
+  duration?: number;
   createdAt: string;
   updatedAt: string;
 }

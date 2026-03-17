@@ -43,7 +43,8 @@ export const getMySchedule = async (req: Request, res: Response) => {
     return res.status(200).json({ status: 'SUCCESS', data: { schedules: result } });
   } catch (error) {
     console.error('Get vet schedule error:', error);
-    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+    const message = error instanceof Error ? error.message : 'An error occurred';
+    return res.status(500).json({ status: 'ERROR', message });
   }
 };
 
