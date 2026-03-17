@@ -155,9 +155,9 @@ export default function DashboardLayout({
   }, [token])
 
   useEffect(() => {
-    // If no authenticated user in store, redirect to login
+    // If no authenticated user in store, redirect to the appropriate login page
     if (!authUser) {
-      router.replace('/login')
+      router.replace(userTypeOverride === 'clinic-admin' ? '/clinic-login' : '/login')
       return
     }
 

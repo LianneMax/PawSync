@@ -45,7 +45,6 @@ function getDashboardForUserType(userType: string): string {
     case 'veterinarian':
       return '/vet-dashboard'
     case 'clinic-admin':
-    case 'clinic-admin':
       return '/clinic-admin'
     default:
       return '/login'
@@ -92,9 +91,15 @@ export function middleware(request: NextRequest) {
   // ── Redirect logged-in users away from auth pages ──────────────────────
   if (AUTH_ONLY_ROUTES.includes(pathname)) {
     if (isAuthenticated && userType) {
-      return NextResponse.redirect(
-        new URL(getDashboardForUserType(userType), request.url)
-      )
+      const dashboard = getDashboardForUserType(userType)
+      if (dashboard === '/login') {
+        // Unrecognized userType (e.g. stale cookie) — clear cookies and let them log in fresh
+        const response = NextResponse.next()
+        response.cookies.delete('authToken')
+        response.cookies.delete('userType')
+        return response
+      }
+      return NextResponse.redirect(new URL(dashboard, request.url))
     }
     return NextResponse.next()
   }
