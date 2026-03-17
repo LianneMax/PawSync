@@ -462,6 +462,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
         setExpectedDueDate(r.pregnancyRecord.expectedDueDate ? r.pregnancyRecord.expectedDueDate.split('T')[0] : '')
         setLitterNumber(r.pregnancyRecord.litterNumber != null ? String(r.pregnancyRecord.litterNumber) : '')
+      } else if (petRes.data?.pet?.pregnancyStatus === 'pregnant') {
+        // Pet is already pregnant from a previous record — auto-check and lock
+        setUltrasoundPregnant(true)
       }
       if (r.pregnancyDelivery) {
         setPregnancyDelivery(true)
@@ -942,8 +945,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     const hasUltrasound = diagnosticTests.some(
       (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
     )
+    const alreadyPregnant = pet?.pregnancyStatus === 'pregnant'
     return {
-      ...(hasUltrasound ? {
+      ...((hasUltrasound || alreadyPregnant) ? {
         pregnancyRecord: {
           isPregnant: ultrasoundPregnant,
           gestationDate: ultrasoundPregnant && gestationDate ? gestationDate : null,
@@ -978,7 +982,23 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleProceedStep2 = async () => {
     if (!token) return
-    
+
+    // Validate delivery birth counts match litter number
+    if (pregnancyDelivery) {
+      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
+        ? parseInt(litterNumber)
+        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
+          ? previousRecord.pregnancyRecord.litterNumber
+          : null
+      if (effectiveLitterNumber != null) {
+        const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
+        if (totalBirths !== effectiveLitterNumber) {
+          toast.error(`Total births (${totalBirths}) must equal the litter number (${effectiveLitterNumber})`)
+          return
+        }
+      }
+    }
+
     // Validate SOAP notes are filled
     if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) {
       toast.error('Please fill in all SOAP notes (Subjective, Objective, Assessment, Plan) before proceeding')
@@ -1132,6 +1152,23 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleCompleteRecord = async () => {
     if (!token) return
+
+    // Validate delivery birth counts match litter number
+    if (pregnancyDelivery) {
+      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
+        ? parseInt(litterNumber)
+        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
+          ? previousRecord.pregnancyRecord.litterNumber
+          : null
+      if (effectiveLitterNumber != null) {
+        const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
+        if (totalBirths !== effectiveLitterNumber) {
+          toast.error(`Total births (${totalBirths}) must equal the litter number (${effectiveLitterNumber})`)
+          return
+        }
+      }
+    }
+
     setCompleting(true)
     try {
       // Ensure vaccination is saved (with nextDueDate) before completing so the booster gets scheduled
@@ -1824,18 +1861,24 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </div>
 
               {/* ── ULTRASOUND PREGNANCY RESULT ── */}
-              {pet?.sex === 'female' && diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')) && (
+              {pet?.sex === 'female' && (pet?.pregnancyStatus === 'pregnant' || diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound'))) && (
                 <div className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
                   <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
                     <span className="text-sm font-semibold text-green-700">Ultrasound — Pregnancy Result</span>
                   </div>
                   <div className="px-4 py-3 space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    {pet?.pregnancyStatus === 'pregnant' && (
+                      <p className="text-xs text-green-700 bg-green-100 border border-green-200 rounded-lg px-3 py-2">
+                        This pet is already recorded as pregnant. Pregnancy status is locked until delivery is recorded.
+                      </p>
+                    )}
+                    <label className={`flex items-center gap-2 ${pet?.pregnancyStatus === 'pregnant' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={ultrasoundPregnant}
-                        onChange={(e) => setUltrasoundPregnant(e.target.checked)}
-                        className="w-4 h-4 accent-green-600"
+                        onChange={(e) => { if (pet?.pregnancyStatus !== 'pregnant') setUltrasoundPregnant(e.target.checked) }}
+                        disabled={pet?.pregnancyStatus === 'pregnant'}
+                        className="w-4 h-4 accent-green-600 disabled:cursor-not-allowed"
                       />
                       <span className="text-sm text-gray-700 font-medium">Pet is Pregnant</span>
                     </label>
@@ -1974,6 +2017,23 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
                       />
                     </div>
+                    {(() => {
+                      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
+                        ? parseInt(litterNumber)
+                        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
+                          ? previousRecord.pregnancyRecord.litterNumber
+                          : null
+                      if (effectiveLitterNumber == null) return null
+                      const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
+                      const matched = totalBirths === effectiveLitterNumber
+                      return (
+                        <p className={`text-xs px-3 py-2 rounded-lg border ${matched ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
+                          {matched
+                            ? `Total births match the litter number (${effectiveLitterNumber}).`
+                            : `Total births (${totalBirths}) must equal the litter number (${effectiveLitterNumber}). Adjust live or still births.`}
+                        </p>
+                      )
+                    })()}
                     <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
