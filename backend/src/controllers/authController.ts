@@ -16,18 +16,22 @@ const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Check that an email domain has MX records (i.e. it can actually receive mail).
- * Returns false for non-existent or mail-less domains (ENOTFOUND / ENODATA).
- * Fails open for transient DNS errors so real users aren't blocked.
+ * Fails closed on all errors — if we cannot confirm the domain is valid, reject it.
  */
 async function hasValidEmailDomain(email: string): Promise<boolean> {
   const domain = email.split('@')[1]?.toLowerCase();
   if (!domain) return false;
+  // Reject localhost and bare hostnames with no TLD
+  if (!domain.includes('.') || domain === 'localhost') return false;
   try {
-    const records = await dns.promises.resolveMx(domain);
-    return records.length > 0;
-  } catch (err: any) {
-    if (err.code === 'ENOTFOUND' || err.code === 'ENODATA') return false;
-    return true; // transient DNS failure — fail open
+    const timeout = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('DNS_TIMEOUT')), 5000)
+    );
+    const lookup = dns.promises.resolveMx(domain);
+    const records = await Promise.race([lookup, timeout]) as Awaited<typeof lookup> | null;
+    return Array.isArray(records) && records.length > 0;
+  } catch {
+    return false; // any error (ENOTFOUND, ENODATA, timeout, etc.) — reject
   }
 }
 
