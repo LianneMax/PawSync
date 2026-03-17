@@ -30,6 +30,8 @@ interface ProductItem {
   administrationRoute?: string
   administrationMethod?: string
   dosageAmount?: string
+  frequencyNotes?: string
+  netContent?: number
   dosePerKg?: number
   doseUnit?: string
   frequency?: number
@@ -144,6 +146,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [admMethod, setAdmMethod] = useState('')
   const [medPrice, setMedPrice] = useState('')
   const [medDesc, setMedDesc] = useState('')
+  const [medFrequencyNotes, setMedFrequencyNotes] = useState('')
+  const [medNetContent, setMedNetContent] = useState('')
   const [medDosePerKg, setMedDosePerKg] = useState('')
   const [medDoseUnit, setMedDoseUnit] = useState('')
   const [medFreqType, setMedFreqType] = useState<'per_day' | 'every_hours' | ''>('')
@@ -203,6 +207,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setAdmMethod('')
     setMedPrice('')
     setMedDesc('')
+    setMedFrequencyNotes('')
+    setMedNetContent('')
     setMedDosePerKg('')
     setMedDoseUnit('')
     setMedFreqType('')
@@ -301,6 +307,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         price: parsed,
         description: medDesc.trim(),
         branchAvailability: branchAvailabilityPayload,
+        ...(medFrequencyNotes ? { frequencyNotes: medFrequencyNotes } : {}),
+        ...(medNetContent ? { netContent: parseFloat(medNetContent) } : {}),
         ...(medDosePerKg ? { dosePerKg: parseFloat(medDosePerKg) } : {}),
         ...(medDoseUnit ? { doseUnit: medDoseUnit } : {}),
         ...(medFreqType === 'per_day' && medFreqValue
@@ -341,6 +349,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           administrationRoute: i.administrationRoute,
           administrationMethod: i.administrationMethod,
           dosageAmount: i.dosageAmount,
+          frequencyNotes: i.frequencyNotes,
+          netContent: i.netContent,
           dosePerKg: i.dosePerKg,
           doseUnit: i.doseUnit,
           frequency: i.frequency,
@@ -523,6 +533,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </label>
                 <input
                   type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                   value={medPrice}
                   onChange={(e) => setMedPrice(e.target.value)}
                   placeholder="0.00"
@@ -550,13 +561,35 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </p>
                 <div className="space-y-3">
 
-                  {/* Dose basis — oral / topical / injection only */}
+                  {/* Net content/volume per piece */}
                   {admRoute && admRoute !== 'preventive' && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        {['tablets', 'capsules'].includes(admMethod.toLowerCase())
+                          ? 'mg per piece'
+                          : 'mL per piece / vial'}
+                      </label>
+                      <input
+                        type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
+                        value={medNetContent}
+                        onChange={(e) => setMedNetContent(e.target.value)}
+                        placeholder="e.g. 500"
+                        min="0"
+                        step="any"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                  )}
+
+                  {/* Dose basis — oral / injection only */}
+                  {admRoute && admRoute !== 'preventive' && admRoute !== 'topical' && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Dose per kg (mg/kg)</label>
                         <input
                           type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                           value={medDosePerKg}
                           onChange={(e) => setMedDosePerKg(e.target.value)}
                           placeholder="e.g. 10"
@@ -579,6 +612,20 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     </div>
                   )}
 
+                  {/* Frequency notes — topical only */}
+                  {admRoute === 'topical' && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency Notes</label>
+                      <input
+                        type="text"
+                        value={medFrequencyNotes}
+                        onChange={(e) => setMedFrequencyNotes(e.target.value)}
+                        placeholder="e.g. apply twice daily to affected area"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                  )}
+
                   {/* Frequency — oral / topical / injection */}
                   {admRoute && admRoute !== 'preventive' && (
                     <div>
@@ -596,6 +643,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                         {medFreqType && (
                           <input
                             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                             value={medFreqValue}
                             onChange={(e) => setMedFreqValue(e.target.value)}
                             placeholder={medFreqType === 'per_day' ? 'e.g. 2' : 'e.g. 8'}
@@ -625,6 +673,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                         {medDurationType === 'days' && (
                           <input
                             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                             value={medDurationDays}
                             onChange={(e) => setMedDurationDays(e.target.value)}
                             placeholder="e.g. 7"
@@ -643,6 +692,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                         <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every (days)</label>
                         <input
                           type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                           value={medIntervalDays}
                           onChange={(e) => setMedIntervalDays(e.target.value)}
                           placeholder="e.g. 30"
@@ -655,6 +705,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                           <label className="block text-xs font-medium text-gray-600 mb-1">Min weight (kg)</label>
                           <input
                             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                             value={medWeightMin}
                             onChange={(e) => setMedWeightMin(e.target.value)}
                             placeholder="e.g. 5"
@@ -667,6 +718,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                           <label className="block text-xs font-medium text-gray-600 mb-1">Max weight (kg)</label>
                           <input
                             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                             value={medWeightMax}
                             onChange={(e) => setMedWeightMax(e.target.value)}
                             placeholder="e.g. 20"
@@ -718,6 +770,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Price</label>
                 <input
                   type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                   value={simpleForm.price}
                   onChange={(e) => setSimpleForm((prev) => ({ ...prev, price: e.target.value }))}
                   placeholder="0.00"
@@ -824,6 +877,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
 
   const [admRoute, setAdmRoute] = useState<AdmRoute | null>((item.administrationRoute as AdmRoute) || null)
   const [admMethod, setAdmMethod] = useState(item.administrationMethod || '')
+  const [frequencyNotes, setFrequencyNotes] = useState(item.frequencyNotes || '')
+  const [netContent, setNetContent] = useState(item.netContent != null ? String(item.netContent) : '')
   const [dosePerKg, setDosePerKg] = useState(item.dosePerKg != null ? String(item.dosePerKg) : '')
   const [doseUnit, setDoseUnit] = useState(item.doseUnit || '')
   const [freqType, setFreqType] = useState<'per_day' | 'every_hours' | ''>(() => {
@@ -912,6 +967,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       if (isMedication) {
         body.administrationRoute = admRoute
         body.administrationMethod = admMethod ? admMethod.toLowerCase() : null
+        body.frequencyNotes = frequencyNotes || null
+        body.netContent = netContent ? parseFloat(netContent) : null
         body.dosePerKg = dosePerKg ? parseFloat(dosePerKg) : null
         body.doseUnit = doseUnit || null
         body.frequency = freqType === 'per_day' && freqValue ? parseInt(freqValue) : null
@@ -955,6 +1012,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           administrationRoute: data.data.item.administrationRoute,
           administrationMethod: data.data.item.administrationMethod,
           dosageAmount: data.data.item.dosageAmount,
+          frequencyNotes: data.data.item.frequencyNotes,
+          netContent: data.data.item.netContent,
           dosePerKg: data.data.item.dosePerKg,
           doseUnit: data.data.item.doseUnit,
           frequency: data.data.item.frequency,
@@ -1104,6 +1163,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
             </label>
             <input
               type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
               name="price"
               value={form.price}
               onChange={handleChange}
@@ -1133,12 +1193,34 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
               </p>
               <div className="space-y-3">
 
+                {/* Net content/volume per piece */}
                 {admRoute && admRoute !== 'preventive' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      {['tablets', 'capsules'].includes(admMethod.toLowerCase())
+                        ? 'mg per piece'
+                        : 'mL per piece / vial'}
+                    </label>
+                    <input
+                      type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
+                      value={netContent}
+                      onChange={(e) => setNetContent(e.target.value)}
+                      placeholder="e.g. 500"
+                      min="0"
+                      step="any"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                    />
+                  </div>
+                )}
+
+                {admRoute && admRoute !== 'preventive' && admRoute !== 'topical' && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Dose per kg (mg/kg)</label>
                       <input
                         type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                         value={dosePerKg}
                         onChange={(e) => setDosePerKg(e.target.value)}
                         placeholder="e.g. 10"
@@ -1161,6 +1243,20 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                   </div>
                 )}
 
+                {/* Frequency notes — topical only */}
+                {admRoute === 'topical' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Frequency Notes</label>
+                    <input
+                      type="text"
+                      value={frequencyNotes}
+                      onChange={(e) => setFrequencyNotes(e.target.value)}
+                      placeholder="e.g. apply twice daily to affected area"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                    />
+                  </div>
+                )}
+
                 {admRoute && admRoute !== 'preventive' && (
                   <>
                     <div>
@@ -1178,6 +1274,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                         {freqType && (
                           <input
                             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                             value={freqValue}
                             onChange={(e) => setFreqValue(e.target.value)}
                             placeholder={freqType === 'per_day' ? 'e.g. 2' : 'e.g. 8'}
@@ -1203,6 +1300,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                         {durationType === 'days' && (
                           <input
                             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                             value={durationDays}
                             onChange={(e) => setDurationDays(e.target.value)}
                             placeholder="e.g. 7"
@@ -1221,6 +1319,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                       <label className="block text-xs font-medium text-gray-600 mb-1">Repeat every (days)</label>
                       <input
                         type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                         value={intervalDays}
                         onChange={(e) => setIntervalDays(e.target.value)}
                         placeholder="e.g. 30"
@@ -1233,6 +1332,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                         <label className="block text-xs font-medium text-gray-600 mb-1">Min weight (kg)</label>
                         <input
                           type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                           value={weightMin}
                           onChange={(e) => setWeightMin(e.target.value)}
                           placeholder="e.g. 5"
@@ -1245,6 +1345,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                         <label className="block text-xs font-medium text-gray-600 mb-1">Max weight (kg)</label>
                         <input
                           type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
                           value={weightMax}
                           onChange={(e) => setWeightMax(e.target.value)}
                           placeholder="e.g. 20"
@@ -1382,6 +1483,7 @@ function EditVaccinePriceModal({ vaccine, token, onClose, onSaved }: EditVaccine
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Price Per Dose (₱)</label>
           <input
             type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
             value={price}
             onChange={(e) => { setPrice(e.target.value); setError('') }}
             placeholder="0.00"
@@ -1517,6 +1619,8 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
             administrationRoute: item.administrationRoute,
             administrationMethod: item.administrationMethod,
             dosageAmount: item.dosageAmount,
+            frequencyNotes: item.frequencyNotes,
+            netContent: item.netContent,
             dosePerKg: item.dosePerKg,
             doseUnit: item.doseUnit,
             frequency: item.frequency,
@@ -1787,7 +1891,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Administration</th>
                   )}
                   {isProducts && (
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">mg/kg</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Net Content / Volume</th>
                   )}
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Price" colKey="price" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
@@ -1841,7 +1945,11 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                     )}
                     {isProducts && (
                       <td className="px-4 py-3.5 text-sm text-gray-700">
-                        {item.administrationRoute === 'preventive' ? '—' : (item.dosePerKg != null ? item.dosePerKg : '—')}
+                        {item.administrationRoute === 'preventive' || item.netContent == null
+                          ? '—'
+                          : ['tablets', 'capsules'].includes(item.administrationMethod?.toLowerCase() ?? '')
+                            ? `${item.netContent} mg`
+                            : `${item.netContent} mL`}
                       </td>
                     )}
                     <td className="px-4 py-3.5 text-sm text-gray-700">₱ {item.price.toLocaleString()}</td>

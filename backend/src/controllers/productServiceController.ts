@@ -47,7 +47,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, intervalDays, weightMin, weightMax } = req.body;
+    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -145,6 +145,8 @@ export const createProductService = async (req: Request, res: Response) => {
       administrationMethod: resolvedMethod,
       ...(resolvedCategory === 'Medication' ? {
         dosageAmount: dosageAmount || null,
+        frequencyNotes: frequencyNotes || null,
+        netContent: netContent != null ? Number(netContent) : null,
         dosePerKg: dosePerKg != null ? Number(dosePerKg) : null,
         doseUnit: doseUnit || null,
         frequency: frequency != null ? Number(frequency) : null,
@@ -190,7 +192,7 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, intervalDays, weightMin, weightMax } = req.body;
+    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
@@ -204,6 +206,8 @@ export const updateProductService = async (req: Request, res: Response) => {
       if (administrationRoute !== undefined) item.administrationRoute = administrationRoute || null;
       if (administrationMethod !== undefined) item.administrationMethod = administrationMethod || null;
       if (dosageAmount !== undefined) (item as any).dosageAmount = dosageAmount || null;
+      if (frequencyNotes !== undefined) (item as any).frequencyNotes = frequencyNotes || null;
+      if (netContent !== undefined) (item as any).netContent = netContent != null ? Number(netContent) : null;
       if (dosePerKg !== undefined) (item as any).dosePerKg = dosePerKg != null ? Number(dosePerKg) : null;
       if (doseUnit !== undefined) (item as any).doseUnit = doseUnit || null;
       if (frequency !== undefined) (item as any).frequency = frequency != null ? Number(frequency) : null;

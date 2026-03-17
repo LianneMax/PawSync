@@ -24,12 +24,16 @@ export interface IProductService extends Document {
   administrationRoute?: AdministrationRoute;
   administrationMethod?: AdministrationMethod;
 
+  // Net content/volume per piece (tablets/capsules → mg; syrup/topical/injection → mL)
+  netContent?: number;        // e.g. 500 (mg per tablet) or 100 (mL per vial)
+
   // Internal dose basis for mg/kg workflow
   dosePerKg?: number;         // e.g. 10 → "10 mg/kg"
   doseUnit?: string;          // e.g. 'mg', 'mL', 'drops', 'tablet'
 
   // Pre-filled defaults (guide values, editable per case)
   dosageAmount?: string;      // e.g. "500mg", "5mL" — computed guide value
+  frequencyNotes?: string;    // free-text frequency for topical (e.g. "apply twice daily to affected area")
   frequency?: number | null;  // doses per day (null = interval-based or as-needed)
   frequencyLabel?: string;    // e.g. "every 12 hours", "as needed", "once monthly"
   duration?: number | null;   // treatment duration in days (null = open-ended)
@@ -70,9 +74,11 @@ const ProductServiceSchema: Schema = new Schema(
       enum: ['tablets', 'capsules', 'syrup', 'skin', 'ears', 'eyes', 'wounds', 'iv', 'im', 'sc', 'spot-on', 'chewable'],
       default: null,
     },
+    netContent: { type: Number, default: null, min: 0 },
     dosePerKg: { type: Number, default: null, min: 0 },
     doseUnit: { type: String, default: null },
     dosageAmount: { type: String, default: null },
+    frequencyNotes: { type: String, default: null },
     frequency: { type: Number, default: null, min: 1 },
     frequencyLabel: { type: String, default: null },
     duration: { type: Number, default: null, min: 1 },
