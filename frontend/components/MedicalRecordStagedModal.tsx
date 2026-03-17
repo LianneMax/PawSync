@@ -2639,13 +2639,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               if (j !== i) return m
                               // Auto-populate from service data when a medication is selected
                               if (selectedService) {
+                                const isTabletOrCapsule = ['tablets', 'capsules'].includes(selectedService.administrationMethod?.toLowerCase() ?? '')
+                                const bodyWeight = vitals?.weight?.value
+                                let autoDosage = selectedService.dosageAmount || m.dosage
+                                if (isTabletOrCapsule && selectedService.dosePerKg != null && bodyWeight) {
+                                  const rawMg = selectedService.dosePerKg * bodyWeight
+                                  autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
+                                }
                                 return {
                                   ...m,
                                   name: selectedName,
-                                  dosage: selectedService.dosageAmount || m.dosage,
+                                  dosage: autoDosage,
                                   route: (selectedService.administrationRoute as Medication['route']) || m.route,
-                                  frequency: selectedService.frequency?.toString() || m.frequency,
-                                  duration: selectedService.duration?.toString() || m.duration,
+                                  frequency: selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency,
+                                  duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
                                 }
                               }
                               return { ...m, name: selectedName }

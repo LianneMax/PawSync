@@ -353,9 +353,14 @@ export interface ProductService {
   intervalDays?: number;
   administrationRoute?: 'oral' | 'topical' | 'injection';
   administrationMethod?: string;
+  netContent?: number;
+  dosePerKg?: number;
+  doseUnit?: string;
   dosageAmount?: string;
   frequency?: number;
+  frequencyLabel?: string;
   duration?: number;
+  durationLabel?: string;
   createdAt: string;
   updatedAt: string;
 }
