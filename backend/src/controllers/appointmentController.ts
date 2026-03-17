@@ -1239,10 +1239,6 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
         }
       }
     }
-    // Legacy fallback: clinic where this user is the adminId
-    if (!clinic) {
-      clinic = await Clinic.findOne({ adminId: req.user.userId, isActive: true });
-    }
     if (!clinic) {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
