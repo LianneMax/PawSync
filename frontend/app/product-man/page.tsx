@@ -79,6 +79,8 @@ interface AddModalProps {
 
 function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const isProducts = tab === 'Products'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+  const authUser = useAuthStore((state) => state.user)
 
   // --- Simple form state (Services tab + Products "Others") ---
   const [simpleForm, setSimpleForm] = useState({
@@ -90,13 +92,37 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
 
   // --- Branch availability selection ---
   const [selectedBranches, setSelectedBranches] = useState<Set<string>>(new Set())
+  const [localBranches, setLocalBranches] = useState<BranchInfo[]>([])
+  const [branchLoading, setBranchLoading] = useState(true)
+  const [branchFetchError, setBranchFetchError] = useState(false)
 
-  // Initialize all branches as selected once the list loads
+  // Fetch branches on mount so the modal doesn't depend on the parent having loaded them
   useEffect(() => {
-    if (branches.length > 0 && selectedBranches.size === 0) {
-      setSelectedBranches(new Set(branches.map((b) => b.id)))
+    if (!token) { setBranchLoading(false); return }
+    const fetchBranches = async () => {
+      try {
+        const clinicId = authUser?.clinicId
+        const url = clinicId
+          ? `${apiUrl}/clinics/${clinicId}/branches?includeInactive=true`
+          : `${apiUrl}/appointments/clinic-branches?all=true`
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        const data = await res.json()
+        if (data.status === 'SUCCESS') {
+          const list = Array.isArray(data.data) ? data.data : (data.data.branches ?? [])
+          const mapped: BranchInfo[] = list.map((b: any) => ({ id: b._id, name: b.name, isMain: b.isMain ?? false }))
+          setLocalBranches(mapped)
+          setSelectedBranches(new Set(mapped.map((b) => b.id)))
+        } else {
+          setBranchFetchError(true)
+        }
+      } catch {
+        setBranchFetchError(true)
+      } finally {
+        setBranchLoading(false)
+      }
     }
-  }, [branches]) // eslint-disable-line react-hooks/exhaustive-deps
+    fetchBranches()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Products: type selection ---
   const [productType, setProductType] = useState<'medication' | 'others' | null>(null)
@@ -168,7 +194,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedDuration('')
   }
 
-  const branchAvailabilityPayload = Array.from(selectedBranches).map((id) => ({ branchId: id, isActive: true }))
+  const branchAvailabilityPayload = localBranches.map((b) => ({ branchId: b.id, isActive: selectedBranches.has(b.id) }))
 
   const mapBranchAvailability = (raw: any[]): BranchAvailabilityEntry[] =>
     (raw || []).map((ba: any) => ({
@@ -579,11 +605,15 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           {(isMedMode || (!isProducts && simpleForm.category !== 'Others')) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Branch Availability</label>
-              {branches.length === 0 ? (
+              {branchLoading ? (
                 <p className="text-xs text-gray-400 py-1">Loading branches...</p>
+              ) : branchFetchError ? (
+                <p className="text-xs text-red-400 py-1">Failed to load branches. Please close and try again.</p>
+              ) : localBranches.length === 0 ? (
+                <p className="text-xs text-gray-400 py-1">No branches found.</p>
               ) : (
                 <div className="space-y-2">
-                  {branches.map((branch) => (
+                  {localBranches.map((branch) => (
                     <button
                       key={branch.id}
                       type="button"
@@ -1139,7 +1169,13 @@ function SortHeader({
 
 // ==================== PRODUCTS / SERVICES TAB ====================
 
-function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token: string | null }) {
+function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
+  tab: 'Products' | 'Services'
+  token: string | null
+  isMainBranch: boolean
+  userBranchId: string | null
+}) {
+  const authUser = useAuthStore((state) => state.user)
   const [data, setData] = useState<ProductItem[]>([])
   const [branches, setBranches] = useState<BranchInfo[]>([])
   const [search, setSearch] = useState('')
@@ -1165,15 +1201,16 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
       isActive: ba.isActive,
     }))
 
-  // Fetch branches once and run migration
+  // Fetch branches once on mount
   useEffect(() => {
     if (!token) return
-    const init = async () => {
+    const fetchBranches = async () => {
       try {
-        // Use the auth-based endpoint — works without knowing clinicId
-        const branchRes = await fetch(`${apiUrl}/appointments/clinic-branches?all=true`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const clinicId = authUser?.clinicId
+        const url = clinicId
+          ? `${apiUrl}/clinics/${clinicId}/branches?includeInactive=true`
+          : `${apiUrl}/appointments/clinic-branches?all=true`
+        const branchRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
         const branchData = await branchRes.json()
         if (branchData.status === 'SUCCESS') {
           const list = Array.isArray(branchData.data) ? branchData.data : (branchData.data.branches ?? [])
@@ -1183,16 +1220,11 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
             isMain: b.isMain ?? false,
           })))
         }
-        // Run idempotent migration for existing records
-        await fetch(`${apiUrl}/product-services/migrate-branches`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        })
       } catch {
         // non-fatal
       }
     }
-    init()
+    fetchBranches()
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -1313,13 +1345,63 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
     setData((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
   }
 
+  const handleToggleBranchAvailability = async (itemId: string, currentIsActive: boolean) => {
+    if (!userBranchId) return
+    const next = !currentIsActive
+    // Optimistic update
+    setData((prev) => prev.map((d) => {
+      if (d.id !== itemId) return d
+      return {
+        ...d,
+        branchAvailability: d.branchAvailability.map((ba) =>
+          ba.branchId === userBranchId ? { ...ba, isActive: next } : ba
+        ),
+      }
+    }))
+    try {
+      const res = await fetch(`${apiUrl}/product-services/${itemId}/branch-availability`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ isActive: next }),
+      })
+      const result = await res.json()
+      if (result.status !== 'SUCCESS') {
+        // Revert on error
+        setData((prev) => prev.map((d) => {
+          if (d.id !== itemId) return d
+          return {
+            ...d,
+            branchAvailability: d.branchAvailability.map((ba) =>
+              ba.branchId === userBranchId ? { ...ba, isActive: currentIsActive } : ba
+            ),
+          }
+        }))
+      }
+    } catch {
+      // Revert on network error
+      setData((prev) => prev.map((d) => {
+        if (d.id !== itemId) return d
+        return {
+          ...d,
+          branchAvailability: d.branchAvailability.map((ba) =>
+            ba.branchId === userBranchId ? { ...ba, isActive: currentIsActive } : ba
+          ),
+        }
+      }))
+    }
+  }
+
   // Columns: Products tab has Administration column; Services tab does not
-  const colSpan = isProducts ? 8 : 7
+  // Main branch has an extra checkbox column for bulk delete
+  const colSpan = isProducts ? (isMainBranch ? 8 : 7) : (isMainBranch ? 7 : 6)
 
   return (
     <>
-      {showModal && <AddModal tab={tab} token={token} branches={branches} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
-      {editingItem && (
+      {isMainBranch && showModal && <AddModal tab={tab} token={token} branches={branches} onClose={() => setShowModal(false)} onSaved={handleSaved} />}
+      {isMainBranch && editingItem && (
         <EditModal
           tab={tab}
           item={editingItem}
@@ -1330,15 +1412,17 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
         />
       )}
 
-      <div className="flex justify-center mb-6">
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4 text-gray-500" />
-          Add New {isProducts ? 'Product' : 'Service'}
-        </button>
-      </div>
+      {isMainBranch && (
+        <div className="flex justify-center mb-6">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4 text-gray-500" />
+            Add New {isProducts ? 'Product' : 'Service'}
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
@@ -1383,14 +1467,16 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                 Clear
               </button>
             )}
-            <button
-              onClick={handleDelete}
-              disabled={selected.size === 0}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </button>
+            {isMainBranch && (
+              <button
+                onClick={handleDelete}
+                disabled={selected.size === 0}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -1403,18 +1489,20 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="px-5 py-3 text-left w-12">
-                    <button
-                      onClick={handleSelectAll}
-                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                        allSelected || someSelected
-                          ? 'bg-[#7FA5A3] border-[#7FA5A3]'
-                          : 'border-gray-300 hover:border-[#7FA5A3]'
-                      }`}
-                    >
-                      {(allSelected || someSelected) && <Minus className="w-3 h-3 text-white" />}
-                    </button>
-                  </th>
+                  {isMainBranch && (
+                    <th className="px-5 py-3 text-left w-12">
+                      <button
+                        onClick={handleSelectAll}
+                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                          allSelected || someSelected
+                            ? 'bg-[#7FA5A3] border-[#7FA5A3]'
+                            : 'border-gray-300 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {(allSelected || someSelected) && <Minus className="w-3 h-3 text-white" />}
+                      </button>
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left">
                     <SortHeader label="Name" colKey="name" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                   </th>
@@ -1437,20 +1525,22 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
               <tbody>
                 {sorted.map((item) => (
                   <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <button
-                        onClick={() => toggleSelect(item.id)}
-                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                          selected.has(item.id) ? 'bg-[#7FA5A3] border-[#7FA5A3]' : 'border-gray-300 hover:border-[#7FA5A3]'
-                        }`}
-                      >
-                        {selected.has(item.id) && (
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
-                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </button>
-                    </td>
+                    {isMainBranch && (
+                      <td className="px-5 py-3.5">
+                        <button
+                          onClick={() => toggleSelect(item.id)}
+                          className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                            selected.has(item.id) ? 'bg-[#7FA5A3] border-[#7FA5A3]' : 'border-gray-300 hover:border-[#7FA5A3]'
+                          }`}
+                        >
+                          {selected.has(item.id) && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      </td>
+                    )}
                     <td className="px-4 py-3.5">
                       <span className="text-sm font-medium text-[#476B6B] underline underline-offset-2 cursor-pointer hover:text-[#7FA5A3] transition-colors">
                         {item.name}
@@ -1551,12 +1641,31 @@ function ProductServiceTab({ tab, token }: { tab: 'Products' | 'Services'; token
                             )}
                           </div>
                         )}
-                        <button
-                          onClick={() => setEditingItem(item)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
-                        >
-                          <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
-                        </button>
+                        {isMainBranch ? (
+                          <button
+                            onClick={() => setEditingItem(item)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:border-[#7FA5A3] hover:bg-[#7FA5A3]/5 transition-colors group"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
+                          </button>
+                        ) : qualifiesForBranchAvailability(tab, item.category) ? (() => {
+                          const ba = item.branchAvailability.find((b) => b.branchId === userBranchId)
+                          const isActive = ba?.isActive ?? false
+                          return (
+                            <button
+                              onClick={() => handleToggleBranchAvailability(item.id, isActive)}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                                isActive
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              }`}
+                            >
+                              {isActive ? 'Available' : 'Unavailable'}
+                            </button>
+                          )
+                        })() : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1743,6 +1852,9 @@ function VaccinesTab({ token }: { token: string | null }) {
 
 export default function ProductManPage() {
   const token = useAuthStore((state) => state.token)
+  const user = useAuthStore((state) => state.user)
+  const isMainBranch = user?.isMainBranch ?? false
+  const userBranchId = user?.clinicBranchId ?? null
   const [activeTab, setActiveTab] = useState<Tab>('Products')
 
   const tabs: Tab[] = ['Products', 'Services', 'Vaccines']
@@ -1772,8 +1884,8 @@ export default function ProductManPage() {
           ))}
         </div>
 
-        {activeTab === 'Products' && <ProductServiceTab tab="Products" token={token} />}
-        {activeTab === 'Services' && <ProductServiceTab tab="Services" token={token} />}
+        {activeTab === 'Products' && <ProductServiceTab tab="Products" token={token} isMainBranch={isMainBranch} userBranchId={userBranchId} />}
+        {activeTab === 'Services' && <ProductServiceTab tab="Services" token={token} isMainBranch={isMainBranch} userBranchId={userBranchId} />}
         {activeTab === 'Vaccines' && <VaccinesTab token={token} />}
       </div>
     </DashboardLayout>

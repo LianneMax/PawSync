@@ -57,7 +57,7 @@ export const createProductService = async (req: Request, res: Response) => {
     }
 
     const validProductCategories = ['Medication', 'Others'];
-    const validServiceCategories = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Others'];
+    const validServiceCategories = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'General Consultation', 'Grooming', 'Others'];
     const validCategories = type === 'Product' ? validProductCategories : validServiceCategories;
     const resolvedCategory = category && validCategories.includes(category) ? category : 'Others';
 
@@ -222,6 +222,58 @@ export const deleteProductService = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Delete product service error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting the product/service' });
+  }
+};
+
+/**
+ * PATCH /api/product-services/:id/branch-availability
+ * Any clinic admin — toggle their own branch's availability for an item.
+ */
+export const updateBranchAvailability = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const branchId = req.user.clinicBranchId;
+    if (!branchId) {
+      return res.status(403).json({ status: 'ERROR', message: 'No branch associated with this account' });
+    }
+
+    const { isActive } = req.body;
+    if (isActive === undefined) {
+      return res.status(400).json({ status: 'ERROR', message: 'isActive is required' });
+    }
+
+    const item = await ProductService.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
+    }
+
+    if (!qualifiesForBranchAvailability(item.type, item.category)) {
+      return res.status(400).json({ status: 'ERROR', message: 'This item does not support branch availability' });
+    }
+
+    const existing = (item as any).branchAvailability.find(
+      (ba: any) => ba.branchId.toString() === branchId.toString()
+    );
+    if (existing) {
+      existing.isActive = isActive;
+    } else {
+      (item as any).branchAvailability.push({ branchId, isActive });
+    }
+
+    await item.save();
+    await item.populate('branchAvailability.branchId', 'name isMain');
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Branch availability updated successfully',
+      data: { item },
+    });
+  } catch (error) {
+    console.error('Update branch availability error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating branch availability' });
   }
 };
 

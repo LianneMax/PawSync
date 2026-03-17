@@ -12,6 +12,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import Billing from '../models/Billing';
 import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+import { getClinicForAdmin } from './clinicController';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -1350,7 +1351,7 @@ export const getClinicBranches = async (req: Request, res: Response) => {
 
     let clinicId: string;
 
-    // If user is a veterinarian, get their clinic from VetApplication
+    // Veterinarians: get their clinic via VetApplication
     if (req.user.userType === 'veterinarian') {
       const vetApp = await VetApplication.findOne({ vetId: req.user.userId });
       if (!vetApp) {
@@ -1361,17 +1362,14 @@ export const getClinicBranches = async (req: Request, res: Response) => {
         return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
       }
       clinicId = (branch.clinicId as any).toString();
-    } else if (req.user.clinicId) {
-      clinicId = req.user.clinicId;
-    } else if (req.user.clinicBranchId) {
-      // Branch-level admin: derive clinicId from their branch document
-      const branch = await ClinicBranch.findById(req.user.clinicBranchId).select('clinicId');
-      if (!branch?.clinicId) {
-        return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
-      }
-      clinicId = (branch.clinicId as any).toString();
     } else {
-      return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with user' });
+      // Clinic admins: use getClinicForAdmin which handles all JWT edge cases
+      // including stale tokens and legacy admins identified only by adminId
+      const clinic = await getClinicForAdmin(req);
+      if (!clinic) {
+        return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with user' });
+      }
+      clinicId = (clinic._id as any).toString();
     }
 
     // Fetch branches for this clinic; pass ?all=true to include inactive ones
