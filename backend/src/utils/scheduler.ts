@@ -172,7 +172,20 @@ export function startScheduler() {
       console.error('[Scheduler] Vaccination upcoming reminder error:', err);
     }
 
-    // ── 4. Appointment 24-hour reminders ─────────────────────────────────────
+    // ── 4. Purge expired unverified accounts ─────────────────────────────────
+    try {
+      const purgeResult = await User.deleteMany({
+        emailVerified: false,
+        emailVerificationExpires: { $lt: now },
+      });
+      if (purgeResult.deletedCount > 0) {
+        console.log(`[Scheduler] Purged ${purgeResult.deletedCount} expired unverified account(s)`);
+      }
+    } catch (err) {
+      console.error('[Scheduler] Unverified account purge error:', err);
+    }
+
+    // ── 5. Appointment 24-hour reminders ─────────────────────────────────────
     try {
       const tomorrowStart = new Date(now);
       tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
