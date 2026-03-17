@@ -23,6 +23,16 @@ export default function VerificationSuccessPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
   useEffect(() => {
+    // Only show this page when redirected from login after first verification
+    const allowed = sessionStorage.getItem('showVerificationSuccess')
+    if (!allowed) {
+      router.replace('/vet-dashboard')
+      return
+    }
+    sessionStorage.removeItem('showVerificationSuccess')
+  }, [router])
+
+  useEffect(() => {
     const fetchVerification = async () => {
       if (!token) return
       try {

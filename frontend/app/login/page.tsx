@@ -200,6 +200,7 @@ export default function LoginPage() {
             const notifiedKey = `vet_verified_notified_${userId}`
             if (!localStorage.getItem(notifiedKey)) {
               localStorage.setItem(notifiedKey, 'true')
+              sessionStorage.setItem('showVerificationSuccess', 'true')
               router.push('/onboarding/vet/verification-success')
             } else {
               router.push('/vet-dashboard')

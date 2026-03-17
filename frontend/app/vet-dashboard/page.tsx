@@ -73,6 +73,28 @@ export default function VetDashboardPage() {
   const [vaccinesDueCount, setVaccinesDueCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  // Guard: unverified/rejected vets cannot access the dashboard
+  useEffect(() => {
+    if (!user || !token) return
+    if (user.isVerified) return
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+    fetch(`${API_URL}/verifications/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const latest = data?.data?.verifications?.[0]
+        if (latest?.status === 'rejected') {
+          router.replace('/onboarding/vet/verification-failed')
+        } else if (latest) {
+          router.replace('/onboarding/vet/verification-pending')
+        } else {
+          router.replace('/onboarding/vet')
+        }
+      })
+      .catch(() => router.replace('/onboarding/vet/verification-pending'))
+  }, [user, token, router])
+
   useEffect(() => {
     if (!token) return
     const load = async () => {
