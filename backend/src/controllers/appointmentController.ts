@@ -72,12 +72,50 @@ export const createAppointment = async (req: Request, res: Response) => {
 
     const { petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes } = req.body;
 
+    // ─────────────────────────────────────────────────────────────────────────────────
+    // Branch authorization validation
+    // ─────────────────────────────────────────────────────────────────────────────────
+    
+    // Clinic admins can only book appointments for their assigned branch
+    if (req.user.userType === 'clinic-admin') {
+      if (!req.user.clinicBranchId) {
+        return res.status(403).json({ 
+          status: 'ERROR', 
+          message: 'Clinic admin must have a branch assigned' 
+        });
+      }
+      
+      const userBranchId = (req.user.clinicBranchId as any).toString();
+      const requestedBranchId = (clinicBranchId as any).toString();
+      
+      if (userBranchId !== requestedBranchId) {
+        return res.status(403).json({ 
+          status: 'ERROR', 
+          message: 'You can only create appointments for your assigned branch' 
+        });
+      }
+    }
+    
+    // Veterinarians can only book appointments for branches they are assigned to
+    if (req.user.userType === 'veterinarian') {
+      const vetApps = await VetApplication.find({ vetId: req.user.userId });
+      const assignedBranchIds = vetApps.map(va => (va.branchId as any).toString());
+      const requestedBranchId = (clinicBranchId as any).toString();
+      
+      if (!assignedBranchIds.includes(requestedBranchId)) {
+        return res.status(403).json({ 
+          status: 'ERROR', 
+          message: 'You can only create appointments for branches you are assigned to' 
+        });
+      }
+    }
+
     // Verify pet belongs to the user
     const pet = await Pet.findById(petId);
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
-    if (pet.ownerId.toString() !== req.user.userId && req.user.userType !== 'veterinarian') {
+    if (pet.ownerId.toString() !== req.user.userId && req.user.userType !== 'veterinarian' && req.user.userType !== 'clinic-admin') {
       return res.status(403).json({ status: 'ERROR', message: 'You can only book appointments for your own pets' });
     }
 
@@ -1343,7 +1381,10 @@ export const getAppointmentById = async (req: Request, res: Response) => {
   }
 };
 /**
- * Get all clinic branches for the authenticated user's clinic
+ * Get clinic branches for the authenticated user
+ * - Clinic admins: return only their assigned branch
+ * - Veterinarians: return only branches they are assigned to
+ * - Pet owners: return all branches in their clinic
  */
 export const getClinicBranches = async (req: Request, res: Response) => {
   try {
@@ -1352,32 +1393,65 @@ export const getClinicBranches = async (req: Request, res: Response) => {
     }
 
     let clinicId: string;
+    let branchIds: string[] | undefined;
 
-    // Veterinarians: get their clinic via VetApplication
     if (req.user.userType === 'veterinarian') {
-      const vetApp = await VetApplication.findOne({ vetId: req.user.userId });
-      if (!vetApp) {
+      // Veterinarians: get their assigned branches
+      const vetApps = await VetApplication.find({ vetId: req.user.userId });
+      if (!vetApps || vetApps.length === 0) {
         return res.status(403).json({ status: 'ERROR', message: 'Veterinarian has no clinic assignment' });
       }
-      const branch = await ClinicBranch.findById(vetApp.branchId);
+      
+      const branch = await ClinicBranch.findById(vetApps[0].branchId);
       if (!branch) {
         return res.status(403).json({ status: 'ERROR', message: 'Branch not found' });
       }
       clinicId = (branch.clinicId as any).toString();
-    } else {
-      // Clinic admins: use getClinicForAdmin which handles all JWT edge cases
-      // including stale tokens and legacy admins identified only by adminId
+      
+      // Get all branches this vet is assigned to
+      branchIds = vetApps.map(va => (va.branchId as any).toString());
+    } else if (req.user.userType === 'clinic-admin') {
+      // Clinic admins: return only their assigned branch
       const clinic = await getClinicForAdmin(req);
       if (!clinic) {
         return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with user' });
       }
       clinicId = (clinic._id as any).toString();
+      
+      // Get the clinic admin's assigned branch(es)
+      if (req.user.clinicBranchId) {
+        branchIds = [(req.user.clinicBranchId as any).toString()];
+      } else {
+        // Fallback: fetch the main branch if no specific branch is assigned
+        const mainBranch = await ClinicBranch.findOne({ clinicId, isMain: true });
+        if (mainBranch) {
+          branchIds = [(mainBranch._id as any).toString()];
+        }
+      }
+    } else {
+      // Pet owners: return all branches in their clinic (if they have one)
+      // For now, we'll get the clinic from clinicId if it's stored in user record
+      // or return all active branches if no specific clinic
+      const clinic = await getClinicForAdmin(req);
+      if (clinic) {
+        clinicId = (clinic._id as any).toString();
+      } else {
+        // No clinic associated; return empty
+        return res.status(200).json({
+          status: 'SUCCESS',
+          data: []
+        });
+      }
     }
 
-    // Fetch branches for this clinic; pass ?all=true to include inactive ones
+    // Fetch branches; include inactive if requested
     const includeInactive = req.query.all === 'true';
     const branchFilter: any = { clinicId };
+    if (branchIds) {
+      branchFilter._id = { $in: branchIds };
+    }
     if (!includeInactive) branchFilter.isActive = true;
+    
     const branches = await ClinicBranch.find(branchFilter)
       .select('_id name isMain')
       .sort({ isMain: -1, name: 1 });

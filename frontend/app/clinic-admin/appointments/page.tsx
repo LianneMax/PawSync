@@ -714,7 +714,7 @@ export default function ClinicAdminAppointmentsPage() {
   // Calendar date
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
 
-  // Load clinic + branches (only for clinic admins, branch admins only manage their branch)
+  // Load clinic + branches (for clinic admins, vets, etc.)
   useEffect(() => {
     const load = async () => {
       try {
@@ -723,8 +723,8 @@ export default function ClinicAdminAppointmentsPage() {
           const c = clinicRes.data.clinics[0]
           setClinic({ _id: c._id, name: c.name })
 
-          // Only fetch branches for clinic admins
-          if (!isClinicAdmin) {
+          // Fetch branches for clinic admins
+          if (isClinicAdmin) {
             const branchRes = await authenticatedFetch(`/clinics/${c._id}/branches`, {}, token || undefined)
             if (branchRes.status === 'SUCCESS' && branchRes.data?.branches) {
               setBranches(branchRes.data.branches)
@@ -1323,6 +1323,7 @@ export default function ClinicAdminAppointmentsPage() {
         }}
         clinic={clinic}
         branches={branches}
+        userClinicBranchId={user?.clinicBranchId}
       />
 
       {/* Reschedule Modal */}
@@ -1500,14 +1501,18 @@ function ClinicScheduleModal({
   onBooked,
   clinic,
   branches,
+  userClinicBranchId,
 }: {
   open: boolean
   onClose: () => void
   onBooked: (bookedDate?: string) => void
   clinic: ClinicInfo | null
   branches: ClinicBranchItem[]
+  userClinicBranchId?: string | null
 }) {
   const { token } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
+  const isClinicAdmin = user?.userType === 'clinic-admin'
 
   // Form state
   const [selectedOwner, setSelectedOwner] = useState<PetOwner | null>(null)
@@ -1538,6 +1543,11 @@ function ClinicScheduleModal({
   const hasGrooming = selectedTypes.some(t => t === 'basic-grooming' || t === 'full-grooming')
   const hasMedical = selectedTypes.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
   const isGroomingOnly = hasGrooming && !hasMedical
+  
+  // For clinic admins, lock branch to their assigned branch
+  const adminBranch = isClinicAdmin && userClinicBranchId 
+    ? branches.find(b => b._id === userClinicBranchId)
+    : null
 
   // Load pets when owner changes
   useEffect(() => {
@@ -1643,6 +1653,11 @@ function ClinicScheduleModal({
       setIsWalkIn(false)
       setIsEmergency(false)
     } else {
+      // Auto-set branch for clinic admins
+      if (isClinicAdmin && adminBranch && !selectedBranchId) {
+        setSelectedBranchId(adminBranch._id)
+      }
+      
       // Load services when modal opens
       const loadServices = async () => {
         try {
@@ -1671,7 +1686,7 @@ function ClinicScheduleModal({
       }
       loadServices()
     }
-  }, [open, token])
+  }, [open, token, isClinicAdmin, adminBranch, selectedBranchId])
 
   // Build branch options (only the admin's clinic branches)
   const branchOptions = branches.map((branch) => ({
@@ -1873,13 +1888,27 @@ function ClinicScheduleModal({
 
             {/* Row 2: Branch + Vet */}
             <div className="grid grid-cols-2 gap-4">
-              <Dropdown
-                label="Vet Clinic Branch"
-                value={selectedBranchId}
-                placeholder="Select branch"
-                options={branchOptions}
-                onSelect={setSelectedBranchId}
-              />
+              {isClinicAdmin && adminBranch ? (
+                <div>
+                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Vet Clinic Branch</p>
+                  <div className="flex items-center justify-between px-4 py-2.5 border border-[#7FA5A3] rounded-xl bg-[#7FA5A3]/5">
+                    <span className="text-sm text-[#4F4F4F] font-medium">
+                      {adminBranch.name}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-[#7FA5A3]/20 text-[#5A7C7A] font-medium">
+                      Your Branch
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <Dropdown
+                  label="Vet Clinic Branch"
+                  value={selectedBranchId}
+                  placeholder="Select branch"
+                  options={branchOptions}
+                  onSelect={setSelectedBranchId}
+                />
+              )}
               {isGroomingOnly ? (
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Veterinarian</p>
