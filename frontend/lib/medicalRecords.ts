@@ -49,6 +49,7 @@ export interface Medication {
   endDate: string | null;
   notes: string;
   status: 'active' | 'completed' | 'discontinued';
+  quantity?: number | null;
 }
 
 export interface DiagnosticTest {

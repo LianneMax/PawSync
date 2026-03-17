@@ -15,6 +15,7 @@ export interface IMedication {
   endDate: Date | null;
   notes: string;
   status: 'active' | 'completed' | 'discontinued';
+  quantity?: number | null;
 }
 
 export interface IDiagnosticTest {
@@ -161,7 +162,8 @@ const MedicationSchema = new Schema(
     startDate: { type: Date, default: null },
     endDate: { type: Date, default: null },
     notes: { type: String, default: '' },
-    status: { type: String, enum: ['active', 'completed', 'discontinued'], default: 'active' }
+    status: { type: String, enum: ['active', 'completed', 'discontinued'], default: 'active' },
+    quantity: { type: Number, default: null },
   },
   { _id: true }
 );

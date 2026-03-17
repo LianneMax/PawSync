@@ -121,6 +121,7 @@ const emptyMedication = (): Omit<Medication, '_id'> => ({
   endDate: null,
   notes: '',
   status: 'active',
+  quantity: null,
 })
 
 const emptyDiagnosticTest = (): Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] } => ({
@@ -2642,9 +2643,24 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 const isTabletOrCapsule = ['tablets', 'capsules'].includes(selectedService.administrationMethod?.toLowerCase() ?? '')
                                 const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
                                 let autoDosage = selectedService.dosageAmount || m.dosage
+                                let autoQuantity: number | null = null
                                 if (isTabletOrCapsule && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
                                   const rawMg = selectedService.dosePerKg * bodyWeight
                                   autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
+                                  // quantity = ceil((mg dose / netContent per tablet) × doses per day × days)
+                                  const netContent = selectedService.netContent
+                                  const durationDays = selectedService.duration
+                                  // Derive doses per day from numeric frequency, or parse frequencyLabel (e.g. "every 12 hours" → 2)
+                                  let dosesPerDay: number | null = selectedService.frequency ?? null
+                                  if (!dosesPerDay && selectedService.frequencyLabel) {
+                                    const everyHoursMatch = selectedService.frequencyLabel.match(/every\s+(\d+(?:\.\d+)?)\s+hours?/i)
+                                    if (everyHoursMatch) dosesPerDay = 24 / parseFloat(everyHoursMatch[1])
+                                    const timesPerDayMatch = selectedService.frequencyLabel.match(/(\d+)\s+times?\s+per\s+day/i)
+                                    if (timesPerDayMatch) dosesPerDay = parseInt(timesPerDayMatch[1])
+                                  }
+                                  if (netContent && netContent > 0 && dosesPerDay && durationDays) {
+                                    autoQuantity = Math.ceil((rawMg / netContent) * dosesPerDay * durationDays)
+                                  }
                                 }
                                 return {
                                   ...m,
@@ -2653,6 +2669,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                   route: (selectedService.administrationRoute as Medication['route']) || m.route,
                                   frequency: selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency,
                                   duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
+                                  quantity: autoQuantity,
                                 }
                               }
                               return { ...m, name: selectedName }
@@ -2672,6 +2689,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </select>
                           <input type="text" placeholder="Frequency (e.g. twice daily)" value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <input type="text" placeholder="Duration (e.g. 7 days)" value={med.duration} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <input type="number" placeholder="Qty (tablets)" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <select value={med.status} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, status: e.target.value as Medication['status'] } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
                             <option value="active">Active</option>
                             <option value="completed">Completed</option>
