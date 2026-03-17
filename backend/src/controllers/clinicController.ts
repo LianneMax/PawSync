@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import bcryptjs from 'bcryptjs';
 import crypto from 'crypto';
 import Clinic from '../models/Clinic';
@@ -43,6 +44,61 @@ export async function getClinicForAdmin(req: Request): Promise<any> {
   }
   return null;
 }
+
+/**
+ * GET /api/clinics/mine/branches
+ * Returns all active branches for the authenticated admin's clinic.
+ * Resolves the clinicId directly from the JWT or the admin's User/Branch document —
+ * no Clinic document lookup required, so it works even if Clinic.isActive is false.
+ */
+export const getMyBranches = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    // Always derive clinicId from the branch document (JWT's clinicId can be stale).
+    // Priority: clinicBranchId from JWT → clinicBranchId from DB User → clinicId from JWT
+    let clinicId: any = null;
+
+    const branchIdStr = req.user.clinicBranchId;
+    if (branchIdStr) {
+      const branch = await ClinicBranch.findById(branchIdStr).select('clinicId');
+      clinicId = branch?.clinicId ?? null;
+    }
+
+    if (!clinicId && req.user.userId) {
+      const dbUser = await User.findById(req.user.userId).select('clinicId clinicBranchId');
+      if (dbUser?.clinicBranchId) {
+        const branch = await ClinicBranch.findById(dbUser.clinicBranchId).select('clinicId');
+        clinicId = branch?.clinicId ?? null;
+      }
+      if (!clinicId && dbUser?.clinicId) {
+        clinicId = dbUser.clinicId;
+      }
+    }
+
+    // Last resort: use JWT clinicId directly
+    if (!clinicId && req.user.clinicId) {
+      clinicId = req.user.clinicId;
+    }
+
+    if (!clinicId) {
+      return res.status(404).json({ status: 'ERROR', message: 'Could not resolve clinic for this account' });
+    }
+
+    const clinicObjectId = new mongoose.Types.ObjectId(clinicId.toString());
+    const branches = await ClinicBranch.find({ clinicId: clinicObjectId })
+      .sort({ isMain: -1, createdAt: -1 });
+
+    console.log('[getMyBranches] jwt.clinicBranchId:', req.user.clinicBranchId, '| resolved clinicId:', clinicObjectId.toString(), '| branches found:', branches.length);
+
+    return res.status(200).json({ status: 'SUCCESS', data: { branches } });
+  } catch (error) {
+    console.error('Get my branches error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching branches' });
+  }
+};
 
 /**
  * Helper: resolve the branchId for a clinic-admin, even if missing from JWT.

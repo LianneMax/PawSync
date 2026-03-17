@@ -59,10 +59,11 @@ interface VaccineItem {
 
 const PRODUCT_CATEGORIES = ['Medication', 'Others'] as const
 const SERVICE_CATEGORIES = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'General Consultation', 'Grooming', 'Others'] as const
-const ORAL_METHODS = ['Pills', 'Capsules', 'Tablets', 'Liquid', 'Suspension'] as const
-const TOPICAL_METHODS = ['Skin', 'Eyes', 'Ears'] as const
+const ORAL_METHODS = ['Tablets', 'Capsules', 'Syrup'] as const
+const TOPICAL_METHODS = ['Skin', 'Ears', 'Eyes', 'Wounds'] as const
 const INJECTION_METHODS = ['IV', 'IM', 'SC'] as const
 const PREVENTIVE_METHODS = ['Spot-on', 'Chewable'] as const
+const DOSE_UNITS = ['mg', 'mcg', 'mL', 'IU', 'drops', 'tablet'] as const
 
 type AdmRoute = 'oral' | 'topical' | 'injection' | 'preventive'
 
@@ -89,7 +90,6 @@ interface AddModalProps {
 function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const isProducts = tab === 'Products'
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-  const authUser = useAuthStore((state) => state.user)
 
   // --- Simple form state (Services tab + Products "Others") ---
   const [simpleForm, setSimpleForm] = useState({
@@ -110,13 +110,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     if (!token) { setBranchLoading(false); return }
     const fetchBranches = async () => {
       try {
-        const clinicId = authUser?.clinicId
-        // Always use the clinic branches endpoint — it resolves the clinic from the JWT
-        // with fallbacks (clinicId → clinicBranchId → user document), so it works
-        // even when clinicId is missing from a stale JWT.
-        const url = clinicId
-          ? `${apiUrl}/clinics/${clinicId}/branches?includeInactive=true`
-          : `${apiUrl}/clinics/mine/branches?includeInactive=true`
+        // Always use mine/branches — controller resolves the clinic from the JWT so
+        // the URL clinicId param is irrelevant. Only fetch active branches.
+        const url = `${apiUrl}/clinics/mine/branches`
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
         const data = await res.json()
         if (data.status === 'SUCCESS') {
@@ -148,13 +144,12 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [admMethod, setAdmMethod] = useState('')
   const [medPrice, setMedPrice] = useState('')
   const [medDesc, setMedDesc] = useState('')
-  const [medDosageAmount, setMedDosageAmount] = useState('')
   const [medDosePerKg, setMedDosePerKg] = useState('')
   const [medDoseUnit, setMedDoseUnit] = useState('')
-  const [medFrequency, setMedFrequency] = useState('')
-  const [medFrequencyLabel, setMedFrequencyLabel] = useState('')
-  const [medDuration, setMedDuration] = useState('')
-  const [medDurationLabel, setMedDurationLabel] = useState('')
+  const [medFreqType, setMedFreqType] = useState<'per_day' | 'every_hours' | ''>('')
+  const [medFreqValue, setMedFreqValue] = useState('')
+  const [medDurationType, setMedDurationType] = useState<'days' | 'until_healed' | 'as_needed' | ''>('')
+  const [medDurationDays, setMedDurationDays] = useState('')
   const [medIntervalDays, setMedIntervalDays] = useState('')
   const [medWeightMin, setMedWeightMin] = useState('')
   const [medWeightMax, setMedWeightMax] = useState('')
@@ -208,13 +203,12 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setAdmMethod('')
     setMedPrice('')
     setMedDesc('')
-    setMedDosageAmount('')
     setMedDosePerKg('')
     setMedDoseUnit('')
-    setMedFrequency('')
-    setMedFrequencyLabel('')
-    setMedDuration('')
-    setMedDurationLabel('')
+    setMedFreqType('')
+    setMedFreqValue('')
+    setMedDurationType('')
+    setMedDurationDays('')
     setMedIntervalDays('')
     setMedWeightMin('')
     setMedWeightMax('')
@@ -307,13 +301,20 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         price: parsed,
         description: medDesc.trim(),
         branchAvailability: branchAvailabilityPayload,
-        ...(medDosageAmount.trim() ? { dosageAmount: medDosageAmount.trim() } : {}),
         ...(medDosePerKg ? { dosePerKg: parseFloat(medDosePerKg) } : {}),
-        ...(medDoseUnit.trim() ? { doseUnit: medDoseUnit.trim() } : {}),
-        ...(medFrequency ? { frequency: parseInt(medFrequency) } : {}),
-        ...(medFrequencyLabel.trim() ? { frequencyLabel: medFrequencyLabel.trim() } : {}),
-        ...(medDuration ? { duration: parseInt(medDuration) } : {}),
-        ...(medDurationLabel.trim() ? { durationLabel: medDurationLabel.trim() } : {}),
+        ...(medDoseUnit ? { doseUnit: medDoseUnit } : {}),
+        ...(medFreqType === 'per_day' && medFreqValue
+          ? { frequency: parseInt(medFreqValue), frequencyLabel: `${medFreqValue} times per day` }
+          : medFreqType === 'every_hours' && medFreqValue
+          ? { frequencyLabel: `every ${medFreqValue} hours` }
+          : {}),
+        ...(medDurationType === 'days' && medDurationDays
+          ? { duration: parseInt(medDurationDays), durationLabel: `${medDurationDays} days` }
+          : medDurationType === 'until_healed'
+          ? { durationLabel: 'until healed' }
+          : medDurationType === 'as_needed'
+          ? { durationLabel: 'as needed' }
+          : {}),
         ...(medIntervalDays ? { intervalDays: parseInt(medIntervalDays) } : {}),
         ...(medWeightMin ? { weightMin: parseFloat(medWeightMin) } : {}),
         ...(medWeightMax ? { weightMax: parseFloat(medWeightMax) } : {}),
@@ -566,79 +567,71 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Dose unit</label>
-                        <input
-                          type="text"
+                        <select
                           value={medDoseUnit}
                           onChange={(e) => setMedDoseUnit(e.target.value)}
-                          placeholder="mg, mL, drops"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                        >
+                          <option value="">Select unit</option>
+                          {DOSE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
                       </div>
                     </div>
                   )}
 
-                  {/* Dosage amount — all routes */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Dosage Amount (guide value)</label>
-                    <input
-                      type="text"
-                      value={medDosageAmount}
-                      onChange={(e) => setMedDosageAmount(e.target.value)}
-                      placeholder="e.g. 500mg, 5mL, 1 tube"
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                    />
-                  </div>
-
                   {/* Frequency — oral / topical / injection */}
                   {admRoute && admRoute !== 'preventive' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency (doses/day)</label>
-                        <input
-                          type="number"
-                          value={medFrequency}
-                          onChange={(e) => setMedFrequency(e.target.value)}
-                          placeholder="e.g. 2"
-                          min="1"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency label</label>
-                        <input
-                          type="text"
-                          value={medFrequencyLabel}
-                          onChange={(e) => setMedFrequencyLabel(e.target.value)}
-                          placeholder="e.g. every 12 hours"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <select
+                          value={medFreqType}
+                          onChange={(e) => { setMedFreqType(e.target.value as any); setMedFreqValue('') }}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                        >
+                          <option value="">Select type</option>
+                          <option value="per_day">X times per day</option>
+                          <option value="every_hours">Every X hours</option>
+                        </select>
+                        {medFreqType && (
+                          <input
+                            type="number"
+                            value={medFreqValue}
+                            onChange={(e) => setMedFreqValue(e.target.value)}
+                            placeholder={medFreqType === 'per_day' ? 'e.g. 2' : 'e.g. 8'}
+                            min="1"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Duration — oral / topical / injection */}
                   {admRoute && admRoute !== 'preventive' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Duration (days)</label>
-                        <input
-                          type="number"
-                          value={medDuration}
-                          onChange={(e) => setMedDuration(e.target.value)}
-                          placeholder="e.g. 7"
-                          min="1"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Duration label</label>
-                        <input
-                          type="text"
-                          value={medDurationLabel}
-                          onChange={(e) => setMedDurationLabel(e.target.value)}
-                          placeholder="e.g. until healed"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <select
+                          value={medDurationType}
+                          onChange={(e) => { setMedDurationType(e.target.value as any); setMedDurationDays('') }}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                        >
+                          <option value="">Select duration</option>
+                          <option value="days">Number of days</option>
+                          <option value="until_healed">Until healed</option>
+                          <option value="as_needed">As needed</option>
+                        </select>
+                        {medDurationType === 'days' && (
+                          <input
+                            type="number"
+                            value={medDurationDays}
+                            onChange={(e) => setMedDurationDays(e.target.value)}
+                            placeholder="e.g. 7"
+                            min="1"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        )}
                       </div>
                     </div>
                   )}
@@ -831,13 +824,26 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
 
   const [admRoute, setAdmRoute] = useState<AdmRoute | null>((item.administrationRoute as AdmRoute) || null)
   const [admMethod, setAdmMethod] = useState(item.administrationMethod || '')
-  const [dosageAmount, setDosageAmount] = useState(item.dosageAmount || '')
   const [dosePerKg, setDosePerKg] = useState(item.dosePerKg != null ? String(item.dosePerKg) : '')
   const [doseUnit, setDoseUnit] = useState(item.doseUnit || '')
-  const [frequency, setFrequency] = useState(item.frequency != null ? String(item.frequency) : '')
-  const [frequencyLabel, setFrequencyLabel] = useState(item.frequencyLabel || '')
-  const [duration, setDuration] = useState(item.duration != null ? String(item.duration) : '')
-  const [durationLabel, setDurationLabel] = useState(item.durationLabel || '')
+  const [freqType, setFreqType] = useState<'per_day' | 'every_hours' | ''>(() => {
+    if (item.frequencyLabel?.toLowerCase().includes('every') && item.frequencyLabel?.toLowerCase().includes('hour')) return 'every_hours'
+    if (item.frequency != null) return 'per_day'
+    return ''
+  })
+  const [freqValue, setFreqValue] = useState(() => {
+    if (item.frequencyLabel?.toLowerCase().includes('every') && item.frequencyLabel?.toLowerCase().includes('hour')) {
+      const m = item.frequencyLabel.match(/\d+/); return m ? m[0] : ''
+    }
+    return item.frequency != null ? String(item.frequency) : ''
+  })
+  const [durationType, setDurationType] = useState<'days' | 'until_healed' | 'as_needed' | ''>(() => {
+    if (item.durationLabel === 'until healed') return 'until_healed'
+    if (item.durationLabel === 'as needed') return 'as_needed'
+    if (item.duration != null) return 'days'
+    return ''
+  })
+  const [durationDays, setDurationDays] = useState(item.duration != null ? String(item.duration) : '')
   const [intervalDays, setIntervalDays] = useState(item.intervalDays != null ? String(item.intervalDays) : '')
   const [weightMin, setWeightMin] = useState(item.weightMin != null ? String(item.weightMin) : '')
   const [weightMax, setWeightMax] = useState(item.weightMax != null ? String(item.weightMax) : '')
@@ -906,13 +912,20 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       if (isMedication) {
         body.administrationRoute = admRoute
         body.administrationMethod = admMethod ? admMethod.toLowerCase() : null
-        body.dosageAmount = dosageAmount.trim() || null
         body.dosePerKg = dosePerKg ? parseFloat(dosePerKg) : null
-        body.doseUnit = doseUnit.trim() || null
-        body.frequency = frequency ? parseInt(frequency) : null
-        body.frequencyLabel = frequencyLabel.trim() || null
-        body.duration = duration ? parseInt(duration) : null
-        body.durationLabel = durationLabel.trim() || null
+        body.doseUnit = doseUnit || null
+        body.frequency = freqType === 'per_day' && freqValue ? parseInt(freqValue) : null
+        body.frequencyLabel = freqType === 'per_day' && freqValue
+          ? `${freqValue} times per day`
+          : freqType === 'every_hours' && freqValue
+          ? `every ${freqValue} hours`
+          : null
+        body.duration = durationType === 'days' && durationDays ? parseInt(durationDays) : null
+        body.durationLabel = durationType === 'days' && durationDays
+          ? `${durationDays} days`
+          : durationType === 'until_healed' ? 'until healed'
+          : durationType === 'as_needed' ? 'as needed'
+          : null
         body.intervalDays = intervalDays ? parseInt(intervalDays) : null
         body.weightMin = weightMin ? parseFloat(weightMin) : null
         body.weightMax = weightMax ? parseFloat(weightMax) : null
@@ -1136,74 +1149,67 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Dose unit</label>
-                      <input
-                        type="text"
+                      <select
                         value={doseUnit}
                         onChange={(e) => setDoseUnit(e.target.value)}
-                        placeholder="mg, mL, drops"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                      />
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                      >
+                        <option value="">Select unit</option>
+                        {DOSE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
                     </div>
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Dosage Amount (guide value)</label>
-                  <input
-                    type="text"
-                    value={dosageAmount}
-                    onChange={(e) => setDosageAmount(e.target.value)}
-                    placeholder="e.g. 500mg, 5mL, 1 tube"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                  />
-                </div>
-
                 {admRoute && admRoute !== 'preventive' && (
                   <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency (doses/day)</label>
-                        <input
-                          type="number"
-                          value={frequency}
-                          onChange={(e) => setFrequency(e.target.value)}
-                          placeholder="e.g. 2"
-                          min="1"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency label</label>
-                        <input
-                          type="text"
-                          value={frequencyLabel}
-                          onChange={(e) => setFrequencyLabel(e.target.value)}
-                          placeholder="e.g. every 12 hours"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <select
+                          value={freqType}
+                          onChange={(e) => { setFreqType(e.target.value as any); setFreqValue('') }}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                        >
+                          <option value="">Select type</option>
+                          <option value="per_day">X times per day</option>
+                          <option value="every_hours">Every X hours</option>
+                        </select>
+                        {freqType && (
+                          <input
+                            type="number"
+                            value={freqValue}
+                            onChange={(e) => setFreqValue(e.target.value)}
+                            placeholder={freqType === 'per_day' ? 'e.g. 2' : 'e.g. 8'}
+                            min="1"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Duration (days)</label>
-                        <input
-                          type="number"
-                          value={duration}
-                          onChange={(e) => setDuration(e.target.value)}
-                          placeholder="e.g. 7"
-                          min="1"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Duration label</label>
-                        <input
-                          type="text"
-                          value={durationLabel}
-                          onChange={(e) => setDurationLabel(e.target.value)}
-                          placeholder="e.g. until healed"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                        />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <select
+                          value={durationType}
+                          onChange={(e) => { setDurationType(e.target.value as any); setDurationDays('') }}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                        >
+                          <option value="">Select duration</option>
+                          <option value="days">Number of days</option>
+                          <option value="until_healed">Until healed</option>
+                          <option value="as_needed">As needed</option>
+                        </select>
+                        {durationType === 'days' && (
+                          <input
+                            type="number"
+                            value={durationDays}
+                            onChange={(e) => setDurationDays(e.target.value)}
+                            placeholder="e.g. 7"
+                            min="1"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        )}
                       </div>
                     </div>
                   </>
@@ -1441,7 +1447,6 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
   isMainBranch: boolean
   userBranchId: string | null
 }) {
-  const authUser = useAuthStore((state) => state.user)
   const [data, setData] = useState<ProductItem[]>([])
   const [branches, setBranches] = useState<BranchInfo[]>([])
   const [search, setSearch] = useState('')
@@ -1472,11 +1477,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
     if (!token) return
     const fetchBranches = async () => {
       try {
-        const clinicId = authUser?.clinicId
-        const url = clinicId
-          ? `${apiUrl}/clinics/${clinicId}/branches?includeInactive=true`
-          : `${apiUrl}/clinics/mine/branches?includeInactive=true`
-        const branchRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        const branchRes = await fetch(`${apiUrl}/clinics/mine/branches`, { headers: { Authorization: `Bearer ${token}` } })
         const branchData = await branchRes.json()
         if (branchData.status === 'SUCCESS') {
           const list = Array.isArray(branchData.data) ? branchData.data : (branchData.data.branches ?? [])
@@ -1893,20 +1894,19 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Standard Information</p>
                                   <div className="space-y-2">
                                     <div className="flex justify-between items-center">
-                                      <span className="text-xs text-gray-500">Dosage Amount</span>
-                                      <span className="text-xs font-medium text-gray-800">{item.dosageAmount || '—'}</span>
+                                      <span className="text-xs text-gray-500">Dose</span>
+                                      <span className="text-xs font-medium text-gray-800">
+                                        {item.dosePerKg != null ? `${item.dosePerKg} mg/kg` : '—'}
+                                        {item.doseUnit ? ` · ${item.doseUnit}` : ''}
+                                      </span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                       <span className="text-xs text-gray-500">Frequency</span>
-                                      <span className="text-xs font-medium text-gray-800">
-                                        {item.frequency != null ? `${item.frequency}x / day` : '—'}
-                                      </span>
+                                      <span className="text-xs font-medium text-gray-800">{item.frequencyLabel || '—'}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                       <span className="text-xs text-gray-500">Duration</span>
-                                      <span className="text-xs font-medium text-gray-800">
-                                        {item.duration != null ? `${item.duration} day${item.duration !== 1 ? 's' : ''}` : '—'}
-                                      </span>
+                                      <span className="text-xs font-medium text-gray-800">{item.durationLabel || '—'}</span>
                                     </div>
                                   </div>
                                 </div>

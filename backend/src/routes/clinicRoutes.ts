@@ -3,6 +3,7 @@ import {
   getMyClinics,
   getAllClinics,
   getBranches,
+  getMyBranches,
   addBranch,
   updateBranch,
   deleteBranch,
@@ -68,6 +69,12 @@ router.get('/invite/accept', acceptVetInvitation);
  * Get all patients for the authenticated clinic or branch admin (no clinicId param needed)
  */
 router.get('/mine/patients', authMiddleware, clinicAdminOnly, getClinicPatients);
+
+/**
+ * GET /api/clinics/mine/branches
+ * Get all active branches for the authenticated admin's clinic (resolves clinic from JWT)
+ */
+router.get('/mine/branches', authMiddleware, clinicAdminOnly, getMyBranches);
 
 /**
  * GET /api/clinics/:clinicId/branches

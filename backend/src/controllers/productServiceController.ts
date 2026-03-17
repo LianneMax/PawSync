@@ -73,15 +73,15 @@ export const createProductService = async (req: Request, res: Response) => {
       resolvedRoute = administrationRoute;
 
       if (administrationRoute === 'oral') {
-        const validOral = ['pills', 'capsules', 'tablets', 'liquid', 'suspension'];
+        const validOral = ['tablets', 'capsules', 'syrup'];
         if (!administrationMethod || !validOral.includes(administrationMethod)) {
-          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for oral medications (pills, capsules, tablets, liquid, or suspension)' });
+          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for oral medications (tablets, capsules, or syrup)' });
         }
         resolvedMethod = administrationMethod;
       } else if (administrationRoute === 'topical') {
-        const validTopical = ['skin', 'eyes', 'ears'];
+        const validTopical = ['skin', 'ears', 'eyes', 'wounds'];
         if (!administrationMethod || !validTopical.includes(administrationMethod)) {
-          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for topical medications (skin, eyes, or ears)' });
+          return res.status(400).json({ status: 'ERROR', message: 'administrationMethod is required for topical medications (skin, ears, eyes, or wounds)' });
         }
         resolvedMethod = administrationMethod;
       } else if (administrationRoute === 'injection') {

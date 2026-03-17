@@ -4,8 +4,8 @@ export type ProductCategory = 'Medication' | 'Others';
 export type ServiceCategory = 'Diagnostic Tests' | 'Preventive Care' | 'Surgeries' | 'Others';
 export type AdministrationRoute = 'oral' | 'topical' | 'injection' | 'preventive';
 export type AdministrationMethod =
-  | 'pills' | 'capsules' | 'tablets' | 'liquid' | 'suspension'  // oral
-  | 'skin' | 'eyes' | 'ears'                                     // topical
+  | 'tablets' | 'capsules' | 'syrup'                             // oral
+  | 'skin' | 'ears' | 'eyes' | 'wounds'                         // topical
   | 'iv' | 'im' | 'sc'                                           // injection (IV, IM, subcutaneous)
   | 'spot-on' | 'chewable';                                      // preventive
 
@@ -67,7 +67,7 @@ const ProductServiceSchema: Schema = new Schema(
     },
     administrationMethod: {
       type: String,
-      enum: ['pills', 'capsules', 'tablets', 'liquid', 'suspension', 'skin', 'eyes', 'ears', 'iv', 'im', 'sc', 'spot-on', 'chewable'],
+      enum: ['tablets', 'capsules', 'syrup', 'skin', 'ears', 'eyes', 'wounds', 'iv', 'im', 'sc', 'spot-on', 'chewable'],
       default: null,
     },
     dosePerKg: { type: Number, default: null, min: 0 },
