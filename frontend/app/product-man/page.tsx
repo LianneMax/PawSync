@@ -38,7 +38,7 @@ interface ProductItem {
 /** Returns true if the item type/category qualifies for branch availability tracking */
 function qualifiesForBranchAvailability(tab: 'Products' | 'Services', category: string): boolean {
   if (tab === 'Products') return category === 'Medication'
-  return category !== 'Others'
+  return true
 }
 
 interface VaccineItem {
@@ -601,8 +601,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
             </>
           )}
 
-          {/* Branch availability — shown for Medication and non-Others services */}
-          {(isMedMode || (!isProducts && simpleForm.category !== 'Others')) && (
+          {/* Branch availability — shown for Medication and all services (including Others) */}
+          {(isMedMode || !isProducts) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Branch Availability</label>
               {branchLoading ? (

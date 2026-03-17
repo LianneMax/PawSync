@@ -72,26 +72,26 @@ interface ApiMedicalRecord {
 
 // ==================== STATUS HELPERS ====================
 
-type AdminStatus = 'Awaiting Approval' | 'Paid' | 'Pending Payment'
-type OwnerStatus = 'Paid' | 'Pending Payment' | 'Awaiting Approval'
+type AdminStatus = 'Running' | 'Paid' | 'Pending Payment'
+type OwnerStatus = 'Paid' | 'Pending Payment' | 'Running'
 
 function mapAdminStatus(status: string): AdminStatus {
   if (status === 'paid') return 'Paid'
   if (status === 'pending_payment') return 'Pending Payment'
-  return 'Awaiting Approval'
+  return 'Running'
 }
 
 function mapOwnerStatus(status: string): OwnerStatus {
   if (status === 'paid') return 'Paid'
   if (status === 'pending_payment') return 'Pending Payment'
-  return 'Awaiting Approval'
+  return 'Running'
 }
 
 function getAdminStatusStyle(status: AdminStatus) {
   switch (status) {
     case 'Paid': return 'bg-green-100 text-green-700'
     case 'Pending Payment': return 'bg-blue-100 text-blue-700'
-    case 'Awaiting Approval': return 'bg-yellow-100 text-yellow-700'
+    case 'Running': return 'bg-yellow-100 text-yellow-700'
     default: return 'bg-gray-100 text-[#4F4F4F]'
   }
 }
@@ -100,7 +100,7 @@ function getOwnerStatusStyle(status: OwnerStatus) {
   switch (status) {
     case 'Paid': return 'bg-green-100 text-green-700'
     case 'Pending Payment': return 'bg-blue-100 text-blue-700'
-    case 'Awaiting Approval': return 'bg-yellow-100 text-yellow-700'
+    case 'Running': return 'bg-yellow-100 text-yellow-700'
     default: return 'bg-gray-100 text-[#4F4F4F]'
   }
 }
@@ -1522,6 +1522,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_approval' | 'pending_payment' | 'paid'>('all')
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const [showQRModal, setShowQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
@@ -1551,11 +1552,12 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const filteredData = billings.filter((b) => {
     const q = searchQuery.toLowerCase()
     const clientName = `${b.ownerId?.firstName || ''} ${b.ownerId?.lastName || ''}`.toLowerCase()
-    return (
+    const matchesSearch =
       clientName.includes(q) ||
       (b.petId?.name || '').toLowerCase().includes(q) ||
       b._id.toLowerCase().includes(q)
-    )
+    const matchesStatus = statusFilter === 'all' || b.status === statusFilter
+    return matchesSearch && matchesStatus
   })
 
   const toggleSelection = (id: string) => {
@@ -1608,8 +1610,29 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
       {showQRModal && <UploadQRModal onClose={() => setShowQRModal(false)} />}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-[#4F4F4F]">Invoices</h2>
+        </div>
+
+        <div className="flex items-center gap-2 mb-4">
+          {([
+            { value: 'all', label: 'All' },
+            { value: 'awaiting_approval', label: 'Running' },
+            { value: 'pending_payment', label: 'Pending Payment' },
+            { value: 'paid', label: 'Paid' },
+          ] as const).map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => { setStatusFilter(value); setSelectedRecords(new Set()) }}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                statusFilter === value
+                  ? 'bg-[#476B6B] text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="mb-4 flex items-center justify-between gap-4">

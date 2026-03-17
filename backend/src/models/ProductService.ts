@@ -64,7 +64,7 @@ const ProductServiceSchema: Schema = new Schema(
     frequency: { type: Number, default: null, min: 1 },
     duration: { type: Number, default: null, min: 1 },
     // Branch availability: tracks which branches carry this item and whether it's active there.
-    // Only applicable to Medications (Products) and non-Others Services.
+    // Applicable to Medications (Products) and all Services (including Others).
     branchAvailability: [
       {
         branchId: { type: Schema.Types.ObjectId, ref: 'ClinicBranch', required: true },
