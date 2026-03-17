@@ -6,6 +6,7 @@ import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 import User from '../models/User';
 import { getClinicForAdmin } from './clinicController';
+import { updateBranchStatus } from '../services/branchStatusService';
 
 /**
  * Submit a PRC verification request (vet submits during onboarding)
@@ -191,6 +192,8 @@ export const approveVerification = async (req: Request, res: Response) => {
           assignedAt: new Date()
         });
       }
+
+      await updateBranchStatus(pendingApplication.branchId.toString());
     }
 
     return res.status(200).json({
