@@ -19,6 +19,7 @@ export interface Pet {
   bloodType: string | null;
   allergies: string[];
   pregnancyStatus: 'pregnant' | 'not_pregnant';
+  assignedVetId: { _id: string; firstName: string; lastName: string; photo: string | null; clinicId?: string } | null;
   isLost: boolean;
   lostReportedByStranger: boolean;
   lostContactName: string | null;

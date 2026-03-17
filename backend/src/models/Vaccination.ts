@@ -20,12 +20,8 @@ export interface IVaccination extends Document {
   expiryDate: Date | null;
   nextDueDate: Date | null;
   // Status
-  status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
+  status: 'active' | 'expired' | 'overdue' | 'pending';
   isUpToDate: boolean; // kept for backward compat
-  // Decline info
-  declinedReason: string | null;
-  declinedBy: mongoose.Types.ObjectId | null;
-  declinedAt: Date | null;
   // Notes
   notes: string;
   verifyToken: string | null;
@@ -112,25 +108,12 @@ const VaccinationSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'expired', 'overdue', 'pending', 'declined'],
+      enum: ['active', 'expired', 'overdue', 'pending'],
       default: 'pending',
     },
     isUpToDate: {
       type: Boolean,
       default: true,
-    },
-    declinedReason: {
-      type: String,
-      default: null,
-    },
-    declinedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    declinedAt: {
-      type: Date,
-      default: null,
     },
     notes: {
       type: String,
@@ -155,10 +138,9 @@ VaccinationSchema.index({ status: 1, nextDueDate: 1 });
  * Compute status from dates. Exported so controllers can call it on GET too.
  */
 export function computeVaccinationStatus(
-  vax: Pick<IVaccination, 'declinedAt' | 'dateAdministered' | 'expiryDate' | 'nextDueDate'>
+  vax: Pick<IVaccination, 'dateAdministered' | 'expiryDate' | 'nextDueDate'>
 ): IVaccination['status'] {
   const now = new Date();
-  if (vax.declinedAt) return 'declined';
   if (!vax.dateAdministered) return 'pending';
   if (vax.expiryDate && vax.expiryDate < now) return 'expired';
   if (vax.nextDueDate && vax.nextDueDate < now) return 'overdue';
@@ -169,11 +151,8 @@ export function computeVaccinationStatus(
  * Before saving, recompute status and sync isUpToDate for backward compat.
  */
 VaccinationSchema.pre('save', function (this: IVaccination) {
-  const vax = this as IVaccination;
-  if (vax.status !== 'declined') {
-    vax.status = computeVaccinationStatus(vax);
-  }
-  vax.isUpToDate = vax.status === 'active';
+  this.status = computeVaccinationStatus(this);
+  this.isUpToDate = this.status === 'active';
 });
 
 export default mongoose.model<IVaccination>('Vaccination', VaccinationSchema);

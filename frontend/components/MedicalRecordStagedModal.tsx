@@ -350,6 +350,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([])
   const [vaccines, setVaccines] = useState<VaccineFormItem[]>([emptyVaccine()])
   const [vaccineSaving, setVaccineSaving] = useState(false)
+  const [allPetVaccinations, setAllPetVaccinations] = useState<Vaccination[]>([])
 
   // Step 1 fields
   const [chiefComplaint, setChiefComplaint] = useState('')
@@ -545,14 +546,28 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (isVaccinationAppt && appointmentId && token) {
         try {
           const existingVaccinations: Vaccination[] = await getVaccinationsByPet(petId, token)
+          setAllPetVaccinations(existingVaccinations)
           const matches = existingVaccinations.filter(
             (v) => v.appointmentId === appointmentId || (typeof v.appointmentId === 'string' && v.appointmentId === appointmentId)
           )
           if (matches.length > 0) {
+            const matchIds = new Set(matches.map((m) => m._id))
             setVaccines(matches.map((match) => {
               const vtId = typeof match.vaccineTypeId === 'object' && match.vaccineTypeId !== null
                 ? (match.vaccineTypeId as VaccineType)._id
                 : (match.vaccineTypeId as string) || ''
+              // Compute the correct next dose — ignore other records for this appointment
+              const priorForType = existingVaccinations.filter((pv) => {
+                if (matchIds.has(pv._id)) return false
+                const pvVtId = typeof pv.vaccineTypeId === 'object' && pv.vaccineTypeId !== null
+                  ? (pv.vaccineTypeId as VaccineType)._id
+                  : (pv.vaccineTypeId as string)
+                return pvVtId === vtId
+              })
+              const maxPriorDose = priorForType.length > 0
+                ? Math.max(...priorForType.map((pv) => pv.doseNumber || 1))
+                : 0
+              const correctDose = Math.max(match.doseNumber || 1, maxPriorDose + 1)
               return {
                 vaccineTypeId: vtId,
                 manufacturer: match.manufacturer || '',
@@ -563,7 +578,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   : new Date().toISOString().split('T')[0],
                 notes: match.notes || '',
                 nextDueDate: match.nextDueDate ? match.nextDueDate.split('T')[0] : '',
-                doseNumber: match.doseNumber || 1,
+                doseNumber: correctDose,
                 vaccineCreated: true,
                 createdVaccineId: match._id,
               }
@@ -2055,6 +2070,46 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     ? (() => { const d = new Date(base); d.setDate(d.getDate() + doseInterval); return d })()
                     : null
 
+                  // Determine if this row's dose was already administered in a prior appointment
+                  const currentEditingIds = new Set(vaccines.map((item) => item.createdVaccineId).filter(Boolean))
+                  const priorAdministeredDoses = new Set(
+                    allPetVaccinations
+                      .filter((pv) => {
+                        if (currentEditingIds.has(pv._id)) return false
+                        const pvVtId = typeof pv.vaccineTypeId === 'object' && pv.vaccineTypeId !== null
+                          ? (pv.vaccineTypeId as VaccineType)._id
+                          : (pv.vaccineTypeId as string)
+                        return pvVtId === v.vaccineTypeId
+                      })
+                      .map((pv) => pv.doseNumber)
+                  )
+                  const isViewOnly = priorAdministeredDoses.has(v.doseNumber)
+
+                  // View-only row for already-administered doses
+                  if (isViewOnly) {
+                    const doseLabel = v.doseNumber === 1 ? 'Dose 1 (Initial)' : `Dose ${v.doseNumber} (Booster ${v.doseNumber - 1})`
+                    return (
+                      <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-500 flex items-center gap-1.5">
+                            <Syringe className="w-3.5 h-3.5" /> {vt?.name || 'Vaccine'}
+                          </span>
+                          <span className="text-[10px] font-semibold bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">Previously Administered</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border bg-[#476B6B] text-white border-[#476B6B]">{doseLabel} ✓</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                          <div><span className="text-[10px] text-gray-400 block">Date Administered</span>{v.dateAdministered || '—'}</div>
+                          <div><span className="text-[10px] text-gray-400 block">Route</span>{v.route || '—'}</div>
+                          <div><span className="text-[10px] text-gray-400 block">Manufacturer</span>{v.manufacturer || '—'}</div>
+                          <div><span className="text-[10px] text-gray-400 block">Batch/Lot No</span>{v.batchNumber || '—'}</div>
+                        </div>
+                        {v.notes && <p className="text-xs text-gray-500 italic">{v.notes}</p>}
+                      </div>
+                    )
+                  }
+
                   return (
                     <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2.5">
                       {/* Row header */}
@@ -2079,10 +2134,24 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         onChange={(e) => {
                           const newVtId = e.target.value
                           const newVt = vaccineTypes.find((x) => x._id === newVtId)
+                          // Determine next dose: find the highest doseNumber already administered for this vaccine type
+                          // Exclude any records from the current appointment (being edited now)
+                          const currentEditingIds = new Set(vaccines.map((item) => item.createdVaccineId).filter(Boolean))
+                          const priorDoses = allPetVaccinations.filter((pv) => {
+                            if (currentEditingIds.has(pv._id)) return false
+                            const pvVtId = typeof pv.vaccineTypeId === 'object' && pv.vaccineTypeId !== null
+                              ? (pv.vaccineTypeId as VaccineType)._id
+                              : (pv.vaccineTypeId as string)
+                            return pvVtId === newVtId
+                          })
+                          const maxDose = priorDoses.length > 0
+                            ? Math.max(...priorDoses.map((pv) => pv.doseNumber || 1))
+                            : 0
+                          const nextDose = maxDose + 1
                           setVaccines((prev) => prev.map((item, j) => j === i ? {
                             ...item,
                             vaccineTypeId: newVtId,
-                            doseNumber: 1,
+                            doseNumber: nextDose,
                             manufacturer: newVt?.defaultManufacturer || item.manufacturer,
                             batchNumber: newVt?.defaultBatchNumber || item.batchNumber,
                             route: newVt?.route || item.route,
@@ -2099,22 +2168,32 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       {/* Dose selector (only for vaccines with boosters) */}
                       {vt?.requiresBooster && (() => {
                         const totalDoses = Math.max(vt.numberOfBoosters || 0, 1) + 1
+                        // reuse priorAdministeredDoses computed above
+                        const administeredDoses = priorAdministeredDoses
                         return (
                           <div className="flex flex-wrap gap-1.5">
-                            {Array.from({ length: totalDoses }, (_, d) => d + 1).map((n) => (
-                              <button
-                                key={n}
-                                type="button"
-                                onClick={() => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, doseNumber: n } : item))}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
-                                  v.doseNumber === n
-                                    ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
-                                }`}
-                              >
-                                {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
-                              </button>
-                            ))}
+                            {Array.from({ length: totalDoses }, (_, d) => d + 1).map((n) => {
+                              const isDone = administeredDoses.has(n)
+                              const isSelected = v.doseNumber === n
+                              return (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  disabled={isDone}
+                                  onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, doseNumber: n } : item))}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
+                                    isDone
+                                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
+                                      : isSelected
+                                        ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                                  }`}
+                                >
+                                  {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                                  {isDone && ' ✓'}
+                                </button>
+                              )
+                            })}
                           </div>
                         )
                       })()}
@@ -2196,8 +2275,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         )
                       })()}
 
-                      {/* Route | Manufacturer | Batch/Lot No */}
-                      <div className="grid grid-cols-3 gap-2">
+                      {/* Dosage | Route | Manufacturer | Batch/Lot No */}
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">Dosage</label>
+                          <div className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600 min-h-[30px] flex items-center">
+                            {vt?.doseVolumeMl != null ? `${vt.doseVolumeMl} mL` : '—'}
+                          </div>
+                        </div>
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Route</label>
                           <select

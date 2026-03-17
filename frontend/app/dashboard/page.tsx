@@ -52,7 +52,7 @@ interface Pet {
   bloodType: string
   allergies: string[]
   nfcTagId: string
-  vet: { name: string; clinic: string; verified: boolean }
+  vet: { name: string; photo: string | null; verified: boolean } | null
 }
 
 // --- Helpers ---
@@ -115,7 +115,9 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     bloodType: apiPet.bloodType || '-',
     allergies: apiPet.allergies,
     nfcTagId: apiPet.nfcTagId || '-',
-    vet: { name: '-', clinic: '-', verified: false },
+    vet: apiPet.assignedVetId
+      ? { name: `Dr. ${apiPet.assignedVetId.firstName} ${apiPet.assignedVetId.lastName}`, photo: apiPet.assignedVetId.photo ?? null, verified: true }
+      : null,
   }
 }
 
@@ -248,30 +250,6 @@ function PetDetailModal({
   onNavigateToMedicalRecords: () => void
 }) {
   const router = useRouter()
-  const { token } = useAuthStore()
-  const [recentVet, setRecentVet] = useState<{ name: string; clinic: string } | null>(null)
-  const fetchedPetId = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!open) { fetchedPetId.current = null; return }
-    if (!pet || !token || fetchedPetId.current === pet.id) return
-    fetchedPetId.current = pet.id
-    setRecentVet(null)
-
-    getMyAppointments('previous', token).then((res) => {
-      if (res.status !== 'SUCCESS' || !res.data?.appointments) return
-      const match = res.data.appointments.find((appt) => {
-        const apptPetId = typeof appt.petId === 'object' ? appt.petId?._id : appt.petId
-        return apptPetId === pet.id && appt.vetId && appt.status === 'completed'
-      })
-      if (match?.vetId) {
-        const v = match.vetId
-        const name = `Dr. ${v.firstName} ${v.lastName}`
-        const clinic = match.clinicId?.name ?? ''
-        setRecentVet({ name, clinic })
-      }
-    }).catch(() => {})
-  }, [open, pet?.id, token])
 
   if (!pet) return null
 
@@ -359,14 +337,18 @@ function PetDetailModal({
             </div>
 
             {/* Vet Info - separate card with shadow */}
-            {recentVet ? (
+            {pet.vet ? (
               <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_8px_32px_rgba(71,107,107,0.35)]">
-                <div className="w-12 h-12 bg-white rounded-full shrink-0 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
-                  <span className="text-[#476B6B] font-bold text-base">{recentVet.name.charAt(4)}</span>
+                <div className="w-12 h-12 bg-white rounded-full shrink-0 overflow-hidden flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
+                  {pet.vet.photo ? (
+                    <img src={pet.vet.photo} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[#476B6B] font-bold text-base">{pet.vet.name.charAt(4)}</span>
+                  )}
                 </div>
                 <div className="flex-1">
-                  <p className="text-white font-bold text-sm">{recentVet.name}</p>
-                  <p className="text-white/80 text-xs">Most Recent Vet Assigned</p>
+                  <p className="text-white font-bold text-sm">{pet.vet.name}</p>
+                  <p className="text-white/80 text-xs">Assigned Veterinarian</p>
                 </div>
                 <span className="bg-[#9EC4C8] text-white text-[10px] font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 bg-[#679D82] rounded-full animate-pulse" />

@@ -677,6 +677,13 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       }
     }
 
+    // When appointment is completed, update the pet's assigned vet
+    if (status === 'completed' && appointment.vetId) {
+      Pet.findByIdAndUpdate(appointment.petId, { assignedVetId: appointment.vetId }).catch((err) => {
+        console.error('[Pet] Failed to update assignedVetId:', err);
+      });
+    }
+
     // Notify owner when appointment is completed
     if (status === 'completed') {
       Pet.findById(appointment.petId).select('name').then(async (pet) => {

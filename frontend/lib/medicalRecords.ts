@@ -159,7 +159,7 @@ export interface Vaccination {
   route?: string | null;
   doseNumber?: number;
   notes?: string;
-  status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined';
+  status: 'active' | 'expired' | 'overdue' | 'pending';
   isUpToDate: boolean;
   createdAt: string;
   updatedAt: string;

@@ -100,8 +100,7 @@ export default function VaccineCardPage() {
           })
         }
 
-        // Filter out declined/pending-only records for the card view
-        setVaccinations(vaxData.filter((v) => v.status !== 'declined'))
+        setVaccinations(vaxData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load vaccination records')
       } finally {

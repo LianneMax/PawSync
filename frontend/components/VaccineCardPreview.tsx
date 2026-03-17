@@ -80,7 +80,7 @@ export default function VaccineCardPreview({ petId, token, refreshKey }: Props) 
           const p = petRes.data.pet
           setPet({ name: p.name, microchipNumber: p.microchipNumber || null, photo: p.photo || null })
         }
-        setVaccinations(vaxData.filter((v) => v.status !== 'declined'))
+        setVaccinations(vaxData)
       })
       .catch(() => {})
       .finally(() => setLoading(false))

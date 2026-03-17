@@ -61,7 +61,6 @@ async function refreshStatuses(vaccinations: any[]): Promise<any[]> {
   const savePromises: Promise<any>[] = [];
 
   for (const vax of vaccinations) {
-    if (vax.status === 'declined') continue;
     const computed = computeVaccinationStatus(vax);
     if (computed !== vax.status) {
       vax.status = computed;
@@ -184,12 +183,11 @@ export const createVaccination = async (req: Request, res: Response) => {
       resolvedCreateBranchId = resolvedCreateBranchId || vetUser?.clinicBranchId || null;
     }
 
-    // If a record for the same pet + vaccine type already exists (non-declined), update it
+    // If a record for the same pet + vaccine type already exists, update it
     // instead of creating a duplicate — just increment doseNumber and refresh dates.
     const existing = await Vaccination.findOne({
       petId,
       vaccineTypeId,
-      status: { $ne: 'declined' },
     });
 
     if (existing) {
@@ -424,8 +422,8 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
     }
 
     const vaccinations = await Vaccination.find({ petId: req.params.petId })
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
-      .populate('vetId', 'firstName lastName')
+      .populate('vaccineTypeId', 'name species validityDays requiresBooster numberOfBoosters doseVolumeMl')
+      .populate('vetId', 'firstName lastName prcLicenseNumber licenseNumber')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
       .sort({ dateAdministered: -1 });
@@ -480,7 +478,6 @@ export const getPublicVaccinationsByPet = async (req: Request, res: Response) =>
 
     const vaccinations = await Vaccination.find({
       petId: req.params.petId,
-      status: { $ne: 'declined' },
     })
       .populate('vaccineTypeId', 'name species')
       .populate('vetId', 'firstName lastName')
@@ -536,7 +533,7 @@ export const getVaccinationById = async (req: Request, res: Response) => {
 
     // Refresh status
     const computed = computeVaccinationStatus(vaccination);
-    if (computed !== vaccination.status && vaccination.status !== 'declined') {
+    if (computed !== vaccination.status) {
       vaccination.status = computed;
       vaccination.isUpToDate = computed === 'active';
       await vaccination.save();
@@ -554,7 +551,7 @@ export const getVaccinationById = async (req: Request, res: Response) => {
 
 /**
  * PUT /api/vaccinations/:id
- * Veterinarian or clinic-admin — update a vaccination (not declined).
+ * Veterinarian or clinic-admin — update a vaccination.
  *
  * Business Rule BR-VAX-06: Declined vaccinations cannot be edited.
  * Business Rule BR-VAX-07: Clinic admins can update any vaccination in their clinic.
@@ -568,10 +565,6 @@ export const updateVaccination = async (req: Request, res: Response) => {
     const vaccination = await Vaccination.findById(req.params.id);
     if (!vaccination) {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccination record not found' });
-    }
-
-    if (vaccination.status === 'declined') {
-      return res.status(400).json({ status: 'ERROR', message: 'Cannot update a declined vaccination record' });
     }
 
     const {
@@ -721,53 +714,6 @@ export const updateVaccination = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * POST /api/vaccinations/:id/decline
- * Veterinarian or clinic-admin — mark a vaccination as declined.
- *
- * Business Rules:
- *  BR-VAX-08: A decline reason is required.
- *  BR-VAX-09: Declined status is permanent and cannot be reversed.
- *  BR-VAX-10: Declined vaccinations are hidden from the public NFC profile.
- */
-export const declineVaccination = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
-    }
-
-    const vaccination = await Vaccination.findById(req.params.id);
-    if (!vaccination) {
-      return res.status(404).json({ status: 'ERROR', message: 'Vaccination record not found' });
-    }
-
-    if (vaccination.status === 'declined') {
-      return res.status(400).json({ status: 'ERROR', message: 'This vaccination is already declined' });
-    }
-
-    // Delete associated booster appointment if it exists
-    if (vaccination.boosterAppointmentId) {
-      await Appointment.deleteOne({ _id: vaccination.boosterAppointmentId });
-      vaccination.boosterAppointmentId = null;
-    }
-
-    vaccination.status = 'declined';
-    vaccination.declinedReason = req.body.reason || null;
-    vaccination.declinedBy = req.user.userId as any;
-    vaccination.declinedAt = new Date();
-    vaccination.isUpToDate = false;
-    await vaccination.save();
-
-    return res.status(200).json({
-      status: 'SUCCESS',
-      message: 'Vaccination marked as declined',
-      data: { vaccination },
-    });
-  } catch (error) {
-    console.error('Decline vaccination error:', error);
-    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
-  }
-};
 
 /**
  * DELETE /api/vaccinations/:id
@@ -1027,7 +973,6 @@ export const getUpcomingVaccineDates = async (req: Request, res: Response) => {
 
     const vaccinations = await Vaccination.find({
       petId: req.params.petId,
-      status: { $ne: 'declined' },
       $or: [
         {
           nextDueDate: { $exists: true, $ne: null, $gt: now },
@@ -1097,7 +1042,6 @@ export const getVetUpcomingVaccineSchedule = async (req: Request, res: Response)
 
     const vaccinations = await Vaccination.find({
       vetId: vetId,
-      status: { $ne: 'declined' },
       $or: [
         {
           nextDueDate: { $exists: true, $ne: null, $gt: now },
@@ -1173,7 +1117,6 @@ export const getClinicUpcomingVaccineSchedule = async (req: Request, res: Respon
 
     const vaccinations = await Vaccination.find({
       clinicId: clinicId,
-      status: { $ne: 'declined' },
       $or: [
         {
           nextDueDate: { $exists: true, $ne: null, $gt: now },

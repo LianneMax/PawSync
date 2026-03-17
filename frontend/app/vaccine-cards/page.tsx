@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet } from '@/lib/pets'
 import { getVaccinationsByPet, type Vaccination } from '@/lib/medicalRecords'
-import { ShieldCheck, X, PawPrint, XCircle, BadgeCheck, Clock } from 'lucide-react'
+import { ShieldCheck, X, PawPrint, XCircle, BadgeCheck, Clock, Syringe, ChevronRight } from 'lucide-react'
 
 function formatMonthYear(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -20,9 +20,8 @@ function isPast(dateStr: string | null): boolean {
   return new Date(dateStr) < new Date()
 }
 
-function getPillStatus(vax: Vaccination): 'active' | 'expired' | 'overdue' | 'pending' | 'declined' {
-  if (vax.status === 'declined') return 'declined'
-  if (vax.status === 'overdue') return 'overdue'
+function getPillStatus(vax: Vaccination): 'active' | 'expired' | 'overdue' | 'pending' {
+  if (vax.status === 'overdue' || vax.status === 'expired') return 'overdue'
   if (vax.status === 'pending') return 'pending'
   if (vax.expiryDate && isPast(vax.expiryDate)) return 'expired'
   return 'active'
@@ -174,10 +173,127 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
   )
 }
 
+// ── Vaccine Detail Bottom Sheet ───────────────────────────────────────────────
+
+function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]; onClose: () => void }) {
+  const [closing, setClosing] = useState(false)
+  // most recent first (already sorted desc by dateAdministered from the API)
+  const [selectedIdx, setSelectedIdx] = useState(0)
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(onClose, 320)
+  }
+
+  const vax = vaccinations[selectedIdx]
+  const vet = vax.vetId
+  const vetName = vet ? `Dr. ${vet.firstName} ${vet.lastName}` : '—'
+  const clinicName = vax.clinicId?.name ?? '—'
+  const prcLicense = vet?.prcLicenseNumber ?? vet?.licenseNumber ?? null
+
+  const doseLabel = (v: Vaccination) => {
+    const dose = !v.doseNumber || v.doseNumber === 1 ? 'Initial' : `Booster ${v.doseNumber - 1}`
+    const date = v.dateAdministered ? new Date(v.dateAdministered).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+    return `${dose}${date ? ` — ${date}` : ''}`
+  }
+
+  const rows = [
+    { label: 'Brand name', value: vax.manufacturer || '—' },
+    { label: 'Dose', value: vax.vaccineTypeId?.doseVolumeMl != null ? `${vax.vaccineTypeId.doseVolumeMl} mL` : '—' },
+    { label: 'Date administered', value: vax.dateAdministered ? formatFullDate(vax.dateAdministered) : '—' },
+    { label: 'Batch / lot number', value: vax.batchNumber || '—' },
+    { label: 'Veterinary clinic', value: clinicName },
+    { label: 'Veterinarian', value: vetName },
+    { label: 'Booster count', value: !vax.doseNumber || vax.doseNumber === 1 ? 'Initial' : `Booster ${vax.doseNumber - 1}` },
+    ...(prcLicense ? [{ label: 'Professional license no.', value: prcLicense }] : []),
+  ]
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center"
+      style={{ fontFamily: 'var(--font-outfit)' }}
+      onClick={handleClose}
+    >
+      {/* Scrim */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Sheet wrapper */}
+      <div
+        className={`relative w-full ${closing ? 'animate-slide-down' : 'animate-slide-up'}`}
+        style={{ maxWidth: 'min(500px, 100%)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Syringe icon floats above the sheet */}
+        <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10 w-12 h-12 bg-[#476B6B] rounded-full flex items-center justify-center shadow-lg">
+          <Syringe className="w-6 h-6 text-white" />
+        </div>
+
+        {/* White sheet */}
+        <div className="bg-white rounded-t-3xl overflow-y-auto max-h-[85vh] [&::-webkit-scrollbar]:hidden pt-10 pb-8 px-6">
+          {/* Title */}
+          <div className="bg-[#F3F3F3] rounded-2xl px-4 py-3 text-center mb-4">
+            <p className="text-[17px] font-bold text-[#333]">{vax.vaccineName} Details</p>
+          </div>
+
+          {/* Dose selector — only shown when more than one record exists */}
+          {vaccinations.length > 1 && (
+            <div className="mb-4">
+              <label className="block text-[11px] text-gray-400 uppercase tracking-wider mb-1.5">Select dose</label>
+              <div className="relative">
+                <select
+                  value={selectedIdx}
+                  onChange={(e) => setSelectedIdx(Number(e.target.value))}
+                  className="w-full appearance-none bg-[#F3F3F3] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#333] focus:outline-none focus:ring-2 focus:ring-[#476B6B] pr-8"
+                >
+                  {vaccinations.map((v, i) => (
+                    <option key={v._id} value={i}>
+                      {doseLabel(v)}{i === 0 ? ' (Most recent)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          )}
+
+          {/* Dashed divider */}
+          <div className="border-t-2 border-dashed border-gray-200 mb-5" />
+
+          {/* Rows */}
+          <div className="space-y-3.5">
+            {rows.map(({ label, value }) => (
+              <div key={label} className="flex items-start justify-between gap-4">
+                <span className="text-[14px] text-gray-400 shrink-0">{label}</span>
+                <span className="text-[14px] font-semibold text-[#333] text-right">{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Close */}
+          <button
+            onClick={handleClose}
+            className="mt-6 w-full py-3 bg-[#476B6B] text-white rounded-2xl text-sm font-semibold hover:bg-[#3a5858] transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Open Card Modal ───────────────────────────────────────────────────────────
 
 function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () => void }) {
   const { pet, vaccinations } = petData
+  const [selectedVaxGroup, setSelectedVaxGroup] = useState<Vaccination[] | null>(null)
+
+  const openSheet = (vax: Vaccination) => {
+    const group = vaccinations
+      .filter((v) => v.vaccineName === vax.vaccineName)
+      .sort((a, b) => new Date(b.dateAdministered ?? 0).getTime() - new Date(a.dateAdministered ?? 0).getTime())
+    setSelectedVaxGroup(group)
+  }
 
   // Mask that cuts quarter-circles from the bottom corners of the top section
   const maskBottom = `
@@ -284,26 +400,33 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
                     const dateToShow = vax.expiryDate ?? vax.nextDueDate ?? null
 
                     return (
-                      <div key={vax._id} className="flex items-center justify-between px-5 py-4">
+                      <button
+                        key={vax._id}
+                        onClick={() => openSheet(vax)}
+                        className="w-full flex items-center justify-between px-5 py-4 hover:bg-black/5 transition-colors text-left"
+                      >
                         <p className="text-[18px] text-[#4F4F4F] font-normal">
                           {vax.vaccineName}
                         </p>
-                        {dateToShow ? (
-                          <div className="text-right">
-                            <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
-                              {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
-                            </p>
-                            <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
-                              {formatMonthYear(dateToShow)}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="text-right">
-                            <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">STATUS</p>
-                            <p className="text-[14px] text-[#4F4F4F]">{vax.status}</p>
-                          </div>
-                        )}
-                      </div>
+                        <div className="flex items-center gap-2">
+                          {dateToShow ? (
+                            <div className="text-right">
+                              <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
+                                {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
+                              </p>
+                              <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
+                                {formatMonthYear(dateToShow)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="text-right">
+                              <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">STATUS</p>
+                              <p className="text-[14px] text-[#4F4F4F]">{vax.status}</p>
+                            </div>
+                          )}
+                          <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                        </div>
+                      </button>
                     )
                   })
                 )}
@@ -338,6 +461,10 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
           </div>
         </div>
       </div>
+
+      {selectedVaxGroup && (
+        <VaxDetailSheet vaccinations={selectedVaxGroup} onClose={() => setSelectedVaxGroup(null)} />
+      )}
     </div>
   )
 }
@@ -362,9 +489,7 @@ export default function VaccineCardsPage() {
             const vaxRes = await getVaccinationsByPet(pet._id, token)
             return {
               pet,
-              vaccinations: (vaxRes.data?.vaccinations ?? []).filter(
-                (v: Vaccination) => v.status !== 'declined'
-              ),
+              vaccinations: vaxRes.data?.vaccinations ?? [],
             }
           })
         )

@@ -23,7 +23,7 @@ interface VerifiedVaccination {
   dateAdministered: string | null
   expiryDate: string | null
   nextDueDate: string | null
-  status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined'
+  status: 'active' | 'expired' | 'overdue' | 'pending'
   manufacturer: string
   batchNumber: string
   route: string | null
@@ -77,12 +77,6 @@ const STATUS_CONFIG = {
     icon: ShieldCheck,
     bg: 'from-blue-500 to-indigo-600',
     badge: 'bg-blue-100 text-blue-700 border-blue-200',
-  },
-  declined: {
-    label: 'Declined',
-    icon: ShieldX,
-    bg: 'from-gray-500 to-gray-600',
-    badge: 'bg-gray-100 text-gray-600 border-gray-200',
   },
 } as const
 

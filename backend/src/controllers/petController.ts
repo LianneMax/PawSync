@@ -129,7 +129,9 @@ export const getMyPets = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const pets = await Pet.find({ ownerId: req.user.userId }).sort({ createdAt: -1 });
+    const pets = await Pet.find({ ownerId: req.user.userId })
+      .populate('assignedVetId', 'firstName lastName photo clinicId')
+      .sort({ createdAt: -1 });
 
     // Migrate legacy sterilization data if needed
     for (const pet of pets) {
@@ -394,10 +396,9 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .select('vitals.weight vitals.temperature vitals.pulseRate vitals.spo2 createdAt');
 
-    // Get vaccination records (exclude declined and pending-only drafts)
+    // Get vaccination records
     const vaccinations = await Vaccination.find({
       petId: pet._id,
-      status: { $ne: 'declined' },
     })
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')

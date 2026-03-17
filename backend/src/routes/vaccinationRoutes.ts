@@ -7,7 +7,7 @@ import {
   getVaccinationById,
   updateVaccination,
   deleteVaccination,
-  declineVaccination,
+
   getVetVaccinations,
   getClinicVaccinations,
   searchOwners,
@@ -84,8 +84,5 @@ router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateVaccination);
 // DELETE /api/vaccinations/:id
 router.delete('/:id', authMiddleware, vetOrClinicAdminOnly, deleteVaccination);
 
-// Decline vaccination (vet or clinic-admin)
-// POST /api/vaccinations/:id/decline
-router.post('/:id/decline', authMiddleware, vetOrClinicAdminOnly, declineVaccination);
 
 export default router;

@@ -14,6 +14,7 @@ export interface IVaccineType extends Document {
   maxAgeMonths: number | null;
   maxAgeUnit: 'weeks' | 'months';
   route: string | null;
+  doseVolumeMl: number | null;
   pricePerDose: number;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
@@ -80,6 +81,10 @@ const VaccineTypeSchema = new Schema(
     },
     route: {
       type: String,
+      default: null,
+    },
+    doseVolumeMl: {
+      type: Number,
       default: null,
     },
     pricePerDose: {

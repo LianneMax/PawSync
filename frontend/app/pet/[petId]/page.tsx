@@ -65,7 +65,7 @@ interface VaccinationData {
   dateAdministered: string | null
   expiryDate: string | null
   nextDueDate: string | null
-  status: 'active' | 'expired' | 'overdue' | 'pending' | 'declined'
+  status: 'active' | 'expired' | 'overdue' | 'pending'
   isUpToDate: boolean
   vet: { firstName: string; lastName: string } | null
   clinic: { name: string } | null
@@ -530,7 +530,6 @@ export default function PetProfilePage() {
                   expired: { label: 'Expired', classes: 'bg-red-100 text-red-700 border-red-200' },
                   overdue: { label: 'Overdue', classes: 'bg-orange-100 text-orange-700 border-orange-200' },
                   pending: { label: 'Pending', classes: 'bg-blue-100 text-blue-700 border-blue-200' },
-                  declined: { label: 'Declined', classes: 'bg-gray-100 text-gray-500 border-gray-200' },
                 }
                 const cfg = statusConfig[vax.status] ?? statusConfig.pending
                 return (

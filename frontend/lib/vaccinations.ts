@@ -15,6 +15,7 @@ export interface VaccineType {
   maxAgeMonths: number | null;
   maxAgeUnit: 'weeks' | 'months';
   route: string | null;
+  doseVolumeMl: number | null;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
   isActive: boolean;
@@ -38,10 +39,9 @@ export interface Vaccination {
   appointmentId?: string | null;
   medicalRecordId?: string | null;
   doseNumber: number;
-  status: 'active' | 'overdue' | 'pending' | 'declined';
+  status: 'active' | 'expired' | 'overdue' | 'pending';
   isUpToDate: boolean;
   notes: string;
-  declinedReason: string | null;
   createdAt: string;
 }
 
@@ -256,29 +256,14 @@ export async function deleteVaccination(id: string, token: string): Promise<void
   if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to delete vaccination');
 }
 
-/** Mark a vaccination as declined (vet only). */
-export async function declineVaccination(
-  id: string,
-  reason: string,
-  token: string
-): Promise<Vaccination> {
-  const res = await fetch(`${API_BASE_URL}/vaccinations/${id}/decline`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify({ reason }),
-  });
-  const json = await res.json();
-  if (json.status !== 'SUCCESS') throw new Error(json.message || 'Failed to decline vaccination');
-  return json.data.vaccination;
-}
 
 /** Helper to get a human-readable label for a vaccination status. */
 export function getStatusLabel(status: Vaccination['status']): string {
   const labels: Record<Vaccination['status'], string> = {
     active: 'Active',
+    expired: 'Expired',
     overdue: 'Overdue',
     pending: 'Pending',
-    declined: 'Declined',
   };
   return labels[status] ?? status;
 }
@@ -287,9 +272,9 @@ export function getStatusLabel(status: Vaccination['status']): string {
 export function getStatusClasses(status: Vaccination['status']): string {
   const classes: Record<Vaccination['status'], string> = {
     active: 'bg-green-100 text-green-700 border-green-200',
+    expired: 'bg-red-100 text-red-700 border-red-200',
     overdue: 'bg-orange-100 text-orange-700 border-orange-200',
     pending: 'bg-blue-100 text-blue-700 border-blue-200',
-    declined: 'bg-gray-100 text-gray-600 border-gray-200',
   };
   return classes[status] ?? 'bg-gray-100 text-gray-600 border-gray-200';
 }

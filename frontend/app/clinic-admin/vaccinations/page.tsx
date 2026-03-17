@@ -78,6 +78,7 @@ interface TypeFormState {
   maxAgeMonths: string
   maxAgeUnit: 'weeks' | 'months'
   route: string
+  doseVolumeMl: string
   defaultManufacturer: string
   defaultBatchNumber: string
 }
@@ -95,6 +96,7 @@ const emptyTypeForm = (): TypeFormState => ({
   maxAgeMonths: '',
   maxAgeUnit: 'months',
   route: '',
+  doseVolumeMl: '',
   defaultManufacturer: '',
   defaultBatchNumber: '',
 })
@@ -252,6 +254,7 @@ export default function ClinicAdminVaccinationsPage() {
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
       maxAgeUnit: vt.maxAgeUnit as 'weeks' | 'months' || 'months',
       route: vt.route || '',
+      doseVolumeMl: (vt as any).doseVolumeMl != null ? String((vt as any).doseVolumeMl) : '',
       defaultManufacturer: (vt as any).defaultManufacturer || '',
       defaultBatchNumber: (vt as any).defaultBatchNumber || '',
     })
@@ -289,6 +292,7 @@ export default function ClinicAdminVaccinationsPage() {
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
         maxAgeUnit: form.maxAgeUnit,
         route: form.route || null,
+        doseVolumeMl: form.doseVolumeMl ? Number(form.doseVolumeMl) : null,
         defaultManufacturer: form.defaultManufacturer.trim() || null,
         defaultBatchNumber: form.defaultBatchNumber.trim() || null,
       }
@@ -801,6 +805,17 @@ export default function ClinicAdminVaccinationsPage() {
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Dose Volume (mL)</label>
+                <input
+                  type="number" min="0" step="0.1" value={form.doseVolumeMl}
+                  onChange={(e) => setForm((p) => ({ ...p, doseVolumeMl: e.target.value }))}
+                  placeholder="e.g. 1, 2.5"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                />
+                <p className="text-xs text-gray-400 mt-1">Standard volume per dose in millilitres</p>
               </div>
 
               <div>

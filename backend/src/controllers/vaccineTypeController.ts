@@ -48,6 +48,7 @@ export const createVaccineType = async (req: Request, res: Response) => {
       maxAgeMonths,
       maxAgeUnit,
       route,
+      doseVolumeMl,
       defaultManufacturer,
       defaultBatchNumber,
     } = req.body;
@@ -56,7 +57,7 @@ export const createVaccineType = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'name, species, and validityDays are required' });
     }
 
-    const existing = await VaccineType.findOne({ 
+    const existing = await VaccineType.findOne({
       name: name.trim(),
       species: { $in: species }
     });
@@ -75,6 +76,7 @@ export const createVaccineType = async (req: Request, res: Response) => {
       maxAgeMonths: maxAgeMonths ?? null,
       maxAgeUnit: maxAgeUnit || 'months',
       route: route || null,
+      doseVolumeMl: doseVolumeMl ?? null,
       defaultManufacturer: defaultManufacturer || null,
       defaultBatchNumber: defaultBatchNumber || null,
     });
@@ -143,6 +145,7 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       maxAgeMonths,
       maxAgeUnit,
       route,
+      doseVolumeMl,
       pricePerDose,
       defaultManufacturer,
       defaultBatchNumber,
@@ -159,6 +162,7 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (maxAgeMonths !== undefined) vaccineType.maxAgeMonths = maxAgeMonths ?? null;
     if (maxAgeUnit !== undefined) vaccineType.maxAgeUnit = maxAgeUnit;
     if (route !== undefined) vaccineType.route = route;
+    if (doseVolumeMl !== undefined) vaccineType.doseVolumeMl = doseVolumeMl ?? null;
     if (pricePerDose !== undefined) vaccineType.pricePerDose = pricePerDose;
     if (defaultManufacturer !== undefined) vaccineType.defaultManufacturer = defaultManufacturer || null;
     if (defaultBatchNumber !== undefined) vaccineType.defaultBatchNumber = defaultBatchNumber || null;

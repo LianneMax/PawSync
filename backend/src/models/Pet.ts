@@ -18,6 +18,7 @@ export interface IPet extends Document {
   bloodType: string | null;
   allergies: string[];
   pregnancyStatus?: 'pregnant' | 'not_pregnant' | null;
+  assignedVetId: mongoose.Types.ObjectId | null;
   isLost: boolean;
   lostContactName: string | null;
   lostContactNumber: string | null;
@@ -119,6 +120,11 @@ const PetSchema = new Schema(
         },
         message: 'Male pets cannot have a pregnancy status'
       }
+    },
+    assignedVetId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
     isLost: {
       type: Boolean,

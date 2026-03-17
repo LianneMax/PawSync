@@ -115,16 +115,15 @@ export default function VetDashboardPage() {
     appointments.filter((a) => a.petId?._id).map((a) => a.petId._id)
   ).size
 
-  const todayCount = appointments.filter((a) => {
+  const isToday = (a: Appointment) => {
     const apptDate = new Date(a.date).toISOString().split('T')[0]
-    return apptDate === today && a.status === 'confirmed'
-  }).length
+    return apptDate === today && ['pending', 'confirmed', 'in_progress'].includes(a.status)
+  }
+
+  const todayCount = appointments.filter(isToday).length
 
   const todayList = appointments
-    .filter((a) => {
-      const apptDate = new Date(a.date).toISOString().split('T')[0]
-      return apptDate === today && a.status === 'confirmed'
-    })
+    .filter(isToday)
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
 
   const displayName = user ? `Dr. ${user.lastName}` : 'Dr.'
@@ -190,7 +189,7 @@ export default function VetDashboardPage() {
           ) : todayList.length === 0 ? (
             <div className="text-center py-10 text-gray-400">
               <Calendar className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">No confirmed appointments for today</p>
+              <p className="text-sm">No appointments for today</p>
             </div>
           ) : (
             <div className="space-y-3">
