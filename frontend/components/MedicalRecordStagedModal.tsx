@@ -2640,9 +2640,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               // Auto-populate from service data when a medication is selected
                               if (selectedService) {
                                 const isTabletOrCapsule = ['tablets', 'capsules'].includes(selectedService.administrationMethod?.toLowerCase() ?? '')
-                                const bodyWeight = vitals?.weight?.value
+                                const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
                                 let autoDosage = selectedService.dosageAmount || m.dosage
-                                if (isTabletOrCapsule && selectedService.dosePerKg != null && bodyWeight) {
+                                if (isTabletOrCapsule && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
                                   const rawMg = selectedService.dosePerKg * bodyWeight
                                   autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
                                 }
