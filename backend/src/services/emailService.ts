@@ -13,7 +13,7 @@ export const getResend = (): Resend => {
   return resendClient;
 };
 
-const FROM = 'PawSync <onboarding@resend.dev>';
+export const FROM = 'PawSync <noreply@pawsync.app>';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 function formatDate(date: Date | string): string {
