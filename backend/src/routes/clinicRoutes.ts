@@ -12,7 +12,10 @@ import {
   getClinicVets,
   getClinicPatients,
   createClinicAdmin,
-  getBranchStats
+  getBranchStats,
+  getRegisteredVets,
+  inviteVet,
+  acceptVetInvitation,
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -41,6 +44,24 @@ router.get('/mine/stats', authMiddleware, clinicAdminOnly, getClinicDashboardSta
  * Get approved vets for the clinic
  */
 router.get('/mine/vets', authMiddleware, clinicAdminOnly, getClinicVets);
+
+/**
+ * GET /api/clinics/mine/registered-vets
+ * Get all registered (verified) veterinarians for the invite modal
+ */
+router.get('/mine/registered-vets', authMiddleware, clinicAdminOnly, getRegisteredVets);
+
+/**
+ * POST /api/clinics/mine/invite-vet
+ * Send a branch invitation email to a registered vet
+ */
+router.post('/mine/invite-vet', authMiddleware, clinicAdminOnly, inviteVet);
+
+/**
+ * GET /api/clinics/invite/accept
+ * Accept a vet invitation via token (public — no auth required)
+ */
+router.get('/invite/accept', acceptVetInvitation);
 
 /**
  * GET /api/clinics/mine/patients

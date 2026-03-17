@@ -1,14 +1,17 @@
 import { Request, Response } from 'express';
 import bcryptjs from 'bcryptjs';
+import crypto from 'crypto';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 import AssignedVet from '../models/AssignedVet';
 import VetApplication from '../models/VetApplication';
+import VetInvitation from '../models/VetInvitation';
 import User from '../models/User';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
 import { updateBranchStatus } from '../services/branchStatusService';
+import { sendVetInvitation } from '../services/emailService';
 
 /**
  * Helper: get clinic for the authenticated admin using clinicId from JWT.
@@ -716,6 +719,178 @@ export const getClinicPatients = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get clinic patients error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching clinic patients' });
+  }
+};
+
+// ==================== VET INVITATIONS ====================
+
+/**
+ * Get all registered (verified) veterinarians for the invite modal.
+ * Returns basic info + their current branch assignment.
+ */
+export const getRegisteredVets = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const vets = await User.find({ userType: 'veterinarian', isVerified: true })
+      .select('firstName lastName email clinicBranchId clinicId')
+      .populate('clinicBranchId', 'name')
+      .sort({ firstName: 1, lastName: 1 })
+      .lean();
+
+    const result = vets.map((v: any) => ({
+      _id: v._id,
+      firstName: v.firstName,
+      lastName: v.lastName,
+      email: v.email,
+      currentBranch: v.clinicBranchId ? (v.clinicBranchId as any).name : null,
+    }));
+
+    return res.status(200).json({ status: 'SUCCESS', data: { vets: result } });
+  } catch (error) {
+    console.error('Get registered vets error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
+  }
+};
+
+/**
+ * Send an invitation email to a registered vet to join the inviting branch.
+ * Creates a VetInvitation record with a secure token (7-day expiry).
+ */
+export const inviteVet = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { vetId, branchId } = req.body;
+    if (!vetId || !branchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'vetId and branchId are required' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const vet = await User.findOne({ _id: vetId, userType: 'veterinarian', isVerified: true });
+    if (!vet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Veterinarian not found' });
+    }
+
+    // Cancel any existing pending invitation for this vet to this branch
+    await VetInvitation.deleteMany({ vetId, branchId, status: 'pending' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await VetInvitation.create({ vetId, clinicId: clinic._id, branchId, token, expiresAt });
+
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const acceptUrl = `${FRONTEND_URL}/invite/accept?token=${token}`;
+
+    await sendVetInvitation({
+      vetEmail: vet.email,
+      vetFirstName: vet.firstName,
+      vetLastName: vet.lastName,
+      branchName: branch.name,
+      clinicName: clinic.name,
+      acceptUrl,
+    });
+
+    return res.status(200).json({ status: 'SUCCESS', message: 'Invitation sent successfully' });
+  } catch (error) {
+    console.error('Invite vet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while sending the invitation' });
+  }
+};
+
+/**
+ * Accept a vet invitation via token (public endpoint — no auth required).
+ * Assigns the vet to the inviting branch and marks invitation as accepted.
+ */
+export const acceptVetInvitation = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query as { token: string };
+    if (!token) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invitation token is required' });
+    }
+
+    const invitation = await VetInvitation.findOne({ token })
+      .populate('branchId', 'name address')
+      .populate('clinicId', 'name');
+
+    if (!invitation) {
+      return res.status(404).json({ status: 'ERROR', message: 'Invitation not found or already used' });
+    }
+
+    if (invitation.status === 'accepted') {
+      return res.status(400).json({ status: 'ERROR', message: 'This invitation has already been accepted' });
+    }
+
+    if (new Date() > invitation.expiresAt) {
+      return res.status(400).json({ status: 'ERROR', message: 'This invitation has expired' });
+    }
+
+    const branch = invitation.branchId as any;
+    const clinic = invitation.clinicId as any;
+
+    // Deactivate all existing clinic-level AssignedVet records for this vet
+    await AssignedVet.updateMany(
+      { vetId: invitation.vetId, petId: null, isActive: true },
+      { isActive: false }
+    );
+
+    // Track old branch IDs so we can update their status
+    const oldAssignments = await AssignedVet.find({ vetId: invitation.vetId, petId: null }).select('clinicBranchId');
+    const oldBranchIds = [...new Set(oldAssignments.map((a: any) => a.clinicBranchId?.toString()).filter(Boolean))];
+
+    // Create new AssignedVet record for the inviting branch
+    await AssignedVet.create({
+      vetId: invitation.vetId,
+      clinicId: invitation.clinicId,
+      clinicBranchId: invitation.branchId,
+      clinicName: clinic.name,
+      clinicAddress: branch.address,
+      assignedAt: new Date(),
+    });
+
+    // Update the vet's User record to reflect new branch
+    await User.findByIdAndUpdate(invitation.vetId, {
+      clinicId: invitation.clinicId,
+      clinicBranchId: invitation.branchId,
+    });
+
+    // Mark invitation as accepted
+    invitation.status = 'accepted';
+    await invitation.save();
+
+    // Update branch statuses
+    await updateBranchStatus(invitation.branchId.toString());
+    for (const oldBranchId of oldBranchIds) {
+      if (oldBranchId !== invitation.branchId.toString()) {
+        await updateBranchStatus(oldBranchId);
+      }
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Vet successfully joined the branch',
+      data: {
+        branchName: branch.name,
+        clinicName: clinic.name,
+      },
+    });
+  } catch (error) {
+    console.error('Accept vet invitation error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while accepting the invitation' });
   }
 };
 
