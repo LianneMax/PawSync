@@ -977,6 +977,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleProceedStep2 = async () => {
     if (!token) return
+    
+    // Validate SOAP notes are filled
+    if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) {
+      toast.error('Please fill in all SOAP notes (Subjective, Objective, Assessment, Plan) before proceeding')
+      return
+    }
+    
     setSaving(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
@@ -1214,12 +1221,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           if (!updated[testIndex].images) {
             updated[testIndex].images = []
           }
-          updated[testIndex].images!.push({ data: base64, contentType: file.type, description: file.name })
+          // Check if image already exists to prevent duplicates
+          const isDuplicate = updated[testIndex].images!.some((img) => img.description === file.name && img.data === base64)
+          if (!isDuplicate) {
+            updated[testIndex].images!.push({ data: base64, contentType: file.type, description: file.name })
+          }
           return updated
         })
       }
       reader.readAsDataURL(file)
     })
+    // Clear the input so the same file can be uploaded again if needed
+    e.target.value = ''
   }
 
   const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
@@ -1637,51 +1650,63 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#476B6B] mb-1">
-                      S — Subjective <span className="font-normal text-gray-400">(Patient history / owner complaint)</span>
+                      S — Subjective <span className="text-[#900B09]">*</span> <span className="font-normal text-gray-400">(Patient history / owner complaint)</span>
                     </label>
                     <textarea
                       value={subjective}
                       onChange={(e) => setSubjective(e.target.value)}
                       rows={2}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${!subjective.trim() && showRequiredErrors ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                       placeholder="Owner's description, patient history, presenting complaint…"
                     />
+                    {!subjective.trim() && showRequiredErrors && (
+                      <p className="text-xs text-[#900B09] mt-1">Subjective notes are required</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#476B6B] mb-1">
-                      O — Objective <span className="font-normal text-gray-400">(Physical examination findings)</span>
+                      O — Objective <span className="text-[#900B09]">*</span> <span className="font-normal text-gray-400">(Physical examination findings)</span>
                     </label>
                     <textarea
                       value={objective}
                       onChange={(e) => setObjective(e.target.value)}
                       rows={3}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${!objective.trim() && showRequiredErrors ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                       placeholder="Physical exam findings, measurable observations, test results…"
                     />
+                    {!objective.trim() && showRequiredErrors && (
+                      <p className="text-xs text-[#900B09] mt-1">Objective notes are required</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#476B6B] mb-1">
-                      A — Assessment <span className="font-normal text-gray-400">(Diagnosis / differential diagnosis)</span>
+                      A — Assessment <span className="text-[#900B09]">*</span> <span className="font-normal text-gray-400">(Diagnosis / differential diagnosis)</span>
                     </label>
                     <textarea
                       value={assessment}
                       onChange={(e) => setAssessment(e.target.value)}
                       rows={2}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${!assessment.trim() && showRequiredErrors ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                       placeholder="Clinical diagnosis, differential diagnoses, clinical impression…"
                     />
+                    {!assessment.trim() && showRequiredErrors && (
+                      <p className="text-xs text-[#900B09] mt-1">Assessment notes are required</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#476B6B] mb-1">
-                      P — Plan <span className="font-normal text-gray-400">(Treatment plan / next steps)</span>
+                      P — Plan <span className="text-[#900B09]">*</span> <span className="font-normal text-gray-400">(Treatment plan / next steps)</span>
                     </label>
                     <textarea
                       value={plan}
                       onChange={(e) => setPlan(e.target.value)}
                       rows={2}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                      className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${!plan.trim() && showRequiredErrors ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                       placeholder="Treatment plan, follow-up instructions, referrals…"
                     />
+                    {!plan.trim() && showRequiredErrors && (
+                      <p className="text-xs text-[#900B09] mt-1">Plan notes are required</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1745,7 +1770,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2">
                           <select value={test.name} onChange={(e) => {
                             const name = e.target.value
                             const isUltrasound = name.toLowerCase().includes('ultrasound')
@@ -1756,8 +1781,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
                             ))}
                           </select>
-                          <input type="date" value={test.date || ''} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, date: e.target.value || null } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" placeholder="Test date" />
-                          <input type="text" placeholder="Normal range" value={test.normalRange} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, normalRange: e.target.value } : t))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                         </div>
                         <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
                         <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
@@ -1822,7 +1845,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <input
                             type="date"
                             value={gestationDate}
-                            onChange={(e) => setGestationDate(e.target.value)}
+                            onChange={(e) => {
+                              setGestationDate(e.target.value)
+                              if (e.target.value) {
+                                const date = new Date(e.target.value)
+                                date.setDate(date.getDate() + 63)
+                                setExpectedDueDate(date.toISOString().split('T')[0])
+                              }
+                            }}
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                           />
                         </div>
