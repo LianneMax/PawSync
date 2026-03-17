@@ -554,33 +554,33 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 />
               </div>
 
+              {/* Net content/volume per piece */}
+              {admRoute && admRoute !== 'preventive' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {['tablets', 'capsules'].includes(admMethod.toLowerCase())
+                      ? 'mg per piece'
+                      : 'mL per piece / vial'}
+                  </label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={medNetContent}
+                    onChange={(e) => setMedNetContent(e.target.value)}
+                    placeholder="e.g. 500"
+                    min="0"
+                    step="any"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
+
               {/* Standard Information */}
               <div className="border-t border-gray-100 pt-4">
                 <p className="text-sm font-medium text-gray-700 mb-3">
                   Standard Information <span className="text-xs text-gray-400 font-normal">(Optional — used as guide when prescribing)</span>
                 </p>
                 <div className="space-y-3">
-
-                  {/* Net content/volume per piece */}
-                  {admRoute && admRoute !== 'preventive' && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        {['tablets', 'capsules'].includes(admMethod.toLowerCase())
-                          ? 'mg per piece'
-                          : 'mL per piece / vial'}
-                      </label>
-                      <input
-                        type="number"
-                        onWheel={(e) => e.currentTarget.blur()}
-                        value={medNetContent}
-                        onChange={(e) => setMedNetContent(e.target.value)}
-                        placeholder="e.g. 500"
-                        min="0"
-                        step="any"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                      />
-                    </div>
-                  )}
 
                   {/* Dose basis — oral / injection only */}
                   {admRoute && admRoute !== 'preventive' && admRoute !== 'topical' && (
@@ -1185,6 +1185,27 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
             />
           </div>
 
+          {/* Net content/volume per piece */}
+          {isMedication && admRoute && admRoute !== 'preventive' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                {['tablets', 'capsules'].includes(admMethod.toLowerCase())
+                  ? 'mg per piece'
+                  : 'mL per piece / vial'}
+              </label>
+              <input
+                type="number"
+                onWheel={(e) => e.currentTarget.blur()}
+                value={netContent}
+                onChange={(e) => setNetContent(e.target.value)}
+                placeholder="e.g. 500"
+                min="0"
+                step="any"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+              />
+            </div>
+          )}
+
           {/* Standard Information — Medications only */}
           {isMedication && (
             <div className="border-t border-gray-100 pt-4">
@@ -1192,27 +1213,6 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                 Standard Information <span className="text-xs text-gray-400 font-normal">(Optional — used as guide when prescribing)</span>
               </p>
               <div className="space-y-3">
-
-                {/* Net content/volume per piece */}
-                {admRoute && admRoute !== 'preventive' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      {['tablets', 'capsules'].includes(admMethod.toLowerCase())
-                        ? 'mg per piece'
-                        : 'mL per piece / vial'}
-                    </label>
-                    <input
-                      type="number"
-                        onWheel={(e) => e.currentTarget.blur()}
-                      value={netContent}
-                      onChange={(e) => setNetContent(e.target.value)}
-                      placeholder="e.g. 500"
-                      min="0"
-                      step="any"
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                    />
-                  </div>
-                )}
 
                 {admRoute && admRoute !== 'preventive' && admRoute !== 'topical' && (
                   <div className="grid grid-cols-2 gap-3">
@@ -2004,26 +2004,69 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                               <>
                                 <div className="fixed inset-0 z-10" onClick={() => setPopoverItemId(null)} />
                                 <div
-                                  className="fixed z-20 w-52 bg-white border border-gray-200 rounded-xl shadow-lg p-3.5 -translate-y-1/2"
+                                  className="fixed z-20 w-60 bg-white border border-gray-200 rounded-xl shadow-lg p-3.5 -translate-y-1/2"
                                   style={{ top: popoverPos.top, right: popoverPos.right }}
                                 >
                                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Standard Information</p>
                                   <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-xs text-gray-500">Dose</span>
-                                      <span className="text-xs font-medium text-gray-800">
-                                        {item.dosePerKg != null ? `${item.dosePerKg} mg/kg` : '—'}
-                                        {item.doseUnit ? ` · ${item.doseUnit}` : ''}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-xs text-gray-500">Frequency</span>
-                                      <span className="text-xs font-medium text-gray-800">{item.frequencyLabel || '—'}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-xs text-gray-500">Duration</span>
-                                      <span className="text-xs font-medium text-gray-800">{item.durationLabel || '—'}</span>
-                                    </div>
+                                    {/* mg/kg — oral and injection only */}
+                                    {(item.administrationRoute === 'oral' || item.administrationRoute === 'injection') && (
+                                      <>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">mg/kg</span>
+                                          <span className="text-xs font-medium text-gray-800">
+                                            {item.dosePerKg != null ? `${item.dosePerKg} mg/kg` : '—'}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">Dose Unit</span>
+                                          <span className="text-xs font-medium text-gray-800">{item.doseUnit || '—'}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                    {/* Frequency Notes — topical only */}
+                                    {item.administrationRoute === 'topical' && (
+                                      <div className="flex justify-between items-start gap-2">
+                                        <span className="text-xs text-gray-500 shrink-0">Freq. Notes</span>
+                                        <span className="text-xs font-medium text-gray-800 text-right">{item.frequencyNotes || '—'}</span>
+                                      </div>
+                                    )}
+                                    {/* Frequency + Duration — oral, topical, injection */}
+                                    {item.administrationRoute !== 'preventive' && (
+                                      <>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">Frequency</span>
+                                          <span className="text-xs font-medium text-gray-800">{item.frequencyLabel || '—'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">Duration</span>
+                                          <span className="text-xs font-medium text-gray-800">{item.durationLabel || '—'}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                    {/* Preventive-specific */}
+                                    {item.administrationRoute === 'preventive' && (
+                                      <>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">Repeat Every</span>
+                                          <span className="text-xs font-medium text-gray-800">
+                                            {item.intervalDays != null ? `${item.intervalDays} days` : '—'}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">Weight Range</span>
+                                          <span className="text-xs font-medium text-gray-800">
+                                            {item.weightMin != null && item.weightMax != null
+                                              ? `${item.weightMin}–${item.weightMax} kg`
+                                              : item.weightMin != null
+                                              ? `≥ ${item.weightMin} kg`
+                                              : item.weightMax != null
+                                              ? `≤ ${item.weightMax} kg`
+                                              : '—'}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </>
