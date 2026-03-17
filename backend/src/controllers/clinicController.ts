@@ -338,7 +338,7 @@ export const createClinicAdmin = async (req: Request, res: Response) => {
     }
 
     // Verify the branch belongs to this clinic
-    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id, isActive: true });
+    const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id });
     if (!branch) {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
