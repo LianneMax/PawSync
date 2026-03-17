@@ -3,6 +3,21 @@ import VetSchedule from '../models/VetSchedule';
 import VetApplication from '../models/VetApplication';
 import ClinicBranch from '../models/ClinicBranch';
 
+function normalizeTime(time: string | null | undefined): string | null {
+  if (!time) return null;
+  if (/^\d{2}:\d{2}$/.test(time)) return time;
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (match) {
+    let h = parseInt(match[1]);
+    const m = match[2];
+    const ampm = match[3].toUpperCase();
+    if (ampm === 'PM' && h < 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return `${h.toString().padStart(2, '0')}:${m}`;
+  }
+  return time;
+}
+
 /**
  * Get vet's schedule for all approved branches
  */
@@ -106,13 +121,15 @@ export const upsertSchedule = async (req: Request, res: Response) => {
     }
 
     // Validate times are within branch hours
-    if (branch.openingTime && startTime < branch.openingTime) {
+    const branchOpen = normalizeTime(branch.openingTime);
+    const branchClose = normalizeTime(branch.closingTime);
+    if (branchOpen && startTime < branchOpen) {
       return res.status(400).json({
         status: 'ERROR',
         message: `Start time cannot be before branch opening time (${branch.openingTime})`
       });
     }
-    if (branch.closingTime && endTime > branch.closingTime) {
+    if (branchClose && endTime > branchClose) {
       return res.status(400).json({
         status: 'ERROR',
         message: `End time cannot be after branch closing time (${branch.closingTime})`
