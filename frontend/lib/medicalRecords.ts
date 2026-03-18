@@ -360,6 +360,7 @@ export interface ProductService {
   dosageAmount?: string;
   frequency?: number;
   frequencyLabel?: string;
+  frequencyNotes?: string;
   duration?: number;
   durationLabel?: string;
   createdAt: string;

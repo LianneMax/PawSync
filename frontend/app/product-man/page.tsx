@@ -858,15 +858,15 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                         <div className="grid grid-cols-2 gap-3">
                           <DropdownField
                             value={medDurationType}
                             onValueChange={(value) => { setMedDurationType(value as any); setMedDurationDays('') }}
-                            placeholder="Select frequency"
+                            placeholder="Select duration"
                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
                             options={[
-                              { value: '', label: 'Select frequency' },
+                              { value: '', label: 'Select duration' },
                               { value: 'as_needed', label: 'As needed' },
                               { value: 'days', label: 'For X days' },
                             ]}
