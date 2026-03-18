@@ -306,7 +306,11 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
         </div>
 
         {selectedVaxGroup && (
-          <VaxDetailSheet vaccinations={selectedVaxGroup} onClose={() => setSelectedVaxGroup(null)} />
+          <VaxDetailSheet
+            vaccinations={selectedVaxGroup}
+            petSpecies={pet?.species}
+            onClose={() => setSelectedVaxGroup(null)}
+          />
         )}
       </div>
     )
@@ -439,7 +443,15 @@ function DetailRow({ label, value, highlight }: { label: string; value: string; 
   )
 }
 
-function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]; onClose: () => void }) {
+function VaxDetailSheet({
+  vaccinations,
+  petSpecies,
+  onClose,
+}: {
+  vaccinations: Vaccination[]
+  petSpecies?: string | null
+  onClose: () => void
+}) {
   const [closing, setClosing] = useState(false)
   const [selectedIdx, setSelectedIdx] = useState(0)
 
@@ -457,7 +469,7 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
 
   const rows = [
     { label: 'Vaccine name', value: vax.vaccineName || '—' },
-    { label: 'Dose', value: getDoseMlLabel(vax, pet?.species) },
+    { label: 'Dose', value: getDoseMlLabel(vax, petSpecies) },
     { label: 'Brand name', value: vax.manufacturer || '—' },
     { label: 'Date administered', value: vax.dateAdministered ? formatFullDate(vax.dateAdministered) : '—' },
     { label: 'Batch / lot number', value: vax.batchNumber || '—' },
