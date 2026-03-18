@@ -58,7 +58,7 @@ export const createProductService = async (req: Request, res: Response) => {
     }
 
     const validProductCategories = ['Medication', 'Others'];
-    const validServiceCategories = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'General Consultation', 'Grooming', 'Others'];
+    const validServiceCategories = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Pregnancy Delivery', 'General Consultation', 'Grooming', 'Others'];
     const validCategories = type === 'Product' ? validProductCategories : validServiceCategories;
     const resolvedCategory = category && validCategories.includes(category) ? category : 'Others';
 

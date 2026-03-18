@@ -75,7 +75,7 @@ interface VaccineItem {
 // ==================== CONSTANTS ====================
 
 const PRODUCT_CATEGORIES = ['Medication', 'Others'] as const
-const SERVICE_CATEGORIES = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'General Consultation', 'Grooming', 'Others'] as const
+const SERVICE_CATEGORIES = ['Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Pregnancy Delivery', 'General Consultation', 'Grooming', 'Others'] as const
 const ORAL_METHODS = ['Tablets', 'Capsules', 'Syrup'] as const
 const TOPICAL_METHODS = ['Skin', 'Ears', 'Eyes', 'Wounds'] as const
 const INJECTION_METHODS = ['IV', 'IM', 'SC'] as const

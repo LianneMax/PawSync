@@ -76,7 +76,7 @@ const MODAL_TITLES: Record<BillingFromRecordModalProps['mode'], string> = {
   update: 'Update Billing',
 }
 
-const CATEGORY_ORDER = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Vaccines', 'Others']
+const CATEGORY_ORDER = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Pregnancy Delivery', 'Vaccines', 'Others']
 
 function groupByCategoryOrdered(entries: CatalogEntry[]) {
   const map = new Map<string, CatalogEntry[]>()

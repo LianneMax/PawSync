@@ -262,7 +262,7 @@ function PetOwnerBilling() {
 
 // ==================== HELPERS ====================
 
-const CATEGORY_ORDER_BILLING = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Vaccines', 'Others']
+const CATEGORY_ORDER_BILLING = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Pregnancy Delivery', 'Vaccines', 'Others']
 
 function groupByCategory(items: ProductServiceOption[]) {
   const map = new Map<string, ProductServiceOption[]>()
