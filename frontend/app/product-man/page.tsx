@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import DashboardLayout from '@/components/DashboardLayout'
 import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe, Eye } from 'lucide-react'
@@ -1056,6 +1056,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [piecesPerPack, setPiecesPerPack] = useState(item.piecesPerPack != null ? String(item.piecesPerPack) : '')
   const [injectionPricingType, setInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>((item.injectionPricingType as 'singleDose' | 'mlPerKg') || 'singleDose')
 
+  // Ref to track if the route was actually changed by user (not initial render)
+  const prevAdmRouteRef = useRef(admRoute)
+
   // Branch availability state: map of branchId -> isActive
   const [branchState, setBranchState] = useState<Map<string, boolean>>(() => {
     const map = new Map<string, boolean>()
@@ -1081,10 +1084,11 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
     })
   }, [branches])
 
-  // Reset method when route changes
+  // Reset method when route changes (but not on initial render)
   useEffect(() => {
-    if (!isMedication) return
+    if (!isMedication || prevAdmRouteRef.current === admRoute) return
     setAdmMethod('')
+    prevAdmRouteRef.current = admRoute
   }, [admRoute, isMedication])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
