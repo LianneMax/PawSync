@@ -18,6 +18,7 @@ import {
   X,
   CalendarDays,
 } from 'lucide-react'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface PetGroup {
   petId: string
@@ -284,18 +285,16 @@ export default function ClinicMedicalRecordsPage() {
           <div className="flex items-center gap-3">
             <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
             <div className="flex items-center gap-2 flex-1">
-              <input
-                type="date"
+              <DatePicker
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent text-gray-600"
+                onChange={setDateFrom}
+                className="flex-1"
               />
               <span className="text-gray-400 text-sm shrink-0">to</span>
-              <input
-                type="date"
+              <DatePicker
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent text-gray-600"
+                onChange={setDateTo}
+                className="flex-1"
               />
             </div>
             {hasFilters && (

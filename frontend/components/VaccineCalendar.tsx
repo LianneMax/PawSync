@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Calendar, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
-import { DayPicker } from 'react-day-picker'
-import 'react-day-picker/dist/style.css'
+import { Calendar as UiCalendar } from '@/components/ui/calendar'
 import { format, isPast, isSameDay, isToday } from 'date-fns'
 import type { UpcomingVaccine, VetUpcomingSchedule, ClinicUpcomingSchedule } from '@/lib/vaccinations'
 
@@ -103,7 +102,7 @@ export default function VaccineCalendar({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
         {/* Calendar */}
         <div className="lg:col-span-1">
-          <DayPicker
+          <UiCalendar
             mode="single"
             selected={selectedDate}
             onSelect={(date) => {

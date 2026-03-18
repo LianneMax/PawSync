@@ -25,6 +25,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface PopulatedOwner {
   contactNumber?: string
@@ -1267,13 +1268,12 @@ export default function PetProfilePage() {
               <label htmlFor="pickup-date" className="text-sm font-semibold text-gray-600">
                 Pickup Date <span className="text-red-500">*</span>
               </label>
-              <input
-                id="pickup-date"
-                type="date"
+              <DatePicker
                 value={pickupDate}
-                onChange={(e) => setPickupDate(e.target.value)}
-                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                onChange={setPickupDate}
+                minDate={new Date(Date.now() + 86400000)}
+                allowFutureDates
+                className="w-full"
               />
               <p className="text-xs text-gray-500">Select a date from tomorrow onwards</p>
             </div>

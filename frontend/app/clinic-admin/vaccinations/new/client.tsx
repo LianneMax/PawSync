@@ -22,6 +22,7 @@ import {
   type VaccineType,
 } from '@/lib/vaccinations'
 import VaccineCardPreview from '@/components/VaccineCardPreview'
+import { DatePicker } from '@/components/ui/date-picker'
 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -679,14 +680,13 @@ export default function ClinicVaccinationFormClient() {
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
               Date Administered <span className="text-red-400">*</span>
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={dateAdministered}
-              max={formatDateInput(new Date())}
-              onChange={(e) => setDateAdministered(e.target.value)}
+              onChange={setDateAdministered}
+              maxDate={new Date()}
               disabled={isViewOnly}
-              required
-              className={`w-full bg-[#F8F6F2] border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${dateAdminError ? 'border-red-400 focus:ring-red-300' : 'border-transparent focus:ring-[#7FA5A3]'}`}
+              error={!!dateAdminError}
+              className="w-full"
             />
             {dateAdminError && (
               <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
@@ -702,12 +702,13 @@ export default function ClinicVaccinationFormClient() {
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
                 Next Due Date <span className="text-gray-400 font-normal">(optional override)</span>
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={nextDueDate}
-                onChange={(e) => setNextDueDate(e.target.value)}
+                onChange={setNextDueDate}
                 disabled={isViewOnly}
-                className={`w-full bg-[#F8F6F2] border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:cursor-not-allowed ${nextDueDateError ? 'border-red-400 focus:ring-red-300' : 'border-transparent focus:ring-[#7FA5A3]'}`}
+                allowFutureDates
+                error={!!nextDueDateError}
+                className="w-full"
               />
               {nextDueDateError && (
                 <p className="text-xs text-red-500 mt-1 flex items-center gap-1">

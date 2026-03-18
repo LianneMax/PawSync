@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/dialog'
 import { getPetNotes, savePetNotes } from '@/lib/petNotes'
 import { Switch } from '@/components/ui/switch'
+import { DatePicker } from '@/components/ui/date-picker'
 import { syncBillingFromRecord } from '@/lib/billingSync'
 
 interface Props {
@@ -1886,27 +1887,26 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div className="grid grid-cols-2 gap-3 pt-1">
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Gestation Date</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={gestationDate}
-                            onChange={(e) => {
-                              setGestationDate(e.target.value)
-                              if (e.target.value) {
-                                const date = new Date(e.target.value)
+                            onChange={(value) => {
+                              setGestationDate(value)
+                              if (value) {
+                                const date = new Date(value)
                                 date.setDate(date.getDate() + 63)
                                 setExpectedDueDate(date.toISOString().split('T')[0])
                               }
                             }}
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                            className="w-full"
                           />
                         </div>
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Expected Due Date</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={expectedDueDate}
-                            onChange={(e) => setExpectedDueDate(e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                            onChange={setExpectedDueDate}
+                            allowFutureDates
+                            className="w-full"
                           />
                         </div>
                         <div>
@@ -1944,11 +1944,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Delivery Date</label>
-                        <input
-                          type="date"
+                        <DatePicker
                           value={deliveryDate}
-                          onChange={(e) => setDeliveryDate(e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          onChange={setDeliveryDate}
+                          allowFutureDates
+                          className="w-full"
                         />
                       </div>
                       <div>
@@ -2336,12 +2336,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="block text-[10px] text-gray-400 mb-1">Date Administered <span className="text-[#900B09]">*</span></label>
-                              <input
-                                type="date"
+                              <DatePicker
                                 value={v.dateAdministered}
-                                max={today}
-                                onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, dateAdministered: e.target.value } : item))}
-                                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${dateInFuture ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                                onChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, dateAdministered: value } : item))}
+                                maxDate={new Date()}
+                                error={dateInFuture}
+                                className="w-full"
                               />
                               {dateInFuture && (
                                 <p className="text-[10px] text-red-500 mt-0.5">Date cannot be in the future.</p>
@@ -2350,12 +2350,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             {vt?.requiresBooster && (
                               <div>
                                 <label className="block text-[10px] text-gray-400 mb-1">Next Due Date</label>
-                                <input
-                                  type="date"
+                                <DatePicker
                                   value={v.nextDueDate}
-                                  min={v.dateAdministered ? (() => { const d = new Date(v.dateAdministered); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() : undefined}
-                                  onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, nextDueDate: e.target.value } : item))}
-                                  className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${nextDueInvalid ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                                  onChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, nextDueDate: value } : item))}
+                                  minDate={v.dateAdministered ? (() => { const d = new Date(v.dateAdministered); d.setDate(d.getDate() + 1); return d })() : undefined}
+                                  allowFutureDates
+                                  error={nextDueInvalid}
+                                  className="w-full"
                                 />
                                 {nextDueInvalid && (
                                   <p className="text-[10px] text-red-500 mt-0.5">Must be after date administered.</p>
@@ -2837,11 +2838,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             </select>
                             <div>
                               <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
-                              <input 
-                                type="date" 
-                                value={care.dateAdministered || ''} 
-                                onChange={(e) => {
-                                  const dateValue = e.target.value
+                              <DatePicker
+                                value={care.dateAdministered || ''}
+                                onChange={(value) => {
+                                  const dateValue = value
                                   const selected = preventiveCareServices.find((s) => s.name.toLowerCase() === care.product.toLowerCase())
                                   
                                   // Always recalculate nextDueDate UNLESS vet has manually edited it
@@ -2858,8 +2858,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                       : c
                                   ))
                                 }}
-                                placeholder="mm/dd/yyyy"
-                                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 
+                                className="w-full"
                               />
                             </div>
                           </div>
@@ -2879,16 +2878,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           
                           <div>
                             <label className="block text-xs text-gray-400 mb-1">Next Due Date (Optional - Override)</label>
-                            <input 
-                              type="date" 
-                              value={care.nextDueDate || ''} 
-                              onChange={(e) => {
-                                setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: e.target.value || null } : c))
+                            <DatePicker
+                              value={care.nextDueDate || ''}
+                              onChange={(value) => {
+                                setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: value || null } : c))
                                 // Mark this item as manually edited
                                 setPreventiveCareManuallyEdited((prev) => new Set([...prev, i]))
                               }}
-                              placeholder="mm/dd/yyyy"
-                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 
+                              allowFutureDates
+                              className="w-full"
                             />
                           </div>
                           <input 

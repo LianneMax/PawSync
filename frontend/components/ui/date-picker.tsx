@@ -16,9 +16,11 @@ interface DatePickerProps {
   className?: string;
   allowFutureDates?: boolean;
   minDate?: Date; // Minimum allowed date
+  maxDate?: Date; // Maximum allowed date
+  disabled?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate, maxDate, disabled = false }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [textValue, setTextValue] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -42,6 +44,9 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
     if (minDate && d < minDate) {
       return true;
     }
+    if (maxDate && d > maxDate) {
+      return true;
+    }
     if (!allowFutureDates && d > new Date()) {
       return true;
     }
@@ -52,6 +57,9 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
     if (selected) {
       // Check if selected date is within valid range
       if (minDate && selected < minDate) {
+        return;
+      }
+      if (maxDate && selected > maxDate) {
         return;
       }
       if (!allowFutureDates && selected > new Date()) {
@@ -76,8 +84,9 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
       if (isValid(parsed) && parsed.getFullYear() > 1900) {
         // Check date constraints
         const isAfterMin = !minDate || parsed >= minDate;
+        const isBeforeMax = !maxDate || parsed <= maxDate;
         const isNotFuture = allowFutureDates || parsed <= new Date();
-        if (isAfterMin && isNotFuture) {
+        if (isAfterMin && isBeforeMax && isNotFuture) {
           onChange(format(parsed, 'yyyy-MM-dd'));
           setTextValue(`${mm}/${dd}/${yyyy}`);
         }
@@ -100,8 +109,9 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
       if (isValid(parsed) && parsed.getFullYear() > 1900) {
         // Check date constraints
         const isAfterMin = !minDate || parsed >= minDate;
+        const isBeforeMax = !maxDate || parsed <= maxDate;
         const isNotFuture = allowFutureDates || parsed <= new Date();
-        if (isAfterMin && isNotFuture) {
+        if (isAfterMin && isBeforeMax && isNotFuture) {
           onChange(format(parsed, 'yyyy-MM-dd'));
           return;
         } else {
@@ -142,6 +152,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
           <PopoverTrigger asChild>
             <button
               type="button"
+              disabled={disabled}
               className="flex items-center justify-center pl-4 pr-2 h-full text-gray-400 hover:text-gray-600 transition-colors shrink-0"
             >
               <CalendarIcon className="w-5 h-5" />
@@ -155,6 +166,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
         <input
           ref={inputRef}
           type="text"
+          disabled={disabled}
           value={textValue}
           onChange={handleTextChange}
           onBlur={handleTextBlur}
@@ -162,7 +174,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
           className="flex-1 h-full bg-transparent text-base outline-none placeholder:text-gray-400 pr-9"
         />
 
-        {date && (
+        {date && !disabled && (
           <button
             type="button"
             className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
