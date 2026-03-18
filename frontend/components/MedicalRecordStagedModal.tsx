@@ -2883,6 +2883,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                        {(() => {
+                          const medService = medicationServices.find((s) => s.name === med.name)
+                          const isTopical = medService?.administrationRoute?.toLowerCase() === 'topical' || medService?.administrationMethod?.toLowerCase() === 'topical'
+                          return (
                         <div className="grid grid-cols-2 gap-2">
                           <DropdownField
                             value={med.name}
@@ -2941,13 +2945,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                     }
                                   } else if (isSyrup) {
                                     autoQuantity = 1
+                                  } else if (administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical') {
+                                    autoQuantity = 1
                                   }
+                                  const isSelectedTopical = administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical'
                                   return {
                                     ...m,
                                     name: selectedName,
                                     dosage: autoDosage,
                                     route: (selectedService.administrationRoute as Medication['route']) || m.route,
-                                    frequency: selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency,
+                                    frequency: isSelectedTopical
+                                      ? (selectedService.frequencyNotes || m.frequency)
+                                      : (selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency),
                                     duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
                                     quantity: autoQuantity,
                                   }
@@ -2965,8 +2974,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               })),
                             ]}
                           />
-                          <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <DropdownField
+                          {!isTopical && <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
+                          {!isTopical && <DropdownField
                             value={med.route}
                             onValueChange={() => {}}
                             disabled
@@ -2978,11 +2987,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               { value: 'injection', label: 'Injection' },
                               { value: 'other', label: 'Other' },
                             ]}
-                          />
-                          <input type="text" placeholder="Frequency (e.g. twice daily)" value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          />}
+                          <input type="text" placeholder={isTopical ? 'Application instructions (e.g. apply twice daily)' : 'Frequency (e.g. twice daily)'} value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className={`border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]${isTopical ? ' col-span-2' : ''}`} />
                           <input type="text" placeholder="Duration (e.g. 7 days)" value={med.duration} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="number" placeholder="Qty (tablets)" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <DropdownField
+                          <input type="number" placeholder="Qty" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          {!isTopical && <DropdownField
                             value={med.status}
                             onValueChange={(value) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, status: value as Medication['status'] } : m))}
                             placeholder="Status"
@@ -2992,8 +3001,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               { value: 'completed', label: 'Completed' },
                               { value: 'discontinued', label: 'Discontinued' },
                             ]}
-                          />
+                          />}
                         </div>
+                          )
+                        })()}
                         {capsuleWarnings[i] && (
                           <div className="flex items-start gap-1.5 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
