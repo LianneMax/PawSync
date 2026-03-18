@@ -252,6 +252,29 @@ function getNextDueInterval(
   return null
 }
 
+function computeAutoNextDueDateString(
+  vaccineType: {
+    isSeries?: boolean;
+    totalSeries?: number;
+    seriesIntervalDays?: number;
+    boosterValid?: boolean;
+    boosterIntervalDays?: number | null;
+  } | undefined,
+  doseNumber: number,
+  dateAdministered: string
+): string {
+  if (!vaccineType || !dateAdministered) return ''
+  const interval = getNextDueInterval(vaccineType, doseNumber)
+  if (interval == null) return ''
+  const base = new Date(dateAdministered)
+  if (Number.isNaN(base.getTime())) return ''
+  base.setDate(base.getDate() + interval)
+  const y = base.getFullYear()
+  const m = String(base.getMonth() + 1).padStart(2, '0')
+  const d = String(base.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 /** Human-readable label for a dose number given vaccine type config. */
 function getDoseLabel(
   vaccineType: { isSeries?: boolean; totalSeries?: number } | undefined,
@@ -2391,6 +2414,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             ? Math.max(...priorDoses.map((pv) => pv.doseNumber || 1))
                             : 0
                           const nextDose = maxDose + 1
+                          const autoNextDueDate = computeAutoNextDueDateString(newVt, nextDose, v.dateAdministered)
                           setVaccines((prev) => prev.map((item, j) => j === i ? {
                             ...item,
                             vaccineTypeId: newVtId,
@@ -2398,6 +2422,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             manufacturer: newVt?.defaultManufacturer || item.manufacturer,
                             batchNumber: newVt?.defaultBatchNumber || item.batchNumber,
                             route: newVt?.route || item.route,
+                            nextDueDate: autoNextDueDate,
                           } : item))
                         }}
                         placeholder="Select vaccine type…"
@@ -2428,7 +2453,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                     key={n}
                                     type="button"
                                     disabled={isDone}
-                                    onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, doseNumber: n } : item))}
+                                    onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => {
+                                      if (j !== i) return item
+                                      const nextDueDate = computeAutoNextDueDateString(vt, n, item.dateAdministered)
+                                      return { ...item, doseNumber: n, nextDueDate }
+                                    }))}
                                     className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
                                       isDone
                                         ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
@@ -2500,7 +2529,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               <label className="block text-[10px] text-gray-400 mb-1">Date Administered <span className="text-[#900B09]">*</span></label>
                               <DatePicker
                                 value={v.dateAdministered}
-                                onChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, dateAdministered: value } : item))}
+                                onChange={(value) => setVaccines((prev) => prev.map((item, j) => {
+                                  if (j !== i) return item
+                                  const nextDueDate = computeAutoNextDueDateString(vt, item.doseNumber, value)
+                                  return { ...item, dateAdministered: value, nextDueDate }
+                                }))}
                                 maxDate={new Date()}
                                 error={!!dateInFuture}
                                 className="w-full"

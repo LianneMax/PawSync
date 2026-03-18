@@ -108,6 +108,14 @@ function formatAppointmentTypeDisplay(type: string): string {
   return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
+function orderAppointmentTypePills(types: string[]): string[] {
+  return [...types].sort((a, b) => {
+    const aPriority = a === 'vaccination' ? 1 : 0
+    const bPriority = b === 'vaccination' ? 1 : 0
+    return aPriority - bPriority
+  })
+}
+
 // ==================== MAIN PAGE ====================
 
 interface BranchSchedule {
@@ -603,7 +611,7 @@ export default function VetAppointmentsPage() {
                                           <><Video className="w-3 h-3" /> Online</>
                                         )}
                                       </span>
-                                      {appt.types.map((t) => (
+                                      {orderAppointmentTypePills(appt.types).map((t) => (
                                         <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
                                           {formatAppointmentTypeDisplay(t)}
                                         </span>
@@ -871,7 +879,7 @@ export default function VetAppointmentsPage() {
                             <><Video className="w-3 h-3" /> Online</>
                           )}
                         </span>
-                        {appt.types.map((t) => (
+                        {orderAppointmentTypePills(appt.types).map((t) => (
                           <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
                             {formatAppointmentTypeDisplay(t)}
                           </span>

@@ -876,13 +876,23 @@ export const getVetVaccinations = async (req: Request, res: Response) => {
       .populate('vaccineTypeId', 'name species')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
+      .populate('medicalRecordId', 'stage')
       .sort({ dateAdministered: -1 });
 
-    await refreshStatuses(vaccinations);
+    const visibleVaccinations = vaccinations.filter((v) => {
+      const linkedRecord = v.medicalRecordId as any;
+      if (!linkedRecord) return true;
+      if (typeof linkedRecord === 'object' && linkedRecord.stage) {
+        return linkedRecord.stage === 'completed';
+      }
+      return false;
+    });
+
+    await refreshStatuses(visibleVaccinations);
 
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { vaccinations },
+      data: { vaccinations: visibleVaccinations },
     });
   } catch (error) {
     console.error('Get vet vaccinations error:', error);
