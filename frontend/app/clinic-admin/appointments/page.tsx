@@ -2069,15 +2069,16 @@ function ClinicScheduleModal({
                 </div>
               ) : (
                 <>
-                  <div className="flex-1 overflow-y-auto space-y-0.5 max-h-85 pr-1">
+                  <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+                    <div className="h-full min-h-full flex flex-col gap-0.5">
                     {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
-                      <div key={hour} className="flex gap-2">
+                      <div key={hour} className="flex gap-2 min-h-0" style={{ flex: `${hourSlots.length} 1 0%` }}>
                         <div className="w-10 shrink-0 text-right pt-1">
                           <span className="text-[10px] font-medium text-gray-400">
                             {parseInt(hour) > 12 ? parseInt(hour) - 12 : parseInt(hour)}{parseInt(hour) >= 12 ? 'PM' : 'AM'}
                           </span>
                         </div>
-                        <div className="flex-1 space-y-0.5">
+                        <div className="flex-1 min-h-0 flex flex-col gap-0.5">
                           {hourSlots.map((slot) => {
                             const isSelected = selectedSlot?.startTime === slot.startTime
                             const isPast = isPastSlot(slot.startTime)
@@ -2096,7 +2097,7 @@ function ClinicScheduleModal({
                                 type="button"
                                 onClick={() => { if (isAvailable || isOverridable) setSelectedSlot(slot) }}
                                 disabled={!isAvailable && !isOverridable}
-                                className={`w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bg}`}
+                                className={`w-full flex-1 min-h-8 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bg}`}
                               >
                                 {formatSlotTime(slot.startTime)} – {formatSlotTime(slot.endTime)}
                               </button>
@@ -2105,6 +2106,7 @@ function ClinicScheduleModal({
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
 
                   {/* Legend */}
