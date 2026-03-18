@@ -2537,7 +2537,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div className="grid grid-cols-4 gap-2">
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Dosage</label>
-                          <div className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600 min-h-7.5 flex items-center font-medium">
+                          <div className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600 min-h-[30px] flex items-center font-medium">
                             {displayDose}
                           </div>
                         </div>
