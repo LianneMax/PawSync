@@ -223,16 +223,62 @@ function DropdownField({
   )
 }
 
-function getIntervalForDose(
-  vaccineType: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] },
+/**
+ * Compute next-due date offset (days) for a given dose using the new series/booster model.
+ * Returns null if no follow-up is required.
+ */
+function getNextDueInterval(
+  vaccineType: {
+    isSeries?: boolean;
+    totalSeries?: number;
+    seriesIntervalDays?: number;
+    boosterValid?: boolean;
+    boosterIntervalDays?: number | null;
+  },
   doseNumber: number
 ): number | null {
-  const list = vaccineType.boosterIntervalDaysList
-  if (list && list.length > 0) {
-    const interval = list[doseNumber - 1]
-    if (interval != null) return interval
+  const isSeries = vaccineType.isSeries ?? false
+  const totalSeries = isSeries ? (vaccineType.totalSeries || 3) : 1
+  const boosterValid = vaccineType.boosterValid ?? false
+  const seriesIntervalDays = vaccineType.seriesIntervalDays || 21
+  const boosterIntervalDays = vaccineType.boosterIntervalDays || 365
+
+  if (isSeries && doseNumber < totalSeries) {
+    return seriesIntervalDays // still in series — schedule next series dose
   }
-  return vaccineType.boosterIntervalDays ?? null
+  if (boosterValid) {
+    return boosterIntervalDays // series complete (or no series) — schedule booster
+  }
+  return null
+}
+
+/** Human-readable label for a dose number given vaccine type config. */
+function getDoseLabel(
+  vaccineType: { isSeries?: boolean; totalSeries?: number } | undefined,
+  doseNumber: number
+): string {
+  if (!vaccineType) return `Dose ${doseNumber}`
+  const isSeries = vaccineType.isSeries ?? false
+  const totalSeries = isSeries ? (vaccineType.totalSeries || 3) : 1
+  const boosterNum = Math.max(0, doseNumber - totalSeries)
+  if (boosterNum > 0) return `Booster #${boosterNum}`
+  if (isSeries) return `Series ${doseNumber}/${totalSeries}`
+  return 'Initial Dose'
+}
+
+/** Returns the effective "series length" for a vaccine type (1 for non-series). */
+function getEffectiveSeries(vaccineType: { isSeries?: boolean; totalSeries?: number } | undefined): number {
+  if (!vaccineType) return 1
+  return (vaccineType.isSeries) ? (vaccineType.totalSeries || 3) : 1
+}
+
+/** Auto dose volume by pet species. */
+function autoDoseVolume(petSpecies: string | undefined): string {
+  if (!petSpecies) return ''
+  const s = petSpecies.toLowerCase()
+  if (s === 'canine' || s === 'dog') return '1.0 mL'
+  if (s === 'feline' || s === 'cat') return '0.5 mL'
+  return ''
 }
 
 // Map product names to careType enum values
@@ -2201,6 +2247,45 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 )
               })()}
 
+              {/* ── Vaccination eligibility check ── */}
+              {(() => {
+                const temp = Number(vitals.temperature?.value || 0)
+                const bcs = Number(vitals.bodyConditionScore?.value || 0)
+                const isPregnant = pet?.pregnancyStatus === 'pregnant' || ultrasoundPregnant
+                const issues: string[] = []
+
+                if (temp > 0 && (temp > 39.17 || temp < 37.5)) {
+                  issues.push(`Temperature ${temp}°C is outside safe range (37.5–39.17°C)`)
+                }
+                if (bcs > 0 && bcs < 3) {
+                  issues.push(`Body condition score ${bcs}/5 is below minimum (3/5)`)
+                }
+                if (isPregnant) {
+                  issues.push('Pet is pregnant')
+                }
+
+                if (issues.length === 0) return null
+
+                return (
+                  <div className="border border-red-200 rounded-2xl overflow-hidden bg-red-50/50">
+                    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-red-100">
+                      <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                      <span className="text-xs font-semibold text-red-800">Vaccination Not Recommended</span>
+                    </div>
+                    <div className="px-4 py-3 space-y-1">
+                      {issues.map((issue, idx) => (
+                        <p key={idx} className="text-xs text-red-700 flex items-start gap-1.5">
+                          <span className="text-red-400 mt-0.5">•</span> {issue}
+                        </p>
+                      ))}
+                      <p className="text-[10px] text-red-600 mt-2 pt-1 border-t border-red-100">
+                        The pet does not meet eligibility criteria. You may discard the vaccination and proceed to Post-Procedure below.
+                      </p>
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Vaccines list */}
               <div className="flex items-center justify-between">
                 <p className="text-sm font-bold text-[#4F4F4F] uppercase tracking-wide flex items-center gap-2">
@@ -2219,9 +2304,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   const expiry = base && vt
                     ? (() => { const d = new Date(base); d.setDate(d.getDate() + (vt.validityDays || 0)); return d })()
                     : null
-                  const doseInterval = vt ? getIntervalForDose(vt, v.doseNumber) : null
-                  const isLastDose = vt ? v.doseNumber >= (vt.numberOfBoosters + 1) : false
-                  const nextDue = vt?.requiresBooster && doseInterval != null && !isLastDose && base
+                  const doseInterval = vt ? getNextDueInterval(vt, v.doseNumber) : null
+                  const nextDue = doseInterval != null && base
                     ? (() => { const d = new Date(base); d.setDate(d.getDate() + doseInterval); return d })()
                     : null
 
@@ -2240,9 +2324,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   )
                   const isViewOnly = priorAdministeredDoses.has(v.doseNumber)
 
+                  // Auto dose volume from pet species (overridden by vaccine type if set)
+                  const displayDose = vt?.doseVolumeMl != null
+                    ? `${vt.doseVolumeMl} mL`
+                    : autoDoseVolume(pet?.species) || '—'
+
                   // View-only row for already-administered doses
                   if (isViewOnly) {
-                    const doseLabel = v.doseNumber === 1 ? 'Dose 1 (Initial)' : `Dose ${v.doseNumber} (Booster ${v.doseNumber - 1})`
                     return (
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-200">
                         <div className="flex items-center justify-between">
@@ -2252,7 +2340,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <span className="text-[10px] font-semibold bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">Previously Administered</span>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border bg-[#476B6B] text-white border-[#476B6B]">{doseLabel} ✓</span>
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border bg-[#476B6B] text-white border-[#476B6B]">
+                            {getDoseLabel(vt, v.doseNumber)} ✓
+                          </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                           <div><span className="text-[10px] text-gray-400 block">Date Administered</span>{v.dateAdministered || '—'}</div>
@@ -2288,8 +2378,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         value={v.vaccineTypeId}
                         onValueChange={(newVtId) => {
                           const newVt = vaccineTypes.find((x) => x._id === newVtId)
-                          // Determine next dose: find the highest doseNumber already administered for this vaccine type
-                          // Exclude any records from the current appointment (being edited now)
                           const currentEditingIds = new Set(vaccines.map((item) => item.createdVaccineId).filter(Boolean))
                           const priorDoses = allPetVaccinations.filter((pv) => {
                             if (currentEditingIds.has(pv._id)) return false
@@ -2319,35 +2407,40 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         ]}
                       />
 
-                      {/* Dose selector (only for vaccines with boosters) */}
-                      {vt?.requiresBooster && (() => {
-                        const totalDoses = Math.max(vt.numberOfBoosters || 0, 1) + 1
-                        // reuse priorAdministeredDoses computed above
-                        const administeredDoses = priorAdministeredDoses
+                      {/* Dose selector — shows series doses then boosters */}
+                      {vt && (() => {
+                        const effectiveSeries = getEffectiveSeries(vt)
+                        // Show series doses + 3 potential booster slots (or more if already given)
+                        const maxPriorDose = Math.max(0, ...Array.from(priorAdministeredDoses))
+                        const showUpTo = Math.max(effectiveSeries + 3, maxPriorDose + 1, v.doseNumber)
+                        const doses = Array.from({ length: showUpTo }, (_, d) => d + 1)
                         return (
-                          <div className="flex flex-wrap gap-1.5">
-                            {Array.from({ length: totalDoses }, (_, d) => d + 1).map((n) => {
-                              const isDone = administeredDoses.has(n)
-                              const isSelected = v.doseNumber === n
-                              return (
-                                <button
-                                  key={n}
-                                  type="button"
-                                  disabled={isDone}
-                                  onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, doseNumber: n } : item))}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
-                                    isDone
-                                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
-                                      : isSelected
-                                        ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                                        : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
-                                  }`}
-                                >
-                                  {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
-                                  {isDone && ' ✓'}
-                                </button>
-                              )
-                            })}
+                          <div>
+                            <p className="text-[10px] text-gray-400 mb-1">Dose</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {doses.map((n) => {
+                                const isDone = priorAdministeredDoses.has(n)
+                                const isSelected = v.doseNumber === n
+                                const label = getDoseLabel(vt, n)
+                                return (
+                                  <button
+                                    key={n}
+                                    type="button"
+                                    disabled={isDone}
+                                    onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, doseNumber: n } : item))}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
+                                      isDone
+                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
+                                        : isSelected
+                                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                                    }`}
+                                  >
+                                    {label}{isDone ? ' ✓' : ''}
+                                  </button>
+                                )
+                              })}
+                            </div>
                           </div>
                         )
                       })()}
@@ -2363,7 +2456,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           )}
                           {nextDue && (
                             <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg p-2">
-                              <p className="text-[9px] font-bold text-[#4569B1] uppercase tracking-wide">Next Due</p>
+                              <p className="text-[9px] font-bold text-[#4569B1] uppercase tracking-wide">
+                                {getEffectiveSeries(vt) > 1 && v.doseNumber < getEffectiveSeries(vt)
+                                  ? 'Next Series Dose'
+                                  : 'Next Booster Due'}
+                              </p>
                               <p className="font-bold text-[#4569B1] text-xs mt-0.5">
                                 {v.nextDueDate
                                   ? new Date(v.nextDueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -2375,7 +2472,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         </div>
                       )}
 
-                      {/* Pet eligibility indicator */}
+                      {/* Pet eligibility indicator (age) */}
                       {ageValidation && (
                         <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs ${
                           ageValidation.isValid
@@ -2395,6 +2492,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         const today = new Date().toISOString().split('T')[0]
                         const dateInFuture = v.dateAdministered && v.dateAdministered > today
                         const nextDueInvalid = v.nextDueDate && v.dateAdministered && v.nextDueDate <= v.dateAdministered
+                        const showNextDueField = vt ? (vt.isSeries || vt.boosterValid) : false
                         return (
                           <div className="grid grid-cols-2 gap-2">
                             <div>
@@ -2403,22 +2501,26 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 value={v.dateAdministered}
                                 onChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, dateAdministered: value } : item))}
                                 maxDate={new Date()}
-                                error={dateInFuture}
+                                error={!!dateInFuture}
                                 className="w-full"
                               />
                               {dateInFuture && (
                                 <p className="text-[10px] text-red-500 mt-0.5">Date cannot be in the future.</p>
                               )}
                             </div>
-                            {vt?.requiresBooster && (
+                            {showNextDueField && (
                               <div>
-                                <label className="block text-[10px] text-gray-400 mb-1">Next Due Date</label>
+                                <label className="block text-[10px] text-gray-400 mb-1">
+                                  {vt?.isSeries && v.doseNumber < getEffectiveSeries(vt)
+                                    ? 'Next Series Dose Date'
+                                    : 'Next Booster Date'}
+                                </label>
                                 <DatePicker
                                   value={v.nextDueDate}
                                   onChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, nextDueDate: value } : item))}
                                   minDate={v.dateAdministered ? (() => { const d = new Date(v.dateAdministered); d.setDate(d.getDate() + 1); return d })() : undefined}
                                   allowFutureDates
-                                  error={nextDueInvalid}
+                                  error={!!nextDueInvalid}
                                   className="w-full"
                                 />
                                 {nextDueInvalid && (
@@ -2434,8 +2536,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div className="grid grid-cols-4 gap-2">
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Dosage</label>
-                          <div className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600 min-h-[30px] flex items-center">
-                            {vt?.doseVolumeMl != null ? `${vt.doseVolumeMl} mL` : '—'}
+                          <div className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600 min-h-[30px] flex items-center font-medium">
+                            {displayDose}
                           </div>
                         </div>
                         <div>
@@ -2489,14 +2591,36 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 })}
               </div>
 
-              {/* Add Vaccine button */}
-              <button
-                type="button"
-                onClick={() => setVaccines((prev) => [...prev, emptyVaccine()])}
-                className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Vaccine
-              </button>
+              {/* Add Vaccine / Discard buttons */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setVaccines((prev) => [...prev, emptyVaccine()])}
+                  className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Vaccine
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // Discard vaccination: skip to post-procedure without saving any vaccine records
+                    if (!token) return
+                    setSaving(true)
+                    try {
+                      await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
+                      setHistoryRefresh(prev => prev + 1)
+                      setStep(4)
+                    } catch {
+                      toast.error('Failed to proceed')
+                    } finally {
+                      setSaving(false)
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#900B09] font-medium border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <X className="w-3 h-3" /> Discard Vaccination
+                </button>
+              </div>
             </div>
           )}
 

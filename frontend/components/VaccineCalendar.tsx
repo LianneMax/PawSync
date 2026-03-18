@@ -150,9 +150,11 @@ export default function VaccineCalendar({
                         </h3>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {typeLabel}
-                          {vaccine.vaccineType && (vaccine.vaccineType.numberOfBoosters || 0) > 0 && 'doseNumber' in vaccine && (
+                          {vaccine.vaccineType && 'doseNumber' in vaccine && (vaccine as UpcomingVaccine).doseNumber > 1 && (
                             <span className="ml-1 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-semibold text-gray-600">
-                              Dose {(vaccine as UpcomingVaccine).doseNumber} / {(vaccine.vaccineType.numberOfBoosters || 0) + 1}
+                              {vaccine.vaccineType.isSeries && (vaccine as UpcomingVaccine).doseNumber <= vaccine.vaccineType.totalSeries
+                                ? `Series ${(vaccine as UpcomingVaccine).doseNumber}/${vaccine.vaccineType.totalSeries}`
+                                : `Booster #${(vaccine as UpcomingVaccine).doseNumber - (vaccine.vaccineType.isSeries ? vaccine.vaccineType.totalSeries : 1)}`}
                             </span>
                           )}
                         </p>

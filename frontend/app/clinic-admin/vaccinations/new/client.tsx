@@ -64,14 +64,22 @@ function addDays(date: Date, days: number): Date {
   return d
 }
 
-/** Returns the booster interval for the dose being administered (dose 1 → interval to dose 2, etc.) */
-function getIntervalForDose(vt: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] }, doseNumber: number): number | null {
-  const list = vt.boosterIntervalDaysList
-  if (list && list.length > 0) {
-    const interval = list[doseNumber - 1]
-    if (interval != null) return interval
+/** Returns the interval (days) until next dose after this dose, or null if none. */
+function getNextInterval(vt: VaccineType, doseNumber: number): number | null {
+  const effectiveSeries = vt.isSeries ? vt.totalSeries : 1
+  if (doseNumber < effectiveSeries) return vt.seriesIntervalDays
+  if (vt.boosterValid && vt.boosterIntervalDays) return vt.boosterIntervalDays
+  return null
+}
+
+/** Label for a dose slot in the selector. */
+function getDoseSelectorLabel(vt: VaccineType, doseNumber: number): string {
+  const effectiveSeries = vt.isSeries ? vt.totalSeries : 1
+  if (doseNumber <= effectiveSeries) {
+    if (vt.isSeries) return `Series ${doseNumber}/${vt.totalSeries}`
+    return 'Initial Dose'
   }
-  return vt.boosterIntervalDays ?? null
+  return `Booster #${doseNumber - effectiveSeries}`
 }
 
 function formatDateInput(date: Date): string {
@@ -316,11 +324,13 @@ export default function ClinicVaccinationFormClient() {
       ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), selectedVaccineType.validityDays)))
       : null
 
-  const totalDoses = selectedVaccineType ? Math.max(selectedVaccineType.numberOfBoosters || 0, 1) + 1 : 1
-  const isLastDose = doseNumber >= totalDoses
-  const doseInterval = selectedVaccineType ? getIntervalForDose(selectedVaccineType, doseNumber) : null
+  const effectiveSeries = selectedVaccineType ? (selectedVaccineType.isSeries ? selectedVaccineType.totalSeries : 1) : 1
+  const totalDoses = selectedVaccineType
+    ? effectiveSeries + (selectedVaccineType.boosterValid ? 3 : 0)
+    : 1
+  const doseInterval = selectedVaccineType ? getNextInterval(selectedVaccineType, doseNumber) : null
   const computedNextDueDate =
-    selectedVaccineType?.requiresBooster && doseInterval && dateAdministered && !isLastDose
+    doseInterval && dateAdministered
       ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), doseInterval)))
       : null
 
@@ -588,11 +598,11 @@ export default function ClinicVaccinationFormClient() {
             </DropdownMenu>
 
             {/* Dose number selector */}
-            {selectedVaccineType?.requiresBooster && (
+            {selectedVaccineType && totalDoses > 1 && (
               <div className="mt-3">
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Dose Number</label>
                 {editId ? (
-                  // Edit mode: dose is locked — cannot change which dose a historical record represents
+                  // Edit mode: dose is locked
                   <div className="flex flex-wrap gap-2">
                     {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => (
                       <div
@@ -604,13 +614,13 @@ export default function ClinicVaccinationFormClient() {
                             : 'bg-gray-100 text-gray-400 border-gray-200 opacity-50 cursor-not-allowed'
                         }`}
                       >
-                        {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                        {getDoseSelectorLabel(selectedVaccineType, n)}
                         {doseNumber === n && <span className="ml-1.5 text-[9px] opacity-75">(this record)</span>}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  // New mode: only allow doses that are either taken or the immediate next dose
+                  // New mode: only allow the immediate next dose
                   <div className="flex flex-wrap gap-2">
                     {Array.from({ length: totalDoses }, (_, i) => i + 1).map((n) => {
                       const isTaken = takenDoses.includes(n)
@@ -632,7 +642,7 @@ export default function ClinicVaccinationFormClient() {
                               : 'bg-[#F8F6F2] text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
                           }`}
                         >
-                          {n === 1 ? 'Dose 1 (Initial)' : `Dose ${n} (Booster ${n - 1})`}
+                          {getDoseSelectorLabel(selectedVaccineType, n)}
                           {isTaken && <span className="ml-1 opacity-60">✓</span>}
                         </button>
                       )
@@ -640,7 +650,7 @@ export default function ClinicVaccinationFormClient() {
                   </div>
                 )}
                 <p className="text-[10px] text-gray-400 mt-1">
-                  {doseNumber} of {totalDoses} total doses
+                  {getDoseSelectorLabel(selectedVaccineType, doseNumber)} of {totalDoses} dose slots
                 </p>
               </div>
             )}
@@ -657,7 +667,11 @@ export default function ClinicVaccinationFormClient() {
                 {(nextDueDate || computedNextDueDate) && (
                   <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg px-3 py-2">
                     <p className="text-[10px] text-[#4569B1] uppercase tracking-wide font-semibold mb-0.5">
-                      {nextDueDate ? 'Next Due (overridden)' : 'Next Due (auto-schedules)'}
+                      {nextDueDate
+                        ? 'Next Due (overridden)'
+                        : selectedVaccineType && selectedVaccineType.isSeries && doseNumber < effectiveSeries
+                          ? 'Next Series Dose (auto)'
+                          : 'Next Booster (auto)'}
                     </p>
                     <p className="text-xs font-bold text-[#4569B1]">
                       {nextDueDate
@@ -707,7 +721,7 @@ export default function ClinicVaccinationFormClient() {
           </div>
 
           {/* Next Due Date */}
-          {selectedVaccineType?.requiresBooster && (
+          {selectedVaccineType && (selectedVaccineType.isSeries || selectedVaccineType.boosterValid) && (
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
                 Next Due Date <span className="text-gray-400 font-normal">(optional override)</span>

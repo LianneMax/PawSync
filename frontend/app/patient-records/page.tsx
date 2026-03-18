@@ -63,13 +63,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from '@/components/ui/dropdown-menu'
 import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
@@ -2617,25 +2610,47 @@ function FollowUpRecordModal({
   const { token } = useAuthStore()
 
   const emptyObs = {
-    appetite: '', waterIntake: '', energyLevel: '',
-    moodChanges: [] as string[], sleepChanges: '',
-    vomiting: '', vomitingDetails: '',
-    stoolChanges: '', stoolDetails: '',
-    urinationChanges: [] as string[],
-    coughing: '', coughingDetails: '',
-    breathingChanges: [] as string[],
-    weightChanges: '', limping: '', limpingDetails: '',
-    scratchingLicking: '', scratchingDetails: '',
-    woundAppearance: [] as string[],
-    medicationCompliance: '', medicationDifficulties: '',
-    sideEffects: '', sideEffectsDetails: '',
-    newSymptoms: '', newSymptomsDetails: '',
-    overallImpression: '',
+    appetite: 'Normal', waterIntake: 'Normal', energyLevel: 'Normal',
+    moodChanges: ['None'] as string[], sleepChanges: 'Normal',
+    vomiting: 'no', vomitingDetails: '',
+    stoolChanges: 'Normal', stoolDetails: '',
+    urinationChanges: ['Normal'] as string[],
+    coughing: 'no', coughingDetails: '',
+    breathingChanges: ['Normal'] as string[],
+    weightChanges: 'No change', limping: 'no', limpingDetails: '',
+    scratchingLicking: 'no', scratchingDetails: '',
+    woundAppearance: ['Looks normal'] as string[],
+    medicationCompliance: 'Yes, as directed', medicationDifficulties: '',
+    sideEffects: 'no', sideEffectsDetails: '',
+    newSymptoms: 'no', newSymptomsDetails: '',
+    overallImpression: 'Same',
   }
   const [obs, setObs] = useState({ ...emptyObs })
+  const [respiratoryExpanded, setRespiratoryExpanded] = useState(false)
+  const [medicationExpanded, setMedicationExpanded] = useState(false)
+
   const setField = (key: keyof typeof emptyObs, value: string) => setObs(prev => ({ ...prev, [key]: value }))
   const toggleCheck = (key: 'moodChanges' | 'urinationChanges' | 'breathingChanges' | 'woundAppearance', value: string) =>
-    setObs(prev => { const arr = prev[key] as string[]; return { ...prev, [key]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value] } })
+    setObs(prev => {
+      const arr = prev[key] as string[]
+      const singleChoiceByKey: Record<typeof key, string | null> = {
+        moodChanges: 'None',
+        urinationChanges: 'Normal',
+        breathingChanges: 'Normal',
+        woundAppearance: 'Looks normal',
+      }
+      const singleChoice = singleChoiceByKey[key]
+      if (singleChoice && value === singleChoice) {
+        return { ...prev, [key]: arr.includes(value) ? [] : [value] }
+      }
+
+      const withoutSingle = singleChoice ? arr.filter(v => v !== singleChoice) : arr
+      const next = withoutSingle.includes(value)
+        ? withoutSingle.filter(v => v !== value)
+        : [...withoutSingle, value]
+
+      return { ...prev, [key]: next }
+    })
 
   const serializeObs = (o: typeof emptyObs): string => {
     const lines: string[] = []
@@ -2726,7 +2741,7 @@ function FollowUpRecordModal({
       <DialogContent className="!max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl text-gray-900 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-purple-500" />
+            <FileText className="w-6 h-6 text-[#476B6B]" />
             Follow-up Record — {patient.name}
           </DialogTitle>
         </DialogHeader>
@@ -2743,245 +2758,284 @@ function FollowUpRecordModal({
               <p className="text-sm text-gray-500 mt-1">Fill in what the pet owner reports since the last visit.</p>
             </div>
 
-            {/* helper styles */}
             {(() => {
-              const textCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
-              const labelCls = "block text-sm font-semibold text-[#2C3E2D] mb-2.5"
-              const helpTextCls = "text-xs text-gray-500 mt-0.5"
-              const rowCls = "grid grid-cols-2 gap-6"
-              const sectionCls = "space-y-6 bg-gray-50 border border-gray-100 rounded-xl p-6"
-              
-              // Reusable dropdown component
-              const SelectField = ({ 
-                value, 
-                onChange, 
-                options, 
-                placeholder = '— Select —' 
-              }: { 
-                value: string
-                onChange: (v: string) => void
-                options: string[]
-                placeholder?: string
-              }) => (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-200 flex items-center justify-between">
-                      <span className={value ? 'text-gray-900' : 'text-gray-400'}>{value || placeholder}</span>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56">
-                    <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-                      {options.map(opt => (
-                        <DropdownMenuRadioItem key={opt} value={opt} className="cursor-pointer">
-                          {opt}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )
+              const cardCls = 'bg-gray-50 border border-gray-100 rounded-xl p-5 md:p-6 space-y-4'
+              const cardTitleCls = 'text-lg font-semibold text-gray-900'
+              const fieldLabelCls = 'block text-sm font-semibold text-[#2C3E2D] mb-2'
+              const fieldGridCls = 'grid grid-cols-1 md:grid-cols-2 gap-4'
+              const textCls = 'w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#DEEDED] resize-none bg-white'
 
-              const checkboxes = (key: 'moodChanges' | 'urinationChanges' | 'breathingChanges' | 'woundAppearance', options: string[]) => (
-                <div className="flex flex-wrap gap-3 mt-2.5">
-                  {options.map(opt => (
-                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={(obs[key] as string[]).includes(opt)} onChange={() => toggleCheck(key, opt)} className="accent-purple-500 w-4 h-4 rounded" />
-                      <span className="text-sm text-gray-700">{opt}</span>
-                    </label>
-                  ))}
+              const chipGroup = (
+                value: string,
+                onChange: (v: string) => void,
+                options: string[]
+              ) => (
+                <div className="flex flex-wrap gap-2">
+                  {options.map(opt => {
+                    const active = value === opt
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => onChange(opt)}
+                        className={`px-3 py-2 rounded-full border text-sm font-medium transition-colors ${active ? 'bg-[#DEEDED] border-[#476B6B] text-[#476B6B]' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
                 </div>
               )
-              
-              const yesNoRadio = (key: keyof typeof emptyObs) => (
-                <div className="flex gap-6 mt-2.5">
-                  {['yes', 'no'].map(v => (
-                    <label key={v} className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name={key} value={v} checked={obs[key as keyof typeof obs] === v} onChange={() => setField(key, v)} className="accent-purple-500 w-4 h-4" />
-                      <span className="text-sm text-gray-700 capitalize">{v}</span>
-                    </label>
-                  ))}
+
+              const toggleYesNo = (key: keyof typeof emptyObs) => (
+                <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setField(key, 'no')}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${obs[key] === 'no' ? 'bg-[#DEEDED] text-[#476B6B]' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setField(key, 'yes')}
+                    className={`px-4 py-2 text-sm font-medium border-l border-gray-200 transition-colors ${obs[key] === 'yes' ? 'bg-[#DEEDED] text-[#476B6B]' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Yes
+                  </button>
+                </div>
+              )
+
+              const pillMultiSelect = (
+                key: 'moodChanges' | 'urinationChanges' | 'breathingChanges' | 'woundAppearance',
+                options: string[]
+              ) => (
+                <div className="flex flex-wrap gap-2">
+                  {options.map(opt => {
+                    const active = (obs[key] as string[]).includes(opt)
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => toggleCheck(key, opt)}
+                        className={`px-3 py-2 rounded-full border text-sm font-medium transition-colors ${active ? 'bg-[#DEEDED] border-[#476B6B] text-[#476B6B]' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
                 </div>
               )
 
               return (
-                <div className={sectionCls}>
-
-                  {/* Row 1: Appetite + Water Intake */}
-                  <div className={rowCls}>
-                    <div>
-                      <label className={labelCls}>Appetite</label>
-                      <SelectField 
-                        value={obs.appetite} 
-                        onChange={v => setField('appetite', v)} 
-                        options={['Normal', 'Eating more', 'Eating less', 'Refusing food']}
-                      />
+                <div className="space-y-6 md:space-y-7">
+                  <div className={cardCls}>
+                    <h4 className={cardTitleCls}>General Condition</h4>
+                    <div className={fieldGridCls}>
+                      <div>
+                        <label className={fieldLabelCls}>Appetite</label>
+                        {chipGroup(obs.appetite, v => setField('appetite', v), ['Normal', 'Eating more', 'Eating less', 'Refusing food'])}
+                      </div>
+                      <div>
+                        <label className={fieldLabelCls}>Water Intake</label>
+                        {chipGroup(obs.waterIntake, v => setField('waterIntake', v), ['Normal', 'Drinking more than usual', 'Drinking less than usual'])}
+                      </div>
                     </div>
                     <div>
-                      <label className={labelCls}>Water Intake</label>
-                      <SelectField 
-                        value={obs.waterIntake} 
-                        onChange={v => setField('waterIntake', v)} 
-                        options={['Normal', 'Drinking more than usual', 'Drinking less than usual']}
-                      />
+                      <label className={fieldLabelCls}>Weight Changes</label>
+                      {chipGroup(obs.weightChanges, v => setField('weightChanges', v), ['No change', 'Gained weight', 'Lost weight'])}
                     </div>
                   </div>
 
-                  {/* Row 2: Energy + Sleep */}
-                  <div className={rowCls}>
-                    <div>
-                      <label className={labelCls}>Energy / Activity Level</label>
-                      <SelectField 
-                        value={obs.energyLevel} 
-                        onChange={v => setField('energyLevel', v)} 
-                        options={['Normal', 'Lethargic', 'Hyperactive']}
-                      />
+                  <div className={cardCls}>
+                    <h4 className={cardTitleCls}>Behavior & Activity</h4>
+                    <div className={fieldGridCls}>
+                      <div>
+                        <label className={fieldLabelCls}>Energy / Activity Level</label>
+                        {chipGroup(obs.energyLevel, v => setField('energyLevel', v), ['Normal', 'Lethargic', 'Hyperactive'])}
+                      </div>
+                      <div>
+                        <label className={fieldLabelCls}>Sleeping Pattern</label>
+                        {chipGroup(obs.sleepChanges, v => setField('sleepChanges', v), ['Normal', 'Sleeping more', 'Sleeping less', 'Restless / Disturbed'])}
+                      </div>
                     </div>
                     <div>
-                      <label className={labelCls}>Sleep Pattern</label>
-                      <SelectField 
-                        value={obs.sleepChanges} 
-                        onChange={v => setField('sleepChanges', v)} 
-                        options={['Normal', 'Sleeping more', 'Sleeping less', 'Restless / Disturbed']}
-                      />
+                      <label className={fieldLabelCls}>Mood / Behavior Changes</label>
+                      {pillMultiSelect('moodChanges', ['None', 'Anxious', 'Aggressive', 'Withdrawn', 'Clingy'])}
                     </div>
                   </div>
 
-                  {/* Mood/Behavior */}
-                  <div>
-                    <label className={labelCls}>Mood / Behavior Changes</label>
-                    <p className={helpTextCls}>Select all that apply</p>
-                    {checkboxes('moodChanges', ['None', 'Anxious', 'Aggressive', 'Withdrawn', 'Clingy'])}
+                  <div className={cardCls}>
+                    <h4 className={cardTitleCls}>Digestive</h4>
+                    <div className={fieldGridCls}>
+                      <div>
+                        <label className={fieldLabelCls}>Vomiting</label>
+                        {toggleYesNo('vomiting')}
+                        {obs.vomiting === 'yes' && (
+                          <textarea
+                            value={obs.vomitingDetails}
+                            onChange={(e) => setField('vomitingDetails', e.target.value)}
+                            placeholder="Frequency, appearance, timing..."
+                            rows={2}
+                            className={`${textCls} mt-2`}
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <label className={fieldLabelCls}>Diarrhea / Constipation</label>
+                        {chipGroup(obs.stoolChanges, v => setField('stoolChanges', v), ['Normal', 'Diarrhea', 'Constipation'])}
+                        {obs.stoolChanges !== 'Normal' && (
+                          <textarea
+                            value={obs.stoolDetails}
+                            onChange={(e) => setField('stoolDetails', e.target.value)}
+                            placeholder="Frequency, consistency, color..."
+                            rows={2}
+                            className={`${textCls} mt-2`}
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Vomiting */}
-                  <div>
-                    <label className={labelCls}>Vomiting</label>
-                    {yesNoRadio('vomiting')}
-                    {obs.vomiting === 'yes' && (
-                      <textarea value={obs.vomitingDetails} onChange={e => setField('vomitingDetails', e.target.value)} placeholder="Frequency, appearance, timing..." rows={2} className={`${textCls} mt-2.5`} />
-                    )}
-                  </div>
-
-                  {/* Stool */}
-                  <div>
-                    <label className={labelCls}>Diarrhea / Constipation</label>
-                    <SelectField 
-                      value={obs.stoolChanges} 
-                      onChange={v => setField('stoolChanges', v)} 
-                      options={['Normal', 'Diarrhea', 'Constipation']}
-                    />
-                    {obs.stoolChanges && obs.stoolChanges !== 'Normal' && (
-                      <textarea value={obs.stoolDetails} onChange={e => setField('stoolDetails', e.target.value)} placeholder="Frequency, consistency, color..." rows={2} className={`${textCls} mt-2.5`} />
-                    )}
-                  </div>
-
-                  {/* Urination */}
-                  <div>
-                    <label className={labelCls}>Urination Changes</label>
-                    <p className={helpTextCls}>Select all that apply</p>
-                    {checkboxes('urinationChanges', ['Normal', 'More frequent', 'Less frequent', 'Unusual color', 'Straining', 'Accidents'])}
-                  </div>
-
-                  {/* Coughing / Sneezing */}
-                  <div>
-                    <label className={labelCls}>Coughing or Sneezing</label>
-                    {yesNoRadio('coughing')}
-                    {obs.coughing === 'yes' && (
-                      <textarea value={obs.coughingDetails} onChange={e => setField('coughingDetails', e.target.value)} placeholder="Frequency, severity (mild / moderate / severe)..." rows={2} className={`${textCls} mt-2.5`} />
-                    )}
-                  </div>
-
-                  {/* Breathing */}
-                  <div>
-                    <label className={labelCls}>Breathing Changes</label>
-                    <p className={helpTextCls}>Select all that apply</p>
-                    {checkboxes('breathingChanges', ['Normal', 'Labored', 'Rapid', 'Noisy'])}
-                  </div>
-
-                  {/* Row: Weight + Limping */}
-                  <div className={rowCls}>
+                  <div className={cardCls}>
+                    <h4 className={cardTitleCls}>Urinary</h4>
                     <div>
-                      <label className={labelCls}>Weight Changes</label>
-                      <p className={helpTextCls}>Noticed at home</p>
-                      <SelectField 
-                        value={obs.weightChanges} 
-                        onChange={v => setField('weightChanges', v)} 
-                        options={['No change', 'Gained weight', 'Lost weight']}
-                      />
+                      <label className={fieldLabelCls}>Urination Changes</label>
+                      {pillMultiSelect('urinationChanges', ['Normal', 'More frequent', 'Less frequent', 'Unusual color', 'Straining', 'Accidents'])}
+                    </div>
+                  </div>
+
+                  <div className={cardCls}>
+                    <button
+                      type="button"
+                      onClick={() => setRespiratoryExpanded(v => !v)}
+                      className="w-full flex items-center justify-between"
+                    >
+                      <h4 className={cardTitleCls}>Respiratory</h4>
+                      {respiratoryExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                    </button>
+                    {respiratoryExpanded && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className={fieldLabelCls}>Coughing or Sneezing</label>
+                          {toggleYesNo('coughing')}
+                          {obs.coughing === 'yes' && (
+                            <textarea
+                              value={obs.coughingDetails}
+                              onChange={(e) => setField('coughingDetails', e.target.value)}
+                              placeholder="Frequency, severity (mild / moderate / severe)..."
+                              rows={2}
+                              className={`${textCls} mt-2`}
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <label className={fieldLabelCls}>Breathing Changes</label>
+                          {pillMultiSelect('breathingChanges', ['Normal', 'Labored', 'Rapid', 'Noisy'])}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={cardCls}>
+                    <h4 className={cardTitleCls}>Mobility & Skin</h4>
+                    <div className={fieldGridCls}>
+                      <div>
+                        <label className={fieldLabelCls}>Limping / Difficulty Moving</label>
+                        {toggleYesNo('limping')}
+                        {obs.limping === 'yes' && (
+                          <input
+                            type="text"
+                            value={obs.limpingDetails}
+                            onChange={(e) => setField('limpingDetails', e.target.value)}
+                            placeholder="Which limb, description..."
+                            className={`${textCls} mt-2`}
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <label className={fieldLabelCls}>Scratching, Licking, or Biting a Specific Area</label>
+                        {toggleYesNo('scratchingLicking')}
+                        {obs.scratchingLicking === 'yes' && (
+                          <input
+                            type="text"
+                            value={obs.scratchingDetails}
+                            onChange={(e) => setField('scratchingDetails', e.target.value)}
+                            placeholder="Which area..."
+                            className={`${textCls} mt-2`}
+                          />
+                        )}
+                      </div>
                     </div>
                     <div>
-                      <label className={labelCls}>Limping / Difficulty Moving</label>
-                      {yesNoRadio('limping')}
-                      {obs.limping === 'yes' && (
-                        <input type="text" value={obs.limpingDetails} onChange={e => setField('limpingDetails', e.target.value)} placeholder="Which limb, description..." className={`w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 mt-2.5`} />
-                      )}
+                      <label className={fieldLabelCls}>Wound / Incision Appearance</label>
+                      {pillMultiSelect('woundAppearance', ['Looks normal', 'Redness', 'Swelling', 'Discharge', 'Pet licking it'])}
                     </div>
                   </div>
 
-                  {/* Scratching / Licking */}
-                  <div>
-                    <label className={labelCls}>Scratching, Licking, or Biting a Specific Area</label>
-                    {yesNoRadio('scratchingLicking')}
-                    {obs.scratchingLicking === 'yes' && (
-                      <input type="text" value={obs.scratchingDetails} onChange={e => setField('scratchingDetails', e.target.value)} placeholder="Which area..." className={`w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 mt-2.5`} />
+                  <div className={cardCls}>
+                    <button
+                      type="button"
+                      onClick={() => setMedicationExpanded(v => !v)}
+                      className="w-full flex items-center justify-between"
+                    >
+                      <h4 className={cardTitleCls}>Medication</h4>
+                      {medicationExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                    </button>
+                    {medicationExpanded && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className={fieldLabelCls}>Medication Given as Directed</label>
+                          {chipGroup(obs.medicationCompliance, v => setField('medicationCompliance', v), ['Yes, as directed', 'Had difficulties', 'Not on medication'])}
+                          {obs.medicationCompliance === 'Had difficulties' && (
+                            <textarea
+                              value={obs.medicationDifficulties}
+                              onChange={(e) => setField('medicationDifficulties', e.target.value)}
+                              placeholder="Describe the difficulties..."
+                              rows={2}
+                              className={`${textCls} mt-2`}
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <label className={fieldLabelCls}>Side Effects Noticed After Medication</label>
+                          {toggleYesNo('sideEffects')}
+                          {obs.sideEffects === 'yes' && (
+                            <textarea
+                              value={obs.sideEffectsDetails}
+                              onChange={(e) => setField('sideEffectsDetails', e.target.value)}
+                              placeholder="Describe the side effects..."
+                              rows={2}
+                              className={`${textCls} mt-2`}
+                            />
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {/* Wound Appearance */}
-                  <div>
-                    <label className={labelCls}>Wound / Incision Appearance</label>
-                    <p className={helpTextCls}>Select all that apply</p>
-                    {checkboxes('woundAppearance', ['Looks normal', 'Redness', 'Swelling', 'Discharge', 'Pet licking it'])}
-                  </div>
-
-                  {/* Medication */}
-                  <div>
-                    <label className={labelCls}>Medication Given as Directed</label>
-                    <div className="flex gap-6 mt-2.5">
-                      {['Yes, as directed', 'Had difficulties', 'Not on medication'].map(v => (
-                        <label key={v} className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="medicationCompliance" value={v} checked={obs.medicationCompliance === v} onChange={() => setField('medicationCompliance', v)} className="accent-purple-500 w-4 h-4" />
-                          <span className="text-sm text-gray-700">{v}</span>
-                        </label>
-                      ))}
+                  <div className={cardCls}>
+                    <h4 className={cardTitleCls}>Overall Assessment</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <label className={fieldLabelCls}>New or Worsening Symptoms Since Last Visit</label>
+                        {toggleYesNo('newSymptoms')}
+                        {obs.newSymptoms === 'yes' && (
+                          <textarea
+                            value={obs.newSymptomsDetails}
+                            onChange={(e) => setField('newSymptomsDetails', e.target.value)}
+                            placeholder="Describe the new or worsening symptoms..."
+                            rows={2}
+                            className={`${textCls} mt-2`}
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <label className={fieldLabelCls}>Overall Impression <span className="text-red-500">*</span></label>
+                        {chipGroup(obs.overallImpression, v => setField('overallImpression', v), ['Better', 'Same', 'Worse'])}
+                      </div>
                     </div>
-                    {obs.medicationCompliance === 'Had difficulties' && (
-                      <textarea value={obs.medicationDifficulties} onChange={e => setField('medicationDifficulties', e.target.value)} placeholder="Describe the difficulties..." rows={2} className={`${textCls} mt-2.5`} />
-                    )}
                   </div>
-
-                  {/* Side Effects */}
-                  <div>
-                    <label className={labelCls}>Side Effects Noticed After Medication</label>
-                    {yesNoRadio('sideEffects')}
-                    {obs.sideEffects === 'yes' && (
-                      <textarea value={obs.sideEffectsDetails} onChange={e => setField('sideEffectsDetails', e.target.value)} placeholder="Describe the side effects..." rows={2} className={`${textCls} mt-2.5`} />
-                    )}
-                  </div>
-
-                  {/* New Symptoms */}
-                  <div>
-                    <label className={labelCls}>New or Worsening Symptoms Since Last Visit</label>
-                    {yesNoRadio('newSymptoms')}
-                    {obs.newSymptoms === 'yes' && (
-                      <textarea value={obs.newSymptomsDetails} onChange={e => setField('newSymptomsDetails', e.target.value)} placeholder="Describe the new or worsening symptoms..." rows={2} className={`${textCls} mt-2.5`} />
-                    )}
-                  </div>
-
-                  {/* Overall Impression — required */}
-                  <div className="border-t border-gray-200 pt-6">
-                    <label className={labelCls}>Overall Impression <span className="text-red-500">*</span></label>
-                    <div className="flex gap-6 mt-2.5">
-                      {['Better', 'Same', 'Worse'].map(v => (
-                        <label key={v} className={`flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-lg border-2 transition-colors font-medium ${obs.overallImpression === v ? 'bg-purple-50 border-purple-400 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-                          <input type="radio" name="overallImpression" value={v} checked={obs.overallImpression === v} onChange={() => setField('overallImpression', v)} className="accent-purple-500 w-4 h-4" />
-                          <span className="text-sm">{v}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
                 </div>
               )
             })()}
@@ -2996,7 +3050,7 @@ function FollowUpRecordModal({
               onChange={(e) => setVetNotes(e.target.value)}
               placeholder="Based on the owner's description, possible differential diagnosis, advice given, next steps..."
               rows={5}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#DEEDED] resize-none"
             />
           </div>
 
@@ -3006,7 +3060,7 @@ function FollowUpRecordModal({
             <p className="text-sm text-gray-500 mb-3">Attach images or videos shared during the consultation (e.g. lesion photos, movement videos).</p>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/50 transition-colors"
+              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
             >
               <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-700">Click to upload</p>
@@ -3027,7 +3081,7 @@ function FollowUpRecordModal({
                   return (
                     <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-2">
                       {isVideo
-                        ? <FileText className="w-4 h-4 text-purple-400 shrink-0" />
+                        ? <FileText className="w-4 h-4 text-teal-600 shrink-0" />
                         : <ImageIcon className="w-4 h-4 text-blue-400 shrink-0" />
                       }
                       <span className="truncate max-w-[140px]">{item.description || `File ${idx + 1}`}</span>
@@ -3045,11 +3099,11 @@ function FollowUpRecordModal({
           </div>
 
           {/* Share with owner toggle */}
-          <div className="bg-purple-50/50 border border-purple-100 rounded-lg p-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <div
                 onClick={() => setSharedWithOwner((v) => !v)}
-                className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${sharedWithOwner ? 'bg-purple-500' : 'bg-gray-300'}`}
+                className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${sharedWithOwner ? 'bg-[#476B6B]' : 'bg-gray-300'}`}
               >
                 <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sharedWithOwner ? 'left-5' : 'left-0.5'}`} />
               </div>
@@ -3068,7 +3122,7 @@ function FollowUpRecordModal({
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="flex-1 px-4 py-3 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 text-sm font-medium text-white bg-[#476B6B] rounded-lg hover:bg-[#3f6161] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Saving...' : 'Save Follow-up Record'}
           </button>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getStatusLabel, getStatusClasses, deleteVaccineType, deleteVaccination, getClinicVaccinations, type Vaccination, type VaccineType } from '@/lib/vaccinations'
+import { getStatusLabel, getStatusClasses, deleteVaccineType, getClinicVaccinations, type Vaccination, type VaccineType } from '@/lib/vaccinations'
 import {
   Syringe,
   Plus,
@@ -54,31 +54,14 @@ const ROUTE_OPTIONS = [
   { value: 'oral', label: 'Oral' },
 ]
 
-const VACCINE_SUGGESTIONS: Record<string, string[]> = {
-  dog: [
-    'DHPPiL', 'DA2PPL', 'DHPP', 'DA2PP', 'Anti-Rabies', 'Bordetella',
-    'Leptospira', 'Canine Influenza', 'Lyme Disease', 'Parvovirus',
-    'Distemper', 'Ehrlichia Canis',
-  ],
-  cat: [
-    'FVRCP', 'Anti-Rabies', 'FeLV', 'FIV', 'Chlamydia',
-    'Panleukopenia', 'Herpesvirus', 'Calicivirus',
-  ],
-  all: [
-    'Anti-Rabies', 'DHPPiL', 'DA2PPL', 'DHPP', 'DA2PP', 'FVRCP',
-    'Bordetella', 'Leptospira', 'FeLV', 'FIV', 'Canine Influenza',
-    'Lyme Disease', 'Parvovirus', 'Distemper', 'Ehrlichia Canis',
-    'Chlamydia', 'Panleukopenia', 'Herpesvirus', 'Calicivirus',
-  ],
-}
-
 interface TypeFormState {
   name: string
   species: string[]
   validityDays: string
-  requiresBooster: boolean
-  lifetimeBooster: boolean
-  numberOfBoosters: string
+  isSeries: boolean
+  totalSeries: string
+  seriesIntervalDays: string
+  boosterValid: boolean
   boosterIntervalDays: string
   minAgeMonths: string
   minAgeUnit: 'weeks' | 'months'
@@ -94,9 +77,10 @@ const emptyTypeForm = (): TypeFormState => ({
   name: '',
   species: ['dog'],
   validityDays: '365',
-  requiresBooster: false,
-  lifetimeBooster: false,
-  numberOfBoosters: '1',
+  isSeries: false,
+  totalSeries: '3',
+  seriesIntervalDays: '21',
+  boosterValid: false,
   boosterIntervalDays: '',
   minAgeMonths: '0',
   minAgeUnit: 'months',
@@ -133,6 +117,30 @@ function SpeciesBadge({ species }: { species: string[] }) {
       ))}
     </div>
   )
+}
+
+function getAutoDoseVolume(species: string[]): string {
+  if (species.length === 1) {
+    if (species[0] === 'dog') return '1.0'
+    if (species[0] === 'cat') return '0.5'
+  }
+  return ''
+}
+
+const VALIDITY_OPTIONS = [
+  { label: '6 Months', days: 182 },
+  { label: '1 Year', days: 365 },
+  { label: '3 Years', days: 1095 },
+]
+
+function snapToValidityOption(days: number): number {
+  return VALIDITY_OPTIONS.reduce((prev, curr) =>
+    Math.abs(curr.days - days) < Math.abs(prev.days - days) ? curr : prev
+  ).days
+}
+
+function validityDaysToLabel(days: number): string {
+  return VALIDITY_OPTIONS.find((o) => o.days === days)?.label ?? `${days}d`
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -192,12 +200,6 @@ export default function ClinicAdminVaccinationsPage() {
     return `${vet.firstName || ''} ${vet.lastName || ''}`.trim() || '—'
   }
 
-  function getVetName(v: Vaccination) {
-    const vet = v.vetId as any
-    if (!vet) return '—'
-    return typeof vet === 'object' ? `Dr. ${vet.lastName ?? ''}`.trim() : '—'
-  }
-
   // ── Vaccine Types state ──
   const [types, setTypes] = useState<VaccineType[]>([])
   const [typesLoading, setTypesLoading] = useState(false)
@@ -211,7 +213,6 @@ export default function ClinicAdminVaccinationsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deleteTypeTarget, setDeleteTypeTarget] = useState<VaccineType | null>(null)
   const [deletingType, setDeletingType] = useState(false)
-
   const loadTypes = useCallback(async () => {
     if (!token) return
     setTypesLoading(true)
@@ -251,19 +252,20 @@ export default function ClinicAdminVaccinationsPage() {
     setForm({
       name: vt.name,
       species: speciesVal,
-      validityDays: String(vt.validityDays),
-      requiresBooster: vt.requiresBooster,
-      lifetimeBooster: vt.lifetimeBooster ?? false,
-      numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
+      validityDays: String(snapToValidityOption(vt.validityDays)),
+      isSeries: vt.isSeries,
+      totalSeries: String(vt.totalSeries),
+      seriesIntervalDays: String(vt.seriesIntervalDays),
+      boosterValid: vt.boosterValid,
       boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '',
       minAgeMonths: String(vt.minAgeMonths),
       minAgeUnit: vt.minAgeUnit as 'weeks' | 'months' || 'months',
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
       maxAgeUnit: vt.maxAgeUnit as 'weeks' | 'months' || 'months',
       route: vt.route || '',
-      doseVolumeMl: (vt as any).doseVolumeMl != null ? String((vt as any).doseVolumeMl) : '',
-      defaultManufacturer: (vt as any).defaultManufacturer || '',
-      defaultBatchNumber: (vt as any).defaultBatchNumber || '',
+      doseVolumeMl: vt.doseVolumeMl != null ? String(vt.doseVolumeMl) : getAutoDoseVolume(speciesVal),
+      defaultManufacturer: vt.defaultManufacturer || '',
+      defaultBatchNumber: vt.defaultBatchNumber || '',
     })
     setSaveError(null)
     setSaveSuccess(false)
@@ -271,7 +273,10 @@ export default function ClinicAdminVaccinationsPage() {
   }
 
   const handleSpeciesToggle = (s: string) => {
-    setForm((f) => ({ ...f, species: [s] }))
+    setForm((f) => {
+      const nextSpecies = [s]
+      return { ...f, species: nextSpecies, doseVolumeMl: getAutoDoseVolume(nextSpecies) }
+    })
   }
 
   const handleSave = async () => {
@@ -279,7 +284,7 @@ export default function ClinicAdminVaccinationsPage() {
     if (!form.name.trim()) { setSaveError('Name is required'); return }
     if (form.species.length === 0) { setSaveError('Select at least one species'); return }
     if (!form.validityDays || isNaN(Number(form.validityDays))) { setSaveError('Valid validity days required'); return }
-    if (form.requiresBooster && (!form.boosterIntervalDays || isNaN(Number(form.boosterIntervalDays)))) {
+    if (form.boosterValid && (!form.boosterIntervalDays || isNaN(Number(form.boosterIntervalDays)))) {
       setSaveError('Booster interval required when booster is enabled')
       return
     }
@@ -290,10 +295,11 @@ export default function ClinicAdminVaccinationsPage() {
         name: form.name.trim(),
         species: form.species,
         validityDays: Number(form.validityDays),
-        requiresBooster: form.requiresBooster,
-        lifetimeBooster: form.requiresBooster ? form.lifetimeBooster : false,
-        numberOfBoosters: form.requiresBooster && !form.lifetimeBooster ? (Number(form.numberOfBoosters) || 1) : 0,
-        boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
+        isSeries: form.isSeries,
+        totalSeries: form.isSeries ? (Number(form.totalSeries) || 3) : 1,
+        seriesIntervalDays: form.isSeries ? (Number(form.seriesIntervalDays) || 21) : 21,
+        boosterValid: form.boosterValid,
+        boosterIntervalDays: form.boosterValid && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
         minAgeUnit: form.minAgeUnit,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
@@ -559,9 +565,12 @@ export default function ClinicAdminVaccinationsPage() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
-                        <span>Protection: <span className="font-medium text-[#4F4F4F]">{vt.validityDays}d</span></span>
-                        {vt.requiresBooster && vt.boosterIntervalDays && (
-                          <span>Booster every: <span className="font-medium text-[#4F4F4F]">{vt.boosterIntervalDays}d{vt.lifetimeBooster ? ' (lifetime)' : ` × ${vt.numberOfBoosters || 1} dose${(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}`}</span></span>
+                        <span>Protection: <span className="font-medium text-[#4F4F4F]">{validityDaysToLabel(vt.validityDays)}</span></span>
+                        {vt.isSeries && (
+                          <span>Series: <span className="font-medium text-[#4F4F4F]">{vt.totalSeries} doses, {vt.seriesIntervalDays}d apart</span></span>
+                        )}
+                        {vt.boosterValid && vt.boosterIntervalDays && (
+                          <span>Booster: <span className="font-medium text-[#4F4F4F]">every {vt.boosterIntervalDays}d</span></span>
                         )}
                         {vt.route && <span>Route: <span className="font-medium text-[#4F4F4F] capitalize">{vt.route}</span></span>}
                         {(vt as any).defaultManufacturer && <span>Mfr: <span className="font-medium text-[#4F4F4F]">{(vt as any).defaultManufacturer}</span></span>}
@@ -691,14 +700,29 @@ export default function ClinicAdminVaccinationsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                  Protection Duration (days) <span className="text-red-500">*</span>
+                  Protection Duration <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number" min="1" value={form.validityDays}
-                  onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-                <p className="text-xs text-gray-400 mt-1">How long immunity lasts after each dose — not the vial&apos;s shelf life</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {VALIDITY_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.days}
+                      type="button"
+                      onClick={() => setForm((p) => ({
+                        ...p,
+                        validityDays: String(opt.days),
+                        ...(p.boosterValid ? { boosterIntervalDays: String(opt.days) } : {}),
+                      }))}
+                      className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                        form.validityDays === String(opt.days)
+                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">How long immunity lasts after each dose</p>
               </div>
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-3">
@@ -770,57 +794,81 @@ export default function ClinicAdminVaccinationsPage() {
 
               <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
                 <div>
-                  <p className="text-sm font-semibold text-[#4F4F4F]">Requires Booster</p>
-                  <p className="text-xs text-gray-400">Puppy/kitten series or boosters</p>
+                  <p className="text-sm font-semibold text-[#4F4F4F]">Has Series</p>
+                  <p className="text-xs text-gray-400">
+                    {form.isSeries
+                      ? 'Multiple doses required before full protection'
+                      : 'Single-dose vaccine (no series required)'}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setForm((p) => ({ ...p, requiresBooster: !p.requiresBooster }))}
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.requiresBooster ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+                  onClick={() => setForm((p) => ({ ...p, isSeries: !p.isSeries }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.isSeries ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
                 >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.requiresBooster ? 'translate-x-5' : 'translate-x-0'}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.isSeries ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
-              {form.requiresBooster && (
-                <>
-                  <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[#4F4F4F]">Lifetime Boosters?</p>
-                      <p className="text-xs text-gray-400">Required for the pet&apos;s entire life</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, lifetimeBooster: !p.lifetimeBooster }))}
-                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.lifetimeBooster ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.lifetimeBooster ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </button>
+              {form.isSeries && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Total Doses in Series</label>
+                    <input
+                      type="number" min="2" value={form.totalSeries}
+                      onChange={(e) => setForm((p) => ({ ...p, totalSeries: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
                   </div>
-                  <div className={form.lifetimeBooster ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-3'}>
-                    <div>
-                      <label className="block text-xs text-gray-500 font-semibold mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
-                      <input
-                        type="number" min="1" value={form.boosterIntervalDays}
-                        onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
-                        placeholder="e.g. 365"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                      />
-                    </div>
-                    {!form.lifetimeBooster && (
-                      <div>
-                        <label className="block text-xs text-gray-500 font-semibold mb-1">Number of Boosters <span className="text-red-400">*</span></label>
-                        <input
-                          type="number" min="1" value={form.numberOfBoosters}
-                          onChange={(e) => setForm((p) => ({ ...p, numberOfBoosters: e.target.value }))}
-                          placeholder="e.g. 3"
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                        />
-                        <p className="text-[10px] text-gray-400 mt-1">Total doses in series = boosters + 1</p>
-                      </div>
-                    )}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Interval Between Doses (days)</label>
+                    <input
+                      type="number" min="1" value={form.seriesIntervalDays}
+                      onChange={(e) => setForm((p) => ({ ...p, seriesIntervalDays: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
                   </div>
-                </>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#4F4F4F]">Requires Ongoing Boosters</p>
+                  <p className="text-xs text-gray-400">
+                    {form.boosterValid
+                      ? 'Periodic boosters are required'
+                      : 'No ongoing boosters required'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => {
+                    const nextBoosterValid = !p.boosterValid
+                    if (nextBoosterValid) {
+                      return {
+                        ...p,
+                        boosterValid: true,
+                        boosterIntervalDays: p.validityDays || p.boosterIntervalDays,
+                      }
+                    }
+                    return { ...p, boosterValid: false }
+                  })}
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.boosterValid ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.boosterValid ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {form.boosterValid && (
+                <div>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
+                  <input
+                    type="number" min="1" value={form.boosterIntervalDays}
+                    onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
+                    placeholder="e.g. 365"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
               )}
 
               <div>
@@ -849,32 +897,39 @@ export default function ClinicAdminVaccinationsPage() {
                 <input
                   type="number" min="0" step="0.1" value={form.doseVolumeMl}
                   onChange={(e) => setForm((p) => ({ ...p, doseVolumeMl: e.target.value }))}
-                  placeholder="e.g. 1, 2.5"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  placeholder="1.0"
+                  readOnly={form.species.length === 1 && form.species[0] !== 'all'}
+                  className={`w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] ${form.species.length === 1 && form.species[0] !== 'all' ? 'bg-gray-50 opacity-70 cursor-default' : 'bg-white'}`}
                 />
-                <p className="text-xs text-gray-400 mt-1">Standard volume per dose in millilitres</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {form.species.length === 1 && form.species[0] === 'dog' ? 'Auto-set: 1.0 mL (canine)' :
+                   form.species.length === 1 && form.species[0] === 'cat' ? 'Auto-set: 0.5 mL (feline)' :
+                   'Enter volume manually for both species'}
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Manufacturer</label>
-                <input
-                  type="text" value={form.defaultManufacturer}
-                  onChange={(e) => setForm((p) => ({ ...p, defaultManufacturer: e.target.value }))}
-                  placeholder="e.g. Merial, Zoetis, Boehringer…"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-                <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Manufacturer</label>
+                  <input
+                    type="text" value={form.defaultManufacturer}
+                    onChange={(e) => setForm((p) => ({ ...p, defaultManufacturer: e.target.value }))}
+                    placeholder="e.g. Merial, Zoetis, Boehringer…"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Batch / Lot Number</label>
-                <input
-                  type="text" value={form.defaultBatchNumber}
-                  onChange={(e) => setForm((p) => ({ ...p, defaultBatchNumber: e.target.value }))}
-                  placeholder="e.g. A12345"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-                <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
+                <div>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Batch / Lot Number</label>
+                  <input
+                    type="text" value={form.defaultBatchNumber}
+                    onChange={(e) => setForm((p) => ({ ...p, defaultBatchNumber: e.target.value }))}
+                    placeholder="e.g. A12345"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
+                </div>
               </div>
 
               {saveError && (

@@ -30,18 +30,66 @@ function addMinutesToTime(time: string, minutes: number): string {
 }
 
 /**
- * Helper: get the booster interval for a specific dose number.
- * Uses boosterIntervalDaysList[doseNumber - 1] when available, falls back to boosterIntervalDays.
- * doseNumber is the dose being ADMINISTERED (so we want the interval to the NEXT dose).
+ * Compute the next-due date for a vaccination based on the new series/booster model.
+ *
+ * Logic:
+ *   isSeries=true, doseNumber < totalSeries  → series in progress, gap = seriesIntervalDays (default 21)
+ *   isSeries=true, doseNumber >= totalSeries → series complete; if boosterValid → gap = boosterIntervalDays
+ *   isSeries=false (single initial dose)      → if boosterValid → gap = boosterIntervalDays
  */
-function getIntervalForDose(vaccineType: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] }, doseNumber: number): number | null {
-  const list = vaccineType.boosterIntervalDaysList;
-  if (list && list.length > 0) {
-    // index = doseNumber - 1 (dose 1 → index 0, dose 2 → index 1, ...)
-    const interval = list[doseNumber - 1];
-    if (interval != null) return interval;
+function computeNextDueDate(
+  adminDate: Date,
+  vaccineType: {
+    isSeries?: boolean;
+    totalSeries?: number;
+    seriesIntervalDays?: number;
+    boosterValid?: boolean;
+    boosterIntervalDays?: number | null;
+  },
+  doseNumber: number
+): Date | null {
+  const isSeries = vaccineType.isSeries ?? false;
+  const totalSeries = isSeries ? (vaccineType.totalSeries || 3) : 1;
+  const boosterValid = vaccineType.boosterValid ?? false;
+  const seriesIntervalDays = vaccineType.seriesIntervalDays || 21;
+  const boosterIntervalDays = vaccineType.boosterIntervalDays || 365;
+
+  if (isSeries && doseNumber < totalSeries) {
+    // Still in series — schedule the next series dose
+    return addDays(adminDate, seriesIntervalDays);
   }
-  return vaccineType.boosterIntervalDays ?? null;
+  if (boosterValid) {
+    // Series complete (or no series) — schedule the next booster
+    return addDays(adminDate, boosterIntervalDays);
+  }
+  return null;
+}
+
+/**
+ * Compute the booster number for a dose.
+ *   0  = still in series (or initial single dose)
+ *   1+ = booster #N
+ */
+function computeBoosterNumber(
+  doseNumber: number,
+  vaccineType: { isSeries?: boolean; totalSeries?: number }
+): number {
+  const isSeries = vaccineType.isSeries ?? false;
+  const totalSeries = isSeries ? (vaccineType.totalSeries || 3) : 1;
+  return Math.max(0, doseNumber - totalSeries);
+}
+
+/** Human-readable dose phase label for appointment notes. */
+function dosePhaseName(
+  doseNumber: number,
+  vaccineType: { isSeries?: boolean; totalSeries?: number }
+): string {
+  const isSeries = vaccineType.isSeries ?? false;
+  const totalSeries = isSeries ? (vaccineType.totalSeries || 3) : 1;
+  const boosterNum = Math.max(0, doseNumber - totalSeries);
+  if (boosterNum > 0) return `booster #${boosterNum}`;
+  if (isSeries) return `series dose ${doseNumber}/${totalSeries}`;
+  return 'initial dose';
 }
 
 /**
@@ -108,7 +156,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       medicalRecordId,
     } = req.body;
 
-    const doseNumber = req.body.doseNumber ? Number(req.body.doseNumber) : 1;
+    const requestedDoseNumber = req.body.doseNumber ? Number(req.body.doseNumber) : null;
 
     // BR-VAX-01: resolve vetId
     const vetId = req.body.vetId || req.user.userId;
@@ -123,6 +171,22 @@ export const createVaccination = async (req: Request, res: Response) => {
     const vaccineType = await VaccineType.findById(vaccineTypeId);
     if (!vaccineType) {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccine type not found' });
+    }
+
+    // Determine the next sequential dose number for this pet + vaccine type
+    const priorRecords = await Vaccination.find({ petId, vaccineTypeId })
+      .select('doseNumber')
+      .sort({ doseNumber: -1, dateAdministered: -1 })
+      .limit(1)
+      .lean();
+
+    const maxPriorDose = priorRecords[0]?.doseNumber || 0;
+    const doseNumber = maxPriorDose + 1;
+
+    if (requestedDoseNumber && requestedDoseNumber !== doseNumber) {
+      console.warn(
+        `[Vaccination] Ignoring requested dose ${requestedDoseNumber}; enforcing next sequential dose ${doseNumber} for pet ${petId} / vaccineType ${vaccineTypeId}`
+      );
     }
 
     // BR-VAX-AGE: Validate pet age against vaccine type age requirements
@@ -153,16 +217,18 @@ export const createVaccination = async (req: Request, res: Response) => {
     }
 
     const expiryDate = addDays(adminDate, vaccineType.validityDays);
-    const totalDoses = (vaccineType.numberOfBoosters || 0) + 1;
-    const isLastDose = doseNumber >= totalDoses;
-    
-    // Use provided nextDueDate if available, otherwise auto-calculate using per-dose interval
+    const boosterNumber = computeBoosterNumber(doseNumber, vaccineType);
+
+    // Use provided nextDueDate only when follow-up is allowed by series/booster logic.
+    // If no follow-up is allowed (e.g., one-time application), force nextDueDate to null.
+    const autoNextDueDate = computeNextDueDate(adminDate, vaccineType, doseNumber);
     let computedNextDueDate: Date | null = null;
-    if (nextDueDate) {
+    if (autoNextDueDate === null) {
+      computedNextDueDate = null;
+    } else if (nextDueDate) {
       computedNextDueDate = new Date(nextDueDate);
-    } else if (vaccineType.requiresBooster && !isLastDose) {
-      const interval = getIntervalForDose(vaccineType, doseNumber);
-      if (interval) computedNextDueDate = addDays(adminDate, interval);
+    } else {
+      computedNextDueDate = autoNextDueDate;
     }
 
     // Resolve clinicId/clinicBranchId — priority: body → JWT → appointmentId lookup → vet user doc
@@ -183,37 +249,6 @@ export const createVaccination = async (req: Request, res: Response) => {
       resolvedCreateBranchId = resolvedCreateBranchId || vetUser?.clinicBranchId || null;
     }
 
-    // If a record for the same pet + vaccine type already exists, update it
-    // instead of creating a duplicate — just increment doseNumber and refresh dates.
-    const existing = await Vaccination.findOne({
-      petId,
-      vaccineTypeId,
-    });
-
-    if (existing) {
-      existing.vetId = vetId;
-      existing.clinicId = resolvedCreateClinicId;
-      existing.clinicBranchId = resolvedCreateBranchId;
-      existing.manufacturer = manufacturer || existing.manufacturer;
-      existing.batchNumber = batchNumber || existing.batchNumber;
-      existing.route = route || vaccineType.route || existing.route;
-      existing.dateAdministered = adminDate;
-      existing.expiryDate = expiryDate;
-      existing.nextDueDate = computedNextDueDate;
-      existing.doseNumber = existing.doseNumber + 1;
-      existing.notes = notes || existing.notes;
-      if (appointmentId) existing.appointmentId = appointmentId;
-      if (medicalRecordId) existing.medicalRecordId = medicalRecordId;
-
-      await existing.save();
-
-      return res.status(200).json({
-        status: 'SUCCESS',
-        message: `Vaccination updated (dose ${existing.doseNumber})`,
-        data: { vaccination: existing },
-      });
-    }
-
     const vaccination = await Vaccination.create({
       petId,
       vetId,
@@ -228,6 +263,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       expiryDate,
       nextDueDate: computedNextDueDate,
       doseNumber,
+      boosterNumber,
       notes: notes || '',
       appointmentId: appointmentId || null,
       medicalRecordId: medicalRecordId || null,
@@ -285,7 +321,7 @@ export const createVaccination = async (req: Request, res: Response) => {
               startTime,
               endTime,
               status: 'confirmed',
-              notes: `Auto-scheduled dose ${doseNumber + 1} of ${totalDoses} for ${vaccineType.name}`,
+              notes: `Auto-scheduled ${dosePhaseName(doseNumber + 1, vaccineType)} for ${vaccineType.name}`,
             });
             boosterAppointmentId = boosterAppt._id.toString();
             break;
@@ -349,7 +385,7 @@ export const createVaccination = async (req: Request, res: Response) => {
     }
 
     const populated = await Vaccination.findById(vaccination._id)
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
+      .populate('vaccineTypeId', 'name species validityDays isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays doseVolumeMl')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name');
@@ -422,7 +458,7 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
     }
 
     const vaccinations = await Vaccination.find({ petId: req.params.petId })
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster numberOfBoosters doseVolumeMl')
+      .populate('vaccineTypeId', 'name species validityDays isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays doseVolumeMl')
       .populate('vetId', 'firstName lastName prcLicenseNumber licenseNumber')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
@@ -447,7 +483,7 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
 export const getVaccinationsByMedicalRecord = async (req: Request, res: Response) => {
   try {
     const vaccinations = await Vaccination.find({ medicalRecordId: req.params.medicalRecordId })
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
+      .populate('vaccineTypeId', 'name species validityDays isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays doseVolumeMl')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
@@ -521,7 +557,7 @@ export const getVaccinationById = async (req: Request, res: Response) => {
     }
 
     const vaccination = await Vaccination.findById(req.params.id)
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster boosterIntervalDays route')
+      .populate('vaccineTypeId', 'name species validityDays isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays doseVolumeMl route')
       .populate('vetId', 'firstName lastName email photo')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
@@ -591,13 +627,16 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.vaccineTypeId = vaccineTypeId;
       vaccination.vaccineName = vaccineType.name;
       vaccination.expiryDate = addDays(adminDate, vaccineType.validityDays);
-      // Use provided nextDueDate if available, otherwise auto-calculate using per-dose interval
-      if (nextDueDate) {
+      // Use provided nextDueDate only when follow-up is allowed by series/booster logic.
+      const autoNextDueDate = computeNextDueDate(adminDate, vaccineType, vaccination.doseNumber || 1);
+      if (autoNextDueDate === null) {
+        vaccination.nextDueDate = null;
+      } else if (nextDueDate) {
         vaccination.nextDueDate = new Date(nextDueDate);
       } else {
-        const interval = getIntervalForDose(vaccineType, vaccination.doseNumber || 1);
-        vaccination.nextDueDate = vaccineType.requiresBooster && interval ? addDays(adminDate, interval) : null;
+        vaccination.nextDueDate = autoNextDueDate;
       }
+      vaccination.boosterNumber = computeBoosterNumber(vaccination.doseNumber || 1, vaccineType);
       vaccination.dateAdministered = adminDate;
     } else if (dateAdministered) {
       // Date changed but vaccine type is the same — recompute dates with same type
@@ -606,12 +645,14 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.dateAdministered = adminDate;
       if (vaccineType) {
         vaccination.expiryDate = addDays(adminDate, vaccineType.validityDays);
-        // Use provided nextDueDate if available, otherwise auto-calculate using per-dose interval
-        if (nextDueDate) {
+        // Use provided nextDueDate only when follow-up is allowed by series/booster logic.
+        const autoNextDueDate = computeNextDueDate(adminDate, vaccineType, vaccination.doseNumber || 1);
+        if (autoNextDueDate === null) {
+          vaccination.nextDueDate = null;
+        } else if (nextDueDate) {
           vaccination.nextDueDate = new Date(nextDueDate);
         } else {
-          const interval = getIntervalForDose(vaccineType, vaccination.doseNumber || 1);
-          vaccination.nextDueDate = vaccineType.requiresBooster && interval ? addDays(adminDate, interval) : null;
+          vaccination.nextDueDate = autoNextDueDate;
         }
       }
     }
@@ -623,8 +664,17 @@ export const updateVaccination = async (req: Request, res: Response) => {
     if (medicalRecordId !== undefined) vaccination.medicalRecordId = medicalRecordId || null;
 
     // If nextDueDate was explicitly provided and not yet applied (i.e. neither date-change branch ran), apply it now
+    // only when follow-up is allowed by series/booster logic.
     if (nextDueDate !== undefined && !dateAdministered && !(vaccineTypeId && vaccineTypeId.toString() !== vaccination.vaccineTypeId?.toString())) {
-      vaccination.nextDueDate = nextDueDate ? new Date(nextDueDate) : null;
+      const vaccineType = await VaccineType.findById(vaccination.vaccineTypeId);
+      const autoNextDueDate = vaccineType
+        ? computeNextDueDate(vaccination.dateAdministered || new Date(), vaccineType, vaccination.doseNumber || 1)
+        : null;
+      if (autoNextDueDate === null) {
+        vaccination.nextDueDate = null;
+      } else {
+        vaccination.nextDueDate = nextDueDate ? new Date(nextDueDate) : null;
+      }
     }
 
     // Detect whether nextDueDate actually changed vs the originally stored value
@@ -667,9 +717,6 @@ export const updateVaccination = async (req: Request, res: Response) => {
         for (const startTime of candidateSlots) {
           const endTime = addMinutesToTime(startTime, 30);
           try {
-            const vacType = await VaccineType.findById(vaccination.vaccineTypeId).select('name numberOfBoosters').lean();
-            const totalDoses = (vacType?.numberOfBoosters || 0) + 1;
-            
             const boosterAppt = await Appointment.create({
               petId: vaccination.petId,
               ownerId: (await Pet.findById(vaccination.petId).select('ownerId'))?.ownerId,
@@ -698,7 +745,7 @@ export const updateVaccination = async (req: Request, res: Response) => {
     await vaccination.save();
 
     const populated = await Vaccination.findById(vaccination._id)
-      .populate('vaccineTypeId', 'name species validityDays requiresBooster')
+      .populate('vaccineTypeId', 'name species validityDays isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays doseVolumeMl')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name');
@@ -983,7 +1030,7 @@ export const getUpcomingVaccineDates = async (req: Request, res: Response) => {
         },
       ],
     })
-      .populate('vaccineTypeId', 'name requiresBooster boosterIntervalDays validityDays')
+      .populate('vaccineTypeId', 'name isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays validityDays')
       .sort({ nextDueDate: 1, expiryDate: 1 });
 
     const upcomingDates = vaccinations.map((v) => {
@@ -1053,7 +1100,7 @@ export const getVetUpcomingVaccineSchedule = async (req: Request, res: Response)
       ],
     })
       .populate('petId', 'name species breed photo ownerId')
-      .populate('vaccineTypeId', 'name requiresBooster boosterIntervalDays validityDays')
+      .populate('vaccineTypeId', 'name isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays validityDays')
       .populate('clinicId', 'name')
       .sort({ nextDueDate: 1, expiryDate: 1 });
 
@@ -1129,7 +1176,7 @@ export const getClinicUpcomingVaccineSchedule = async (req: Request, res: Respon
     })
       .populate('petId', 'name species breed photo ownerId')
       .populate('vetId', 'firstName lastName')
-      .populate('vaccineTypeId', 'name requiresBooster boosterIntervalDays validityDays')
+      .populate('vaccineTypeId', 'name isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays validityDays')
       .sort({ nextDueDate: 1, expiryDate: 1 });
 
     const upcomingSchedule = vaccinations.map((v) => {
