@@ -39,7 +39,7 @@ import {
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
-const STATUS_TABS = ['all', 'active', 'pending', 'overdue'] as const
+const STATUS_TABS = ['all', 'active', 'overdue'] as const
 type StatusTab = (typeof STATUS_TABS)[number]
 
 function formatDate(d: string | null | undefined) {
@@ -203,6 +203,7 @@ export default function VetVaccinationsPage() {
   }, [tab, fetchVaccinations])
 
   const filtered = vaccinations.filter((v) => {
+    if (v.status === 'pending') return false
     if (!search) return true
     const q = search.toLowerCase()
     const petName = typeof v.petId === 'object' ? (v.petId as any)?.name?.toLowerCase() ?? '' : ''

@@ -41,6 +41,7 @@ import {
 const statusColors: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500', dot: 'bg-green-500' },
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500', dot: 'bg-amber-500' },
+  in_clinic: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500', dot: 'bg-blue-500' },
   in_progress: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500', dot: 'bg-indigo-500' },
   completed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500', dot: 'bg-blue-500' },
   cancelled: { bg: 'bg-[#F4D3D2]', text: 'text-[#983232]', border: 'border-l-[#983232]', dot: 'bg-[#983232]' },
@@ -49,13 +50,14 @@ const statusColors: Record<string, { bg: string; text: string; border: string; d
 // ==================== HELPERS ====================
 
 function getDisplayStatus(appt: Appointment): string {
+  const apptDate = dateOnly(appt.date)
   if (appt.status === 'confirmed') {
-    const apptStart = new Date(appt.date.split('T')[0] + 'T' + appt.startTime)
+    const apptStart = new Date(`${apptDate}T${appt.startTime}`)
     const cancelThreshold = new Date(apptStart.getTime() + 15 * 60 * 1000)
     if (cancelThreshold < new Date()) return 'cancelled'
   }
   if (appt.status === 'in_progress') {
-    const apptEnd = new Date(appt.date.split('T')[0] + 'T' + appt.endTime)
+    const apptEnd = new Date(`${apptDate}T${appt.endTime}`)
     if (apptEnd < new Date()) return 'completed'
   }
   return appt.status
@@ -134,6 +136,10 @@ function formatScheduleTime(time: string | null) {
   const ampm = h >= 12 ? 'PM' : 'AM'
   const display = h > 12 ? h - 12 : h === 0 ? 12 : h
   return `${display}:${m.toString().padStart(2, '0')} ${ampm}`
+}
+
+function dateOnly(dateValue: string) {
+  return dateValue.includes('T') ? dateValue.split('T')[0] : dateValue
 }
 
 export default function VetAppointmentsPage() {
@@ -225,12 +231,8 @@ export default function VetAppointmentsPage() {
 
   // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
-    if (a.status !== 'confirmed' && a.status !== 'in_progress') return false
-    const d = new Date(a.date)
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    const apptDate = `${year}-${month}-${day}`
+    if (a.status !== 'confirmed' && a.status !== 'in_clinic' && a.status !== 'in_progress') return false
+    const apptDate = dateOnly(a.date)
     return apptDate === calendarDate
   })
 
@@ -238,19 +240,18 @@ export default function VetAppointmentsPage() {
   const upcomingAppointments = appointments
     .filter((a) => {
       const ds = getDisplayStatus(a)
-      if (ds !== 'confirmed' && ds !== 'in_progress') return false
-      // Parse date correctly - a.date is already in ISO format (YYYY-MM-DD)
-      const [year, month, day] = a.date.split('-').map(Number)
+      if (ds !== 'confirmed' && ds !== 'in_clinic' && ds !== 'in_progress') return false
+      const [year, month, day] = dateOnly(a.date).split('-').map(Number)
       const [hours, minutes] = a.startTime.split(':').map(Number)
       const apptTime = new Date(year, month - 1, day, hours, minutes, 0)
       return apptTime > new Date() // Only include future appointments
     })
     .sort((a, b) => {
-      const [yearA, monthA, dayA] = a.date.split('-').map(Number)
+      const [yearA, monthA, dayA] = dateOnly(a.date).split('-').map(Number)
       const [hoursA, minutesA] = a.startTime.split(':').map(Number)
       const dateA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA, 0)
       
-      const [yearB, monthB, dayB] = b.date.split('-').map(Number)
+      const [yearB, monthB, dayB] = dateOnly(b.date).split('-').map(Number)
       const [hoursB, minutesB] = b.startTime.split(':').map(Number)
       const dateB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB, 0)
       
@@ -264,8 +265,8 @@ export default function VetAppointmentsPage() {
       return ds === 'completed' || ds === 'cancelled'
     })
     .sort((a, b) => {
-      const dateA = new Date(a.date + 'T' + a.startTime)
-      const dateB = new Date(b.date + 'T' + b.startTime)
+      const dateA = new Date(`${dateOnly(a.date)}T${a.startTime}`)
+      const dateB = new Date(`${dateOnly(b.date)}T${b.startTime}`)
       return dateB.getTime() - dateA.getTime()
     })
 
@@ -278,13 +279,9 @@ export default function VetAppointmentsPage() {
     return `${year}-${month}-${day}`
   })()
   const todayAppts = appointments.filter((a) => {
-    const d = new Date(a.date)
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}` === today
+    return dateOnly(a.date) === today
   })
-  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_progress').length
+  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
 
   const handleCheckIn = async (appt: Appointment) => {
@@ -636,14 +633,14 @@ export default function VetAppointmentsPage() {
 
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 mt-2.5">
-                                      {appt.status === 'confirmed' && (
+                                      {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
                                         <button
                                           onClick={() => handleCheckIn(appt)}
                                           disabled={checkingIn === appt._id}
                                           className="inline-flex items-center gap-1 px-3 py-1 text-[10px] font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
                                         >
                                           <LogIn className="w-3 h-3" />
-                                          {checkingIn === appt._id ? 'Checking in…' : 'Check In Patient'}
+                                          {checkingIn === appt._id ? 'Starting…' : appt.status === 'in_clinic' ? 'Start Visit' : 'Check In Patient'}
                                         </button>
                                       )}
                                       {appt.status === 'in_progress' && (
@@ -681,7 +678,7 @@ export default function VetAppointmentsPage() {
                   <div key={status} className="flex items-center gap-1.5">
                     <div className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
                     <span className="text-[10px] text-gray-500 capitalize">
-                      {status === 'in_progress' ? 'In Progress' : status}
+                      {status === 'in_progress' ? 'In Progress' : status === 'in_clinic' ? 'In Clinic' : status}
                     </span>
                   </div>
                 ))}

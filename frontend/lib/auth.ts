@@ -240,12 +240,15 @@ export const authenticatedFetch = async (
 
   const headers = {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
     ...(storedToken && { 'Authorization': `Bearer ${storedToken}` }),
     ...options.headers
   };
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    cache: 'no-store',
     headers
   });
 

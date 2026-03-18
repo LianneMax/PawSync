@@ -65,6 +65,10 @@ function formatAppointmentTypeDisplay(type: string): string {
   return displayMap[type] || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
+function dateOnly(dateValue: string) {
+  return dateValue.includes('T') ? dateValue.split('T')[0] : dateValue
+}
+
 export default function VetDashboardPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
@@ -131,15 +135,16 @@ export default function VetDashboardPage() {
     load()
   }, [token])
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = dateOnly(new Date().toISOString())
 
   const totalPatients = new Set(
     appointments.filter((a) => a.petId?._id).map((a) => a.petId._id)
   ).size
 
   const isToday = (a: Appointment) => {
-    const apptDate = new Date(a.date).toISOString().split('T')[0]
-    return apptDate === today && ['pending', 'confirmed', 'in_progress'].includes(a.status)
+    const apptDate = dateOnly(a.date)
+    const status = String(a.status || '').trim().toLowerCase()
+    return apptDate === today && ['pending', 'confirmed', 'in_progress', 'in_clinic'].includes(status)
   }
 
   const todayCount = appointments.filter(isToday).length

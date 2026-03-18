@@ -189,9 +189,11 @@ function apiAppointmentToDashboard(appt: APIAppointment): DashboardAppointment {
   const clinicName = appt.clinicBranchId?.name || appt.clinicId?.name || 'Unknown Clinic'
   const petName = appt.petId?.name || 'Pet'
   const petBreed = appt.petId?.breed || 'Unknown Breed'
+  const normalizedStatus = String(appt.status || '').trim().toLowerCase()
   const statusMap: { [key: string]: 'CONFIRMED' | 'PENDING' | 'IN PROGRESS' | 'CANCELLED' | 'COMPLETED' } = {
     confirmed: 'CONFIRMED',
     pending: 'PENDING',
+    in_clinic: 'IN PROGRESS',
     in_progress: 'IN PROGRESS',
     cancelled: 'CANCELLED',
     completed: 'COMPLETED',
@@ -205,7 +207,7 @@ function apiAppointmentToDashboard(appt: APIAppointment): DashboardAppointment {
     clinic: clinicName,
     petName,
     petBreed,
-    status: statusMap[appt.status] || 'PENDING',
+    status: statusMap[normalizedStatus] || 'PENDING',
   }
 }
 
