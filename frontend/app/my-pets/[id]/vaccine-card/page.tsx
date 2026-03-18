@@ -15,6 +15,27 @@ interface PetInfo {
   photo: string | null
 }
 
+function getDoseLabel(vax: Vaccination): string {
+  const vt = typeof vax.vaccineTypeId === 'object' && vax.vaccineTypeId !== null ? vax.vaccineTypeId : null
+  if (!vt) {
+    return vax.doseNumber > 1 ? `Dose #${vax.doseNumber}` : 'Initial Dose'
+  }
+  const effectiveSeries = vt.isSeries ? vt.totalSeries : 1
+  if (vax.doseNumber <= effectiveSeries) {
+    if (vt.isSeries) return `Series ${vax.doseNumber}/${vt.totalSeries}`
+    return 'Initial Dose'
+  }
+  const boosterNum = vax.boosterNumber > 0 ? vax.boosterNumber : vax.doseNumber - effectiveSeries
+  return `Booster #${boosterNum}`
+}
+
+function isInSeriesPhase(vax: Vaccination): boolean {
+  const vt = typeof vax.vaccineTypeId === 'object' && vax.vaccineTypeId !== null ? vax.vaccineTypeId : null
+  if (!vt) return false
+  const effectiveSeries = vt.isSeries ? vt.totalSeries : 1
+  return vax.doseNumber < effectiveSeries
+}
+
 function formatMonthYear(dateStr: string): string {
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -283,9 +304,7 @@ export default function VaccineCardPage() {
 
             <div className="px-5 pt-4 pb-6 space-y-3">
               <DetailRow label="Vaccine name" value={selectedVax.vaccineName} />
-              {selectedVax.doseNumber > 1 && (
-                <DetailRow label="Dose" value={`#${selectedVax.doseNumber} (booster)`} />
-              )}
+              <DetailRow label="Dose" value={getDoseLabel(selectedVax)} />
               {selectedVax.dateAdministered && (
                 <DetailRow label="Date administered" value={formatFullDate(selectedVax.dateAdministered)} />
               )}
@@ -298,7 +317,7 @@ export default function VaccineCardPage() {
               )}
               {selectedVax.nextDueDate && (
                 <DetailRow
-                  label="Booster due"
+                  label={isInSeriesPhase(selectedVax) ? 'Next series dose' : 'Booster due'}
                   value={formatFullDate(selectedVax.nextDueDate)}
                   highlight={isExpired(selectedVax.nextDueDate) ? 'red' : undefined}
                 />
@@ -309,13 +328,11 @@ export default function VaccineCardPage() {
                   return (
                     <>
                       <DetailRow label="Protection duration" value={`${vt.validityDays} days per dose`} />
-                      {vt.requiresBooster && (
-                        <DetailRow
-                          label="Booster schedule"
-                          value={vt.lifetimeBooster
-                            ? `Every ${vt.boosterIntervalDays}d (lifetime)`
-                            : `Every ${vt.boosterIntervalDays}d × ${vt.numberOfBoosters || 1} dose${(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}`}
-                        />
+                      {vt.isSeries && (
+                        <DetailRow label="Series" value={`${vt.totalSeries} doses, ${vt.seriesIntervalDays}d apart`} />
+                      )}
+                      {vt.boosterValid && vt.boosterIntervalDays && (
+                        <DetailRow label="Booster schedule" value={`Every ${vt.boosterIntervalDays} days (ongoing)`} />
                       )}
                     </>
                   )

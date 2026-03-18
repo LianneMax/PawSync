@@ -5,16 +5,22 @@ export interface VaccineType {
   name: string;
   species: ('dog' | 'cat' | 'all')[];
   validityDays: number;
-  requiresBooster: boolean;
-  numberOfBoosters: number;
+  /** If true, vaccine requires a multi-dose series before protection is complete. */
+  isSeries: boolean;
+  /** Number of doses in the series (only when isSeries=true). Default 3. */
+  totalSeries: number;
+  /** Days between each dose in the series. Default 21. */
+  seriesIntervalDays: number;
+  /** If true, ongoing boosters are required after series completion (or initial single dose). */
+  boosterValid: boolean;
+  /** Days between booster doses. Default 365. */
   boosterIntervalDays: number | null;
-  boosterIntervalDaysList: number[];
-  lifetimeBooster: boolean;
   minAgeMonths: number;
   minAgeUnit: 'weeks' | 'months';
   maxAgeMonths: number | null;
   maxAgeUnit: 'weeks' | 'months';
   route: string | null;
+  /** Auto: 0.5 mL for cat/feline, 1.0 mL for dog/canine. */
   doseVolumeMl: number | null;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
@@ -38,7 +44,13 @@ export interface Vaccination {
   boosterAppointmentId: string | null;
   appointmentId?: string | null;
   medicalRecordId?: string | null;
+  /** Sequential dose number (1 = first/initial, 2 = second, etc.) */
   doseNumber: number;
+  /**
+   * 0 = still in series (or initial single dose when isSeries=false)
+   * 1+ = booster #N
+   */
+  boosterNumber: number;
   status: 'active' | 'expired' | 'overdue' | 'pending';
   isUpToDate: boolean;
   notes: string;
@@ -97,14 +109,17 @@ export interface VaccineTypeInput {
   name: string;
   species: string[];
   validityDays: number;
-  requiresBooster: boolean;
-  numberOfBoosters?: number;
+  isSeries?: boolean;
+  totalSeries?: number;
+  seriesIntervalDays?: number;
+  boosterValid?: boolean;
   boosterIntervalDays?: number | null;
-  boosterIntervalDaysList?: number[];
-  lifetimeBooster?: boolean;
   minAgeMonths?: number;
+  minAgeUnit?: 'weeks' | 'months';
   maxAgeMonths?: number | null;
+  maxAgeUnit?: 'weeks' | 'months';
   route?: string | null;
+  doseVolumeMl?: number | null;
   defaultManufacturer?: string | null;
   defaultBatchNumber?: string | null;
 }
@@ -296,10 +311,11 @@ export interface UpcomingVaccine {
   vaccineType: {
     _id: string;
     name: string;
-    requiresBooster: boolean;
-    numberOfBoosters: number;
+    isSeries: boolean;
+    totalSeries: number;
+    seriesIntervalDays: number;
+    boosterValid: boolean;
     boosterIntervalDays: number | null;
-    boosterIntervalDaysList: number[];
   } | null;
 }
 
@@ -323,10 +339,11 @@ export interface VetUpcomingSchedule {
   vaccineType: {
     _id: string;
     name: string;
-    requiresBooster: boolean;
-    numberOfBoosters: number;
+    isSeries: boolean;
+    totalSeries: number;
+    seriesIntervalDays: number;
+    boosterValid: boolean;
     boosterIntervalDays: number | null;
-    boosterIntervalDaysList: number[];
   } | null;
   clinic: {
     _id: string;
@@ -358,10 +375,11 @@ export interface ClinicUpcomingSchedule {
   vaccineType: {
     _id: string;
     name: string;
-    requiresBooster: boolean;
-    numberOfBoosters: number;
+    isSeries: boolean;
+    totalSeries: number;
+    seriesIntervalDays: number;
+    boosterValid: boolean;
     boosterIntervalDays: number | null;
-    boosterIntervalDaysList: number[];
   } | null;
 }
 

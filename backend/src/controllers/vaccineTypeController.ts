@@ -10,7 +10,7 @@ export const listVaccineTypes = async (req: Request, res: Response) => {
   try {
     const { species, includeInactive } = req.query;
 
-    const query: any = includeInactive === 'true' ? {} : { isActive: true };
+    const query: Record<string, unknown> = includeInactive === 'true' ? {} : { isActive: true };
     if (species) {
       query.species = { $in: [species, 'all'] };
     }
@@ -41,7 +41,10 @@ export const createVaccineType = async (req: Request, res: Response) => {
       name,
       species,
       validityDays,
-      requiresBooster,
+      isSeries,
+      totalSeries,
+      seriesIntervalDays,
+      boosterValid,
       boosterIntervalDays,
       minAgeMonths,
       minAgeUnit,
@@ -69,8 +72,11 @@ export const createVaccineType = async (req: Request, res: Response) => {
       name: name.trim(),
       species,
       validityDays,
-      requiresBooster: requiresBooster || false,
-      boosterIntervalDays: boosterIntervalDays || null,
+      isSeries: isSeries || false,
+      totalSeries: totalSeries || 3,
+      seriesIntervalDays: seriesIntervalDays || 21,
+      boosterValid: boosterValid || false,
+      boosterIntervalDays: boosterIntervalDays ?? null,
       minAgeMonths: minAgeMonths || 0,
       minAgeUnit: minAgeUnit || 'months',
       maxAgeMonths: maxAgeMonths ?? null,
@@ -86,9 +92,9 @@ export const createVaccineType = async (req: Request, res: Response) => {
       message: 'Vaccine type created successfully',
       data: { vaccineType },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create vaccine type error:', error);
-    if (error.code === 11000) {
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: number }).code === 11000) {
       return res.status(409).json({ status: 'ERROR', message: 'A vaccine type with this name and species already exists' });
     }
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the vaccine type' });
@@ -138,7 +144,10 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       name,
       species,
       validityDays,
-      requiresBooster,
+      isSeries,
+      totalSeries,
+      seriesIntervalDays,
+      boosterValid,
       boosterIntervalDays,
       minAgeMonths,
       minAgeUnit,
@@ -155,8 +164,11 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (name !== undefined) vaccineType.name = name.trim();
     if (species !== undefined) vaccineType.species = species;
     if (validityDays !== undefined) vaccineType.validityDays = validityDays;
-    if (requiresBooster !== undefined) vaccineType.requiresBooster = requiresBooster;
-    if (boosterIntervalDays !== undefined) vaccineType.boosterIntervalDays = boosterIntervalDays;
+    if (isSeries !== undefined) vaccineType.isSeries = isSeries;
+    if (totalSeries !== undefined) vaccineType.totalSeries = totalSeries;
+    if (seriesIntervalDays !== undefined) vaccineType.seriesIntervalDays = seriesIntervalDays;
+    if (boosterValid !== undefined) vaccineType.boosterValid = boosterValid;
+    if (boosterIntervalDays !== undefined) vaccineType.boosterIntervalDays = boosterIntervalDays ?? null;
     if (minAgeMonths !== undefined) vaccineType.minAgeMonths = minAgeMonths;
     if (minAgeUnit !== undefined) vaccineType.minAgeUnit = minAgeUnit;
     if (maxAgeMonths !== undefined) vaccineType.maxAgeMonths = maxAgeMonths ?? null;

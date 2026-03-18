@@ -25,7 +25,6 @@ import petNotesRoutes from './routes/petNotesRoutes';
 import vetReportRoutes from './routes/vetReportRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
-import { seedVaccineTypes } from './utils/seedVaccineTypes';
 import { startScheduler } from './utils/scheduler';
 import { backfillAssignedVets } from './utils/backfillAssignedVets';
 
@@ -123,7 +122,6 @@ app.use((req: Request, res: Response) => {
 const startServer = async () => {
   try {
     await connectDatabase();
-    await seedVaccineTypes();
     await backfillAssignedVets();
     startScheduler();
 

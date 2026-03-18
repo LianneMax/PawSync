@@ -7,8 +7,6 @@ import {
   Syringe,
   Plus,
   Pencil,
-  ToggleLeft,
-  ToggleRight,
   AlertCircle,
   Loader,
   X,
@@ -39,54 +37,61 @@ const ROUTE_OPTIONS = [
   { value: 'oral', label: 'Oral' },
 ]
 
-const VACCINE_SUGGESTIONS: Record<string, string[]> = {
-  dog: [
-    'DHPPiL', 'DA2PPL', 'DHPP', 'DA2PP', 'Anti-Rabies', 'Bordetella',
-    'Leptospira', 'Canine Influenza', 'Lyme Disease', 'Parvovirus',
-    'Distemper', 'Ehrlichia Canis',
-  ],
-  cat: [
-    'FVRCP', 'Anti-Rabies', 'FeLV', 'FIV', 'Chlamydia',
-    'Panleukopenia', 'Herpesvirus', 'Calicivirus',
-  ],
-  all: [
-    'Anti-Rabies', 'DHPPiL', 'DA2PPL', 'DHPP', 'DA2PP', 'FVRCP',
-    'Bordetella', 'Leptospira', 'FeLV', 'FIV', 'Canine Influenza',
-    'Lyme Disease', 'Parvovirus', 'Distemper', 'Ehrlichia Canis',
-    'Chlamydia', 'Panleukopenia', 'Herpesvirus', 'Calicivirus',
-  ],
+const VALIDITY_OPTIONS = [
+  { label: '6 Months', days: 182 },
+  { label: '1 Year', days: 365 },
+  { label: '3 Years', days: 1095 },
+]
+
+function snapToValidityOption(days: number): number {
+  return VALIDITY_OPTIONS.reduce((prev, curr) =>
+    Math.abs(curr.days - days) < Math.abs(prev.days - days) ? curr : prev
+  ).days
+}
+
+function validityDaysToLabel(days: number): string {
+  return VALIDITY_OPTIONS.find((o) => o.days === days)?.label ?? `${days}d`
+}
+
+/** Auto dose volume by species selection */
+function getAutoDoseVolume(species: string): number | null {
+  if (species === 'dog') return 1.0
+  if (species === 'cat') return 0.5
+  return null // 'all' or unset — must be set manually
 }
 
 interface FormState {
   name: string
-  species: string[]
+  species: string
   validityDays: string
-  requiresBooster: boolean
-  lifetimeBooster: boolean
-  numberOfBoosters: string
+  isSeries: boolean
+  totalSeries: string
+  seriesIntervalDays: string
+  boosterValid: boolean
   boosterIntervalDays: string
-  boosterIntervalDaysList: string[] // per-dose overrides, indexed by dose transition
   minAgeMonths: string
   minAgeUnit: 'weeks' | 'months'
   maxAgeMonths: string
   maxAgeUnit: 'weeks' | 'months'
   route: string
+  doseVolumeMl: string
 }
 
 const emptyForm = (): FormState => ({
   name: '',
-  species: ['dog'],
-  validityDays: '365',
-  requiresBooster: false,
-  lifetimeBooster: false,
-  numberOfBoosters: '1',
-  boosterIntervalDays: '',
-  boosterIntervalDaysList: [],
+  species: 'dog',
+  validityDays: '365', // maps to "1 Year"
+  isSeries: false,
+  totalSeries: '3',
+  seriesIntervalDays: '21',
+  boosterValid: false,
+  boosterIntervalDays: '365',
   minAgeMonths: '0',
   minAgeUnit: 'months',
   maxAgeMonths: '',
   maxAgeUnit: 'months',
   route: '',
+  doseVolumeMl: '1.0', // default for canine
 })
 
 function SpeciesBadge({ species }: { species: string[] }) {
@@ -108,6 +113,24 @@ function SpeciesBadge({ species }: { species: string[] }) {
   )
 }
 
+function Toggle({ on, onToggle, label, sublabel }: { on: boolean; onToggle: () => void; label: string; sublabel?: string }) {
+  return (
+    <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
+      <div>
+        <p className="text-sm font-semibold text-[#4F4F4F]">{label}</p>
+        {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${on ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${on ? 'translate-x-5' : 'translate-x-0'}`} />
+      </button>
+    </div>
+  )
+}
+
 export default function VaccineTypesPage() {
   const { token } = useAuthStore()
   const [types, setTypes] = useState<VaccineType[]>([])
@@ -125,7 +148,6 @@ export default function VaccineTypesPage() {
     setLoading(true)
     setError(null)
     try {
-      // Fetch all (including inactive) for admin view
       const res = await fetch(`${API_BASE_URL}/vaccine-types?includeInactive=true`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -133,7 +155,6 @@ export default function VaccineTypesPage() {
       if (json.status === 'SUCCESS') {
         setTypes(json.data.vaccineTypes)
       } else {
-        // Fallback: public list (active only)
         const fallback = await getVaccineTypes()
         setTypes(fallback)
       }
@@ -156,38 +177,44 @@ export default function VaccineTypesPage() {
 
   const openEdit = (vt: VaccineType) => {
     setEditTarget(vt)
-    const speciesVal = vt.species.includes('dog') && vt.species.includes('cat') ? ['all'] : [...vt.species]
+    const sp = vt.species.includes('dog') && vt.species.includes('cat') ? 'all' : (vt.species[0] ?? 'dog')
     setForm({
       name: vt.name,
-      species: speciesVal,
-      validityDays: String(vt.validityDays),
-      requiresBooster: vt.requiresBooster,
-      lifetimeBooster: vt.lifetimeBooster ?? false,
-      numberOfBoosters: vt.numberOfBoosters != null ? String(vt.numberOfBoosters) : '1',
-      boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '',
-      boosterIntervalDaysList: vt.boosterIntervalDaysList?.map(String) ?? [],
-      minAgeMonths: String(vt.minAgeMonths),
-      minAgeUnit: vt.minAgeUnit as 'weeks' | 'months' || 'months',
+      species: sp,
+      validityDays: String(snapToValidityOption(vt.validityDays)),
+      isSeries: vt.isSeries ?? false,
+      totalSeries: String(vt.totalSeries ?? 3),
+      seriesIntervalDays: String(vt.seriesIntervalDays ?? 21),
+      boosterValid: vt.boosterValid ?? false,
+      boosterIntervalDays: vt.boosterIntervalDays ? String(vt.boosterIntervalDays) : '365',
+      minAgeMonths: String(vt.minAgeMonths ?? 0),
+      minAgeUnit: vt.minAgeUnit ?? 'months',
       maxAgeMonths: vt.maxAgeMonths != null ? String(vt.maxAgeMonths) : '',
-      maxAgeUnit: vt.maxAgeUnit as 'weeks' | 'months' || 'months',
+      maxAgeUnit: vt.maxAgeUnit ?? 'months',
       route: vt.route || '',
+      doseVolumeMl: vt.doseVolumeMl != null ? String(vt.doseVolumeMl) : '',
     })
     setSaveError(null)
     setSaveSuccess(false)
     setShowModal(true)
   }
 
-  const handleSpeciesToggle = (s: string) => {
-    setForm((f) => ({ ...f, species: [s] }))
+  const handleSpeciesChange = (s: string) => {
+    const autoVol = getAutoDoseVolume(s)
+    setForm((f) => ({
+      ...f,
+      species: s,
+      doseVolumeMl: autoVol != null ? String(autoVol) : '',
+    }))
   }
 
   const handleSave = async () => {
     if (!token) return
     if (!form.name.trim()) { setSaveError('Name is required'); return }
-    if (form.species.length === 0) { setSaveError('Select at least one species'); return }
+    if (!form.species) { setSaveError('Select species'); return }
     if (!form.validityDays || isNaN(Number(form.validityDays))) { setSaveError('Valid validity days required'); return }
-    if (form.requiresBooster && (!form.boosterIntervalDays || isNaN(Number(form.boosterIntervalDays)))) {
-      setSaveError('Booster interval required when booster is enabled')
+    if (form.boosterValid && (!form.boosterIntervalDays || isNaN(Number(form.boosterIntervalDays)))) {
+      setSaveError('Booster interval required when boosters are enabled')
       return
     }
 
@@ -196,20 +223,19 @@ export default function VaccineTypesPage() {
     try {
       const payload = {
         name: form.name.trim(),
-        species: form.species,
+        species: form.species === 'all' ? ['dog', 'cat'] : [form.species],
         validityDays: Number(form.validityDays),
-        requiresBooster: form.requiresBooster,
-        lifetimeBooster: form.requiresBooster ? form.lifetimeBooster : false,
-        numberOfBoosters: form.requiresBooster && !form.lifetimeBooster ? (Number(form.numberOfBoosters) || 1) : 0,
-        boosterIntervalDays: form.requiresBooster && form.boosterIntervalDays ? Number(form.boosterIntervalDays) : null,
-        boosterIntervalDaysList: form.requiresBooster && !form.lifetimeBooster
-          ? form.boosterIntervalDaysList.map(Number).filter(n => n > 0)
-          : [],
+        isSeries: form.isSeries,
+        totalSeries: form.isSeries ? (Number(form.totalSeries) || 3) : 1,
+        seriesIntervalDays: form.isSeries ? (Number(form.seriesIntervalDays) || 21) : 21,
+        boosterValid: form.boosterValid,
+        boosterIntervalDays: form.boosterValid ? (Number(form.boosterIntervalDays) || 365) : null,
         minAgeMonths: Number(form.minAgeMonths) || 0,
         minAgeUnit: form.minAgeUnit,
         maxAgeMonths: form.maxAgeMonths ? Number(form.maxAgeMonths) : null,
         maxAgeUnit: form.maxAgeUnit,
         route: form.route || null,
+        doseVolumeMl: form.doseVolumeMl !== '' ? Number(form.doseVolumeMl) : null,
       }
 
       const url = editTarget
@@ -306,12 +332,16 @@ export default function VaccineTypesPage() {
                   </div>
                   <SpeciesBadge species={vt.species} />
                   <div className="flex flex-wrap gap-3 mt-1.5 text-[11px] text-gray-400">
-                    <span>Protection: {vt.validityDays}d</span>
-                    {vt.requiresBooster && vt.boosterIntervalDays && (
-                      <span>Booster every: {vt.boosterIntervalDays}d{vt.lifetimeBooster ? ' (lifetime)' : ` × ${vt.numberOfBoosters || 1} dose${(vt.numberOfBoosters || 1) !== 1 ? 's' : ''}`}</span>
+                    <span>Protection: {validityDaysToLabel(vt.validityDays)}</span>
+                    {vt.isSeries && (
+                      <span>Series: {vt.totalSeries ?? 3} doses × {vt.seriesIntervalDays ?? 21}d apart</span>
                     )}
-                    {vt.minAgeMonths > 0 && <span>Min age: {vt.minAgeMonths}mo</span>}
-                    {vt.maxAgeMonths && <span>Max age: {vt.maxAgeMonths}mo</span>}
+                    {vt.boosterValid && vt.boosterIntervalDays && (
+                      <span>Booster: every {vt.boosterIntervalDays}d (lifetime)</span>
+                    )}
+                    {vt.doseVolumeMl != null && <span>Dose: {vt.doseVolumeMl} mL</span>}
+                    {vt.minAgeMonths > 0 && <span>Min age: {vt.minAgeMonths}{vt.minAgeUnit === 'weeks' ? 'wk' : 'mo'}</span>}
+                    {vt.maxAgeMonths != null && <span>Max age: {vt.maxAgeMonths}{vt.maxAgeUnit === 'weeks' ? 'wk' : 'mo'}</span>}
                     {vt.route && <span className="capitalize">Route: {vt.route}</span>}
                   </div>
                 </div>
@@ -393,7 +423,7 @@ export default function VaccineTypesPage() {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Rabies, DHPPiL..."
+                  placeholder="e.g. Rabies, DHPPiL, FVRCP…"
                   className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                 />
               </div>
@@ -408,9 +438,9 @@ export default function VaccineTypesPage() {
                     <button
                       key={s.value}
                       type="button"
-                      onClick={() => handleSpeciesToggle(s.value)}
+                      onClick={() => handleSpeciesChange(s.value)}
                       className={`py-2.5 rounded-xl text-sm font-normal border transition-colors ${
-                        form.species.includes(s.value)
+                        form.species === s.value
                           ? 'bg-[#476B6B] text-white border-[#476B6B]'
                           : 'bg-white text-gray-500 border-gray-200 hover:border-[#7FA5A3]'
                       }`}
@@ -419,127 +449,105 @@ export default function VaccineTypesPage() {
                     </button>
                   ))}
                 </div>
+                {form.species !== 'all' && (
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Dose volume auto-set: {form.species === 'dog' ? '1.0 mL (canine)' : '0.5 mL (feline)'}
+                  </p>
+                )}
               </div>
 
               {/* Protection Duration */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                  Protection Duration (days) <span className="text-red-400">*</span>
+                  Protection Duration <span className="text-red-400">*</span>
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.validityDays}
-                  onChange={(e) => setForm((f) => ({ ...f, validityDays: e.target.value }))}
-                  className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-                <p className="text-[10px] text-gray-400 mt-1">How long immunity lasts after each dose — not the vial&apos;s shelf life</p>
-              </div>
-
-              {/* Requires Booster */}
-              <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-[#4F4F4F]">Requires Booster</p>
-                  <p className="text-xs text-gray-400">Puppy/kitten series or boosters</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, requiresBooster: !f.requiresBooster }))}
-                  className="text-gray-400 hover:text-[#476B6B] transition-colors"
-                >
-                  {form.requiresBooster
-                    ? <ToggleRight className="w-6 h-6 text-green-500" />
-                    : <ToggleLeft className="w-6 h-6" />
-                  }
-                </button>
-              </div>
-
-              {/* Booster details */}
-              {form.requiresBooster && (
-                <>
-                  <div className="flex items-center justify-between bg-[#F8F6F2] rounded-xl px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[#4F4F4F]">Lifetime Boosters?</p>
-                      <p className="text-xs text-gray-400">Required for the pet&apos;s entire life</p>
-                    </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {VALIDITY_OPTIONS.map((opt) => (
                     <button
+                      key={opt.days}
                       type="button"
-                      onClick={() => setForm((f) => ({ ...f, lifetimeBooster: !f.lifetimeBooster }))}
-                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 overflow-hidden ${form.lifetimeBooster ? 'bg-[#476B6B]' : 'bg-gray-200'}`}
+                      onClick={() => setForm((f) => ({ ...f, validityDays: String(opt.days) }))}
+                      className={`py-2.5 rounded-xl text-sm font-normal border transition-colors ${
+                        form.validityDays === String(opt.days)
+                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-[#7FA5A3]'
+                      }`}
                     >
-                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ease-in-out will-change-transform ${form.lifetimeBooster ? 'translate-x-5' : 'translate-x-0'}`} />
+                      {opt.label}
                     </button>
-                  </div>
-                  <div className={form.lifetimeBooster ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-3'}>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                        Booster Interval (days) <span className="text-red-400">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={form.boosterIntervalDays}
-                        onChange={(e) => setForm((f) => ({ ...f, boosterIntervalDays: e.target.value }))}
-                        placeholder="e.g. 365"
-                        className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                      />
-                    </div>
-                    {!form.lifetimeBooster && (
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                          Number of Boosters <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={form.numberOfBoosters}
-                          onChange={(e) => {
-                            const n = Math.max(1, parseInt(e.target.value) || 1)
-                            setForm((f) => ({
-                              ...f,
-                              numberOfBoosters: e.target.value,
-                              // resize per-dose list to match number of transitions (= numberOfBoosters)
-                              boosterIntervalDaysList: Array.from({ length: n }, (_, i) => f.boosterIntervalDaysList[i] ?? ''),
-                            }))
-                          }}
-                          placeholder="e.g. 3"
-                          className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                        />
-                        <p className="text-[10px] text-gray-400 mt-1">Total doses in series = boosters + 1</p>
-                      </div>
-                    )}
-                  </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">How long immunity lasts after each dose</p>
+              </div>
 
-                  {/* Per-dose interval overrides — shown when there are 2+ transitions */}
-                  {!form.lifetimeBooster && Number(form.numberOfBoosters) >= 2 && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                        Per-Dose Intervals (days)
-                        <span className="text-gray-400 font-normal ml-1">— overrides the default above per dose</span>
-                      </label>
-                      <div className="space-y-2">
-                        {Array.from({ length: Number(form.numberOfBoosters) }, (_, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 w-28 shrink-0">Dose {i + 1} → {i + 2}:</span>
-                            <input
-                              type="number"
-                              min="1"
-                              value={form.boosterIntervalDaysList[i] ?? ''}
-                              onChange={(e) => setForm((f) => {
-                                const list = [...f.boosterIntervalDaysList]
-                                list[i] = e.target.value
-                                return { ...f, boosterIntervalDaysList: list }
-                              })}
-                              placeholder={form.boosterIntervalDays || 'days'}
-                              className="w-full bg-[#F8F6F2] rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Leave blank to use the default interval for that dose</p>
-                    </div>
-                  )}
-                </>
+              {/* Has Series toggle */}
+              <Toggle
+                on={form.isSeries}
+                onToggle={() => setForm((f) => ({ ...f, isSeries: !f.isSeries }))}
+                label="Has Series"
+                sublabel="Vaccine requires multiple doses before protection is complete"
+              />
+
+              {/* Series details */}
+              {form.isSeries && (
+                <div className="grid grid-cols-2 gap-3 pl-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                      Total Doses in Series <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="2"
+                      value={form.totalSeries}
+                      onChange={(e) => setForm((f) => ({ ...f, totalSeries: e.target.value }))}
+                      placeholder="3"
+                      className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Default: 3</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                      Interval Between Doses (days) <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.seriesIntervalDays}
+                      onChange={(e) => setForm((f) => ({ ...f, seriesIntervalDays: e.target.value }))}
+                      placeholder="21"
+                      className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Default: 21 days</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Requires Booster toggle */}
+              <Toggle
+                on={form.boosterValid}
+                onToggle={() => setForm((f) => ({ ...f, boosterValid: !f.boosterValid }))}
+                label="Requires Booster"
+                sublabel={form.isSeries
+                  ? 'Lifetime annual boosters after series completion'
+                  : 'Lifetime boosters after the initial single dose'}
+              />
+
+              {/* Booster interval */}
+              {form.boosterValid && (
+                <div className="pl-2">
+                  <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
+                    Booster Interval (days) <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.boosterIntervalDays}
+                    onChange={(e) => setForm((f) => ({ ...f, boosterIntervalDays: e.target.value }))}
+                    placeholder="365"
+                    className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Default: 365 days (annual). Boosters continue for the pet&apos;s lifetime.</p>
+                </div>
               )}
 
               {/* Min Age / Max Age */}
@@ -586,6 +594,7 @@ export default function VaccineTypesPage() {
                       min="0"
                       value={form.maxAgeMonths}
                       onChange={(e) => setForm((f) => ({ ...f, maxAgeMonths: e.target.value }))}
+                      placeholder="No limit"
                       className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                     />
                   </div>
@@ -614,7 +623,7 @@ export default function VaccineTypesPage() {
                 </div>
               </div>
 
-              {/* Route */}
+              {/* Default Route */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Default Route</label>
                 <DropdownMenu>
@@ -635,6 +644,24 @@ export default function VaccineTypesPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+
+              {/* Dose Volume */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Dose Volume (mL)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.doseVolumeMl}
+                  onChange={(e) => setForm((f) => ({ ...f, doseVolumeMl: e.target.value }))}
+                  placeholder="e.g. 1.0"
+                  readOnly={form.species !== 'all'}
+                  className={`w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] ${form.species !== 'all' ? 'opacity-60 cursor-default' : ''}`}
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {form.species === 'all' ? 'Enter volume manually for both species' : `Auto-set: ${form.species === 'dog' ? '1.0 mL (canine)' : '0.5 mL (feline)'}`}
+                </p>
+              </div>
             </div>
 
             {/* Modal footer */}
@@ -645,7 +672,7 @@ export default function VaccineTypesPage() {
                 className="w-full py-3 bg-[#476B6B] text-white rounded-2xl font-semibold text-sm hover:bg-[#3d5c5c] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? <Loader className="w-4 h-4 animate-spin" /> : null}
-                {saving ? 'Saving...' : editTarget ? 'Update Vaccine Type' : 'Add Vaccine Type'}
+                {saving ? 'Saving…' : editTarget ? 'Update Vaccine Type' : 'Add Vaccine Type'}
               </button>
             </div>
           </div>

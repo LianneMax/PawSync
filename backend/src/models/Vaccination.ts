@@ -8,20 +8,34 @@ export interface IVaccination extends Document {
   appointmentId: mongoose.Types.ObjectId | null;
   medicalRecordId: mongoose.Types.ObjectId | null;
   boosterAppointmentId: mongoose.Types.ObjectId | null;
+
+  /** Sequential dose number across all records for this vaccine+pet. Starts at 1. */
   doseNumber: number;
+
+  /**
+   * 0  = still in series (or initial single dose)
+   * 1+ = booster number (1st booster, 2nd booster, …)
+   *
+   * Computed by the controller from doseNumber and vaccineType.isSeries / totalSeries.
+   */
+  boosterNumber: number;
+
   // Vaccine identity
   vaccineTypeId: mongoose.Types.ObjectId | null;
   vaccineName: string;
   manufacturer: string;
   batchNumber: string;
   route: 'subcutaneous' | 'intramuscular' | 'intranasal' | 'oral' | null;
+
   // Dates
   dateAdministered: Date | null;
   expiryDate: Date | null;
   nextDueDate: Date | null;
+
   // Status
   status: 'active' | 'expired' | 'overdue' | 'pending';
   isUpToDate: boolean; // kept for backward compat
+
   // Notes
   notes: string;
   verifyToken: string | null;
@@ -71,6 +85,11 @@ const VaccinationSchema = new Schema(
       type: Number,
       default: 1,
       min: 1,
+    },
+    boosterNumber: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     vaccineTypeId: {
       type: Schema.Types.ObjectId,
@@ -133,6 +152,7 @@ const VaccinationSchema = new Schema(
 
 VaccinationSchema.index({ petId: 1, dateAdministered: -1 });
 VaccinationSchema.index({ status: 1, nextDueDate: 1 });
+VaccinationSchema.index({ petId: 1, vaccineTypeId: 1, doseNumber: -1 });
 
 /**
  * Compute status from dates. Exported so controllers can call it on GET too.

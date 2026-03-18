@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
 import AssignedVet from '../models/AssignedVet';
+import VaccineType from '../models/VaccineType';
+import Vaccination from '../models/Vaccination';
 
 let gridfsBucket: GridFSBucket;
 
@@ -44,6 +46,8 @@ export const connectDatabase = async (): Promise<void> => {
     // Sync indexes for models with updated index definitions
     try {
       await AssignedVet.syncIndexes();
+      await VaccineType.syncIndexes();
+      await Vaccination.syncIndexes();
     } catch (indexError) {
       console.warn('⚠️ Could not sync indexes (non-fatal):', indexError);
     }
