@@ -13,6 +13,7 @@ interface PetInfo {
   name: string
   microchipNumber: string | null
   photo: string | null
+  species?: string | null
 }
 
 function getDoseLabel(vax: Vaccination): string {
@@ -27,6 +28,19 @@ function getDoseLabel(vax: Vaccination): string {
   }
   const boosterNum = vax.boosterNumber > 0 ? vax.boosterNumber : vax.doseNumber - effectiveSeries
   return `Booster #${boosterNum}`
+}
+
+function getDoseMlLabel(vax: Vaccination): string {
+  if (vax.administeredDoseMl != null) return `${vax.administeredDoseMl} mL`
+  return null
+}
+
+function getAutoDoseMlBySpecies(species?: string | null): string | null {
+  if (!species) return null
+  const normalized = species.toLowerCase()
+  if (normalized === 'canine' || normalized === 'dog') return '1.0 mL'
+  if (normalized === 'feline' || normalized === 'cat') return '0.5 mL'
+  return null
 }
 
 function isInSeriesPhase(vax: Vaccination): boolean {
@@ -118,6 +132,7 @@ export default function VaccineCardPage() {
             name: p.name,
             microchipNumber: p.microchipNumber || null,
             photo: p.photo || null,
+            species: p.species || null,
           })
         }
 
@@ -304,7 +319,7 @@ export default function VaccineCardPage() {
 
             <div className="px-5 pt-4 pb-6 space-y-3">
               <DetailRow label="Vaccine name" value={selectedVax.vaccineName} />
-              <DetailRow label="Dose" value={getDoseLabel(selectedVax)} />
+              <DetailRow label="Dose" value={getDoseMlLabel(selectedVax) ?? getAutoDoseMlBySpecies(pet?.species) ?? '—'} />
               {selectedVax.dateAdministered && (
                 <DetailRow label="Date administered" value={formatFullDate(selectedVax.dateAdministered)} />
               )}

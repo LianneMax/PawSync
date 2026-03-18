@@ -35,6 +35,7 @@ export interface Vaccination {
   clinicBranchId: string | { _id: string; name: string } | null;
   vaccineTypeId: string | VaccineType | null;
   vaccineName: string;
+  administeredDoseMl?: number | null;
   manufacturer: string;
   batchNumber: string;
   route: 'subcutaneous' | 'intramuscular' | 'intranasal' | 'oral' | null;

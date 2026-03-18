@@ -608,11 +608,6 @@ export default function VetAppointmentsPage() {
                                           <><Video className="w-3 h-3" /> Online</>
                                         )}
                                       </span>
-                                      {orderAppointmentTypePills(appt.types).map((t) => (
-                                        <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
-                                          {formatAppointmentTypeDisplay(t)}
-                                        </span>
-                                      ))}
                                       {/* Auto-scheduled booster: show vaccine name pill */}
                                       {(() => {
                                         const match = appt.notes?.match(/^Auto-scheduled.*for (.+)$/)
@@ -622,6 +617,11 @@ export default function VetAppointmentsPage() {
                                           </span>
                                         ) : null
                                       })()}
+                                      {orderAppointmentTypePills(appt.types).map((t) => (
+                                        <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
+                                          {formatAppointmentTypeDisplay(t)}
+                                        </span>
+                                      ))}
                                     </div>
 
                                     {/* Branch info */}

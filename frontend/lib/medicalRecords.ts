@@ -152,6 +152,7 @@ export interface Vaccination {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vaccineTypeId?: any;
   vaccineName: string;
+  administeredDoseMl?: number | null;
   dateAdministered: string | null;
   expiryDate: string | null;
   nextDueDate: string | null;

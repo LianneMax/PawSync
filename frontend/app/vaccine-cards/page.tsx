@@ -22,6 +22,14 @@ function formatFullDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
+function getAutoDoseMlBySpecies(species?: string | null): string | null {
+  if (!species) return null
+  const normalized = species.toLowerCase()
+  if (normalized === 'canine' || normalized === 'dog') return '1.0 mL'
+  if (normalized === 'feline' || normalized === 'cat') return '0.5 mL'
+  return null
+}
+
 function isPast(dateStr: string | null): boolean {
   if (!dateStr) return false
   return new Date(dateStr) < new Date()
@@ -182,7 +190,7 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
 
 // ── Vaccine Detail Bottom Sheet ───────────────────────────────────────────────
 
-function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]; onClose: () => void }) {
+function VaxDetailSheet({ vaccinations, petSpecies, onClose }: { vaccinations: Vaccination[]; petSpecies?: string | null; onClose: () => void }) {
   const [closing, setClosing] = useState(false)
   // most recent first (already sorted desc by dateAdministered from the API)
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -219,7 +227,7 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
 
   const rows = [
     { label: 'Brand name', value: vax.manufacturer || '—' },
-    { label: 'Dose', value: vax.vaccineTypeId?.doseVolumeMl != null ? `${vax.vaccineTypeId.doseVolumeMl} mL` : '—' },
+    { label: 'Dose', value: vax.administeredDoseMl != null ? `${vax.administeredDoseMl} mL` : getAutoDoseMlBySpecies(petSpecies) ?? (vax.vaccineTypeId?.doseVolumeMl != null ? `${vax.vaccineTypeId.doseVolumeMl} mL` : '—') },
     { label: 'Date administered', value: vax.dateAdministered ? formatFullDate(vax.dateAdministered) : '—' },
     { label: 'Batch / lot number', value: vax.batchNumber || '—' },
     { label: 'Veterinary clinic', value: clinicName },
@@ -489,7 +497,7 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
       </div>
 
       {selectedVaxGroup && (
-        <VaxDetailSheet vaccinations={selectedVaxGroup} onClose={() => setSelectedVaxGroup(null)} />
+        <VaxDetailSheet vaccinations={selectedVaxGroup} petSpecies={pet.species} onClose={() => setSelectedVaxGroup(null)} />
       )}
     </div>
   )

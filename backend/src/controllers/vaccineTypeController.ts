@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import VaccineType from '../models/VaccineType';
+import Vaccination from '../models/Vaccination';
 
 /**
  * GET /api/vaccine-types
@@ -140,6 +141,8 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccine type not found' });
     }
 
+    const previousDoseVolumeMl = vaccineType.doseVolumeMl;
+
     const {
       name,
       species,
@@ -181,6 +184,24 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (isActive !== undefined) vaccineType.isActive = isActive;
 
     await vaccineType.save();
+
+    // Freeze legacy records without a snapshot when dose volume changes.
+    // This ensures past vaccinations keep their original dose display.
+    if (
+      doseVolumeMl !== undefined &&
+      previousDoseVolumeMl != null &&
+      vaccineType.doseVolumeMl !== previousDoseVolumeMl
+    ) {
+      await Vaccination.updateMany(
+        {
+          vaccineTypeId: vaccineType._id,
+          administeredDoseMl: null,
+        },
+        {
+          $set: { administeredDoseMl: previousDoseVolumeMl },
+        }
+      );
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',

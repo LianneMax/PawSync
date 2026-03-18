@@ -129,20 +129,6 @@ export default function MyPetsPage() {
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="relative inline-block">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search pets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent w-48"
-            />
-          </div>
-        </div>
-
         {/* Pet Count */}
         <div className="mb-6">
           <h1
@@ -156,6 +142,20 @@ export default function MyPetsPage() {
               ? 'Loading...'
               : `You have ${pets.length} pet${pets.length !== 1 ? 's' : ''} registered under your account`}
           </p>
+        </div>
+
+        {/* Header */}
+        <div className="mb-6">
+          <div className="relative inline-block">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search pets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent w-48"
+            />
+          </div>
         </div>
 
         {/* Pet Cards Grid */}

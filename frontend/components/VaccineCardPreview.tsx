@@ -17,6 +17,7 @@ interface PetInfo {
   name: string
   microchipNumber: string | null
   photo: string | null
+  species?: string | null
 }
 
 interface Props {
@@ -52,6 +53,23 @@ function getDoseLabel(vax: Vaccination): string {
   }
   const boosterNum = vax.boosterNumber > 0 ? vax.boosterNumber : vax.doseNumber - effectiveSeries
   return `Booster #${boosterNum}`
+}
+
+function getAutoDoseMlBySpecies(species?: string | null): string | null {
+  if (!species) return null
+  const normalized = species.toLowerCase()
+  if (normalized === 'canine' || normalized === 'dog') return '1.0 mL'
+  if (normalized === 'feline' || normalized === 'cat') return '0.5 mL'
+  return null
+}
+
+function getDoseMlLabel(vax: Vaccination, petSpecies?: string | null): string {
+  if (vax.administeredDoseMl != null) return `${vax.administeredDoseMl} mL`
+  const speciesFallback = getAutoDoseMlBySpecies(petSpecies)
+  if (speciesFallback) return speciesFallback
+  const vaccineType = typeof vax.vaccineTypeId === 'object' && vax.vaccineTypeId !== null ? vax.vaccineTypeId : null
+  if (vaccineType?.doseVolumeMl != null) return `${vaccineType.doseVolumeMl} mL`
+  return '—'
 }
 
 function isInSeriesPhase(vax: Vaccination): boolean {
@@ -113,7 +131,12 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
       .then(([petRes, vaxData]) => {
         if (petRes.status === 'SUCCESS' && petRes.data?.pet) {
           const p = petRes.data.pet
-          setPet({ name: p.name, microchipNumber: p.microchipNumber || null, photo: p.photo || null })
+          setPet({
+            name: p.name,
+            microchipNumber: p.microchipNumber || null,
+            photo: p.photo || null,
+            species: p.species || null,
+          })
         }
         setVaccinations(vaxData)
       })
@@ -434,7 +457,7 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
 
   const rows = [
     { label: 'Vaccine name', value: vax.vaccineName || '—' },
-    { label: 'Dose', value: getDoseLabel(vax) },
+    { label: 'Dose', value: getDoseMlLabel(vax, pet?.species) },
     { label: 'Brand name', value: vax.manufacturer || '—' },
     { label: 'Date administered', value: vax.dateAdministered ? formatFullDate(vax.dateAdministered) : '—' },
     { label: 'Batch / lot number', value: vax.batchNumber || '—' },

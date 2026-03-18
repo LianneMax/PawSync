@@ -101,6 +101,17 @@ function petAgeInMonths(dateOfBirth: Date): number {
     (now.getMonth() - dateOfBirth.getMonth());
 }
 
+function resolveDoseVolumeMlSnapshot(
+  vaccineType: { doseVolumeMl?: number | null },
+  petSpecies?: string | null
+): number | null {
+  if (vaccineType?.doseVolumeMl != null) return vaccineType.doseVolumeMl;
+  const normalized = (petSpecies || '').toLowerCase();
+  if (normalized === 'canine' || normalized === 'dog') return 1.0;
+  if (normalized === 'feline' || normalized === 'cat') return 0.5;
+  return null;
+}
+
 /**
  * Refresh status for a list of vaccination docs and save if changed.
  * Used on GET so expired/overdue records reflect current date.
@@ -259,6 +270,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       manufacturer: manufacturer || '',
       batchNumber: batchNumber || '',
       route: route || vaccineType.route || null,
+      administeredDoseMl: resolveDoseVolumeMlSnapshot(vaccineType, (pet as any)?.species || null),
       dateAdministered: adminDate,
       expiryDate,
       nextDueDate: computedNextDueDate,
@@ -873,7 +885,7 @@ export const getVetVaccinations = async (req: Request, res: Response) => {
 
     const vaccinations = await Vaccination.find(query)
       .populate('petId', 'name species breed photo')
-      .populate('vaccineTypeId', 'name species')
+      .populate('vaccineTypeId', 'name species doseVolumeMl')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
       .populate('medicalRecordId', 'stage')
@@ -934,7 +946,7 @@ export const getClinicVaccinations = async (req: Request, res: Response) => {
     const vaccinations = await Vaccination.find(query)
       .populate('petId', 'name species breed photo')
       .populate('vetId', 'firstName lastName')
-      .populate('vaccineTypeId', 'name species')
+      .populate('vaccineTypeId', 'name species doseVolumeMl')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
       .sort({ dateAdministered: -1 });

@@ -26,6 +26,7 @@ export interface IVaccination extends Document {
   manufacturer: string;
   batchNumber: string;
   route: 'subcutaneous' | 'intramuscular' | 'intranasal' | 'oral' | null;
+  administeredDoseMl: number | null;
 
   // Dates
   dateAdministered: Date | null;
@@ -112,6 +113,11 @@ const VaccinationSchema = new Schema(
       type: String,
       enum: ['subcutaneous', 'intramuscular', 'intranasal', 'oral', null],
       default: null,
+    },
+    administeredDoseMl: {
+      type: Number,
+      default: null,
+      min: 0,
     },
     dateAdministered: {
       type: Date,

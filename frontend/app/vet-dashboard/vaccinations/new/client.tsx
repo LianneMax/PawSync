@@ -364,7 +364,7 @@ export default function VaccinationFormClient() {
       if (editId) {
         await updateVaccination(
           editId,
-          { vaccineTypeId, dateAdministered, nextDueDate: nextDueDate || undefined, notes, doseNumber },
+          { nextDueDate: nextDueDate || undefined, notes },
           token
         )
         setSuccess(true)
@@ -599,25 +599,31 @@ export default function VaccinationFormClient() {
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
               Vaccine Type <span className="text-red-400">*</span>
             </label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
-                >
-                  <span>{vaccineTypes.find((vt) => vt._id === vaccineTypeId)?.name || 'Select vaccine type...'}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-xl">
-                <DropdownMenuRadioGroup value={vaccineTypeId} onValueChange={(value) => { setVaccineTypeId(value); setDoseNumber(1) }}>
-                  <DropdownMenuRadioItem value="">Select vaccine type...</DropdownMenuRadioItem>
-                  {vaccineTypes.map((vt) => (
-                    <DropdownMenuRadioItem key={vt._id} value={vt._id}>{vt.name}</DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {editId ? (
+              <div className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed">
+                {vaccineTypes.find((vt) => vt._id === vaccineTypeId)?.name || '—'}
+              </div>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                  >
+                    <span>{vaccineTypes.find((vt) => vt._id === vaccineTypeId)?.name || 'Select vaccine type...'}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-xl">
+                  <DropdownMenuRadioGroup value={vaccineTypeId} onValueChange={(value) => { setVaccineTypeId(value); setDoseNumber(1) }}>
+                    <DropdownMenuRadioItem value="">Select vaccine type...</DropdownMenuRadioItem>
+                    {vaccineTypes.map((vt) => (
+                      <DropdownMenuRadioItem key={vt._id} value={vt._id}>{vt.name}</DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {/* Dose number selector — shown when there are multiple possible doses */}
             {selectedVaccineType && totalDoses > 1 && (
@@ -726,13 +732,19 @@ export default function VaccinationFormClient() {
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
               Date Administered <span className="text-red-400">*</span>
             </label>
-            <DatePicker
-              value={dateAdministered}
-              onChange={setDateAdministered}
-              maxDate={new Date()}
-              error={!!dateAdminError}
-              className="w-full"
-            />
+            {editId ? (
+              <div className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed">
+                {dateAdministered ? formatDisplayDate(dateAdministered) : '—'}
+              </div>
+            ) : (
+              <DatePicker
+                value={dateAdministered}
+                onChange={setDateAdministered}
+                maxDate={new Date()}
+                error={!!dateAdminError}
+                className="w-full"
+              />
+            )}
             {dateAdminError && (
               <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -865,6 +877,8 @@ export default function VaccinationFormClient() {
             petId={selectedPet._id}
             token={token}
             refreshKey={previewRefreshKey}
+            sticky={false}
+            interactive
           />
         </div>
       )}

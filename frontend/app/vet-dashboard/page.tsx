@@ -75,6 +75,7 @@ export default function VetDashboardPage() {
   const { token } = useAuthStore()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [vaccinesDueCount, setVaccinesDueCount] = useState(0)
+  const [inConfinementCount, setInConfinementCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   // Guard: unverified/rejected vets cannot access the dashboard
@@ -104,9 +105,10 @@ export default function VetDashboardPage() {
     const load = async () => {
       setLoading(true)
       try {
-        const [apptRes, vacRes] = await Promise.all([
+        const [apptRes, vacRes, confinementRes] = await Promise.all([
           authenticatedFetch('/appointments/vet', { method: 'GET' }, token),
           authenticatedFetch('/vaccinations/vet/my-records', { method: 'GET' }, token),
+          authenticatedFetch('/confinement?status=admitted', { method: 'GET' }, token),
         ])
 
         if (apptRes.status === 'SUCCESS') {
@@ -126,8 +128,16 @@ export default function VetDashboardPage() {
           }).length
           setVaccinesDueCount(count)
         }
+
+        if (confinementRes.status === 'SUCCESS') {
+          const records = Array.isArray(confinementRes?.data?.records) ? confinementRes.data.records : []
+          setInConfinementCount(records.length)
+        } else {
+          setInConfinementCount(0)
+        }
       } catch (err) {
         console.error('Failed to load dashboard stats:', err)
+        setInConfinementCount(0)
       } finally {
         setLoading(false)
       }
@@ -159,7 +169,7 @@ export default function VetDashboardPage() {
     { label: 'Total Patients', value: loading ? '—' : String(totalPatients), icon: Users, bg: 'bg-red-50', iconColor: 'text-red-400' },
     { label: "Today's Appointments", value: loading ? '—' : String(todayCount), icon: Calendar, bg: 'bg-yellow-50', iconColor: 'text-yellow-500' },
     { label: 'Vaccines Due This Week', value: loading ? '—' : String(vaccinesDueCount), icon: Syringe, bg: 'bg-green-50', iconColor: 'text-green-500' },
-    { label: 'In Confinement', value: '—', icon: Heart, bg: 'bg-blue-50', iconColor: 'text-blue-400' },
+    { label: 'In Confinement', value: String(inConfinementCount), icon: Heart, bg: 'bg-blue-50', iconColor: 'text-blue-400' },
   ]
 
   return (
