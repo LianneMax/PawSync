@@ -395,6 +395,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [complaintCategory, setComplaintCategory] = useState('')
   const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'>; action: 'continue' | 'stop' }[]>([])
   const [carryoverApplied, setCarryoverApplied] = useState(false)
+  const [capsuleWarnings, setCapsuleWarnings] = useState<Record<number, string>>({})
   const [prevContextOpen, setPrevContextOpen] = useState(true)
 
   // Whether this appointment includes vaccination/booster
@@ -2878,7 +2879,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-500">Medication {i + 1}</span>
-                          <button onClick={() => setMedications((prev) => prev.filter((_, j) => j !== i))} className="text-[#900B09] hover:text-red-600">
+                          <button onClick={() => { setMedications((prev) => prev.filter((_, j) => j !== i)); setCapsuleWarnings((prev) => { const next: Record<number, string> = {}; Object.entries(prev).forEach(([k, v]) => { const ki = parseInt(k); if (ki < i) next[ki] = v; else if (ki > i) next[ki - 1] = v; }); return next }) }} className="text-[#900B09] hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -2891,11 +2892,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 if (j !== i) return m
                                 // Auto-populate from service data when a medication is selected
                                 if (selectedService) {
-                                  const isTabletOrCapsule = ['tablets', 'capsules'].includes(selectedService.administrationMethod?.toLowerCase() ?? '')
+                                  const administrationMethod = selectedService.administrationMethod?.toLowerCase() ?? ''
+                                  const isTablet = administrationMethod === 'tablets'
+                                  const isCapsule = administrationMethod === 'capsules'
+                                  const isSyrup = administrationMethod === 'syrup'
                                   const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
                                   let autoDosage = selectedService.dosageAmount || m.dosage
                                   let autoQuantity: number | null = null
-                                  if (isTabletOrCapsule && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
+                                  if (isTablet && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
                                     const rawMg = selectedService.dosePerKg * bodyWeight
                                     autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
                                     // quantity = ceil((mg dose / netContent per tablet) × doses per day × days)
@@ -2912,6 +2916,31 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                     if (netContent && netContent > 0 && dosesPerDay && durationDays) {
                                       autoQuantity = Math.ceil((rawMg / netContent) * dosesPerDay * durationDays)
                                     }
+                                  } else if (isCapsule && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
+                                    const rawMg = selectedService.dosePerKg * bodyWeight
+                                    autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
+                                    const netContent = selectedService.netContent
+                                    const durationDays = selectedService.duration
+                                    let dosesPerDay: number | null = selectedService.frequency ?? null
+                                    if (!dosesPerDay && selectedService.frequencyLabel) {
+                                      const everyHoursMatch = selectedService.frequencyLabel.match(/every\s+(\d+(?:\.\d+)?)\s+hours?/i)
+                                      if (everyHoursMatch) dosesPerDay = 24 / parseFloat(everyHoursMatch[1])
+                                      const timesPerDayMatch = selectedService.frequencyLabel.match(/(\d+)\s+times?\s+per\s+day/i)
+                                      if (timesPerDayMatch) dosesPerDay = parseInt(timesPerDayMatch[1])
+                                    }
+                                    if (netContent && netContent > 0) {
+                                      // Capsules cannot be split — pet must meet minimum weight for one capsule
+                                      if (rawMg < netContent) {
+                                        setCapsuleWarnings((prev) => ({ ...prev, [i]: `This pet's calculated dose (${parseFloat(rawMg.toFixed(2))} mg) is less than one capsule (${netContent} mg). This capsule may not be appropriate for this patient's weight.` }))
+                                      } else {
+                                        setCapsuleWarnings((prev) => { const next = { ...prev }; delete next[i]; return next })
+                                        if (dosesPerDay && durationDays) {
+                                          autoQuantity = Math.ceil((rawMg / netContent) * dosesPerDay * durationDays)
+                                        }
+                                      }
+                                    }
+                                  } else if (isSyrup) {
+                                    autoQuantity = 1
                                   }
                                   return {
                                     ...m,
@@ -2965,6 +2994,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             ]}
                           />
                         </div>
+                        {capsuleWarnings[i] && (
+                          <div className="flex items-start gap-1.5 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
+                            <span>{capsuleWarnings[i]}</span>
+                          </div>
+                        )}
                         <input type="text" placeholder="Notes (optional)" value={med.notes} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, notes: e.target.value } : m))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                       </div>
                     ))}
