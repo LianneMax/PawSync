@@ -41,6 +41,8 @@ interface ProductItem {
   intervalDays?: number
   weightMin?: number
   weightMax?: number
+  pricingType?: 'singlePill' | 'pack'
+  piecesPerPack?: number
   branchAvailability: BranchAvailabilityEntry[]
 }
 
@@ -157,6 +159,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [medIntervalDays, setMedIntervalDays] = useState('')
   const [medWeightMin, setMedWeightMin] = useState('')
   const [medWeightMax, setMedWeightMax] = useState('')
+  const [medPricingType, setMedPricingType] = useState<'singlePill' | 'pack'>('singlePill')
+  const [medPiecesPerPack, setMedPiecesPerPack] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -218,6 +222,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedIntervalDays('')
     setMedWeightMin('')
     setMedWeightMax('')
+    setMedPricingType('singlePill')
+    setMedPiecesPerPack('')
   }
 
   const branchAvailabilityPayload = localBranches.map((b) => ({ branchId: b.id, isActive: selectedBranches.has(b.id) }))
@@ -294,6 +300,15 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     const parsed = parseFloat(medPrice)
     if (isNaN(parsed) || parsed < 0) { setError('Please enter a valid price.'); return }
 
+    // Validate pricing type
+    const applicablePricingMethods = ['tablets', 'capsules', 'spot-on', 'chewable']
+    if (medPricingType === 'pack' && !applicablePricingMethods.includes(admMethod.toLowerCase())) {
+      setError('Pack pricing is only available for tablets, capsules, spot-on, and chewable medications'); return
+    }
+    if (medPricingType === 'pack' && !medPiecesPerPack) {
+      setError('Pieces per pack is required when using pack pricing'); return
+    }
+
     setSaving(true)
     setError('')
     try {
@@ -307,6 +322,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         price: parsed,
         description: medDesc.trim(),
         branchAvailability: branchAvailabilityPayload,
+        pricingType: medPricingType,
+        ...(medPricingType === 'pack' && medPiecesPerPack ? { piecesPerPack: parseInt(medPiecesPerPack) } : {}),
         ...(medFrequencyNotes ? { frequencyNotes: medFrequencyNotes } : {}),
         ...(medNetContent ? { netContent: parseFloat(medNetContent) } : {}),
         ...(medDosePerKg ? { dosePerKg: parseFloat(medDosePerKg) } : {}),
@@ -360,6 +377,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           intervalDays: i.intervalDays,
           weightMin: i.weightMin,
           weightMax: i.weightMax,
+          pricingType: i.pricingType,
+          piecesPerPack: i.piecesPerPack,
           branchAvailability: mapBranchAvailability(i.branchAvailability),
         })
         onClose()
@@ -526,10 +545,48 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </div>
               )}
 
+              {/* Pricing Type — only for applicable methods: tablets, capsules, spot-on, chewable */}
+              {admRoute && (admMethod.toLowerCase() === 'tablets' || admMethod.toLowerCase() === 'capsules' || admMethod.toLowerCase() === 'spot-on' || admMethod.toLowerCase() === 'chewable') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['singlePill', 'pack'] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => { setMedPricingType(type); if (type === 'singlePill') setMedPiecesPerPack('') }}
+                        className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          medPricingType === type
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {type === 'singlePill' ? 'Single Pill' : 'Pack'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pieces Per Pack — only when Pack pricing is selected */}
+              {medPricingType === 'pack' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Pieces Per Pack</label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={medPiecesPerPack}
+                    onChange={(e) => setMedPiecesPerPack(e.target.value)}
+                    placeholder="e.g. 10"
+                    min="1"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
+
               {/* Price */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Price <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>
+                  Price {medPricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal">(per pack)</span> : <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>}
                 </label>
                 <input
                   type="number"
@@ -902,6 +959,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [intervalDays, setIntervalDays] = useState(item.intervalDays != null ? String(item.intervalDays) : '')
   const [weightMin, setWeightMin] = useState(item.weightMin != null ? String(item.weightMin) : '')
   const [weightMax, setWeightMax] = useState(item.weightMax != null ? String(item.weightMax) : '')
+  const [pricingType, setPricingType] = useState<'singlePill' | 'pack'>((item.pricingType as 'singlePill' | 'pack') || 'singlePill')
+  const [piecesPerPack, setPiecesPerPack] = useState(item.piecesPerPack != null ? String(item.piecesPerPack) : '')
 
   // Branch availability state: map of branchId -> isActive
   const [branchState, setBranchState] = useState<Map<string, boolean>>(() => {
@@ -953,6 +1012,14 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       if ((admRoute === 'oral' || admRoute === 'topical' || admRoute === 'preventive') && !admMethod) {
         setError('Please select an administration method.'); return
       }
+      // Validate pricing type
+      const applicablePricingMethods = ['tablets', 'capsules', 'spot-on', 'chewable']
+      if (pricingType === 'pack' && !applicablePricingMethods.includes(admMethod.toLowerCase())) {
+        setError('Pack pricing is only available for tablets, capsules, spot-on, and chewable medications'); return
+      }
+      if (pricingType === 'pack' && !piecesPerPack) {
+        setError('Pieces per pack is required when using pack pricing'); return
+      }
     }
     setSaving(true)
     setError('')
@@ -986,6 +1053,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.intervalDays = intervalDays ? parseInt(intervalDays) : null
         body.weightMin = weightMin ? parseFloat(weightMin) : null
         body.weightMax = weightMax ? parseFloat(weightMax) : null
+        body.pricingType = pricingType
+        body.piecesPerPack = pricingType === 'pack' && piecesPerPack ? parseInt(piecesPerPack) : null
       }
       if (showBranchSection) {
         body.branchAvailability = Array.from(branchState.entries()).map(([branchId, isActive]) => ({ branchId, isActive }))
@@ -1023,6 +1092,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           intervalDays: data.data.item.intervalDays,
           weightMin: data.data.item.weightMin,
           weightMax: data.data.item.weightMax,
+          pricingType: data.data.item.pricingType,
+          piecesPerPack: data.data.item.piecesPerPack,
           branchAvailability: rawBA.map((ba) => ({
             branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
             branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
@@ -1154,12 +1225,50 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                   </div>
                 </div>
               )}
+
+              {/* Pricing Type — only for applicable methods: tablets, capsules, spot-on, chewable */}
+              {admRoute && (admMethod.toLowerCase() === 'tablets' || admMethod.toLowerCase() === 'capsules' || admMethod.toLowerCase() === 'spot-on' || admMethod.toLowerCase() === 'chewable') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['singlePill', 'pack'] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => { setPricingType(type); if (type === 'singlePill') setPiecesPerPack('') }}
+                        className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          pricingType === type
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {type === 'singlePill' ? 'Single Pill' : 'Pack'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pieces Per Pack — only when Pack pricing is selected */}
+              {pricingType === 'pack' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Pieces Per Pack</label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={piecesPerPack}
+                    onChange={(e) => setPiecesPerPack(e.target.value)}
+                    placeholder="e.g. 10"
+                    min="1"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
             </>
           )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Price{isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
+              Price{isMedication && pricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal ml-1">(per pack)</span> : isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
             </label>
             <input
               type="number"

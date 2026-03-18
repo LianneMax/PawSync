@@ -44,6 +44,10 @@ export interface IProductService extends Document {
   weightMin?: number;         // kg — lower bound for weight-range-based preventives
   weightMax?: number;         // kg — upper bound for weight-range-based preventives
 
+  // Pricing type for applicable medications (tablets, capsules, spot-on, chewable)
+  pricingType?: 'singlePill' | 'pack';  // singlePill = price per pill; pack = price per pack
+  piecesPerPack?: number;               // number of pieces in pack (required when pricingType is 'pack')
+
   branchAvailability: IBranchAvailability[];
   createdAt: Date;
   updatedAt: Date;
@@ -86,6 +90,12 @@ const ProductServiceSchema: Schema = new Schema(
     intervalDays: { type: Number, default: null, min: 1 },
     weightMin: { type: Number, default: null, min: 0 },
     weightMax: { type: Number, default: null, min: 0 },
+    pricingType: {
+      type: String,
+      enum: ['singlePill', 'pack'],
+      default: 'singlePill',
+    },
+    piecesPerPack: { type: Number, default: null, min: 1 },
     // Branch availability: tracks which branches carry this item and whether it's active there.
     // Applicable to Medications (Products) and all Services (including Others).
     branchAvailability: [
