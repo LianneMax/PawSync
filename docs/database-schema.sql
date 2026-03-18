@@ -704,6 +704,9 @@ CREATE TABLE product_services (
     interval_days           SMALLINT        DEFAULT NULL,
     weight_min              DECIMAL(6,2)    DEFAULT NULL,
     weight_max              DECIMAL(6,2)    DEFAULT NULL,
+    associated_service_id   CHAR(24)        DEFAULT NULL,          -- FK to product_services._id (Preventive Care service)
+    preventive_duration     SMALLINT        DEFAULT NULL,          -- duration of protection (numeric)
+    preventive_duration_unit ENUM('months','years') DEFAULT NULL,  -- unit for preventive_duration
     created_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

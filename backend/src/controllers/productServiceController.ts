@@ -47,7 +47,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType } = req.body;
+    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType, associatedServiceId, preventiveDuration, preventiveDurationUnit } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -176,6 +176,9 @@ export const createProductService = async (req: Request, res: Response) => {
         intervalDays: intervalDays != null ? Number(intervalDays) : null,
         weightMin: weightMin != null ? Number(weightMin) : null,
         weightMax: weightMax != null ? Number(weightMax) : null,
+        associatedServiceId: associatedServiceId || null,
+        preventiveDuration: preventiveDuration != null ? Number(preventiveDuration) : null,
+        preventiveDurationUnit: preventiveDurationUnit || null,
         pricingType: pricingType || 'singlePill',
         piecesPerPack: pricingType === 'pack' && piecesPerPack ? Number(piecesPerPack) : null,
         injectionPricingType: injectionPricingType || null,
@@ -215,7 +218,7 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType } = req.body;
+    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType, associatedServiceId, preventiveDuration, preventiveDurationUnit } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
@@ -240,6 +243,9 @@ export const updateProductService = async (req: Request, res: Response) => {
       if (intervalDays !== undefined) (item as any).intervalDays = intervalDays != null ? Number(intervalDays) : null;
       if (weightMin !== undefined) (item as any).weightMin = weightMin != null ? Number(weightMin) : null;
       if (weightMax !== undefined) (item as any).weightMax = weightMax != null ? Number(weightMax) : null;
+      if (associatedServiceId !== undefined) (item as any).associatedServiceId = associatedServiceId || null;
+      if (preventiveDuration !== undefined) (item as any).preventiveDuration = preventiveDuration != null ? Number(preventiveDuration) : null;
+      if (preventiveDurationUnit !== undefined) (item as any).preventiveDurationUnit = preventiveDurationUnit || null;
       if (pricingType !== undefined) (item as any).pricingType = pricingType || 'singlePill';
       if (piecesPerPack !== undefined) {
         // Validate that pack pricing is only for applicable methods

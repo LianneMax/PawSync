@@ -52,6 +52,10 @@ interface ProductItem {
   piecesPerPack?: number
   injectionPricingType?: 'singleDose' | 'mlPerKg'
   vialConcentration?: number
+  associatedServiceId?: string
+  associatedServiceName?: string
+  preventiveDuration?: number
+  preventiveDurationUnit?: 'months' | 'years'
   branchAvailability: BranchAvailabilityEntry[]
 }
 
@@ -207,8 +211,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [medNetContent, setMedNetContent] = useState('')
   const [medDosePerKg, setMedDosePerKg] = useState('')
   const [medDoseUnit, setMedDoseUnit] = useState('')
-  const [medFreqType, setMedFreqType] = useState<'per_day' | 'every_hours' | ''>('')
-  const [medFreqValue, setMedFreqValue] = useState('')
+  const [medFreqTimesPerDay, setMedFreqTimesPerDay] = useState('')
+  const [medFreqEveryHours, setMedFreqEveryHours] = useState('')
   const [medDurationType, setMedDurationType] = useState<'days' | 'until_healed' | 'as_needed' | ''>('')
   const [medDurationDays, setMedDurationDays] = useState('')
   const [medIntervalDays, setMedIntervalDays] = useState('')
@@ -218,6 +222,11 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [medPiecesPerPack, setMedPiecesPerPack] = useState('')
   const [medInjectionPricingType, setMedInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>('singleDose')
   const [medVialConcentration, setMedVialConcentration] = useState('')
+  const [medAssociatedServiceId, setMedAssociatedServiceId] = useState('')
+  const [medPreventiveDuration, setMedPreventiveDuration] = useState('')
+  const [medPreventiveDurationUnit, setMedPreventiveDurationUnit] = useState<'months' | 'years'>('months')
+  const [preventiveServices, setPreventiveServices] = useState<{ id: string; name: string }[]>([])
+  const [loadingPreventiveServices, setLoadingPreventiveServices] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -242,8 +251,28 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     }
   }, [isProducts, productType, token])
 
-  // Reset method when route changes
-  useEffect(() => { setAdmMethod('') }, [admRoute])
+  // Reset method and preventive-specific state when route changes
+  useEffect(() => {
+    setAdmMethod('')
+    setMedAssociatedServiceId('')
+  }, [admRoute])
+
+  // Fetch preventive care services when route is preventive
+  useEffect(() => {
+    if (admRoute !== 'preventive') { setPreventiveServices([]); return }
+    setLoadingPreventiveServices(true)
+    fetch(`${apiUrl}/product-services?type=Service&category=Preventive Care`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'SUCCESS') {
+          setPreventiveServices(data.data.items.map((s: any) => ({ id: s._id, name: s.name })))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPreventiveServices(false))
+  }, [admRoute]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleVariantModeChange = (mode: 'new' | 'variant') => {
     setVariantMode(mode)
@@ -272,8 +301,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedNetContent('')
     setMedDosePerKg('')
     setMedDoseUnit('')
-    setMedFreqType('')
-    setMedFreqValue('')
+    setMedFreqTimesPerDay('')
+    setMedFreqEveryHours('')
     setMedDurationType('')
     setMedDurationDays('')
     setMedIntervalDays('')
@@ -283,6 +312,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedPiecesPerPack('')
     setMedInjectionPricingType('singleDose')
     setMedVialConcentration('')
+    setMedAssociatedServiceId('')
+    setMedPreventiveDuration('')
+    setMedPreventiveDurationUnit('months')
   }
 
   const branchAvailabilityPayload = localBranches.map((b) => ({ branchId: b.id, isActive: selectedBranches.has(b.id) }))
@@ -396,11 +428,13 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         ...(medNetContent ? { netContent: parseFloat(medNetContent) } : {}),
         ...(medDosePerKg ? { dosePerKg: parseFloat(medDosePerKg) } : {}),
         ...(medDoseUnit ? { doseUnit: medDoseUnit } : {}),
-        ...(medFreqType === 'per_day' && medFreqValue
-          ? { frequency: parseInt(medFreqValue), frequencyLabel: `${medFreqValue} times per day` }
-          : medFreqType === 'every_hours' && medFreqValue
-          ? { frequencyLabel: `every ${medFreqValue} hours` }
-          : {}),
+        ...(medFreqTimesPerDay || medFreqEveryHours ? {
+          ...(medFreqTimesPerDay ? { frequency: parseInt(medFreqTimesPerDay) } : {}),
+          frequencyLabel: [
+            medFreqTimesPerDay ? `${medFreqTimesPerDay} times per day` : '',
+            medFreqEveryHours ? `every ${medFreqEveryHours} hours` : '',
+          ].filter(Boolean).join(', '),
+        } : {}),
         ...(medDurationType === 'days' && medDurationDays
           ? { duration: parseInt(medDurationDays), durationLabel: `${medDurationDays} days` }
           : medDurationType === 'until_healed'
@@ -411,6 +445,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         ...(medIntervalDays ? { intervalDays: parseInt(medIntervalDays) } : {}),
         ...(medWeightMin ? { weightMin: parseFloat(medWeightMin) } : {}),
         ...(medWeightMax ? { weightMax: parseFloat(medWeightMax) } : {}),
+        ...(admRoute === 'preventive' && medAssociatedServiceId ? { associatedServiceId: medAssociatedServiceId } : {}),
+        ...(admRoute === 'preventive' && medPreventiveDuration ? { preventiveDuration: parseInt(medPreventiveDuration), preventiveDurationUnit: medPreventiveDurationUnit } : {}),
       }
       const res = await fetch(`${apiUrl}/product-services`, {
         method: 'POST',
@@ -449,6 +485,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           piecesPerPack: i.piecesPerPack,
           injectionPricingType: i.injectionPricingType,
           vialConcentration: i.vialConcentration,
+          associatedServiceId: i.associatedServiceId,
+          preventiveDuration: i.preventiveDuration,
+          preventiveDurationUnit: i.preventiveDurationUnit,
           branchAvailability: mapBranchAvailability(i.branchAvailability),
         })
         onClose()
@@ -612,6 +651,29 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Associated Preventive Care Service — preventive route only */}
+              {admRoute === 'preventive' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Associated Service <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  {loadingPreventiveServices ? (
+                    <p className="text-xs text-gray-400 py-2">Loading services...</p>
+                  ) : (
+                    <DropdownField
+                      value={medAssociatedServiceId}
+                      onValueChange={setMedAssociatedServiceId}
+                      placeholder="— Select a service —"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                      options={[
+                        { value: '', label: '— Select a service —' },
+                        ...preventiveServices.map((s) => ({ value: s.id, label: s.name })),
+                      ]}
+                    />
+                  )}
                 </div>
               )}
 
@@ -801,28 +863,32 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
                       <div className="grid grid-cols-2 gap-3">
-                        <DropdownField
-                          value={medFreqType}
-                          onValueChange={(value) => { setMedFreqType(value as any); setMedFreqValue('') }}
-                          placeholder="Select type"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                          options={[
-                            { value: '', label: 'Select type' },
-                            { value: 'per_day', label: 'X times per day' },
-                            { value: 'every_hours', label: 'Every X hours' },
-                          ]}
-                        />
-                        {medFreqType && (
+                        <div>
+                          <label className="block text-[11px] text-gray-400 mb-1">Times per day</label>
                           <input
                             type="number"
-                        onWheel={(e) => e.currentTarget.blur()}
-                            value={medFreqValue}
-                            onChange={(e) => setMedFreqValue(e.target.value)}
-                            placeholder={medFreqType === 'per_day' ? 'e.g. 2' : 'e.g. 8'}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={medFreqTimesPerDay}
+                            onChange={(e) => setMedFreqTimesPerDay(e.target.value)}
+                            placeholder="e.g. 2"
                             min="1"
+                            required
                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
                           />
-                        )}
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-400 mb-1">Every (hours)</label>
+                          <input
+                            type="number"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={medFreqEveryHours}
+                            onChange={(e) => setMedFreqEveryHours(e.target.value)}
+                            placeholder="e.g. 8"
+                            min="1"
+                            required
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -899,6 +965,30 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                             min="0"
                             step="any"
                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="number"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={medPreventiveDuration}
+                            onChange={(e) => setMedPreventiveDuration(e.target.value)}
+                            placeholder="e.g. 1"
+                            min="1"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                          <DropdownField
+                            value={medPreventiveDurationUnit}
+                            onValueChange={(v) => setMedPreventiveDurationUnit(v as 'months' | 'years')}
+                            placeholder="Select unit"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                            options={[
+                              { value: 'months', label: 'Months' },
+                              { value: 'years', label: 'Years' },
+                            ]}
                           />
                         </div>
                       </div>
@@ -1039,6 +1129,7 @@ interface EditModalProps {
 function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalProps) {
   const isMedication = item.category === 'Medication'
   const categories = tab === 'Products' ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
   const [form, setForm] = useState({
     name: item.name,
@@ -1053,16 +1144,12 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [netContent, setNetContent] = useState(item.netContent != null ? String(item.netContent) : '')
   const [dosePerKg, setDosePerKg] = useState(item.dosePerKg != null ? String(item.dosePerKg) : '')
   const [doseUnit, setDoseUnit] = useState(item.doseUnit || '')
-  const [freqType, setFreqType] = useState<'per_day' | 'every_hours' | ''>(() => {
-    if (item.frequencyLabel?.toLowerCase().includes('every') && item.frequencyLabel?.toLowerCase().includes('hour')) return 'every_hours'
-    if (item.frequency != null) return 'per_day'
-    return ''
-  })
-  const [freqValue, setFreqValue] = useState(() => {
+  const [freqTimesPerDay, setFreqTimesPerDay] = useState(item.frequency != null ? String(item.frequency) : '')
+  const [freqEveryHours, setFreqEveryHours] = useState(() => {
     if (item.frequencyLabel?.toLowerCase().includes('every') && item.frequencyLabel?.toLowerCase().includes('hour')) {
-      const m = item.frequencyLabel.match(/\d+/); return m ? m[0] : ''
+      const m = item.frequencyLabel.match(/every (\d+) hour/i); return m ? m[1] : ''
     }
-    return item.frequency != null ? String(item.frequency) : ''
+    return ''
   })
   const [durationType, setDurationType] = useState<'days' | 'until_healed' | 'as_needed' | ''>(() => {
     if (item.durationLabel === 'until healed') return 'until_healed'
@@ -1078,6 +1165,11 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [piecesPerPack, setPiecesPerPack] = useState(item.piecesPerPack != null ? String(item.piecesPerPack) : '')
   const [injectionPricingType, setInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>((item.injectionPricingType as 'singleDose' | 'mlPerKg') || 'singleDose')
   const [vialConcentration, setVialConcentration] = useState(item.vialConcentration != null ? String(item.vialConcentration) : '')
+  const [associatedServiceId, setAssociatedServiceId] = useState(item.associatedServiceId || '')
+  const [preventiveDuration, setPreventiveDuration] = useState(item.preventiveDuration != null ? String(item.preventiveDuration) : '')
+  const [preventiveDurationUnit, setPreventiveDurationUnit] = useState<'months' | 'years'>(item.preventiveDurationUnit || 'months')
+  const [preventiveServices, setPreventiveServices] = useState<{ id: string; name: string }[]>([])
+  const [loadingPreventiveServices, setLoadingPreventiveServices] = useState(false)
 
   // Ref to track if the route was actually changed by user (not initial render)
   const prevAdmRouteRef = useRef(admRoute)
@@ -1107,12 +1199,30 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
     })
   }, [branches])
 
-  // Reset method when route changes (but not on initial render)
+  // Reset method and preventive-specific state when route changes (but not on initial render)
   useEffect(() => {
     if (!isMedication || prevAdmRouteRef.current === admRoute) return
     setAdmMethod('')
+    setAssociatedServiceId('')
     prevAdmRouteRef.current = admRoute
   }, [admRoute, isMedication])
+
+  // Fetch preventive care services when route is preventive
+  useEffect(() => {
+    if (admRoute !== 'preventive') { setPreventiveServices([]); return }
+    setLoadingPreventiveServices(true)
+    fetch(`${apiUrl}/product-services?type=Service&category=Preventive Care`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'SUCCESS') {
+          setPreventiveServices(data.data.items.map((s: any) => ({ id: s._id, name: s.name })))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPreventiveServices(false))
+  }, [admRoute]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -1149,7 +1259,6 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
     setSaving(true)
     setError('')
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
       const body: any = {
         name: form.name.trim(),
         category: form.category,
@@ -1163,11 +1272,12 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.netContent = netContent ? parseFloat(netContent) : null
         body.dosePerKg = dosePerKg ? parseFloat(dosePerKg) : null
         body.doseUnit = doseUnit || null
-        body.frequency = freqType === 'per_day' && freqValue ? parseInt(freqValue) : null
-        body.frequencyLabel = freqType === 'per_day' && freqValue
-          ? `${freqValue} times per day`
-          : freqType === 'every_hours' && freqValue
-          ? `every ${freqValue} hours`
+        body.frequency = freqTimesPerDay ? parseInt(freqTimesPerDay) : null
+        body.frequencyLabel = (freqTimesPerDay || freqEveryHours)
+          ? [
+              freqTimesPerDay ? `${freqTimesPerDay} times per day` : '',
+              freqEveryHours ? `every ${freqEveryHours} hours` : '',
+            ].filter(Boolean).join(', ')
           : null
         body.duration = durationType === 'days' && durationDays ? parseInt(durationDays) : null
         body.durationLabel = durationType === 'days' && durationDays
@@ -1178,6 +1288,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.intervalDays = intervalDays ? parseInt(intervalDays) : null
         body.weightMin = weightMin ? parseFloat(weightMin) : null
         body.weightMax = weightMax ? parseFloat(weightMax) : null
+        body.associatedServiceId = admRoute === 'preventive' && associatedServiceId ? associatedServiceId : null
+        body.preventiveDuration = admRoute === 'preventive' && preventiveDuration ? parseInt(preventiveDuration) : null
+        body.preventiveDurationUnit = admRoute === 'preventive' && preventiveDuration ? preventiveDurationUnit : null
         body.pricingType = pricingType
         body.piecesPerPack = pricingType === 'pack' && piecesPerPack ? parseInt(piecesPerPack) : null
         body.injectionPricingType = admRoute === 'injection' ? injectionPricingType : null
@@ -1223,6 +1336,9 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           piecesPerPack: data.data.item.piecesPerPack,
           injectionPricingType: data.data.item.injectionPricingType,
           vialConcentration: data.data.item.vialConcentration,
+          associatedServiceId: data.data.item.associatedServiceId,
+          preventiveDuration: data.data.item.preventiveDuration,
+          preventiveDurationUnit: data.data.item.preventiveDurationUnit,
           branchAvailability: rawBA.map((ba) => ({
             branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
             branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
@@ -1349,6 +1465,29 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Associated Preventive Care Service — preventive route only */}
+              {admRoute === 'preventive' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Associated Service <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                  </label>
+                  {loadingPreventiveServices ? (
+                    <p className="text-xs text-gray-400 py-2">Loading services...</p>
+                  ) : (
+                    <DropdownField
+                      value={associatedServiceId}
+                      onValueChange={setAssociatedServiceId}
+                      placeholder="— Select a service —"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                      options={[
+                        { value: '', label: '— Select a service —' },
+                        ...preventiveServices.map((s) => ({ value: s.id, label: s.name })),
+                      ]}
+                    />
+                  )}
                 </div>
               )}
 
@@ -1540,28 +1679,32 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
                       <div className="grid grid-cols-2 gap-3">
-                        <DropdownField
-                          value={freqType}
-                          onValueChange={(value) => { setFreqType(value as any); setFreqValue('') }}
-                          placeholder="Select type"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                          options={[
-                            { value: '', label: 'Select type' },
-                            { value: 'per_day', label: 'X times per day' },
-                            { value: 'every_hours', label: 'Every X hours' },
-                          ]}
-                        />
-                        {freqType && (
+                        <div>
+                          <label className="block text-[11px] text-gray-400 mb-1">Times per day</label>
                           <input
                             type="number"
-                        onWheel={(e) => e.currentTarget.blur()}
-                            value={freqValue}
-                            onChange={(e) => setFreqValue(e.target.value)}
-                            placeholder={freqType === 'per_day' ? 'e.g. 2' : 'e.g. 8'}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={freqTimesPerDay}
+                            onChange={(e) => setFreqTimesPerDay(e.target.value)}
+                            placeholder="e.g. 2"
                             min="1"
+                            required
                             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
                           />
-                        )}
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-400 mb-1">Every (hours)</label>
+                          <input
+                            type="number"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={freqEveryHours}
+                            onChange={(e) => setFreqEveryHours(e.target.value)}
+                            placeholder="e.g. 8"
+                            min="1"
+                            required
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        </div>
                       </div>
                     </div>
                     <div>
@@ -1634,6 +1777,30 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                           min="0"
                           step="any"
                           className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="number"
+                          onWheel={(e) => e.currentTarget.blur()}
+                          value={preventiveDuration}
+                          onChange={(e) => setPreventiveDuration(e.target.value)}
+                          placeholder="e.g. 1"
+                          min="1"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                        />
+                        <DropdownField
+                          value={preventiveDurationUnit}
+                          onValueChange={(v) => setPreventiveDurationUnit(v as 'months' | 'years')}
+                          placeholder="Select unit"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                          options={[
+                            { value: 'months', label: 'Months' },
+                            { value: 'years', label: 'Years' },
+                          ]}
                         />
                       </div>
                     </div>
