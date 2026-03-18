@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { createMedicalRecord, getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
 import { toast } from 'sonner'
-import { Upload, X, Check, Loader2 } from 'lucide-react'
+import { Upload, X, Check, Loader2, ChevronDown } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface SurgeryMedicalRecordModalProps {
   open: boolean
@@ -191,18 +198,29 @@ export default function SurgeryMedicalRecordModal({
                   Loading surgeries...
                 </div>
               ) : (
-                <select
-                  value={selectedSurgeryId}
-                  onChange={(e) => setSelectedSurgeryId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors"
-                >
-                  <option value="">Select a surgery...</option>
-                  {surgeryServices.map((surgery) => (
-                    <option key={surgery._id} value={surgery._id}>
-                      {surgery.name}
-                    </option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors flex items-center justify-between"
+                    >
+                      <span>
+                        {selectedSurgery?.name || 'Select a surgery...'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-xl">
+                    <DropdownMenuRadioGroup value={selectedSurgeryId} onValueChange={setSelectedSurgeryId}>
+                      <DropdownMenuRadioItem value="">Select a surgery...</DropdownMenuRadioItem>
+                      {surgeryServices.map((surgery) => (
+                        <DropdownMenuRadioItem key={surgery._id} value={surgery._id}>
+                          {surgery.name}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               {selectedSurgery && (
                 <p className="text-xs text-gray-500 mt-1">

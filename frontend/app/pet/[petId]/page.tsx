@@ -3,10 +3,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info } from 'lucide-react'
+import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Sheet,
   SheetContent,
@@ -723,18 +730,37 @@ export default function PetProfilePage() {
               <label htmlFor="nfc-reason" className="text-sm font-semibold text-gray-600 block mb-1.5">
                 Reason <span className="text-gray-400 text-xs">(Optional)</span>
               </label>
-              <select
-                id="nfc-reason"
-                value={nfcReason}
-                onChange={(e) => setNfcReason(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                <option value="">Select a reason (optional)</option>
-                <option value="lost_replacement">Lost/Damaged Tag Replacement</option>
-                <option value="upgrade">Upgrade to New Tag</option>
-                <option value="additional">Additional Tag</option>
-                <option value="other">Other</option>
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    id="nfc-reason"
+                    type="button"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                  >
+                    <span className={nfcReason ? 'text-gray-800' : 'text-gray-500'}>
+                      {
+                        {
+                          '': 'Select a reason (optional)',
+                          lost_replacement: 'Lost/Damaged Tag Replacement',
+                          upgrade: 'Upgrade to New Tag',
+                          additional: 'Additional Tag',
+                          other: 'Other',
+                        }[nfcReason] || 'Select a reason (optional)'
+                      }
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg">
+                  <DropdownMenuRadioGroup value={nfcReason} onValueChange={setNfcReason}>
+                    <DropdownMenuRadioItem value="">Select a reason (optional)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="lost_replacement">Lost/Damaged Tag Replacement</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="upgrade">Upgrade to New Tag</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="additional">Additional Tag</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="other">Other</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex gap-3">

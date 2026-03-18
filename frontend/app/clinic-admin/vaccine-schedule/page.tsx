@@ -8,6 +8,13 @@ import { useAuthStore } from '@/store/authStore'
 import { getClinicUpcomingSchedule, type ClinicUpcomingSchedule } from '@/lib/vaccinations'
 import { Calendar, AlertCircle, CheckCircle, Users, Syringe, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default function ClinicVaccineSchedulePage() {
   const { token, user } = useAuthStore()
@@ -165,18 +172,26 @@ export default function ClinicVaccineSchedulePage() {
             </div>
 
             {uniqueVets.length > 1 && (
-              <select
-                value={filterVet}
-                onChange={(e) => setFilterVet(e.target.value)}
-                className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                <option value="all">All Veterinarians</option>
-                {uniqueVets.map((vet) => (
-                  <option key={vet._id} value={vet._id}>
-                    {vet.name}
-                  </option>
-                ))}
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left min-w-[220px]"
+                  >
+                    {filterVet === 'all'
+                      ? 'All Veterinarians'
+                      : uniqueVets.find((vet) => vet._id === filterVet)?.name || 'All Veterinarians'}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl max-h-60 overflow-y-auto">
+                  <DropdownMenuRadioGroup value={filterVet} onValueChange={setFilterVet}>
+                    <DropdownMenuRadioItem value="all">All Veterinarians</DropdownMenuRadioItem>
+                    {uniqueVets.map((vet) => (
+                      <DropdownMenuRadioItem key={vet._id} value={vet._id}>{vet.name}</DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         )}

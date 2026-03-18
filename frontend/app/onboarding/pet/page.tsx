@@ -3,13 +3,19 @@
 import { Suspense, useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { Dog, Cat, Check, ArrowLeft, ArrowRight, Search, X } from 'lucide-react'
+import { Dog, Cat, Check, ArrowLeft, ArrowRight, Search, X, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { createPet, getMyPets } from '@/lib/pets'
 import { getAllClinicsWithBranches } from '@/lib/clinics'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
 import AvatarUpload from '@/components/avatar-upload'
 import { PawPrint } from 'lucide-react'
@@ -544,38 +550,64 @@ function PetOnboardingContent() {
 
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div>
-                    <Select value={sex} onValueChange={(val) => { setSex(val); setErrors(prev => ({ ...prev, sex: false })) }}>
-                      <SelectTrigger className={`w-full h-13 px-4 bg-gray-50 rounded-xl shadow-xs shadow-black/5 text-base ${errors.sex ? 'border-red-400' : 'border-gray-200'}`}>
-                        <SelectValue placeholder="Sex*" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 text-base flex items-center justify-between ${errors.sex ? 'border-red-400' : 'border-gray-200'}`}
+                        >
+                          <span className={sex ? 'text-gray-900' : 'text-gray-500'}>
+                            {sex ? (sex === 'male' ? 'Male' : 'Female') : 'Sex*'}
+                          </span>
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                        <DropdownMenuRadioGroup
+                          value={sex}
+                          onValueChange={(val) => { setSex(val); setErrors(prev => ({ ...prev, sex: false })) }}
+                        >
+                          <DropdownMenuRadioItem value="male">Male</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="female">Female</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {errors.sex && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
                   </div>
 
                   <div>
-                    <Select value={sterilization} onValueChange={(val) => { setSterilization(val); setErrors(prev => ({ ...prev, sterilization: false })) }}>
-                      <SelectTrigger className={`w-full h-13 px-4 bg-gray-50 rounded-xl shadow-xs shadow-black/5 text-base ${errors.sterilization ? 'border-red-400' : 'border-gray-200'}`}>
-                        <SelectValue placeholder="Sterilization*" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sex === 'female' ? (
-                          <>
-                            <SelectItem value="spayed">Spayed</SelectItem>
-                            <SelectItem value="unspayed">Unspayed</SelectItem>
-                          </>
-                        ) : sex === 'male' ? (
-                          <>
-                            <SelectItem value="neutered">Neutered</SelectItem>
-                            <SelectItem value="unneutered">Unneutered</SelectItem>
-                          </>
-                        ) : null}
-                        <SelectItem value="unknown">Unknown</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 text-base flex items-center justify-between ${errors.sterilization ? 'border-red-400' : 'border-gray-200'}`}
+                        >
+                          <span className={sterilization ? 'text-gray-900' : 'text-gray-500'}>
+                            {sterilization ? sterilization.charAt(0).toUpperCase() + sterilization.slice(1) : 'Sterilization*'}
+                          </span>
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                        <DropdownMenuRadioGroup
+                          value={sterilization}
+                          onValueChange={(val) => { setSterilization(val); setErrors(prev => ({ ...prev, sterilization: false })) }}
+                        >
+                          {sex === 'female' ? (
+                            <>
+                              <DropdownMenuRadioItem value="spayed">Spayed</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="unspayed">Unspayed</DropdownMenuRadioItem>
+                            </>
+                          ) : sex === 'male' ? (
+                            <>
+                              <DropdownMenuRadioItem value="neutered">Neutered</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="unneutered">Unneutered</DropdownMenuRadioItem>
+                            </>
+                          ) : null}
+                          <DropdownMenuRadioItem value="unknown">Unknown</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {!sex && <p className="text-xs text-gray-500 mt-1 ml-1">Select sex first</p>}
                     {errors.sterilization && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
                   </div>

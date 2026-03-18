@@ -39,6 +39,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { DatePicker } from '@/components/ui/date-picker'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const appointmentModes = [
   { value: 'online', label: 'Online', icon: Video },
@@ -157,56 +163,50 @@ function Dropdown({
   onSelect: (val: string) => void
   disabledOptions?: string[]
 }) {
-  const [open, setOpen] = useState(false)
   const selected = options.find((o) => o.value === value)
 
   return (
     <div>
       <p className="text-sm font-semibold text-[#2C3E2D] mb-2">{label}</p>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-300 rounded-xl bg-white hover:border-[#7FA5A3] transition-colors text-left text-sm"
-        >
-          <span className={selected ? 'text-[#4F4F4F]' : 'text-gray-400'}>
-            {selected ? selected.label : placeholder}
-          </span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-        {open && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto">
-            {options.map((opt) => {
-              const isDisabled = disabledOptions.includes(opt.value)
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  disabled={isDisabled}
-                  onClick={() => { 
-                    if (!isDisabled) {
-                      onSelect(opt.value)
-                      setOpen(false)
-                    }
-                  }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                    isDisabled
-                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                      : opt.value === value 
-                        ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium hover:bg-[#F8F6F2]'
-                        : 'text-[#4F4F4F] hover:bg-[#F8F6F2]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span>{opt.label}</span>
-                    {isDisabled && <span className="text-xs text-gray-400">(Lost Pet)</span>}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-300 rounded-xl bg-white hover:border-[#7FA5A3] transition-colors text-left text-sm"
+          >
+            <span className={selected ? 'text-[#4F4F4F]' : 'text-gray-400'}>
+              {selected ? selected.label : placeholder}
+            </span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-48 overflow-y-auto rounded-xl">
+          {options.map((opt) => {
+            const isDisabled = disabledOptions.includes(opt.value)
+            return (
+              <DropdownMenuItem
+                key={opt.value}
+                disabled={isDisabled}
+                onSelect={() => {
+                  if (!isDisabled) onSelect(opt.value)
+                }}
+                className={`px-4 py-2.5 text-sm transition-colors ${
+                  isDisabled
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : opt.value === value
+                      ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium'
+                      : 'text-[#4F4F4F]'
+                }`}
+              >
+                <div className="flex w-full items-center justify-between">
+                  <span>{opt.label}</span>
+                  {isDisabled && <span className="text-xs text-gray-400">(Lost Pet)</span>}
+                </div>
+              </DropdownMenuItem>
+            )
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

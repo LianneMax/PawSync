@@ -3,8 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { authenticatedFetch } from '@/lib/auth'
-import { Building2, Clock, MapPin, Save, CheckCircle, X, Coffee } from 'lucide-react'
+import { Building2, Clock, MapPin, Save, CheckCircle, X, Coffee, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // ==================== TYPES ====================
 
@@ -224,31 +231,59 @@ function BranchEditor({ entry, token, onSaved }: { entry: BranchSchedule; token:
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs font-semibold text-[#2C3E2D] mb-1.5">Start</p>
-            <select
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white"
-            >
-              {timeOptions.map((opt) => (
-                <option key={opt.value} value={opt.value} disabled={opt.value >= endTime}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white flex items-center justify-between"
+                >
+                  <span>{timeOptions.find((opt) => opt.value === startTime)?.label || 'Select start time'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-lg">
+                <DropdownMenuRadioGroup value={startTime} onValueChange={setStartTime}>
+                  {timeOptions.map((opt) => (
+                    <DropdownMenuRadioItem
+                      key={opt.value}
+                      value={opt.value}
+                      disabled={opt.value >= endTime}
+                      className="text-xs"
+                    >
+                      {opt.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div>
             <p className="text-xs font-semibold text-[#2C3E2D] mb-1.5">End</p>
-            <select
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white"
-            >
-              {timeOptions.map((opt) => (
-                <option key={opt.value} value={opt.value} disabled={opt.value <= startTime}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white flex items-center justify-between"
+                >
+                  <span>{timeOptions.find((opt) => opt.value === endTime)?.label || 'Select end time'}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-lg">
+                <DropdownMenuRadioGroup value={endTime} onValueChange={setEndTime}>
+                  {timeOptions.map((opt) => (
+                    <DropdownMenuRadioItem
+                      key={opt.value}
+                      value={opt.value}
+                      disabled={opt.value <= startTime}
+                      className="text-xs"
+                    >
+                      {opt.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -275,17 +310,31 @@ function BranchEditor({ entry, token, onSaved }: { entry: BranchSchedule; token:
                 {breakStartOptions.length === 0 ? (
                   <p className="text-xs text-gray-400 italic">No valid times</p>
                 ) : (
-                  <select
-                    value={breakStart}
-                    onChange={(e) => setBreakStart(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white"
-                  >
-                    {breakStartOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value} disabled={opt.value >= breakEnd}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white flex items-center justify-between"
+                      >
+                        <span>{breakStartOptions.find((opt) => opt.value === breakStart)?.label || 'Select break start'}</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-lg">
+                      <DropdownMenuRadioGroup value={breakStart} onValueChange={setBreakStart}>
+                        {breakStartOptions.map((opt) => (
+                          <DropdownMenuRadioItem
+                            key={opt.value}
+                            value={opt.value}
+                            disabled={opt.value >= breakEnd}
+                            className="text-xs"
+                          >
+                            {opt.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
               <div>
@@ -293,17 +342,26 @@ function BranchEditor({ entry, token, onSaved }: { entry: BranchSchedule; token:
                 {breakEndOptions.length === 0 ? (
                   <p className="text-xs text-gray-400 italic">No valid times</p>
                 ) : (
-                  <select
-                    value={breakEnd}
-                    onChange={(e) => setBreakEnd(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white"
-                  >
-                    {breakEndOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] bg-white flex items-center justify-between"
+                      >
+                        <span>{breakEndOptions.find((opt) => opt.value === breakEnd)?.label || 'Select break end'}</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-lg">
+                      <DropdownMenuRadioGroup value={breakEnd} onValueChange={setBreakEnd}>
+                        {breakEndOptions.map((opt) => (
+                          <DropdownMenuRadioItem key={opt.value} value={opt.value} className="text-xs">
+                            {opt.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
             </div>

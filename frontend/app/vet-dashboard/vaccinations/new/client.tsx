@@ -24,6 +24,13 @@ import {
 } from '@/lib/vaccinations'
 import VaccineCardPreview from '@/components/VaccineCardPreview'
 import { DatePicker } from '@/components/ui/date-picker'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -581,22 +588,25 @@ export default function VaccinationFormClient() {
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
               Vaccine Type <span className="text-red-400">*</span>
             </label>
-            <div className="relative">
-              <select
-                value={vaccineTypeId}
-                onChange={(e) => { setVaccineTypeId(e.target.value); setDoseNumber(1) }}
-                required
-                className="w-full appearance-none bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                <option value="">Select vaccine type...</option>
-                {vaccineTypes.map((vt) => (
-                  <option key={vt._id} value={vt._id}>
-                    {vt.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                >
+                  <span>{vaccineTypes.find((vt) => vt._id === vaccineTypeId)?.name || 'Select vaccine type...'}</span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-xl">
+                <DropdownMenuRadioGroup value={vaccineTypeId} onValueChange={(value) => { setVaccineTypeId(value); setDoseNumber(1) }}>
+                  <DropdownMenuRadioItem value="">Select vaccine type...</DropdownMenuRadioItem>
+                  {vaccineTypes.map((vt) => (
+                    <DropdownMenuRadioItem key={vt._id} value={vt._id}>{vt.name}</DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Dose number selector */}
             {selectedVaccineType?.requiresBooster && (
@@ -745,19 +755,25 @@ export default function VaccinationFormClient() {
           {/* Route */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Route</label>
-            <div className="relative">
-              <select
-                value={route}
-                onChange={(e) => setRoute(e.target.value)}
-                className="w-full appearance-none bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                <option value="">Not specified</option>
-                {ROUTE_OPTIONS.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                >
+                  <span>{ROUTE_OPTIONS.find((r) => r.value === route)?.label || 'Not specified'}</span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl">
+                <DropdownMenuRadioGroup value={route} onValueChange={setRoute}>
+                  <DropdownMenuRadioItem value="">Not specified</DropdownMenuRadioItem>
+                  {ROUTE_OPTIONS.map((r) => (
+                    <DropdownMenuRadioItem key={r.value} value={r.value}>{r.label}</DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Manufacturer */}

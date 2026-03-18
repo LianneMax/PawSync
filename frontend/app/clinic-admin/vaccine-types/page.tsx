@@ -15,6 +15,13 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { getVaccineTypes, type VaccineType } from '@/lib/vaccinations'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -550,14 +557,25 @@ export default function VaccineTypesPage() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Unit</label>
-                    <select
-                      value={form.minAgeUnit}
-                      onChange={(e) => setForm((f) => ({ ...f, minAgeUnit: e.target.value as 'weeks' | 'months' }))}
-                      className="w-full appearance-none bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    >
-                      <option value="weeks">Weeks</option>
-                      <option value="months">Months</option>
-                    </select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                        >
+                          {form.minAgeUnit === 'weeks' ? 'Weeks' : 'Months'}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                        <DropdownMenuRadioGroup
+                          value={form.minAgeUnit}
+                          onValueChange={(value) => setForm((f) => ({ ...f, minAgeUnit: value as 'weeks' | 'months' }))}
+                        >
+                          <DropdownMenuRadioItem value="weeks">Weeks</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="months">Months</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -573,14 +591,25 @@ export default function VaccineTypesPage() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Unit</label>
-                    <select
-                      value={form.maxAgeUnit}
-                      onChange={(e) => setForm((f) => ({ ...f, maxAgeUnit: e.target.value as 'weeks' | 'months' }))}
-                      className="w-full appearance-none bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    >
-                      <option value="weeks">Weeks</option>
-                      <option value="months">Months</option>
-                    </select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                        >
+                          {form.maxAgeUnit === 'weeks' ? 'Weeks' : 'Months'}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                        <DropdownMenuRadioGroup
+                          value={form.maxAgeUnit}
+                          onValueChange={(value) => setForm((f) => ({ ...f, maxAgeUnit: value as 'weeks' | 'months' }))}
+                        >
+                          <DropdownMenuRadioItem value="weeks">Weeks</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="months">Months</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>
@@ -588,15 +617,23 @@ export default function VaccineTypesPage() {
               {/* Route */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Default Route</label>
-                <select
-                  value={form.route}
-                  onChange={(e) => setForm((f) => ({ ...f, route: e.target.value }))}
-                  className="w-full appearance-none bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  {ROUTE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full bg-[#F8F6F2] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                    >
+                      {ROUTE_OPTIONS.find((r) => r.value === form.route)?.label || 'Not specified'}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                    <DropdownMenuRadioGroup value={form.route} onValueChange={(value) => setForm((f) => ({ ...f, route: value }))}>
+                      {ROUTE_OPTIONS.map((r) => (
+                        <DropdownMenuRadioItem key={r.value || '__empty'} value={r.value}>{r.label}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 

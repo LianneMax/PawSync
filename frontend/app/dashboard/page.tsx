@@ -28,6 +28,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // --- Types ---
 interface Pet {
@@ -529,20 +536,31 @@ function ReportLostPetModal({
           <div>
             <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
             {displayPets.length > 1 ? (
-              <select
-                value={selectedPet?.id || ''}
-                onChange={(e) => {
-                  const selected = displayPets.find((p) => p.id === e.target.value)
-                  if (selected) setSelectedPet(selected)
-                }}
-                className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                {displayPets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} - {p.breed}
-                  </option>
-                ))}
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                  >
+                    {selectedPet ? `${selectedPet.name} - ${selectedPet.breed}` : 'Select Pet'}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl max-h-56 overflow-y-auto">
+                  <DropdownMenuRadioGroup
+                    value={selectedPet?.id || ''}
+                    onValueChange={(value) => {
+                      const selected = displayPets.find((p) => p.id === value)
+                      if (selected) setSelectedPet(selected)
+                    }}
+                  >
+                    {displayPets.map((p) => (
+                      <DropdownMenuRadioItem key={p.id} value={p.id}>
+                        {p.name} - {p.breed}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F]">
                 {selectedPet?.name} - {selectedPet?.breed}

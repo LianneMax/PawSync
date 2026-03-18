@@ -18,6 +18,13 @@ import {
   Trash2,
   ClipboardList,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -705,14 +712,25 @@ export default function ClinicAdminVaccinationsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Unit</label>
-                    <select
-                      value={form.minAgeUnit}
-                      onChange={(e) => setForm((p) => ({ ...p, minAgeUnit: e.target.value as 'weeks' | 'months' }))}
-                      className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    >
-                      <option value="weeks">Weeks</option>
-                      <option value="months">Months</option>
-                    </select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                        >
+                          {form.minAgeUnit === 'weeks' ? 'Weeks' : 'Months'}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                        <DropdownMenuRadioGroup
+                          value={form.minAgeUnit}
+                          onValueChange={(value) => setForm((p) => ({ ...p, minAgeUnit: value as 'weeks' | 'months' }))}
+                        >
+                          <DropdownMenuRadioItem value="weeks">Weeks</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="months">Months</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -727,14 +745,25 @@ export default function ClinicAdminVaccinationsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Unit</label>
-                    <select
-                      value={form.maxAgeUnit}
-                      onChange={(e) => setForm((p) => ({ ...p, maxAgeUnit: e.target.value as 'weeks' | 'months' }))}
-                      className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                    >
-                      <option value="weeks">Weeks</option>
-                      <option value="months">Months</option>
-                    </select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                        >
+                          {form.maxAgeUnit === 'weeks' ? 'Weeks' : 'Months'}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                        <DropdownMenuRadioGroup
+                          value={form.maxAgeUnit}
+                          onValueChange={(value) => setForm((p) => ({ ...p, maxAgeUnit: value as 'weeks' | 'months' }))}
+                        >
+                          <DropdownMenuRadioItem value="weeks">Weeks</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="months">Months</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>
@@ -796,15 +825,23 @@ export default function ClinicAdminVaccinationsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Route</label>
-                <select
-                  value={form.route}
-                  onChange={(e) => setForm((p) => ({ ...p, route: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-                >
-                  {ROUTE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white text-left"
+                    >
+                      {ROUTE_OPTIONS.find((opt) => opt.value === form.route)?.label || 'Not specified'}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
+                    <DropdownMenuRadioGroup value={form.route} onValueChange={(value) => setForm((p) => ({ ...p, route: value }))}>
+                      {ROUTE_OPTIONS.map((opt) => (
+                        <DropdownMenuRadioItem key={opt.value || '__empty'} value={opt.value}>{opt.label}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div>

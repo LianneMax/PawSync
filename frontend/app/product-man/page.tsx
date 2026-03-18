@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import DashboardLayout from '@/components/DashboardLayout'
 import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe, Eye } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // ==================== TYPES ====================
 
@@ -79,6 +86,52 @@ function formatAdministration(route?: string, method?: string): string {
   const routeLabel = route.charAt(0).toUpperCase() + route.slice(1)
   const methodLabel = method ? method.charAt(0).toUpperCase() + method.slice(1) : ''
   return methodLabel ? `${routeLabel} · ${methodLabel}` : routeLabel
+}
+
+function DropdownField({
+  value,
+  onValueChange,
+  options,
+  className,
+  placeholder,
+  disabled = false,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string; disabled?: boolean }[]
+  className: string
+  placeholder: string
+  disabled?: boolean
+}) {
+  const selected = options.find((opt) => opt.value === value)
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <button
+          type="button"
+          disabled={disabled}
+          className={`${className} flex items-center justify-between text-left disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`}
+        >
+          <span>{selected?.label || placeholder}</span>
+          <ChevronDown className="w-4 h-4 text-gray-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-xl">
+        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+          {options.map((opt) => (
+            <DropdownMenuRadioItem
+              key={`${opt.value || '__empty'}-${opt.label}`}
+              value={opt.value}
+              disabled={opt.disabled}
+            >
+              {opt.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 // ==================== ADD MODAL ====================
@@ -470,16 +523,16 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                   {loadingMeds ? (
                     <p className="text-xs text-gray-400 py-2">Loading medications...</p>
                   ) : (
-                    <select
+                    <DropdownField
                       value={medName}
-                      onChange={(e) => handleExistingMedSelect(e.target.value)}
+                      onValueChange={handleExistingMedSelect}
+                      placeholder="— Select medication —"
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                    >
-                      <option value="">— Select medication —</option>
-                      {existingMeds.map((name) => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: '— Select medication —' },
+                        ...existingMeds.map((name) => ({ value: name, label: name })),
+                      ]}
+                    />
                   )}
                 </div>
               )}
@@ -657,14 +710,16 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Dose unit</label>
-                        <select
+                        <DropdownField
                           value={medDoseUnit}
-                          onChange={(e) => setMedDoseUnit(e.target.value)}
+                          onValueChange={setMedDoseUnit}
+                          placeholder="Select unit"
                           className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                        >
-                          <option value="">Select unit</option>
-                          {DOSE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                        </select>
+                          options={[
+                            { value: '', label: 'Select unit' },
+                            ...DOSE_UNITS.map((u) => ({ value: u, label: u })),
+                          ]}
+                        />
                       </div>
                     </div>
                   )}
@@ -688,15 +743,17 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
                       <div className="grid grid-cols-2 gap-3">
-                        <select
+                        <DropdownField
                           value={medFreqType}
-                          onChange={(e) => { setMedFreqType(e.target.value as any); setMedFreqValue('') }}
+                          onValueChange={(value) => { setMedFreqType(value as any); setMedFreqValue('') }}
+                          placeholder="Select type"
                           className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                        >
-                          <option value="">Select type</option>
-                          <option value="per_day">X times per day</option>
-                          <option value="every_hours">Every X hours</option>
-                        </select>
+                          options={[
+                            { value: '', label: 'Select type' },
+                            { value: 'per_day', label: 'X times per day' },
+                            { value: 'every_hours', label: 'Every X hours' },
+                          ]}
+                        />
                         {medFreqType && (
                           <input
                             type="number"
@@ -717,16 +774,18 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                       <div className="grid grid-cols-2 gap-3">
-                        <select
+                        <DropdownField
                           value={medDurationType}
-                          onChange={(e) => { setMedDurationType(e.target.value as any); setMedDurationDays('') }}
+                          onValueChange={(value) => { setMedDurationType(value as any); setMedDurationDays('') }}
+                          placeholder="Select duration"
                           className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                        >
-                          <option value="">Select duration</option>
-                          <option value="days">Number of days</option>
-                          <option value="until_healed">Until healed</option>
-                          <option value="as_needed">As needed</option>
-                        </select>
+                          options={[
+                            { value: '', label: 'Select duration' },
+                            { value: 'days', label: 'Number of days' },
+                            { value: 'until_healed', label: 'Until healed' },
+                            { value: 'as_needed', label: 'As needed' },
+                          ]}
+                        />
                         {medDurationType === 'days' && (
                           <input
                             type="number"
@@ -811,15 +870,13 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
               {!isProducts && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-                  <select
+                  <DropdownField
                     value={simpleForm.category}
-                    onChange={(e) => setSimpleForm((prev) => ({ ...prev, category: e.target.value }))}
+                    onValueChange={(value) => setSimpleForm((prev) => ({ ...prev, category: value }))}
+                    placeholder="Select category"
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                  >
-                    {SERVICE_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                    options={SERVICE_CATEGORIES.map((cat) => ({ value: cat, label: cat }))}
+                  />
                 </div>
               )}
 
@@ -1168,16 +1225,13 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           ) : (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-              <select
-                name="category"
+              <DropdownField
                 value={form.category}
-                onChange={handleChange}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, category: value }))}
+                placeholder="Select category"
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-              >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                options={categories.map((cat) => ({ value: cat, label: cat }))}
+              />
             </div>
           )}
 
@@ -1340,14 +1394,16 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Dose unit</label>
-                      <select
+                      <DropdownField
                         value={doseUnit}
-                        onChange={(e) => setDoseUnit(e.target.value)}
+                        onValueChange={setDoseUnit}
+                        placeholder="Select unit"
                         className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                      >
-                        <option value="">Select unit</option>
-                        {DOSE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                      </select>
+                        options={[
+                          { value: '', label: 'Select unit' },
+                          ...DOSE_UNITS.map((u) => ({ value: u, label: u })),
+                        ]}
+                      />
                     </div>
                   </div>
                 )}
@@ -1371,15 +1427,17 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
                       <div className="grid grid-cols-2 gap-3">
-                        <select
+                        <DropdownField
                           value={freqType}
-                          onChange={(e) => { setFreqType(e.target.value as any); setFreqValue('') }}
+                          onValueChange={(value) => { setFreqType(value as any); setFreqValue('') }}
+                          placeholder="Select type"
                           className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                        >
-                          <option value="">Select type</option>
-                          <option value="per_day">X times per day</option>
-                          <option value="every_hours">Every X hours</option>
-                        </select>
+                          options={[
+                            { value: '', label: 'Select type' },
+                            { value: 'per_day', label: 'X times per day' },
+                            { value: 'every_hours', label: 'Every X hours' },
+                          ]}
+                        />
                         {freqType && (
                           <input
                             type="number"
@@ -1396,16 +1454,18 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                       <div className="grid grid-cols-2 gap-3">
-                        <select
+                        <DropdownField
                           value={durationType}
-                          onChange={(e) => { setDurationType(e.target.value as any); setDurationDays('') }}
+                          onValueChange={(value) => { setDurationType(value as any); setDurationDays('') }}
+                          placeholder="Select duration"
                           className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
-                        >
-                          <option value="">Select duration</option>
-                          <option value="days">Number of days</option>
-                          <option value="until_healed">Until healed</option>
-                          <option value="as_needed">As needed</option>
-                        </select>
+                          options={[
+                            { value: '', label: 'Select duration' },
+                            { value: 'days', label: 'Number of days' },
+                            { value: 'until_healed', label: 'Until healed' },
+                            { value: 'as_needed', label: 'As needed' },
+                          ]}
+                        />
                         {durationType === 'days' && (
                           <input
                             type="number"
@@ -1924,27 +1984,31 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
             />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors"
-            >
-              <option value="">All Categories</option>
-              {(isProducts ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES).map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+            <div className="min-w-[180px]">
+              <DropdownField
+                value={filterCategory}
+                onValueChange={setFilterCategory}
+                placeholder="All Categories"
+                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors w-full"
+                options={[
+                  { value: '', label: 'All Categories' },
+                  ...(isProducts ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES).map((cat) => ({ value: cat, label: cat })),
+                ]}
+              />
+            </div>
             {branches.length > 0 && (
-              <select
-                value={filterBranch}
-                onChange={(e) => setFilterBranch(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors"
-              >
-                <option value="">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}{b.isMain ? ' (Main)' : ''}</option>
-                ))}
-              </select>
+              <div className="min-w-[180px]">
+                <DropdownField
+                  value={filterBranch}
+                  onValueChange={setFilterBranch}
+                  placeholder="All Branches"
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors w-full"
+                  options={[
+                    { value: '', label: 'All Branches' },
+                    ...branches.map((b) => ({ value: b.id, label: `${b.name}${b.isMain ? ' (Main)' : ''}` })),
+                  ]}
+                />
+              </div>
             )}
             {(filterCategory || filterBranch) && (
               <button

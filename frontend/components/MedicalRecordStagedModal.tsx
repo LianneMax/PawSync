@@ -56,6 +56,13 @@ import { getPetNotes, savePetNotes } from '@/lib/petNotes'
 import { Switch } from '@/components/ui/switch'
 import { DatePicker } from '@/components/ui/date-picker'
 import { syncBillingFromRecord } from '@/lib/billingSync'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface Props {
   recordId: string
@@ -168,6 +175,53 @@ const emptyVaccine = (): VaccineFormItem => ({
   vaccineCreated: false,
   createdVaccineId: null,
 })
+
+function DropdownField({
+  value,
+  onValueChange,
+  options,
+  className,
+  placeholder,
+  disabled = false,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string; disabled?: boolean }[]
+  className: string
+  placeholder: string
+  disabled?: boolean
+}) {
+  const selected = options.find((opt) => opt.value === value)
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <button
+          type="button"
+          disabled={disabled}
+          className={`${className} flex items-center justify-between text-left disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`}
+        >
+          <span>{selected?.label || placeholder}</span>
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-lg">
+        <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
+          {options.map((opt) => (
+            <DropdownMenuRadioItem
+              key={`${opt.value || '__empty'}-${opt.label}`}
+              value={opt.value}
+              disabled={opt.disabled}
+              className="text-xs"
+            >
+              {opt.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function getIntervalForDose(
   vaccineType: { boosterIntervalDays: number | null; boosterIntervalDaysList?: number[] },
@@ -1810,16 +1864,22 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </button>
                         </div>
                         <div className="grid grid-cols-1 gap-2">
-                          <select value={test.name} onChange={(e) => {
-                            const name = e.target.value
-                            const isUltrasound = name.toLowerCase().includes('ultrasound')
-                            setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name, testType: isUltrasound ? 'ultrasound' : 'other' } : t))
-                          }} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="">Select a diagnostic test service</option>
-                            {diagnosticTestServices.map((service) => (
-                              <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
-                            ))}
-                          </select>
+                          <DropdownField
+                            value={test.name}
+                            onValueChange={(name) => {
+                              const isUltrasound = name.toLowerCase().includes('ultrasound')
+                              setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name, testType: isUltrasound ? 'ultrasound' : 'other' } : t))
+                            }}
+                            placeholder="Select a diagnostic test service"
+                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
+                            options={[
+                              { value: '', label: 'Select a diagnostic test service' },
+                              ...diagnosticTestServices.map((service) => ({
+                                value: service.name,
+                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                              })),
+                            ]}
+                          />
                         </div>
                         <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
                         <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
@@ -1953,14 +2013,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Delivery Type</label>
-                        <select
+                        <DropdownField
                           value={deliveryType}
-                          onChange={(e) => setDeliveryType(e.target.value as 'natural' | 'c-section')}
+                          onValueChange={(value) => setDeliveryType(value as 'natural' | 'c-section')}
+                          placeholder="Natural"
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        >
-                          <option value="natural">Natural</option>
-                          <option value="c-section">C-Section</option>
-                        </select>
+                          options={[
+                            { value: 'natural', label: 'Natural' },
+                            { value: 'c-section', label: 'C-Section' },
+                          ]}
+                        />
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Labor Duration</label>
@@ -1974,15 +2036,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Mother Condition</label>
-                        <select
+                        <DropdownField
                           value={motherCondition}
-                          onChange={(e) => setMotherCondition(e.target.value as 'stable' | 'critical' | 'recovering')}
+                          onValueChange={(value) => setMotherCondition(value as 'stable' | 'critical' | 'recovering')}
+                          placeholder="Stable"
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        >
-                          <option value="stable">Stable</option>
-                          <option value="recovering">Recovering</option>
-                          <option value="critical">Critical</option>
-                        </select>
+                          options={[
+                            { value: 'stable', label: 'Stable' },
+                            { value: 'recovering', label: 'Recovering' },
+                            { value: 'critical', label: 'Critical' },
+                          ]}
+                        />
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Live Births</label>
@@ -2220,10 +2284,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
 
                       {/* Vaccine Type */}
-                      <select
+                      <DropdownField
                         value={v.vaccineTypeId}
-                        onChange={(e) => {
-                          const newVtId = e.target.value
+                        onValueChange={(newVtId) => {
                           const newVt = vaccineTypes.find((x) => x._id === newVtId)
                           // Determine next dose: find the highest doseNumber already administered for this vaccine type
                           // Exclude any records from the current appointment (being edited now)
@@ -2248,13 +2311,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             route: newVt?.route || item.route,
                           } : item))
                         }}
+                        placeholder="Select vaccine type…"
                         className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
-                      >
-                        <option value="">Select vaccine type…</option>
-                        {vaccineTypes.map((vt) => (
-                          <option key={vt._id} value={vt._id}>{vt.name}</option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: '', label: 'Select vaccine type…' },
+                          ...vaccineTypes.map((vt) => ({ value: vt._id, label: vt.name })),
+                        ]}
+                      />
 
                       {/* Dose selector (only for vaccines with boosters) */}
                       {vt?.requiresBooster && (() => {
@@ -2377,17 +2440,19 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         </div>
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Route</label>
-                          <select
+                          <DropdownField
                             value={v.route}
-                            onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, route: e.target.value } : item))}
+                            onValueChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, route: value } : item))}
+                            placeholder="Route…"
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
-                          >
-                            <option value="">Route…</option>
-                            <option value="subcutaneous">Subcutaneous (SC)</option>
-                            <option value="intramuscular">Intramuscular (IM)</option>
-                            <option value="intranasal">Intranasal (IN)</option>
-                            <option value="oral">Oral</option>
-                          </select>
+                            options={[
+                              { value: '', label: 'Route…' },
+                              { value: 'subcutaneous', label: 'Subcutaneous (SC)' },
+                              { value: 'intramuscular', label: 'Intramuscular (IM)' },
+                              { value: 'intranasal', label: 'Intranasal (IN)' },
+                              { value: 'oral', label: 'Oral' },
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Manufacturer</label>
@@ -2497,16 +2562,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             </button>
                           </>
                         ) : (
-                          <select
+                          <DropdownField
                             value={surgeryTypeId}
-                            onChange={(e) => setSurgeryTypeId(e.target.value)}
+                            onValueChange={setSurgeryTypeId}
+                            placeholder="Select surgery type…"
                             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
-                          >
-                            <option value="">Select surgery type…</option>
-                            {surgeryServices.map((s) => (
-                              <option key={s._id} value={s._id}>{s.name}{s.price ? ` — ₱${s.price}` : ''}</option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: '', label: 'Select surgery type…' },
+                              ...surgeryServices.map((s) => ({ value: s._id, label: `${s.name}${s.price ? ` — ₱${s.price}` : ''}` })),
+                            ]}
+                          />
                         )}
                       </div>
                     )}
@@ -2694,68 +2759,87 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <select value={med.name} onChange={(e) => {
-                            const selectedName = e.target.value
-                            const selectedService = medicationServices.find((s) => s.name === selectedName)
-                            setMedications((prev) => prev.map((m, j) => {
-                              if (j !== i) return m
-                              // Auto-populate from service data when a medication is selected
-                              if (selectedService) {
-                                const isTabletOrCapsule = ['tablets', 'capsules'].includes(selectedService.administrationMethod?.toLowerCase() ?? '')
-                                const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
-                                let autoDosage = selectedService.dosageAmount || m.dosage
-                                let autoQuantity: number | null = null
-                                if (isTabletOrCapsule && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
-                                  const rawMg = selectedService.dosePerKg * bodyWeight
-                                  autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
-                                  // quantity = ceil((mg dose / netContent per tablet) × doses per day × days)
-                                  const netContent = selectedService.netContent
-                                  const durationDays = selectedService.duration
-                                  // Derive doses per day from numeric frequency, or parse frequencyLabel (e.g. "every 12 hours" → 2)
-                                  let dosesPerDay: number | null = selectedService.frequency ?? null
-                                  if (!dosesPerDay && selectedService.frequencyLabel) {
-                                    const everyHoursMatch = selectedService.frequencyLabel.match(/every\s+(\d+(?:\.\d+)?)\s+hours?/i)
-                                    if (everyHoursMatch) dosesPerDay = 24 / parseFloat(everyHoursMatch[1])
-                                    const timesPerDayMatch = selectedService.frequencyLabel.match(/(\d+)\s+times?\s+per\s+day/i)
-                                    if (timesPerDayMatch) dosesPerDay = parseInt(timesPerDayMatch[1])
+                          <DropdownField
+                            value={med.name}
+                            onValueChange={(selectedName) => {
+                              const selectedService = medicationServices.find((s) => s.name === selectedName)
+                              setMedications((prev) => prev.map((m, j) => {
+                                if (j !== i) return m
+                                // Auto-populate from service data when a medication is selected
+                                if (selectedService) {
+                                  const isTabletOrCapsule = ['tablets', 'capsules'].includes(selectedService.administrationMethod?.toLowerCase() ?? '')
+                                  const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
+                                  let autoDosage = selectedService.dosageAmount || m.dosage
+                                  let autoQuantity: number | null = null
+                                  if (isTabletOrCapsule && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
+                                    const rawMg = selectedService.dosePerKg * bodyWeight
+                                    autoDosage = `${parseFloat(rawMg.toFixed(2))} mg`
+                                    // quantity = ceil((mg dose / netContent per tablet) × doses per day × days)
+                                    const netContent = selectedService.netContent
+                                    const durationDays = selectedService.duration
+                                    // Derive doses per day from numeric frequency, or parse frequencyLabel (e.g. "every 12 hours" → 2)
+                                    let dosesPerDay: number | null = selectedService.frequency ?? null
+                                    if (!dosesPerDay && selectedService.frequencyLabel) {
+                                      const everyHoursMatch = selectedService.frequencyLabel.match(/every\s+(\d+(?:\.\d+)?)\s+hours?/i)
+                                      if (everyHoursMatch) dosesPerDay = 24 / parseFloat(everyHoursMatch[1])
+                                      const timesPerDayMatch = selectedService.frequencyLabel.match(/(\d+)\s+times?\s+per\s+day/i)
+                                      if (timesPerDayMatch) dosesPerDay = parseInt(timesPerDayMatch[1])
+                                    }
+                                    if (netContent && netContent > 0 && dosesPerDay && durationDays) {
+                                      autoQuantity = Math.ceil((rawMg / netContent) * dosesPerDay * durationDays)
+                                    }
                                   }
-                                  if (netContent && netContent > 0 && dosesPerDay && durationDays) {
-                                    autoQuantity = Math.ceil((rawMg / netContent) * dosesPerDay * durationDays)
+                                  return {
+                                    ...m,
+                                    name: selectedName,
+                                    dosage: autoDosage,
+                                    route: (selectedService.administrationRoute as Medication['route']) || m.route,
+                                    frequency: selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency,
+                                    duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
+                                    quantity: autoQuantity,
                                   }
                                 }
-                                return {
-                                  ...m,
-                                  name: selectedName,
-                                  dosage: autoDosage,
-                                  route: (selectedService.administrationRoute as Medication['route']) || m.route,
-                                  frequency: selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency,
-                                  duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
-                                  quantity: autoQuantity,
-                                }
-                              }
-                              return { ...m, name: selectedName }
-                            }))
-                          }} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="">Select a medication</option>
-                            {medicationServices.map((service) => (
-                              <option key={service._id} value={service.name}>{service.name} {service.price ? `(₱${service.price})` : ''}</option>
-                            ))}
-                          </select>
+                                return { ...m, name: selectedName }
+                              }))
+                            }}
+                            placeholder="Select a medication"
+                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
+                            options={[
+                              { value: '', label: 'Select a medication' },
+                              ...medicationServices.map((service) => ({
+                                value: service.name,
+                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                              })),
+                            ]}
+                          />
                           <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <select value={med.route} disabled className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
-                            <option value="oral">Oral</option>
-                            <option value="topical">Topical</option>
-                            <option value="injection">Injection</option>
-                            <option value="other">Other</option>
-                          </select>
+                          <DropdownField
+                            value={med.route}
+                            onValueChange={() => {}}
+                            disabled
+                            placeholder="Route"
+                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                            options={[
+                              { value: 'oral', label: 'Oral' },
+                              { value: 'topical', label: 'Topical' },
+                              { value: 'injection', label: 'Injection' },
+                              { value: 'other', label: 'Other' },
+                            ]}
+                          />
                           <input type="text" placeholder="Frequency (e.g. twice daily)" value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <input type="text" placeholder="Duration (e.g. 7 days)" value={med.duration} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <input type="number" placeholder="Qty (tablets)" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <select value={med.status} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, status: e.target.value as Medication['status'] } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]">
-                            <option value="active">Active</option>
-                            <option value="completed">Completed</option>
-                            <option value="discontinued">Discontinued</option>
-                          </select>
+                          <DropdownField
+                            value={med.status}
+                            onValueChange={(value) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, status: value as Medication['status'] } : m))}
+                            placeholder="Status"
+                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                            options={[
+                              { value: 'active', label: 'Active' },
+                              { value: 'completed', label: 'Completed' },
+                              { value: 'discontinued', label: 'Discontinued' },
+                            ]}
+                          />
                         </div>
                         <input type="text" placeholder="Notes (optional)" value={med.notes} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, notes: e.target.value } : m))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                       </div>
@@ -2797,26 +2881,27 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             </button>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                            <select 
-                              value={care.product} 
-                              onChange={(e) => {
-                                const selected = preventiveCareServices.find((s) => s.name.toLowerCase() === e.target.value.toLowerCase())
-                                setPreventiveCare((prev) => prev.map((c, j) => 
-                                  j === i 
-                                    ? { 
-                                        ...c, 
-                                        product: e.target.value, 
-                                        careType: mapProductToCareType(e.target.value),
+                            <DropdownField
+                              value={care.product}
+                              onValueChange={(value) => {
+                                const selected = preventiveCareServices.find((s) => s.name.toLowerCase() === value.toLowerCase())
+                                setPreventiveCare((prev) => prev.map((c, j) =>
+                                  j === i
+                                    ? {
+                                        ...c,
+                                        product: value,
+                                        careType: mapProductToCareType(value),
                                         // Auto-calculate nextDueDate if dateAdministered is set and selected service has interval
-                                        ...(c.dateAdministered && selected?.intervalDays 
-                                          ? { nextDueDate: (() => {
-                                              const d = new Date(c.dateAdministered)
-                                              d.setDate(d.getDate() + (selected.intervalDays as number))
-                                              return d.toISOString().split('T')[0]
-                                            })() 
-                                          }
+                                        ...(c.dateAdministered && selected?.intervalDays
+                                          ? {
+                                              nextDueDate: (() => {
+                                                const d = new Date(c.dateAdministered)
+                                                d.setDate(d.getDate() + (selected.intervalDays as number))
+                                                return d.toISOString().split('T')[0]
+                                              })(),
+                                            }
                                           : {}
-                                        )
+                                        ),
                                       }
                                     : c
                                 ))
@@ -2827,15 +2912,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                   return newSet
                                 })
                               }}
+                              placeholder="Select a preventive care service"
                               className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                            >
-                              <option value="">Select a preventive care service</option>
-                              {preventiveCareServices.map((service) => (
-                                <option key={service._id} value={service.name}>
-                                  {service.name} {service.price ? `(₱${service.price})` : ''}{service.intervalDays ? ` [${service.intervalDays}d]` : ''}
-                                </option>
-                              ))}
-                            </select>
+                              options={[
+                                { value: '', label: 'Select a preventive care service' },
+                                ...preventiveCareServices.map((service) => ({
+                                  value: service.name,
+                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}${service.intervalDays ? ` [${service.intervalDays}d]` : ''}`,
+                                })),
+                              ]}
+                            />
                             <div>
                               <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
                               <DatePicker

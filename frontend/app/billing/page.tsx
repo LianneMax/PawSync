@@ -16,6 +16,13 @@ import {
   X,
   Upload,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -992,42 +999,81 @@ function CreateBillingModal({
             <div className="flex-1 flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Client</label>
-                <select
-                  value={clientId}
-                  onChange={(e) => { setClientId(e.target.value); setPatientId('') }}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  <option value="">Select</option>
-                  {clientOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                    >
+                      <span className={clientId ? 'text-[#4F4F4F]' : 'text-gray-400'}>
+                        {clientOptions.find((c) => c.id === clientId)?.name || 'Select'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg max-h-56 overflow-y-auto">
+                    <DropdownMenuRadioGroup
+                      value={clientId}
+                      onValueChange={(value) => {
+                        setClientId(value)
+                        setPatientId('')
+                      }}
+                    >
+                      <DropdownMenuRadioItem value="">Select</DropdownMenuRadioItem>
+                      {clientOptions.map((c) => (
+                        <DropdownMenuRadioItem key={c.id} value={c.id}>{c.name}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Patient</label>
-                <select
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  <option value="">Select</option>
-                  {patientOptions.map((p: any) => (
-                    <option key={p._id} value={p._id}>{p.name}</option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                    >
+                      <span className={patientId ? 'text-[#4F4F4F]' : 'text-gray-400'}>
+                        {patientOptions.find((p: any) => p._id === patientId)?.name || 'Select'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg max-h-56 overflow-y-auto">
+                    <DropdownMenuRadioGroup value={patientId} onValueChange={setPatientId}>
+                      <DropdownMenuRadioItem value="">Select</DropdownMenuRadioItem>
+                      {patientOptions.map((p: any) => (
+                        <DropdownMenuRadioItem key={p._id} value={p._id}>{p.name}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Veterinarian</label>
-                <select
-                  value={veterinarianId}
-                  onChange={(e) => setVeterinarianId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                >
-                  <option value="">Select</option>
-                  {vetOptions.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                    >
+                      <span className={veterinarianId ? 'text-[#4F4F4F]' : 'text-gray-400'}>
+                        {vetOptions.find((v) => v.id === veterinarianId)?.name || 'Select'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg max-h-56 overflow-y-auto">
+                    <DropdownMenuRadioGroup value={veterinarianId} onValueChange={setVeterinarianId}>
+                      <DropdownMenuRadioItem value="">Select</DropdownMenuRadioItem>
+                      {vetOptions.map((v) => (
+                        <DropdownMenuRadioItem key={v.id} value={v.id}>{v.name}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Discount (₱)</label>

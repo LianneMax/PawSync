@@ -6,6 +6,13 @@ import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet } from '@/lib/pets'
 import { getVaccinationsByPet, type Vaccination } from '@/lib/medicalRecords'
 import { ShieldCheck, X, PawPrint, XCircle, BadgeCheck, Clock, Syringe, ChevronRight } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 function formatMonthYear(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -239,20 +246,26 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
           {vaccinations.length > 1 && (
             <div className="mb-4">
               <label className="block text-[11px] text-gray-400 uppercase tracking-wider mb-1.5">Select dose</label>
-              <div className="relative">
-                <select
-                  value={selectedIdx}
-                  onChange={(e) => setSelectedIdx(Number(e.target.value))}
-                  className="w-full appearance-none bg-[#F3F3F3] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#333] focus:outline-none focus:ring-2 focus:ring-[#476B6B] pr-8"
-                >
-                  {vaccinations.map((v, i) => (
-                    <option key={v._id} value={i}>
-                      {doseLabel(v)}{i === 0 ? ' (Most recent)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full bg-[#F3F3F3] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#333] focus:outline-none focus:ring-2 focus:ring-[#476B6B] pr-8 relative text-left"
+                  >
+                    {doseLabel(vaccinations[selectedIdx])}{selectedIdx === 0 ? ' (Most recent)' : ''}
+                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-xl">
+                  <DropdownMenuRadioGroup value={String(selectedIdx)} onValueChange={(value) => setSelectedIdx(Number(value))}>
+                    {vaccinations.map((v, i) => (
+                      <DropdownMenuRadioItem key={v._id} value={String(i)}>
+                        {doseLabel(v)}{i === 0 ? ' (Most recent)' : ''}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 

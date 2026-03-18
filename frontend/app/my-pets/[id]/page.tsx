@@ -26,6 +26,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { DatePicker } from '@/components/ui/date-picker'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface PopulatedOwner {
   contactNumber?: string
@@ -1283,18 +1290,37 @@ export default function PetProfilePage() {
               <label htmlFor="reason" className="text-sm font-semibold text-gray-600">
                 Reason for Replacement <span className="text-gray-400 text-xs">(Optional)</span>
               </label>
-              <select
-                id="reason"
-                value={nfcReason}
-                onChange={(e) => setNfcReason(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              >
-                <option value="">Select a reason (optional)</option>
-                <option value="lost_replacement">Lost/Damaged Tag</option>
-                <option value="upgrade">Upgrade to New Tag</option>
-                <option value="additional">Additional Tag</option>
-                <option value="other">Other</option>
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    id="reason"
+                    type="button"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                  >
+                    <span className={nfcReason ? 'text-[#4F4F4F]' : 'text-gray-500'}>
+                      {
+                        {
+                          '': 'Select a reason (optional)',
+                          lost_replacement: 'Lost/Damaged Tag',
+                          upgrade: 'Upgrade to New Tag',
+                          additional: 'Additional Tag',
+                          other: 'Other',
+                        }[nfcReason] || 'Select a reason (optional)'
+                      }
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg">
+                  <DropdownMenuRadioGroup value={nfcReason} onValueChange={setNfcReason}>
+                    <DropdownMenuRadioItem value="">Select a reason (optional)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="lost_replacement">Lost/Damaged Tag</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="upgrade">Upgrade to New Tag</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="additional">Additional Tag</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="other">Other</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           <DialogFooter className="flex gap-2 justify-end">
