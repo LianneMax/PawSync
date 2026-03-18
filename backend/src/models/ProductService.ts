@@ -43,6 +43,9 @@ export interface IProductService extends Document {
   intervalDays?: number;      // days until next due (for scheduling)
   weightMin?: number;         // kg — lower bound for weight-range-based preventives
   weightMax?: number;         // kg — upper bound for weight-range-based preventives
+  associatedServiceId?: mongoose.Types.ObjectId;  // linked Preventive Care service
+  preventiveDuration?: number;                    // how long the protection lasts
+  preventiveDurationUnit?: 'months' | 'years';    // unit for preventiveDuration
 
   // Pricing type for applicable medications (tablets, capsules, spot-on, chewable)
   pricingType?: 'singlePill' | 'pack';  // singlePill = price per pill; pack = price per pack
@@ -93,6 +96,9 @@ const ProductServiceSchema: Schema = new Schema(
     intervalDays: { type: Number, default: null, min: 1 },
     weightMin: { type: Number, default: null, min: 0 },
     weightMax: { type: Number, default: null, min: 0 },
+    associatedServiceId: { type: Schema.Types.ObjectId, ref: 'ProductService', default: null },
+    preventiveDuration: { type: Number, default: null, min: 1 },
+    preventiveDurationUnit: { type: String, enum: ['months', 'years'], default: null },
     pricingType: {
       type: String,
       enum: ['singlePill', 'pack'],
