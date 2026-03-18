@@ -48,6 +48,9 @@ export interface IProductService extends Document {
   pricingType?: 'singlePill' | 'pack';  // singlePill = price per pill; pack = price per pack
   piecesPerPack?: number;               // number of pieces in pack (required when pricingType is 'pack')
 
+  // Injection-specific pricing
+  injectionPricingType?: 'singleDose' | 'mlPerKg';  // singleDose = price per dose; mlPerKg = price per mL/kg (uses netContent for dose volume)
+
   branchAvailability: IBranchAvailability[];
   createdAt: Date;
   updatedAt: Date;
@@ -96,6 +99,11 @@ const ProductServiceSchema: Schema = new Schema(
       default: 'singlePill',
     },
     piecesPerPack: { type: Number, default: null, min: 1 },
+    injectionPricingType: {
+      type: String,
+      enum: ['singleDose', 'mlPerKg'],
+      default: null,
+    },
     // Branch availability: tracks which branches carry this item and whether it's active there.
     // Applicable to Medications (Products) and all Services (including Others).
     branchAvailability: [

@@ -47,7 +47,7 @@ export const createProductService = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack } = req.body;
+    const { name, type, price, description, category, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType } = req.body;
 
     if (!name || !type || price === undefined) {
       return res.status(400).json({ status: 'ERROR', message: 'name, type, and price are required' });
@@ -106,6 +106,16 @@ export const createProductService = async (req: Request, res: Response) => {
       }
       if (hasPackPricing && !piecesPerPack) {
         return res.status(400).json({ status: 'ERROR', message: 'piecesPerPack is required when pricingType is "pack"' });
+      }
+
+      // Validate injection pricing (only for injection route)
+      if (resolvedRoute === 'injection') {
+        if (injectionPricingType === 'singleDose' && !netContent) {
+          return res.status(400).json({ status: 'ERROR', message: 'netContent (net volume in ML) is required when injectionPricingType is "singleDose"' });
+        }
+        if (injectionPricingType === 'mlPerKg' && !netContent) {
+          return res.status(400).json({ status: 'ERROR', message: 'netContent (net volume in ML) is required when injectionPricingType is "mlPerKg"' });
+        }
       }
 
       // Uniqueness check for medications: name + route + method
@@ -168,6 +178,7 @@ export const createProductService = async (req: Request, res: Response) => {
         weightMax: weightMax != null ? Number(weightMax) : null,
         pricingType: pricingType || 'singlePill',
         piecesPerPack: pricingType === 'pack' && piecesPerPack ? Number(piecesPerPack) : null,
+        injectionPricingType: injectionPricingType || null,
       } : {}),
       branchAvailability: resolvedBranchAvailability,
     } as any);
@@ -204,7 +215,7 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack } = req.body;
+    const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType } = req.body;
 
     if (name !== undefined) item.name = name.trim();
     if (type !== undefined) item.type = type;
@@ -241,6 +252,12 @@ export const updateProductService = async (req: Request, res: Response) => {
           return res.status(400).json({ status: 'ERROR', message: 'piecesPerPack is required when pricingType is "pack"' });
         }
         (item as any).piecesPerPack = pricingType === 'pack' && piecesPerPack ? Number(piecesPerPack) : null;
+      }
+      if (injectionPricingType !== undefined) {
+        const effectiveRoute = administrationRoute !== undefined ? administrationRoute : item.administrationRoute;
+        if (effectiveRoute === 'injection') {
+          (item as any).injectionPricingType = injectionPricingType || null;
+        }
       }
     }
 

@@ -50,6 +50,7 @@ interface ProductItem {
   weightMax?: number
   pricingType?: 'singlePill' | 'pack'
   piecesPerPack?: number
+  injectionPricingType?: 'singleDose' | 'mlPerKg'
   branchAvailability: BranchAvailabilityEntry[]
 }
 
@@ -214,6 +215,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [medWeightMax, setMedWeightMax] = useState('')
   const [medPricingType, setMedPricingType] = useState<'singlePill' | 'pack'>('singlePill')
   const [medPiecesPerPack, setMedPiecesPerPack] = useState('')
+  const [medInjectionPricingType, setMedInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>('singleDose')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -277,6 +279,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedWeightMax('')
     setMedPricingType('singlePill')
     setMedPiecesPerPack('')
+    setMedInjectionPricingType('singleDose')
   }
 
   const branchAvailabilityPayload = localBranches.map((b) => ({ branchId: b.id, isActive: selectedBranches.has(b.id) }))
@@ -362,6 +365,11 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
       setError('Pieces per pack is required when using pack pricing'); return
     }
 
+    // Validate injection pricing
+    if (admRoute === 'injection' && !medNetContent) {
+      setError('Net volume (ML) is required for injection medications'); return
+    }
+
     setSaving(true)
     setError('')
     try {
@@ -377,6 +385,9 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         branchAvailability: branchAvailabilityPayload,
         pricingType: medPricingType,
         ...(medPricingType === 'pack' && medPiecesPerPack ? { piecesPerPack: parseInt(medPiecesPerPack) } : {}),
+        ...(admRoute === 'injection' ? {
+          injectionPricingType: medInjectionPricingType,
+        } : {}),
         ...(medFrequencyNotes ? { frequencyNotes: medFrequencyNotes } : {}),
         ...(medNetContent ? { netContent: parseFloat(medNetContent) } : {}),
         ...(medDosePerKg ? { dosePerKg: parseFloat(medDosePerKg) } : {}),
@@ -432,6 +443,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           weightMax: i.weightMax,
           pricingType: i.pricingType,
           piecesPerPack: i.piecesPerPack,
+          injectionPricingType: i.injectionPricingType,
           branchAvailability: mapBranchAvailability(i.branchAvailability),
         })
         onClose()
@@ -598,6 +610,51 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </div>
               )}
 
+              {/* Injection Pricing Type — only for injections */}
+              {admRoute === 'injection' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Injection Pricing Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['singleDose', 'mlPerKg'] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setMedInjectionPricingType(type)}
+                        className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          medInjectionPricingType === type
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {type === 'singleDose' ? 'Single Dose' : 'ML/KG Pricing'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Net content/volume per piece */}
+              {admRoute && admRoute !== 'preventive' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {medInjectionPricingType === 'mlPerKg'
+                      ? 'Net Volume (mL) — used for ML/KG pricing'
+                      : ['tablets', 'capsules'].includes(admMethod.toLowerCase())
+                      ? 'mg per piece'
+                      : 'mL per piece / vial'}
+                  </label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={medNetContent}
+                    onChange={(e) => setMedNetContent(e.target.value)}
+                    placeholder="e.g. 500"
+                    min="0"
+                    step="any"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
+
               {/* Pricing Type — only for applicable methods: tablets, capsules, spot-on, chewable */}
               {admRoute && (admMethod.toLowerCase() === 'tablets' || admMethod.toLowerCase() === 'capsules' || admMethod.toLowerCase() === 'spot-on' || admMethod.toLowerCase() === 'chewable') && (
                 <div>
@@ -639,7 +696,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
               {/* Price */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Price {medPricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal">(per pack)</span> : <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>}
+                  Price {medPricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal">(per pack)</span> : admRoute === 'injection' && medInjectionPricingType === 'mlPerKg' ? <span className="text-xs text-gray-400 font-normal">(per ML/KG)</span> : <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>}
                 </label>
                 <input
                   type="number"
@@ -663,27 +720,6 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
                 />
               </div>
-
-              {/* Net content/volume per piece */}
-              {admRoute && admRoute !== 'preventive' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {['tablets', 'capsules'].includes(admMethod.toLowerCase())
-                      ? 'mg per piece'
-                      : 'mL per piece / vial'}
-                  </label>
-                  <input
-                    type="number"
-                    onWheel={(e) => e.currentTarget.blur()}
-                    value={medNetContent}
-                    onChange={(e) => setMedNetContent(e.target.value)}
-                    placeholder="e.g. 500"
-                    min="0"
-                    step="any"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                  />
-                </div>
-              )}
 
               {/* Standard Information */}
               <div className="border-t border-gray-100 pt-4">
@@ -1018,6 +1054,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [weightMax, setWeightMax] = useState(item.weightMax != null ? String(item.weightMax) : '')
   const [pricingType, setPricingType] = useState<'singlePill' | 'pack'>((item.pricingType as 'singlePill' | 'pack') || 'singlePill')
   const [piecesPerPack, setPiecesPerPack] = useState(item.piecesPerPack != null ? String(item.piecesPerPack) : '')
+  const [injectionPricingType, setInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>((item.injectionPricingType as 'singleDose' | 'mlPerKg') || 'singleDose')
 
   // Branch availability state: map of branchId -> isActive
   const [branchState, setBranchState] = useState<Map<string, boolean>>(() => {
@@ -1077,6 +1114,10 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       if (pricingType === 'pack' && !piecesPerPack) {
         setError('Pieces per pack is required when using pack pricing'); return
       }
+      // Validate injection pricing
+      if (admRoute === 'injection' && !netContent) {
+        setError('Net volume (ML) is required for injection medications'); return
+      }
     }
     setSaving(true)
     setError('')
@@ -1112,6 +1153,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.weightMax = weightMax ? parseFloat(weightMax) : null
         body.pricingType = pricingType
         body.piecesPerPack = pricingType === 'pack' && piecesPerPack ? parseInt(piecesPerPack) : null
+        body.injectionPricingType = admRoute === 'injection' ? injectionPricingType : null
       }
       if (showBranchSection) {
         body.branchAvailability = Array.from(branchState.entries()).map(([branchId, isActive]) => ({ branchId, isActive }))
@@ -1151,6 +1193,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           weightMax: data.data.item.weightMax,
           pricingType: data.data.item.pricingType,
           piecesPerPack: data.data.item.piecesPerPack,
+          injectionPricingType: data.data.item.injectionPricingType,
           branchAvailability: rawBA.map((ba) => ({
             branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
             branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
@@ -1317,12 +1360,57 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                   />
                 </div>
               )}
+
+              {/* Injection Pricing Type — only for injections */}
+              {admRoute === 'injection' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Injection Pricing Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['singleDose', 'mlPerKg'] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setInjectionPricingType(type)}
+                        className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                          injectionPricingType === type
+                            ? 'bg-[#3D5E5C] text-white border-[#3D5E5C]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                        }`}
+                      >
+                        {type === 'singleDose' ? 'Single Dose' : 'ML/KG Pricing'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Net content/volume per piece */}
+              {isMedication && admRoute && admRoute !== 'preventive' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {injectionPricingType === 'mlPerKg'
+                      ? 'Net Volume (mL) — used for ML/KG pricing'
+                      : ['tablets', 'capsules'].includes(admMethod.toLowerCase())
+                      ? 'mg per piece'
+                      : 'mL per piece / vial'}
+                  </label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={netContent}
+                    onChange={(e) => setNetContent(e.target.value)}
+                    placeholder="e.g. 500"
+                    min="0"
+                    step="any"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
             </>
           )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Price{isMedication && pricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal ml-1">(per pack)</span> : isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
+              Price{isMedication && pricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal ml-1">(per pack)</span> : isMedication && admRoute === 'injection' && injectionPricingType === 'mlPerKg' ? <span className="text-xs text-gray-400 font-normal ml-1">(per ML/KG)</span> : isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
             </label>
             <input
               type="number"
@@ -1347,27 +1435,6 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
             />
           </div>
-
-          {/* Net content/volume per piece */}
-          {isMedication && admRoute && admRoute !== 'preventive' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {['tablets', 'capsules'].includes(admMethod.toLowerCase())
-                  ? 'mg per piece'
-                  : 'mL per piece / vial'}
-              </label>
-              <input
-                type="number"
-                onWheel={(e) => e.currentTarget.blur()}
-                value={netContent}
-                onChange={(e) => setNetContent(e.target.value)}
-                placeholder="e.g. 500"
-                min="0"
-                step="any"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-              />
-            </div>
-          )}
 
           {/* Standard Information — Medications only */}
           {isMedication && (
