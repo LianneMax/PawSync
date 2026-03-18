@@ -124,11 +124,18 @@ export default function AppointmentServiceSelector({
   // Use provided categories or fall back to defaults
   const displayCategories = categories || SERVICE_CATEGORIES
 
-  const GROOMING_OPTIONS = ['basic-grooming', 'full-grooming']
+  const defaultGroomingOptions = ['basic-grooming', 'full-grooming']
+  const categoryGroomingOptions = displayCategories
+    .filter((cat) => cat.id === 'grooming' || cat.label.toLowerCase().includes('groom'))
+    .flatMap((cat) => [
+      ...(cat.services?.map((service) => service.value) ?? []),
+      ...(cat.subGroups?.flatMap((group) => group.services.map((service) => service.value)) ?? []),
+    ])
+  const groomingOptions = new Set([...defaultGroomingOptions, ...categoryGroomingOptions])
 
   // Toggle a service value
   const toggleService = (serviceValue: string) => {
-    const isGroomingOption = GROOMING_OPTIONS.includes(serviceValue)
+    const isGroomingOption = groomingOptions.has(serviceValue)
 
     if (values.includes(serviceValue)) {
       // Deselecting — always allowed
@@ -139,7 +146,7 @@ export default function AppointmentServiceSelector({
         onChange([serviceValue])
       } else {
         // Selecting medical: clear ALL grooming services, add this medical service
-        onChange([...values.filter((v) => !GROOMING_OPTIONS.includes(v)), serviceValue])
+        onChange([...values.filter((v) => !groomingOptions.has(v)), serviceValue])
       }
     }
   }

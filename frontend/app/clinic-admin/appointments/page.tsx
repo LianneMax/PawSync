@@ -1543,9 +1543,17 @@ function ClinicScheduleModal({
   const [isEmergency, setIsEmergency] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  const groomingTypeValues = new Set([
+    'basic-grooming',
+    'full-grooming',
+    ...serviceCategories
+      .filter((cat: any) => cat?.id === 'grooming' || String(cat?.label || '').toLowerCase().includes('groom'))
+      .flatMap((cat: any) => (cat?.services || []).map((service: any) => service.value)),
+  ])
+
   // Helper: grooming/medical checks
-  const hasGrooming = selectedTypes.some(t => t === 'basic-grooming' || t === 'full-grooming')
-  const hasMedical = selectedTypes.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+  const hasGrooming = selectedTypes.some((type) => groomingTypeValues.has(type))
+  const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
   
   // For clinic admins, lock branch to their assigned branch
@@ -1703,8 +1711,9 @@ function ClinicScheduleModal({
     // When types change, always clear slot (user must reselect time)
     setSelectedSlot(null)
     // If switching to grooming-only, clear vet selection since grooming doesn't require a vet
-    const nowGroomingOnly = types.some(t => t === 'basic-grooming' || t === 'full-grooming') &&
-      !types.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+    const normalizedTypes = types.map(normalizeAppointmentType)
+    const nowGroomingOnly = normalizedTypes.some((type) => groomingTypeValues.has(type)) &&
+      !normalizedTypes.some((type) => !groomingTypeValues.has(type))
     if (nowGroomingOnly && selectedVetId) {
       setSelectedVetId('')
     }

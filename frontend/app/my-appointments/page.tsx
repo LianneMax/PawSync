@@ -544,9 +544,17 @@ function ScheduleModal({
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  const groomingTypeValues = new Set([
+    'basic-grooming',
+    'full-grooming',
+    ...serviceCategories
+      .filter((cat: any) => cat?.id === 'grooming' || String(cat?.label || '').toLowerCase().includes('groom'))
+      .flatMap((cat: any) => (cat?.services || []).map((service: any) => service.value)),
+  ])
+
   // Helper: grooming/medical checks
-  const hasGrooming = selectedTypes.some(t => t === 'basic-grooming' || t === 'full-grooming')
-  const hasMedical = selectedTypes.some(t => t !== 'basic-grooming' && t !== 'full-grooming')
+  const hasGrooming = selectedTypes.some((type) => groomingTypeValues.has(type))
+  const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
 
   // Load pets + clinics/branches when modal opens
@@ -765,15 +773,15 @@ function ScheduleModal({
       )
 
       // Check if booking grooming appointment
-      const isGroomingOnly = selectedTypes.some((t) => t === 'basic-grooming' || t === 'full-grooming') &&
-        !selectedTypes.some((t) => t !== 'basic-grooming' && t !== 'full-grooming')
+      const isGroomingOnly = selectedTypes.some((type) => groomingTypeValues.has(type)) &&
+        !selectedTypes.some((type) => !groomingTypeValues.has(type))
 
       if (isGroomingOnly) {
         // Check for existing grooming appointments on the same day
         const existingGroomingOnDay = petAppointments.find((apt: any) => {
           const aptDateStr = new Date(apt.date).toISOString().split('T')[0]
           return aptDateStr === selectedDate &&
-            (apt.types.includes('basic-grooming') || apt.types.includes('full-grooming'))
+            apt.types.some((type: string) => groomingTypeValues.has(type))
         })
 
         if (existingGroomingOnDay) {
