@@ -844,18 +844,47 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     </div>
                   )}
 
-                  {/* Frequency notes — topical only */}
+                  {/* Frequency notes + frequency type — topical only */}
                   {admRoute === 'topical' && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency Notes</label>
-                      <input
-                        type="text"
-                        value={medFrequencyNotes}
-                        onChange={(e) => setMedFrequencyNotes(e.target.value)}
-                        placeholder="e.g. apply twice daily to affected area"
-                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                      />
-                    </div>
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency Notes</label>
+                        <input
+                          type="text"
+                          value={medFrequencyNotes}
+                          onChange={(e) => setMedFrequencyNotes(e.target.value)}
+                          placeholder="e.g. apply twice daily to affected area"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <DropdownField
+                            value={medDurationType}
+                            onValueChange={(value) => { setMedDurationType(value as any); setMedDurationDays('') }}
+                            placeholder="Select frequency"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                            options={[
+                              { value: '', label: 'Select frequency' },
+                              { value: 'as_needed', label: 'As needed' },
+                              { value: 'days', label: 'For X days' },
+                            ]}
+                          />
+                          {medDurationType === 'days' && (
+                            <input
+                              type="number"
+                              onWheel={(e) => e.currentTarget.blur()}
+                              value={medDurationDays}
+                              onChange={(e) => setMedDurationDays(e.target.value)}
+                              placeholder="e.g. 7"
+                              min="1"
+                              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {/* Frequency — oral only */}
@@ -1660,18 +1689,47 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                   </div>
                 )}
 
-                {/* Frequency notes — topical only */}
+                {/* Frequency notes + frequency type — topical only */}
                 {admRoute === 'topical' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Frequency Notes</label>
-                    <input
-                      type="text"
-                      value={frequencyNotes}
-                      onChange={(e) => setFrequencyNotes(e.target.value)}
-                      placeholder="e.g. apply twice daily to affected area"
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency Notes</label>
+                      <input
+                        type="text"
+                        value={frequencyNotes}
+                        onChange={(e) => setFrequencyNotes(e.target.value)}
+                        placeholder="e.g. apply twice daily to affected area"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <DropdownField
+                          value={durationType}
+                          onValueChange={(value) => { setDurationType(value as any); setDurationDays('') }}
+                          placeholder="Select frequency"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all bg-white"
+                          options={[
+                            { value: '', label: 'Select frequency' },
+                            { value: 'as_needed', label: 'As needed' },
+                            { value: 'days', label: 'For X days' },
+                          ]}
+                        />
+                        {durationType === 'days' && (
+                          <input
+                            type="number"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={durationDays}
+                            onChange={(e) => setDurationDays(e.target.value)}
+                            placeholder="e.g. 7"
+                            min="1"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {admRoute === 'oral' && (
@@ -2497,8 +2555,8 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                                         <span className="text-xs font-medium text-gray-800 text-right">{item.frequencyNotes || '—'}</span>
                                       </div>
                                     )}
-                                    {/* Frequency + Duration — oral, topical, injection */}
-                                    {item.administrationRoute !== 'preventive' && (
+                                    {/* Frequency + Duration — oral, injection */}
+                                    {item.administrationRoute !== 'preventive' && item.administrationRoute !== 'topical' && (
                                       <>
                                         <div className="flex justify-between items-center">
                                           <span className="text-xs text-gray-500">Frequency</span>
@@ -2509,6 +2567,13 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                                           <span className="text-xs font-medium text-gray-800">{item.durationLabel || '—'}</span>
                                         </div>
                                       </>
+                                    )}
+                                    {/* Frequency — topical only (uses durationLabel as the frequency type) */}
+                                    {item.administrationRoute === 'topical' && (
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-500">Frequency</span>
+                                        <span className="text-xs font-medium text-gray-800">{item.durationLabel || '—'}</span>
+                                      </div>
                                     )}
                                     {/* Preventive-specific */}
                                     {item.administrationRoute === 'preventive' && (
