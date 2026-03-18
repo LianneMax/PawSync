@@ -51,6 +51,7 @@ interface ProductItem {
   pricingType?: 'singlePill' | 'pack'
   piecesPerPack?: number
   injectionPricingType?: 'singleDose' | 'mlPerKg'
+  vialConcentration?: number
   branchAvailability: BranchAvailabilityEntry[]
 }
 
@@ -216,6 +217,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
   const [medPricingType, setMedPricingType] = useState<'singlePill' | 'pack'>('singlePill')
   const [medPiecesPerPack, setMedPiecesPerPack] = useState('')
   const [medInjectionPricingType, setMedInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>('singleDose')
+  const [medVialConcentration, setMedVialConcentration] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -280,6 +282,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedPricingType('singlePill')
     setMedPiecesPerPack('')
     setMedInjectionPricingType('singleDose')
+    setMedVialConcentration('')
   }
 
   const branchAvailabilityPayload = localBranches.map((b) => ({ branchId: b.id, isActive: selectedBranches.has(b.id) }))
@@ -387,6 +390,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         ...(medPricingType === 'pack' && medPiecesPerPack ? { piecesPerPack: parseInt(medPiecesPerPack) } : {}),
         ...(admRoute === 'injection' ? {
           injectionPricingType: medInjectionPricingType,
+          ...(medInjectionPricingType === 'mlPerKg' && medVialConcentration ? { vialConcentration: parseFloat(medVialConcentration) } : {}),
         } : {}),
         ...(medFrequencyNotes ? { frequencyNotes: medFrequencyNotes } : {}),
         ...(medNetContent ? { netContent: parseFloat(medNetContent) } : {}),
@@ -444,6 +448,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           pricingType: i.pricingType,
           piecesPerPack: i.piecesPerPack,
           injectionPricingType: i.injectionPricingType,
+          vialConcentration: i.vialConcentration,
           branchAvailability: mapBranchAvailability(i.branchAvailability),
         })
         onClose()
@@ -655,6 +660,23 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </div>
               )}
 
+              {/* Vial Concentration — ML/KG pricing only */}
+              {admRoute === 'injection' && medInjectionPricingType === 'mlPerKg' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Vial Concentration (mg/mL)</label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={medVialConcentration}
+                    onChange={(e) => setMedVialConcentration(e.target.value)}
+                    placeholder="e.g. 50"
+                    min="0"
+                    step="any"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
+
               {/* Pricing Type — only for applicable methods: tablets, capsules, spot-on, chewable */}
               {admRoute && (admMethod.toLowerCase() === 'tablets' || admMethod.toLowerCase() === 'capsules' || admMethod.toLowerCase() === 'spot-on' || admMethod.toLowerCase() === 'chewable') && (
                 <div>
@@ -774,8 +796,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     </div>
                   )}
 
-                  {/* Frequency — oral / topical / injection */}
-                  {admRoute && admRoute !== 'preventive' && (
+                  {/* Frequency — oral only */}
+                  {admRoute === 'oral' && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
                       <div className="grid grid-cols-2 gap-3">
@@ -805,8 +827,8 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     </div>
                   )}
 
-                  {/* Duration — oral / topical / injection */}
-                  {admRoute && admRoute !== 'preventive' && (
+                  {/* Duration — oral only */}
+                  {admRoute === 'oral' && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                       <div className="grid grid-cols-2 gap-3">
@@ -1055,6 +1077,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [pricingType, setPricingType] = useState<'singlePill' | 'pack'>((item.pricingType as 'singlePill' | 'pack') || 'singlePill')
   const [piecesPerPack, setPiecesPerPack] = useState(item.piecesPerPack != null ? String(item.piecesPerPack) : '')
   const [injectionPricingType, setInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>((item.injectionPricingType as 'singleDose' | 'mlPerKg') || 'singleDose')
+  const [vialConcentration, setVialConcentration] = useState(item.vialConcentration != null ? String(item.vialConcentration) : '')
 
   // Ref to track if the route was actually changed by user (not initial render)
   const prevAdmRouteRef = useRef(admRoute)
@@ -1158,6 +1181,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.pricingType = pricingType
         body.piecesPerPack = pricingType === 'pack' && piecesPerPack ? parseInt(piecesPerPack) : null
         body.injectionPricingType = admRoute === 'injection' ? injectionPricingType : null
+        body.vialConcentration = admRoute === 'injection' && injectionPricingType === 'mlPerKg' && vialConcentration ? parseFloat(vialConcentration) : null
       }
       if (showBranchSection) {
         body.branchAvailability = Array.from(branchState.entries()).map(([branchId, isActive]) => ({ branchId, isActive }))
@@ -1198,6 +1222,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           pricingType: data.data.item.pricingType,
           piecesPerPack: data.data.item.piecesPerPack,
           injectionPricingType: data.data.item.injectionPricingType,
+          vialConcentration: data.data.item.vialConcentration,
           branchAvailability: rawBA.map((ba) => ({
             branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
             branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
@@ -1409,6 +1434,23 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                   />
                 </div>
               )}
+
+              {/* Vial Concentration — ML/KG pricing only */}
+              {isMedication && admRoute === 'injection' && injectionPricingType === 'mlPerKg' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Vial Concentration (mg/mL)</label>
+                  <input
+                    type="number"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    value={vialConcentration}
+                    onChange={(e) => setVialConcentration(e.target.value)}
+                    placeholder="e.g. 50"
+                    min="0"
+                    step="any"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                  />
+                </div>
+              )}
             </>
           )}
 
@@ -1493,7 +1535,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                   </div>
                 )}
 
-                {admRoute && admRoute !== 'preventive' && (
+                {admRoute === 'oral' && (
                   <>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
