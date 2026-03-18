@@ -364,7 +364,7 @@ export default function VaccinationFormClient() {
       if (editId) {
         await updateVaccination(
           editId,
-          { vaccineTypeId, manufacturer, batchNumber, route, dateAdministered, nextDueDate: nextDueDate || undefined, notes, doseNumber },
+          { vaccineTypeId, dateAdministered, nextDueDate: nextDueDate || undefined, notes, doseNumber },
           token
         )
         setSuccess(true)
@@ -770,25 +770,31 @@ export default function VaccinationFormClient() {
           {/* Route */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Route</label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
-                >
-                  <span>{ROUTE_OPTIONS.find((r) => r.value === route)?.label || 'Not specified'}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl">
-                <DropdownMenuRadioGroup value={route} onValueChange={setRoute}>
-                  <DropdownMenuRadioItem value="">Not specified</DropdownMenuRadioItem>
-                  {ROUTE_OPTIONS.map((r) => (
-                    <DropdownMenuRadioItem key={r.value} value={r.value}>{r.label}</DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {editId ? (
+              <div className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-500 cursor-not-allowed">
+                {ROUTE_OPTIONS.find((r) => r.value === route)?.label || 'Not specified'}
+              </div>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                  >
+                    <span>{ROUTE_OPTIONS.find((r) => r.value === route)?.label || 'Not specified'}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl">
+                  <DropdownMenuRadioGroup value={route} onValueChange={setRoute}>
+                    <DropdownMenuRadioItem value="">Not specified</DropdownMenuRadioItem>
+                    {ROUTE_OPTIONS.map((r) => (
+                      <DropdownMenuRadioItem key={r.value} value={r.value}>{r.label}</DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Manufacturer */}
@@ -799,7 +805,8 @@ export default function VaccinationFormClient() {
               value={manufacturer}
               onChange={(e) => setManufacturer(e.target.value)}
               placeholder="e.g. Merial, Zoetis..."
-              className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              readOnly={!!editId}
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none ${editId ? 'bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#F8F6F2] border-transparent text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#7FA5A3]'}`}
             />
           </div>
 
@@ -811,7 +818,8 @@ export default function VaccinationFormClient() {
               value={batchNumber}
               onChange={(e) => setBatchNumber(e.target.value)}
               placeholder="e.g. A12345"
-              className="w-full bg-[#F8F6F2] border border-transparent rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+              readOnly={!!editId}
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none ${editId ? 'bg-gray-50 border-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#F8F6F2] border-transparent text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#7FA5A3]'}`}
             />
           </div>
 

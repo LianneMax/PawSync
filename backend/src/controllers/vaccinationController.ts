@@ -277,9 +277,11 @@ export const createVaccination = async (req: Request, res: Response) => {
       .substring(0, 24);
     await vaccination.save();
 
-    // Auto-schedule the next booster appointment if a nextDueDate was computed
+    // Auto-schedule the next booster appointment if a nextDueDate was computed.
+    // Skip if the vaccination is linked to an ongoing medical record — the booster will be
+    // scheduled when the record is completed (in medicalRecordController.updateMedicalRecord).
     let boosterAppointmentId: string | undefined;
-    if (computedNextDueDate) {
+    if (computedNextDueDate && !medicalRecordId) {
       const boosterDate = new Date(computedNextDueDate);
       boosterDate.setUTCHours(0, 0, 0, 0);
 
@@ -692,8 +694,9 @@ export const updateVaccination = async (req: Request, res: Response) => {
       vaccination.boosterAppointmentId = null;
     }
 
-    // If nextDueDate is now set (either unchanged or changed), and no booster appointment exists, create one
-    if (vaccination.nextDueDate && !vaccination.boosterAppointmentId) {
+    // If nextDueDate is now set (either unchanged or changed), and no booster appointment exists, create one.
+    // Skip if linked to a medical record — booster is scheduled on record completion instead.
+    if (vaccination.nextDueDate && !vaccination.boosterAppointmentId && !vaccination.medicalRecordId) {
       const boosterDate = new Date(vaccination.nextDueDate);
       boosterDate.setUTCHours(0, 0, 0, 0);
 

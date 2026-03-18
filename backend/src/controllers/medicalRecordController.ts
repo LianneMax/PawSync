@@ -6,6 +6,7 @@ import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
+import { createNotification } from '../services/notificationService';
 
 /**
  * Helper — returns true if req.user is a clinic-admin or clinic-admin.
@@ -659,6 +660,93 @@ export const updateRecord = async (req: Request, res: Response) => {
       }
     }
 
+    // When the record is completed, schedule boosters for any linked vaccinations that have a
+    // nextDueDate but no booster appointment yet (booster scheduling was deferred from create/update).
+    if (stage === 'completed') {
+      try {
+        const pendingVax = await Vaccination.find({
+          medicalRecordId: record._id,
+          nextDueDate: { $ne: null },
+          boosterAppointmentId: null,
+        }).lean();
+
+        for (const vax of pendingVax) {
+          const boosterDate = new Date(vax.nextDueDate as Date);
+          boosterDate.setUTCHours(0, 0, 0, 0);
+
+          const resolvedClinicId = vax.clinicId;
+          let resolvedBranchId: string | null = vax.clinicBranchId ? vax.clinicBranchId.toString() : null;
+
+          if (!resolvedBranchId) {
+            const vetUser = await User.findById(vax.vetId).select('clinicBranchId').lean();
+            if ((vetUser as any)?.clinicBranchId) {
+              resolvedBranchId = (vetUser as any).clinicBranchId.toString();
+            } else if (resolvedClinicId) {
+              const branch = await ClinicBranch.findOne({ clinicId: resolvedClinicId }).select('_id').lean();
+              if (branch) resolvedBranchId = branch._id.toString();
+            }
+          }
+
+          if (!resolvedClinicId || !resolvedBranchId) continue;
+
+          const pet = await Pet.findById(vax.petId).select('ownerId name').lean();
+          const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+          let boosterApptId: string | null = null;
+
+          for (const startTime of candidateSlots) {
+            const endTime = addMinutesToTime(startTime, 30);
+            try {
+              const boosterAppt = await Appointment.create({
+                petId: vax.petId,
+                ownerId: (pet as any)?.ownerId,
+                vetId: vax.vetId,
+                clinicId: resolvedClinicId,
+                clinicBranchId: resolvedBranchId,
+                mode: 'face-to-face',
+                types: ['vaccination'],
+                date: boosterDate,
+                startTime,
+                endTime,
+                status: 'confirmed',
+                notes: `Auto-scheduled booster for ${vax.vaccineName}`,
+              });
+              boosterApptId = boosterAppt._id.toString();
+              break;
+            } catch (slotErr: any) {
+              if (slotErr?.code === 11000) continue;
+              break;
+            }
+          }
+
+          if (boosterApptId) {
+            await Vaccination.findByIdAndUpdate(vax._id, { boosterAppointmentId: boosterApptId });
+            const boosterDateStr = boosterDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            if ((pet as any)?.ownerId) {
+              createNotification(
+                (pet as any).ownerId.toString(),
+                'appointment_scheduled',
+                'Booster Appointment Scheduled',
+                `A booster appointment for ${vax.vaccineName} has been automatically confirmed for ${boosterDateStr}.`,
+                { appointmentId: boosterApptId, vaccineName: vax.vaccineName }
+              ).catch(() => {});
+            }
+            if (vax.vetId) {
+              createNotification(
+                vax.vetId.toString(),
+                'appointment_scheduled',
+                'Booster Appointment Scheduled',
+                `A booster appointment for ${vax.vaccineName} has been auto-scheduled for ${(pet as any)?.name || 'the patient'} on ${boosterDateStr}.`,
+                { appointmentId: boosterApptId, vaccineName: vax.vaccineName, petId: vax.petId }
+              ).catch(() => {});
+            }
+          }
+        }
+      } catch (boosterErr) {
+        console.error('[MedicalRecord] Error scheduling vaccination boosters on completion:', boosterErr);
+        // Don't block the visit completion on booster scheduling error
+      }
+    }
+
     await record.save();
 
     return res.status(200).json({
@@ -825,7 +913,8 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
     }
 
     const vaccinations = await Vaccination.find({ petId: req.params.petId })
-      .populate('vetId', 'firstName lastName')
+      .populate('vaccineTypeId', 'name isSeries totalSeries doseVolumeMl')
+      .populate('vetId', 'firstName lastName prcLicenseNumber licenseNumber')
       .populate('clinicId', 'name')
       .sort({ dateAdministered: -1 });
 

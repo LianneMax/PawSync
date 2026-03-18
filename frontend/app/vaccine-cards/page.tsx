@@ -204,6 +204,19 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
     return `${dose}${date ? ` — ${date}` : ''}`
   }
 
+  const doseCountLabel = (v: Vaccination): string => {
+    const dose = v.doseNumber ?? 1
+    const vt = v.vaccineTypeId
+    const isSeries = vt?.isSeries
+    const totalSeries = vt?.totalSeries ?? 1
+    if (isSeries) {
+      if (dose <= totalSeries) return `Series ${dose}/${totalSeries}`
+      return `Booster #${dose - totalSeries}`
+    }
+    if (dose === 1) return 'Initial'
+    return `Booster #${dose - 1}`
+  }
+
   const rows = [
     { label: 'Brand name', value: vax.manufacturer || '—' },
     { label: 'Dose', value: vax.vaccineTypeId?.doseVolumeMl != null ? `${vax.vaccineTypeId.doseVolumeMl} mL` : '—' },
@@ -211,7 +224,7 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
     { label: 'Batch / lot number', value: vax.batchNumber || '—' },
     { label: 'Veterinary clinic', value: clinicName },
     { label: 'Veterinarian', value: vetName },
-    { label: 'Booster count', value: !vax.doseNumber || vax.doseNumber === 1 ? 'Initial' : `Booster ${vax.doseNumber - 1}` },
+    { label: 'Booster count', value: doseCountLabel(vax) },
     ...(prcLicense ? [{ label: 'Professional license no.', value: prcLicense }] : []),
   ]
 

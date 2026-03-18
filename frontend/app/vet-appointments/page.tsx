@@ -35,7 +35,6 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog'
-import { Calendar as UiCalendar } from '@/components/ui/calendar'
 
 // ==================== CONSTANTS ====================
 
@@ -140,6 +139,10 @@ export default function VetAppointmentsPage() {
     const day = String(today.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   })
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date()
+    return { year: d.getFullYear(), month: d.getMonth() }
+  })
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -212,9 +215,9 @@ export default function VetAppointmentsPage() {
     loadSchedules()
   }, [loadSchedules])
 
-  // Filter confirmed + in_clinic + in_progress appointments for the selected calendar date
+  // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
-    if (a.status !== 'confirmed' && a.status !== 'in_clinic' && a.status !== 'in_progress') return false
+    if (a.status !== 'confirmed' && a.status !== 'in_progress') return false
     const d = new Date(a.date)
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -223,18 +226,16 @@ export default function VetAppointmentsPage() {
     return apptDate === calendarDate
   })
 
-  // Upcoming = confirmed/in_clinic/in_progress and not yet passed, sorted by date asc
+  // Upcoming = confirmed/in_progress and not yet passed, sorted by date asc
   const upcomingAppointments = appointments
     .filter((a) => {
       const ds = getDisplayStatus(a)
-      if (ds !== 'confirmed' && ds !== 'in_clinic' && ds !== 'in_progress') return false
-      // Active appointments (in_clinic / in_progress) always show regardless of time
-      if (ds === 'in_clinic' || ds === 'in_progress') return true
-      // Confirmed: only show if appointment hasn't passed yet
+      if (ds !== 'confirmed' && ds !== 'in_progress') return false
+      // Parse date correctly - a.date is already in ISO format (YYYY-MM-DD)
       const [year, month, day] = a.date.split('-').map(Number)
       const [hours, minutes] = a.startTime.split(':').map(Number)
       const apptTime = new Date(year, month - 1, day, hours, minutes, 0)
-      return apptTime > new Date()
+      return apptTime > new Date() // Only include future appointments
     })
     .sort((a, b) => {
       const [yearA, monthA, dayA] = a.date.split('-').map(Number)
@@ -275,7 +276,7 @@ export default function VetAppointmentsPage() {
     const day = String(d.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}` === today
   })
-  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress').length
+  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_progress').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
 
   const handleCheckIn = async (appt: Appointment) => {
@@ -392,14 +393,34 @@ export default function VetAppointmentsPage() {
     setCalendarDate(`${year}-${month}-${day}`)
   }
 
-  const calendarSelectedDate = new Date(`${calendarDate}T00:00:00`)
-  const appointmentMarkerDates =
+  const goToMonth = (offset: number) => {
+    setCalendarMonth((prev) => {
+      let m = prev.month + offset
+      let y = prev.year
+      if (m > 11) { m = 0; y++ }
+      if (m < 0) { m = 11; y-- }
+      return { year: y, month: m }
+    })
+  }
+
+  // Build calendar grid for the displayed month
+  const { year: calYear, month: calMonthIdx } = calendarMonth
+  const firstDayOfMonth = new Date(calYear, calMonthIdx, 1).getDay() // 0=Sun
+  const daysInMonth = new Date(calYear, calMonthIdx + 1, 0).getDate()
+  const calMonthLabel = new Date(calYear, calMonthIdx, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  // Set of dates (YYYY-MM-DD) that have upcoming appointments — for the dot indicator
+  const datesWithAppointments = new Set(
     appointments
       .filter((a) => a.status === 'confirmed' || a.status === 'in_progress' || a.status === 'pending')
       .map((a) => {
         const d = new Date(a.date)
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
       })
+  )
 
   const dateLabel = new Date(calendarDate).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -617,16 +638,6 @@ export default function VetAppointmentsPage() {
                                           {checkingIn === appt._id ? 'Checking in…' : 'Check In Patient'}
                                         </button>
                                       )}
-                                      {appt.status === 'in_clinic' && (
-                                        <button
-                                          onClick={() => handleCheckIn(appt)}
-                                          disabled={checkingIn === appt._id}
-                                          className="inline-flex items-center gap-1 px-3 py-1 text-[10px] font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
-                                        >
-                                          <PlayCircle className="w-3 h-3" />
-                                          {checkingIn === appt._id ? 'Starting…' : 'Begin Visit'}
-                                        </button>
-                                      )}
                                       {appt.status === 'in_progress' && (
                                         <button
                                           onClick={() => handleContinueVisit(appt)}
@@ -674,33 +685,58 @@ export default function VetAppointmentsPage() {
 
               {/* Month Calendar */}
               <div className="bg-white rounded-2xl shadow-sm p-4">
-                <UiCalendar
-                  mode="single"
-                  selected={calendarSelectedDate}
-                  onSelect={(date) => {
-                    if (!date) return
-                    const year = date.getFullYear()
-                    const month = String(date.getMonth() + 1).padStart(2, '0')
-                    const day = String(date.getDate()).padStart(2, '0')
-                    setCalendarDate(`${year}-${month}-${day}`)
-                  }}
-                  month={calendarSelectedDate}
-                  onMonthChange={(date) => {
-                    const monthDate = new Date(calendarSelectedDate)
-                    monthDate.setFullYear(date.getFullYear(), date.getMonth(), monthDate.getDate())
-                    const year = monthDate.getFullYear()
-                    const month = String(monthDate.getMonth() + 1).padStart(2, '0')
-                    const day = String(monthDate.getDate()).padStart(2, '0')
-                    setCalendarDate(`${year}-${month}-${day}`)
-                  }}
-                  modifiers={{ hasAppointment: appointmentMarkerDates }}
-                  modifiersClassNames={{
-                    hasAppointment: 'after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-[#7FA5A3]',
-                  }}
-                  classNames={{
-                    day_button: 'cursor-pointer relative flex size-8 items-center justify-center whitespace-nowrap rounded-md p-0 text-foreground transition-200 group-data-disabled:pointer-events-none focus-visible:z-10 hover:not-in-data-selected:bg-accent group-data-selected:bg-[#7FA5A3] hover:not-in-data-selected:text-foreground group-data-selected:text-white group-data-disabled:text-foreground/30 group-data-disabled:line-through outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]',
-                  }}
-                />
+                {/* Month header */}
+                <div className="flex items-center justify-between mb-4">
+                  <button onClick={() => goToMonth(-1)} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                    <ChevronLeft className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <span className="text-sm font-semibold text-[#4F4F4F]">{calMonthLabel}</span>
+                  <button onClick={() => goToMonth(1)} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+
+                {/* Day-of-week headers */}
+                <div className="grid grid-cols-7 mb-1">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                    <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+                  ))}
+                </div>
+
+                {/* Day grid */}
+                <div className="grid grid-cols-7">
+                  {/* Empty cells before first day */}
+                  {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
+                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+                    const dateStr = `${calYear}-${String(calMonthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                    const isSelected = dateStr === calendarDate
+                    const isToday = dateStr === today
+                    const hasDot = datesWithAppointments.has(dateStr)
+                    return (
+                      <div key={day} className="flex flex-col items-center py-0.5">
+                        <button
+                          onClick={() => {
+                            setCalendarDate(dateStr)
+                          }}
+                          className={`w-8 h-8 rounded-full text-xs font-medium transition-all flex items-center justify-center
+                            ${isSelected
+                              ? 'bg-[#7FA5A3] text-white'
+                              : isToday
+                              ? 'bg-[#7FA5A3]/15 text-[#476B6B] font-bold'
+                              : 'text-[#4F4F4F] hover:bg-gray-100'
+                            }`}
+                        >
+                          {day}
+                        </button>
+                        {hasDot && !isSelected && (
+                          <div className="w-1 h-1 rounded-full bg-[#7FA5A3] mt-0.5" />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
               {/* Upcoming Card */}
