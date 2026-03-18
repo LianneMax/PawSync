@@ -1172,58 +1172,80 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setVaccineSaving(true)
     try {
       const updated: VaccineFormItem[] = []
+      const seenCreatedIds = new Set<string>()
+      let duplicateIdDetected = false
       for (const v of vaccines) {
-        if (!v.vaccineTypeId) { updated.push(v); continue }
+        let current = v
+
+        // Safety: if two rows point to the same existing vaccination record,
+        // treat later duplicates as NEW rows to avoid overwriting the first row's schedule.
+        if (current.createdVaccineId) {
+          if (seenCreatedIds.has(current.createdVaccineId)) {
+            duplicateIdDetected = true
+            current = {
+              ...current,
+              vaccineCreated: false,
+              createdVaccineId: null,
+            }
+          } else {
+            seenCreatedIds.add(current.createdVaccineId)
+          }
+        }
+
+        if (!current.vaccineTypeId) { updated.push(current); continue }
         // Skip ineligible vaccines
-        const vt = vaccineTypes.find((x) => x._id === v.vaccineTypeId)
+        const vt = vaccineTypes.find((x) => x._id === current.vaccineTypeId)
         if (vt && pet?.dateOfBirth) {
           const validation = validateVaccineAge(pet.dateOfBirth, vt.minAgeMonths || 0, vt.maxAgeMonths || null)
-          if (!validation.isValid) { updated.push(v); continue }
+          if (!validation.isValid) { updated.push(current); continue }
         }
-        if (!v.vaccineCreated) {
+        if (!current.vaccineCreated) {
           try {
             const res = await createVaccination({
               petId,
-              vaccineTypeId: v.vaccineTypeId,
-              manufacturer: v.manufacturer || undefined,
-              batchNumber: v.batchNumber || undefined,
-              route: v.route || undefined,
-              dateAdministered: v.dateAdministered,
-              notes: v.notes || undefined,
-              nextDueDate: v.nextDueDate || undefined,
+              vaccineTypeId: current.vaccineTypeId,
+              manufacturer: current.manufacturer || undefined,
+              batchNumber: current.batchNumber || undefined,
+              route: current.route || undefined,
+              dateAdministered: current.dateAdministered,
+              notes: current.notes || undefined,
+              nextDueDate: current.nextDueDate || undefined,
               medicalRecordId: recordId,
               appointmentId: appointmentId || undefined,
               clinicId: clinicId || undefined,
               clinicBranchId: clinicBranchId || undefined,
-              doseNumber: v.doseNumber,
+              doseNumber: current.doseNumber,
             }, token)
             if (res.boosterDate) {
               const d = new Date(res.boosterDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
               toast.success(`${vt?.name || 'Vaccination'} saved! Next booster auto-scheduled for ${d}.`)
             }
-            updated.push({ ...v, vaccineCreated: true, createdVaccineId: res._id })
+            updated.push({ ...current, vaccineCreated: true, createdVaccineId: res._id })
           } catch (err) {
             console.error('Vaccination creation error:', err)
-            updated.push(v)
+            updated.push(current)
           }
-        } else if (v.createdVaccineId) {
+        } else if (current.createdVaccineId) {
           try {
-            await updateVaccination(v.createdVaccineId, {
-              vaccineTypeId: v.vaccineTypeId,
-              manufacturer: v.manufacturer || undefined,
-              batchNumber: v.batchNumber || undefined,
-              route: v.route || undefined,
-              dateAdministered: v.dateAdministered,
-              notes: v.notes || undefined,
-              nextDueDate: v.nextDueDate || undefined,
+            await updateVaccination(current.createdVaccineId, {
+              vaccineTypeId: current.vaccineTypeId,
+              manufacturer: current.manufacturer || undefined,
+              batchNumber: current.batchNumber || undefined,
+              route: current.route || undefined,
+              dateAdministered: current.dateAdministered,
+              notes: current.notes || undefined,
+              nextDueDate: current.nextDueDate || undefined,
             }, token)
           } catch (err) {
             console.error('Vaccination update error:', err)
           }
-          updated.push(v)
+          updated.push(current)
         } else {
-          updated.push(v)
+          updated.push(current)
         }
+      }
+      if (duplicateIdDetected) {
+        toast.message('Duplicate vaccine rows were detected and saved as separate schedules.')
       }
       setVaccines(updated)
     } finally {

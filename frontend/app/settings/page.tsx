@@ -462,7 +462,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
     if (!lastName.trim()) errors.lastName = 'Last name is required'
     if (!email.trim()) errors.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Please enter a valid email'
-    if (contactNumber && !/^\+63\d{10}$/.test(contactNumber.replace(/\s/g, ''))) {
+    if (contactNumber && !/^\+63\d{9,10}$/.test(contactNumber.replace(/\s/g, ''))) {
       errors.contactNumber = 'Please enter a valid Philippine phone number'
     }
     if (Object.keys(errors).length) { setProfileErrors(errors); return }

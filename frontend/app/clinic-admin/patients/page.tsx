@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
+import VaccineCardPreview from '@/components/VaccineCardPreview'
 import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
-import { getRecordsByPet, getVaccinationsByPet, type MedicalRecord, type Vaccination } from '@/lib/medicalRecords'
+import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
 import {
   Sheet,
   SheetContent,
@@ -189,26 +190,12 @@ function OverviewTab({ patient, records, loadingRecords }: {
 // ==================== TAB: VACCINE CARD ====================
 
 function VaccineCardTab({ petId, token }: { petId: string; token: string | null }) {
-  const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!token) return
-    setLoading(true)
-    getVaccinationsByPet(petId, token)
-      .then((res) => {
-        if (res.status === 'SUCCESS' && res.data?.vaccinations) {
-          setVaccinations(res.data.vaccinations)
-        }
-      })
-      .catch(() => toast.error('Failed to load vaccinations'))
-      .finally(() => setLoading(false))
-  }, [petId, token])
-
-  if (loading) {
+  if (!token) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#7FA5A3]" />
+      <div className="bg-gray-50 rounded-xl p-8 text-center">
+        <Syringe className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+        <p className="text-sm font-medium text-gray-500">Unable to load vaccine card</p>
+        <p className="text-xs text-gray-400 mt-1">Please sign in again and reopen this patient.</p>
       </div>
     )
   }
@@ -217,58 +204,9 @@ function VaccineCardTab({ petId, token }: { petId: string; token: string | null 
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-3">
         <Syringe className="w-4 h-4 text-[#4A8A87]" />
-        <h3 className="text-sm font-semibold text-[#4A8A87] uppercase tracking-wide">Vaccination Records</h3>
+        <h3 className="text-sm font-semibold text-[#4A8A87] uppercase tracking-wide">Vaccine Card Template</h3>
       </div>
-      {vaccinations.length === 0 ? (
-        <div className="bg-gray-50 rounded-xl p-8 text-center">
-          <Syringe className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-500">No vaccinations recorded</p>
-          <p className="text-xs text-gray-400 mt-1">Vaccination records will appear here</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {vaccinations.map((vax) => {
-            const isOverdue = vax.nextDueDate && new Date(vax.nextDueDate) < new Date()
-            return (
-              <div key={vax._id} className="bg-white border border-gray-200 rounded-xl p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {vax.isUpToDate && !isOverdue ? (
-                        <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                      )}
-                      <h4 className="text-sm font-semibold text-[#4F4F4F]">{vax.vaccineName}</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Administered</p>
-                        <p className="text-xs text-[#4F4F4F]">{formatDate(vax.dateAdministered)}</p>
-                      </div>
-                      {vax.nextDueDate && (
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Next Due</p>
-                          <p className={`text-xs font-medium ${isOverdue ? 'text-amber-600' : 'text-[#4F4F4F]'}`}>
-                            {formatDate(vax.nextDueDate)}
-                            {isOverdue && ' (Overdue)'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    {vax.vetId && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        By Dr. {vax.vetId.firstName} {vax.vetId.lastName}
-                        {vax.clinicId?.name && ` — ${vax.clinicId.name}`}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <VaccineCardPreview petId={petId} token={token} sticky={false} interactive />
     </div>
   )
 }
