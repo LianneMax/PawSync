@@ -732,7 +732,7 @@ function ScheduleModal({
   const branchOptions = clinics.flatMap((clinic) =>
     clinic.branches.map((branch) => ({
       value: branch._id,
-      label: `${clinic.name} — ${branch.name}`,
+      label: `${branch.name}`,
       clinicId: clinic._id,
     }))
   )
