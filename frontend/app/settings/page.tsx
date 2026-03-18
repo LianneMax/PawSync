@@ -44,7 +44,7 @@ function AccordionSection({
       </button>
       <div
         className={`transition-all duration-200 ease-in-out ${
-          open ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+          open ? 'max-h-200 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
         }`}
       >
         <div className="px-8 pb-8 border-t border-gray-100 pt-6">

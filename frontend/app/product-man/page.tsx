@@ -2045,7 +2045,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-1 max-w-md bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder={`Search ${tab.toLowerCase()}...`}
@@ -2055,7 +2055,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
             />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <div className="min-w-[180px]">
+            <div className="min-w-45">
               <DropdownField
                 value={filterCategory}
                 onValueChange={setFilterCategory}
@@ -2068,7 +2068,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
               />
             </div>
             {branches.length > 0 && (
-              <div className="min-w-[180px]">
+              <div className="min-w-45">
                 <DropdownField
                   value={filterBranch}
                   onValueChange={setFilterBranch}
@@ -2448,7 +2448,7 @@ function VaccinesTab({ token }: { token: string | null }) {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-1 max-w-md bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder="Search vaccines..."
@@ -2486,7 +2486,7 @@ function VaccinesTab({ token }: { token: string | null }) {
                   <tr key={vaccine.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
-                        <Syringe className="w-3.5 h-3.5 text-[#7FA5A3] flex-shrink-0" />
+                        <Syringe className="w-3.5 h-3.5 text-[#7FA5A3] shrink-0" />
                         <span className="text-sm font-medium text-[#476B6B]">{vaccine.name}</span>
                       </div>
                     </td>

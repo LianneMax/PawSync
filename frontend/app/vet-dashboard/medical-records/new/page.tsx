@@ -596,7 +596,7 @@ function MedicalRecordFormInner() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+              <label className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
                 <EyeOff className="w-3 h-3" />
                 Vet Notes <span className="text-gray-400">(private — not visible to owner)</span>
               </label>

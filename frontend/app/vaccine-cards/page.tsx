@@ -217,7 +217,7 @@ function VaxDetailSheet({ vaccinations, onClose }: { vaccinations: Vaccination[]
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center"
+      className="fixed inset-0 z-60 flex items-end justify-center"
       style={{ fontFamily: 'var(--font-outfit)' }}
       onClick={handleClose}
     >

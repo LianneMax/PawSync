@@ -162,7 +162,7 @@ function OverviewTab({ patient, records, loadingRecords }: {
         </div>
         <div className="bg-gray-50 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center shrink-0">
               <span className="text-sm font-semibold text-[#4A8A87]">
                 {patient.owner.firstName[0]}{patient.owner.lastName[0]}
               </span>
@@ -235,9 +235,9 @@ function VaccineCardTab({ petId, token }: { petId: string; token: string | null 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {vax.isUpToDate && !isOverdue ? (
-                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                       )}
                       <h4 className="text-sm font-semibold text-[#4F4F4F]">{vax.vaccineName}</h4>
                     </div>
@@ -312,7 +312,7 @@ function MedicalRecordTab({ records, loading }: { records: MedicalRecord[]; load
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <Stethoscope className="w-4 h-4 text-[#7FA5A3] flex-shrink-0" />
+                        <Stethoscope className="w-4 h-4 text-[#7FA5A3] shrink-0" />
                         <span className="text-sm font-semibold text-[#4F4F4F]">
                           Visit — {formatDateTime(record.createdAt)}
                         </span>
@@ -330,7 +330,7 @@ function MedicalRecordTab({ records, loading }: { records: MedicalRecord[]; load
                       )}
                     </div>
                     <ChevronRight
-                      className={`w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      className={`w-4 h-4 text-gray-400 shrink-0 mt-0.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                     />
                   </div>
                 </button>
@@ -724,7 +724,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
         {scanStatus === 'error' && scanError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 text-sm">Scan Failed</h3>
                 <p className="text-red-700 text-xs mt-1">{scanError}</p>
@@ -737,7 +737,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
         {scanStatus === 'success' && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
             <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
               <p className="text-green-700 text-sm font-medium">Pet found! Opening profile...</p>
             </div>
           </div>
@@ -870,7 +870,7 @@ function PatientDrawer({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className="!p-0 flex flex-col !max-w-none"
+        className="p-0! flex flex-col max-w-none!"
         style={{ width: `${drawerWidth}px`, maxWidth: 'none', transition: 'none' }}
         close={false}
       >
@@ -884,23 +884,23 @@ function PatientDrawer({
           <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-200 group-hover:bg-[#4A8A87] transition-colors duration-150" />
           {/* Grip pill */}
           <div
-            className="absolute left-[3px] flex flex-col gap-[3px] items-center bg-white border border-gray-200 group-hover:border-[#4A8A87] rounded-full px-[3px] py-2 shadow-sm opacity-50 group-hover:opacity-100 transition-all duration-150"
+            className="absolute left-0.75 flex flex-col gap-0.75 items-center bg-white border border-gray-200 group-hover:border-[#4A8A87] rounded-full px-0.75 py-2 shadow-sm opacity-50 group-hover:opacity-100 transition-all duration-150"
             style={{ top: '50%', transform: 'translateY(-50%)' }}
           >
             {[0, 1, 2, 3].map((i) => (
               <span
                 key={i}
-                className="block w-[3px] h-[3px] rounded-full bg-gray-400 group-hover:bg-[#4A8A87] transition-colors duration-150"
+                className="block w-0.75 h-0.75 rounded-full bg-gray-400 group-hover:bg-[#4A8A87] transition-colors duration-150"
               />
             ))}
           </div>
         </div>
         {/* Header */}
-        <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+        <div className="shrink-0 border-b border-gray-200 bg-white">
           <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
             <div className="flex items-center gap-3 min-w-0">
               {patient.photo ? (
-                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border-2 border-[#7FA5A3]/30">
+                <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-[#7FA5A3]/30">
                   <Image
                     src={patient.photo}
                     alt={patient.name}
@@ -911,7 +911,7 @@ function PatientDrawer({
                   />
                 </div>
               ) : (
-                <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center shrink-0">
                   <PawPrint className="w-6 h-6 text-[#4A8A87]" />
                 </div>
               )}
@@ -926,7 +926,7 @@ function PatientDrawer({
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
             >
               <X className="w-4 h-4 text-gray-500" />
             </button>
@@ -939,7 +939,7 @@ function PatientDrawer({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-shrink-0 px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${
+                  className={`shrink-0 px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-[#4A8A87] text-[#4A8A87] bg-[#4A8A87]/5'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -968,7 +968,7 @@ function PatientDrawer({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 border-t border-gray-200 bg-white px-5 py-4">
+        <div className="shrink-0 border-t border-gray-200 bg-white px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex gap-2">
               <button className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
@@ -1140,12 +1140,12 @@ export default function PatientManagementPage() {
             onClick={() => handleStartScan('nfc')}
             className="bg-white rounded-lg border border-dashed border-[#476B6B] px-6 py-4 flex items-center gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
           >
-            <PawPrint className="w-8 h-8 text-[#476B6B] flex-shrink-0" />
+            <PawPrint className="w-8 h-8 text-[#476B6B] shrink-0" />
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold text-[#476B6B]">Scan NFC Tag</p>
               <p className="text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center shrink-0">
               <Smartphone className="w-5 h-5 text-white" />
             </div>
           </button>
@@ -1153,12 +1153,12 @@ export default function PatientManagementPage() {
             onClick={() => handleStartScan('qr')}
             className="bg-white rounded-lg border border-dashed border-[#476B6B] px-6 py-4 flex items-center gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
           >
-            <PawPrint className="w-8 h-8 text-[#476B6B] flex-shrink-0" />
+            <PawPrint className="w-8 h-8 text-[#476B6B] shrink-0" />
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold text-[#476B6B]">Scan QR Code</p>
               <p className="text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center shrink-0">
               <QrCode className="w-5 h-5 text-white" />
             </div>
           </button>
@@ -1167,7 +1167,7 @@ export default function PatientManagementPage() {
         {/* Patients List */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col shadow-md flex-1">
           {/* Search & Actions Container */}
-          <div className="bg-white px-6 py-5 border-b border-[#EAECF0] shadow-sm flex-shrink-0">
+          <div className="bg-white px-6 py-5 border-b border-[#EAECF0] shadow-sm shrink-0">
             <div className="flex items-center gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-3 w-5 h-5 text-gray-400" />
@@ -1214,7 +1214,7 @@ export default function PatientManagementPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex gap-4 flex-1">
                         {patient.photo ? (
-                          <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                          <div className="w-16 h-16 rounded-full overflow-hidden shrink-0">
                             <Image
                               src={patient.photo}
                               alt={patient.name}
@@ -1225,7 +1225,7 @@ export default function PatientManagementPage() {
                             />
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                             <PawPrint className="w-8 h-8 text-gray-400" />
                           </div>
                         )}
@@ -1270,7 +1270,7 @@ export default function PatientManagementPage() {
                           )}
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-2" />
+                      <ChevronRight className="w-5 h-5 text-gray-300 shrink-0 mt-2" />
                     </div>
                   </button>
                 ))}
