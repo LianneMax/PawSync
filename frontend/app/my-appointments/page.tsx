@@ -588,7 +588,7 @@ function ScheduleModal({
             id: 'general',
             label: 'General Consultation',
             services: (categoryMap['General Consultation'] || []).map((item: any) => ({
-              value: item.name,
+              value: normalizeAppointmentType(item.name),
               label: item.name,
             })),
           },
@@ -596,7 +596,7 @@ function ScheduleModal({
             id: 'preventive',
             label: 'Preventive Care',
             services: (categoryMap['Preventive Care'] || []).map((item: any) => ({
-              value: item.name,
+              value: normalizeAppointmentType(item.name),
               label: item.name,
             })),
           },
@@ -606,7 +606,7 @@ function ScheduleModal({
             services: (categoryMap['Surgeries'] || [])
               .filter((item: any) => item.name === 'Sterilization')
               .map((item: any) => ({
-                value: item.name,
+                value: normalizeAppointmentType(item.name),
                 label: item.name,
               })),
           },
@@ -614,7 +614,7 @@ function ScheduleModal({
             id: 'grooming',
             label: 'Grooming',
             services: (categoryMap['Grooming'] || []).map((item: any) => ({
-              value: item.name,
+              value: normalizeAppointmentType(item.name),
               label: item.name,
             })),
           },
@@ -740,7 +740,7 @@ function ScheduleModal({
   const selectedBranchOption = branchOptions.find((b) => b.value === selectedBranchId)
 
   const handleTypeChange = (types: string[]) => {
-    setSelectedTypes(types)
+    setSelectedTypes(types.map(normalizeAppointmentType))
   }
 
   // Check for conflicting appointments for the same pet

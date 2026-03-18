@@ -1682,7 +1682,7 @@ function ClinicScheduleModal({
             const formatted = Object.entries(grouped).map(([cat, items]) => ({
               id: cat.toLowerCase().replace(/\s+/g, '-'),
               label: cat,
-              services: items.map((item: any) => ({ value: item.name, label: item.name })),
+              services: items.map((item: any) => ({ value: normalizeAppointmentType(item.name), label: item.name })),
             }))
             setServiceCategories(formatted)
           }
@@ -1699,7 +1699,7 @@ function ClinicScheduleModal({
   }))
 
   const handleTypeChange = (types: string[]) => {
-    setSelectedTypes(types)
+    setSelectedTypes(types.map(normalizeAppointmentType))
     // When types change, always clear slot (user must reselect time)
     setSelectedSlot(null)
     // If switching to grooming-only, clear vet selection since grooming doesn't require a vet

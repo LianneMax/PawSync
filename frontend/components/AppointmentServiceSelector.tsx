@@ -145,16 +145,16 @@ export default function AppointmentServiceSelector({
   }
 
   // Determine which categories have selections
-  const findCategoriesForValues = (vals: string[]): Set<string> => {
+  const findCategoriesForValues = (vals: string[], sourceCategories: ServiceCategory[]): Set<string> => {
     const categories = new Set<string>()
-    for (const cat of SERVICE_CATEGORIES) {
+    for (const cat of sourceCategories) {
       if (cat.services?.some((s) => vals.includes(s.value))) categories.add(cat.id)
       if (cat.subGroups?.some((sg) => sg.services.some((s) => vals.includes(s.value)))) categories.add(cat.id)
     }
     return categories
   }
 
-  const selectedCategories = findCategoriesForValues(values)
+  const selectedCategories = findCategoriesForValues(values, displayCategories)
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
