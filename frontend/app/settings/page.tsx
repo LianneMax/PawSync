@@ -411,9 +411,10 @@ export default function SettingsPage() {
           setLastName(u.lastName)
           setEmail(u.email)
           setContactNumber(u.contactNumber || '')
-          if (u.photo) {
-            setCurrentPhoto(u.photo)
-            if (authUser) setUser({ ...authUser, avatar: u.photo })
+          const fetchedPhoto = u.photo || null
+          setCurrentPhoto(fetchedPhoto)
+          if (authUser) {
+            setUser({ ...authUser, avatar: fetchedPhoto || undefined })
           }
         }
       } catch {
@@ -550,6 +551,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
             <div className="flex items-center gap-6">
               <AvatarUpload
                 maxSize={5 * 1024 * 1024}
+                defaultAvatar={pendingPhoto || currentPhoto || authUser?.avatar}
                 onFileChange={(file) => {
                   if (file?.file instanceof File) {
                     const reader = new FileReader()
