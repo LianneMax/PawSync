@@ -813,8 +813,12 @@ function PatientDrawer({
     setLoadingRecords(true)
     getRecordsByPet(patient._id, token)
       .then((res) => {
-        if (res.status === 'SUCCESS' && res.data?.records) {
-          setRecords(res.data.records)
+        if (res.status === 'SUCCESS' && res.data) {
+          const mergedRecords = [
+            ...(res.data.currentRecord ? [res.data.currentRecord] : []),
+            ...(res.data.historicalRecords || []),
+          ]
+          setRecords(mergedRecords)
         } else {
           setRecords([])
         }

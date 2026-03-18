@@ -1,5 +1,3 @@
-import fetch from 'node-fetch'
-
 async function testAPI() {
   try {
     const response = await fetch('http://localhost:5001/api/product-services?type=Service&category=Preventive%20Care')
