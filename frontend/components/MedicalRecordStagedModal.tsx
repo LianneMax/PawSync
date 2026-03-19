@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
@@ -69,6 +69,7 @@ interface Props {
   appointmentId?: string
   petId: string
   appointmentTypes?: string[]
+  appointmentTiterFirst?: boolean
   appointmentDate?: string | null
   onComplete: () => void
   onClose: () => void
@@ -84,7 +85,7 @@ const VACC_STEP_LABELS: Record<StepKey, string> = {
   4: 'Post-Procedure',
 }
 
-const VACC_STEP_ICONS: Record<StepKey, React.ReactNode> = {
+const VACC_STEP_ICONS: Record<StepKey, ReactNode> = {
   1: <Stethoscope className="w-4 h-4" />,
   2: <ClipboardList className="w-4 h-4" />,
   3: <Syringe className="w-4 h-4" />,
@@ -98,7 +99,7 @@ const REG_STEP_LABELS: Record<1 | 2 | 3, string> = {
   3: 'Post-Procedure',
 }
 
-const REG_STEP_ICONS: Record<1 | 2 | 3, React.ReactNode> = {
+const REG_STEP_ICONS: Record<1 | 2 | 3, ReactNode> = {
   1: <Stethoscope className="w-4 h-4" />,
   2: <ClipboardList className="w-4 h-4" />,
   3: <FileCheck className="w-4 h-4" />,
@@ -112,7 +113,7 @@ const SURG_STEP_LABELS: Record<StepKey, string> = {
   4: 'Post-Procedure',
 }
 
-const SURG_STEP_ICONS: Record<StepKey, React.ReactNode> = {
+const SURG_STEP_ICONS: Record<StepKey, ReactNode> = {
   1: <Stethoscope className="w-4 h-4" />,
   2: <ClipboardList className="w-4 h-4" />,
   3: <Scissors className="w-4 h-4" />,
@@ -161,6 +162,39 @@ interface VaccineFormItem {
   doseNumber: number
   vaccineCreated: boolean
   createdVaccineId: string | null
+}
+type TiterSpecies = 'canine' | 'feline'
+
+interface TiterRow {
+  disease: string
+  score: number | null
+  status: 'Protected' | 'Not Protected' | ''
+  action: 'None' | 'Vaccinate' | ''
+}
+
+const TITERS_BY_SPECIES: Record<TiterSpecies, string[]> = {
+  canine: ['CPV', 'CDV', 'CAV-1'],
+  feline: ['FPV', 'FCV', 'FHV'],
+}
+
+const buildTiterRows = (species: TiterSpecies): TiterRow[] => {
+  return TITERS_BY_SPECIES[species].map((disease) => ({
+    disease,
+    score: null,
+    status: '',
+    action: '',
+  }))
+}
+
+const computeTiterStatusAction = (score: number | null): Pick<TiterRow, 'status' | 'action'> => {
+  if (score === null || Number.isNaN(score)) return { status: '', action: '' }
+  if (score >= 3) return { status: 'Protected', action: 'None' }
+  return { status: 'Not Protected', action: 'Vaccinate' }
+}
+
+const isTiterTestingService = (value: string) => {
+  const normalized = String(value || '').toLowerCase()
+  return normalized.includes('titer testing') || normalized.includes('titer-test') || normalized.includes('titer')
 }
 
 const emptyVaccine = (): VaccineFormItem => ({
@@ -364,7 +398,7 @@ function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: 
   }
 }
 
-export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentDate, onComplete, onClose }: Props) {
+export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
   const [step, setStep] = useState<StepKey>(1)
   const [pet, setPet] = useState<Pet | null>(null)
@@ -405,13 +439,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Previous visit data for system-driven context
   const [previousRecord, setPreviousRecord] = useState<MedicalRecordFull | null>(null)
   const [medHistoryData, setMedHistoryData] = useState<MedicalHistory | null>(null)
-const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'>; action: 'continue' | 'stop' }[]>([])
+  const [complaintCategory, setComplaintCategory] = useState('')
+  const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'>; action: 'continue' | 'stop' }[]>([])
   const [carryoverApplied, setCarryoverApplied] = useState(false)
   const [capsuleWarnings, setCapsuleWarnings] = useState<Record<number, string>>({})
   const [prevContextOpen, setPrevContextOpen] = useState(true)
 
   // Whether this appointment includes vaccination/booster
   const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination' || t === 'rabies-vaccination')
+const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingService(t))
 
   // Whether this appointment is a surgery appointment
   const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) =>
@@ -478,6 +514,14 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
   const [objective, setObjective] = useState('') // maps to overallObservation
   const [assessment, setAssessment] = useState('')
   const [plan, setPlan] = useState('')
+  const [titerEnabled, setTiterEnabled] = useState<boolean>(appointmentTiterFirst || hasTiterTestingService)
+  const [titerSpecies, setTiterSpecies] = useState<TiterSpecies>('canine')
+  const [titerRows, setTiterRows] = useState<TiterRow[]>(buildTiterRows('canine'))
+  const [titerKitName, setTiterKitName] = useState('VCheck')
+  const [skipTiterSuggested, setSkipTiterSuggested] = useState(false)
+  const [ignoreTiterVaccinate, setIgnoreTiterVaccinate] = useState(false)
+  const [ignoreTiterReason, setIgnoreTiterReason] = useState('')
+  const [titerImages, setTiterImages] = useState<{ data: string; contentType: string; description: string }[]>([])
   const [xray] = useState(false)
   const [ultrasound] = useState(false)
   const [availedProducts] = useState(false)
@@ -577,6 +621,32 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       setObjective(r.overallObservation || '')
       setAssessment(r.assessment || '')
       setPlan(r.plan || '')
+
+      if (r.immunityTesting) {
+        const savedSpecies = (r.immunityTesting.species || 'canine') as TiterSpecies
+        setTiterEnabled(r.immunityTesting.enabled === true)
+        setTiterSpecies(savedSpecies)
+        setTiterKitName(r.immunityTesting.kitName || 'VCheck')
+        setSkipTiterSuggested(r.immunityTesting.skipSuggested === true)
+        setIgnoreTiterVaccinate(r.immunityTesting.ignoreTiter === true)
+        setIgnoreTiterReason(r.immunityTesting.ignoreReason || '')
+        if (Array.isArray(r.immunityTesting.rows) && r.immunityTesting.rows.length > 0) {
+          setTiterRows(r.immunityTesting.rows.map((row) => {
+            const score = typeof row.score === 'number' ? row.score : null
+            const computed = computeTiterStatusAction(score)
+            return {
+              disease: row.disease,
+              score,
+              status: (row.status || computed.status) as TiterRow['status'],
+              action: (row.action || computed.action) as TiterRow['action'],
+            }
+          }))
+        } else {
+          setTiterRows(buildTiterRows(savedSpecies))
+        }
+      } else {
+        setTiterEnabled(appointmentTiterFirst || hasTiterTestingService)
+      }
       setVisitSummary(r.visitSummary || '')
       setReferral(r.referral ?? false)
       setDischarge(r.discharge ?? false)
@@ -770,6 +840,13 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       const loadedPet = petRes.data.pet
       setPet(loadedPet)
       setConfined(loadedPet.isConfined || false)
+      const autoSpecies: TiterSpecies = loadedPet.species === 'feline' ? 'feline' : 'canine'
+      setTiterSpecies((prev) => {
+        if (prev !== autoSpecies) {
+          setTiterRows(buildTiterRows(autoSpecies))
+        }
+        return autoSpecies
+      })
       if (isVaccinationAppt) {
         const speciesMap: Record<string, string> = { canine: 'dog', feline: 'cat' }
         const apiSpecies = speciesMap[loadedPet.species] ?? loadedPet.species
@@ -836,7 +913,7 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
         if (match) setDeliveryServiceId(match._id)
       }
     }
-  }, [recordId, petId, token, isVaccinationAppt, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate])
+  }, [recordId, petId, token, isVaccinationAppt, hasTiterTestingService, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate, appointmentTiterFirst])
 
   useEffect(() => {
     loadData()
@@ -1007,6 +1084,68 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
     if (extras.length === 0) return objective
     return objective + (objective ? '\n\n' : '') + `Services availed: ${extras.join(', ')}`
   }
+  const buildImmunityTestingPayload = () => {
+    if (!isVaccinationAppt && !hasTiterTestingService) return null
+
+    const normalizedRows = titerRows.map((row) => {
+      const computed = computeTiterStatusAction(row.score)
+      return {
+        disease: row.disease,
+        score: row.score,
+        status: computed.status,
+        action: computed.action,
+      }
+    })
+
+    const protectedCount = normalizedRows.filter((row) => row.status === 'Protected').length
+    const vaccinateFor = normalizedRows.filter((row) => row.action === 'Vaccinate').map((row) => row.disease)
+    const titerDate = new Date().toISOString().split('T')[0]
+    const speciesLabel = titerSpecies === 'canine' ? 'Canine' : 'Feline'
+    const planLine = ignoreTiterVaccinate
+      ? `Ignore titer; vaccinate anyway. Reason: ${ignoreTiterReason || 'No reason provided.'}`
+      : vaccinateFor.length > 0
+        ? `Retest ${vaccinateFor.join(', ')} in 7 days.`
+        : 'Cleared to vaccinate.'
+    const summary = `# Protected: ${protectedCount}/3 | Vaccinate for: ${vaccinateFor.length > 0 ? vaccinateFor.join(', ') : 'None'}`
+    const markdown = [
+      `Titer: ${titerDate} (${speciesLabel} ${titerKitName || 'VCheck'})`,
+      '| Disease | Score | Status | Action |',
+      '|---------|-------|--------|--------|',
+      ...normalizedRows.map((row) => `| ${row.disease} | ${row.score ?? '-'} | ${row.status || '-'} | ${row.action || '-'} |`),
+      `Plan: ${planLine}`,
+    ].join('\n')
+
+    return {
+      enabled: titerEnabled,
+      species: titerSpecies,
+      kitName: titerKitName || 'VCheck',
+      testDate: titerDate,
+      rows: normalizedRows,
+      protectedCount,
+      summary,
+      markdown,
+      tag: `#titer-${titerSpecies}-${titerDate}`,
+      linkedAppointmentId: appointmentId || null,
+      followUpAppointmentId: null,
+      followUpDate: null,
+      skipSuggested: skipTiterSuggested,
+      ignoreTiter: ignoreTiterVaccinate,
+      ignoreReason: ignoreTiterReason,
+    }
+  }
+
+  const mergePlanWithTiterMarkdown = (basePlan: string, immunityPayload: ReturnType<typeof buildImmunityTestingPayload>) => {
+    const planText = (basePlan || '').trim()
+    const sanitized = planText.includes('Immunity Testing\nTiter:')
+      ? planText.split('Immunity Testing\nTiter:')[0].trimEnd()
+      : planText
+
+    if (!immunityPayload || immunityPayload.enabled !== true || skipTiterSuggested) {
+      return sanitized
+    }
+
+    return `${sanitized}${sanitized ? '\n\n' : ''}Immunity Testing\n${immunityPayload.markdown}`
+  }
 
   // Computes the confinement action for logging and syncs the pet's isConfined flag.
   // Returns 'confined', 'released', or 'none'.
@@ -1054,10 +1193,12 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
       const diagImgs = buildDiagnosticTestImages()
+      const immunityPayload = buildImmunityTestingPayload()
+      const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
       // Combine all images: diagnostic test images + general images
-      const allImages = [...diagImgs, ...images]
+      const allImages = [...diagImgs, ...images, ...titerImages]
       
       // Remove images from diagnostic tests before sending to API
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
@@ -1068,7 +1209,8 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
         subjective,
         overallObservation: buildExtraObservation(),
         assessment,
-        plan,
+        plan: effectivePlan,
+        immunityTesting: immunityPayload,
         visitSummary,
         medications,
         diagnosticTests: diagnosticTestsToSend,
@@ -1118,6 +1260,40 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       return
     }
     setShowRequiredErrors(false)
+
+    // SOAP template pre-fill — only populate empty fields
+    const petName = pet?.name || 'the patient'
+    if (!subjective) {
+      if (isVaccinationAppt) {
+        setSubjective(chiefComplaint || `Owner presents ${petName} for scheduled vaccination. No acute concerns reported.`)
+      } else if (isSurgeryAppt) {
+        setSubjective(chiefComplaint || `Owner presents ${petName} for scheduled surgical procedure.`)
+      } else if (isPreventiveCareAppt) {
+        setSubjective(chiefComplaint || `Owner presents ${petName} for routine preventive care.`)
+      } else {
+        setSubjective(chiefComplaint)
+      }
+    }
+    if (!assessment) {
+      if (isVaccinationAppt) {
+        setAssessment(`${petName} presented for scheduled vaccination. Vitals within acceptable limits. No contraindications observed.`)
+      } else if (isPreventiveCareAppt) {
+        setAssessment(`${petName} in good health. Preventive care administered without complications.`)
+      } else if (previousRecord?.assessment) {
+        setAssessment(`Follow-up. Previous: ${previousRecord.assessment}`)
+      }
+    }
+    if (!plan) {
+      if (isVaccinationAppt) {
+        setPlan(`Vaccinations administered today. Owner advised to monitor for 15–30 minutes post-vaccination for adverse reactions (facial swelling, lethargy, vomiting). Return immediately if reaction occurs. Next booster scheduled per vaccine protocol.`)
+      } else if (isSurgeryAppt) {
+        setPlan(`Pre-surgical assessment completed. Owner consented to procedure. Post-operative care instructions to be provided at discharge.`)
+      } else if (isPreventiveCareAppt) {
+        setPlan(`Preventive care administered as scheduled. Owner reminded of next due dates. Continue as advised.`)
+      } else if (previousRecord?.plan) {
+        setPlan(`Previous plan: ${previousRecord.plan}\n\nCurrent plan: `)
+      }
+    }
 
     setSaving(true)
     try {
@@ -1228,19 +1404,36 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       toast.error('Please fill in all SOAP notes (Subjective, Objective, Assessment, Plan) before proceeding')
       return
     }
+
+    const immunityPayload = buildImmunityTestingPayload()
+    const hasUnscoredTiter = titerEnabled && !skipTiterSuggested && (immunityPayload?.rows || []).some((row) => row.score === null)
+    if (hasUnscoredTiter) {
+      toast.error('Please complete all titer scores before proceeding')
+      return
+    }
+
+    if (titerEnabled && !skipTiterSuggested && ignoreTiterVaccinate && !ignoreTiterReason.trim()) {
+      toast.error('Please provide a reason when ignoring titer results')
+      return
+    }
+
+    const hasLowImmunity = titerEnabled && !skipTiterSuggested && !ignoreTiterVaccinate &&
+      (immunityPayload?.rows || []).some((row) => row.action === 'Vaccinate')
     
     setSaving(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const diagImgs = buildDiagnosticTestImages()
-      const allImages = [...diagImgs, ...images]
+      const allImages = [...diagImgs, ...images, ...titerImages]
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       
       await updateMedicalRecord(recordId, {
         subjective,
         overallObservation: buildExtraObservation(),
         assessment,
-        plan,
+        plan: effectivePlan,
+        immunityTesting: immunityPayload,
         diagnosticTests: diagnosticTestsToSend,
         confinementAction,
         confinementDays,
@@ -1256,7 +1449,11 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       await syncPregnancyStatus()
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
-      setStep(isVaccinationAppt ? 3 : 3)
+      if (isVaccinationAppt && hasLowImmunity) {
+        setStep(4)
+      } else {
+        setStep(3)
+      }
     } catch {
       toast.error('Failed to save notes')
     } finally {
@@ -1446,12 +1643,16 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       
       // Extract diagnostic test images and combine with general images
       const diagImgs = buildDiagnosticTestImages()
-      const allImages = [...diagImgs, ...images]
+      const allImages = [...diagImgs, ...images, ...titerImages]
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      const immunityPayload = buildImmunityTestingPayload()
+      const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       
       await updateMedicalRecord(recordId, {
         stage: 'completed',
         visitSummary,
+        plan: effectivePlan,
+        immunityTesting: immunityPayload,
         medications,
         diagnosticTests: diagnosticTestsToSend,
         preventiveCare: sanitizedPreventiveCare,
@@ -1504,6 +1705,24 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       }
       reader.readAsDataURL(file)
     })
+  }
+
+  const handleTiterImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    files.forEach((file) => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string
+        const base64 = result.split(',')[1]
+        setTiterImages((prev) => [...prev, {
+          data: base64,
+          contentType: file.type,
+          description: `Titer cassette - ${file.name}`,
+        }])
+      }
+      reader.readAsDataURL(file)
+    })
+    e.target.value = ''
   }
 
   const handleDiagnosticTestImageUpload = (testIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1605,7 +1824,7 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
           <div className="flex items-center gap-2">
             {((isVaccinationAppt || isSurgeryAppt) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
               const labels = isVaccinationAppt ? VACC_STEP_LABELS : isSurgeryAppt ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
-              const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, React.ReactNode>
+              const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
                   <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
@@ -1989,6 +2208,174 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                   </div>
                 </div>
               </div>
+
+              {(isVaccinationAppt || hasTiterTestingService) && (
+                <div className="border border-[#7FA5A3]/30 rounded-2xl overflow-hidden bg-[#f0f7f7]">
+                  <div className="px-4 py-3 border-b border-[#7FA5A3]/20 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[#476B6B]">Immunity Testing</p>
+                      <p className="text-[11px] text-[#5A7C7A]">Document titer testing during procedure</p>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#2C3E2D]">
+                      <input
+                        type="checkbox"
+                        checked={titerEnabled}
+                        onChange={(e) => setTiterEnabled(e.target.checked)}
+                        className="w-4 h-4 accent-[#476B6B]"
+                      />
+                      Perform Titer Test First
+                    </label>
+                  </div>
+
+                  {titerEnabled && (
+                    <div className="px-4 py-3 space-y-3">
+                      {allPetVaccinations.length > 0 && (
+                        <label className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={skipTiterSuggested}
+                            onChange={(e) => setSkipTiterSuggested(e.target.checked)}
+                            className="w-4 h-4 accent-amber-600"
+                          />
+                          Past titer/vaccine history found. Skip titer?
+                        </label>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Species</label>
+                          <DropdownField
+                            value={titerSpecies}
+                            onValueChange={(value) => {
+                              const species = value as TiterSpecies
+                              setTiterSpecies(species)
+                              setTiterRows(buildTiterRows(species))
+                            }}
+                            placeholder="Species"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white"
+                            options={[
+                              { value: 'canine', label: 'Canine' },
+                              { value: 'feline', label: 'Feline' },
+                            ]}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Test Kit</label>
+                          <input
+                            type="text"
+                            value={titerKitName}
+                            onChange={(e) => setTiterKitName(e.target.value)}
+                            placeholder="VCheck"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                          />
+                        </div>
+                      </div>
+
+                      {!skipTiterSuggested && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden bg-white">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="text-left px-2 py-1.5">Disease</th>
+                                <th className="text-left px-2 py-1.5">Score (0-6)</th>
+                                <th className="text-left px-2 py-1.5">Status</th>
+                                <th className="text-left px-2 py-1.5">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {titerRows.map((row, idx) => {
+                                const computed = computeTiterStatusAction(row.score)
+                return (
+                    <tr key={row.disease} className="border-t border-gray-100">
+                                    <td className="px-2 py-1.5 font-medium text-gray-700">{row.disease}</td>
+                                    <td className="px-2 py-1.5">
+                                      <select
+                                        value={row.score ?? ''}
+                                        onChange={(e) => {
+                                          const value = e.target.value === '' ? null : Number(e.target.value)
+                                          setTiterRows((prev) => prev.map((item, j) => {
+                                            if (j !== idx) return item
+                                            const next = computeTiterStatusAction(value)
+                                            return { ...item, score: value, status: next.status, action: next.action }
+                                          }))
+                                        }}
+                                        className="border border-gray-200 rounded px-2 py-1 bg-white"
+                                      >
+                                        <option value="">Select</option>
+                                        {[0, 1, 2, 3, 4, 5, 6].map((score) => (
+                                          <option key={score} value={score}>{score}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td className="px-2 py-1.5 text-gray-700">{computed.status || '-'}</td>
+                                    <td className="px-2 py-1.5 text-gray-700">{computed.action || '-'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="flex items-center gap-1.5 cursor-pointer px-2.5 py-1.5 border border-dashed border-gray-300 rounded-lg bg-white hover:border-[#7FA5A3] transition-colors">
+                          <Upload className="w-3 h-3 text-gray-400" />
+                          <span className="text-xs text-gray-600">Take/Upload cassette photo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            multiple
+                            onChange={handleTiterImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-[11px] text-[#476B6B]">
+                          # Protected: {(titerRows || []).filter((r) => (r.score ?? -1) >= 3).length}/3 |
+                          {' '}Vaccinate for: {(titerRows || []).filter((r) => (r.score ?? 7) < 3 && r.score !== null).map((r) => r.disease).join(', ') || 'None'}
+                        </p>
+                      </div>
+
+                      {titerImages.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {titerImages.map((img, idx) => (
+                            <div key={`${img.description}-${idx}`} className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1">
+                              <span className="text-[11px] text-gray-600">{img.description}</span>
+                              <button
+                                type="button"
+                                onClick={() => setTiterImages((prev) => prev.filter((_, i) => i !== idx))}
+                                className="text-gray-400 hover:text-red-500"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <label className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={ignoreTiterVaccinate}
+                          onChange={(e) => setIgnoreTiterVaccinate(e.target.checked)}
+                          className="w-4 h-4 accent-red-600"
+                        />
+                        Ignore titer; vaccinate anyway
+                      </label>
+
+                      {ignoreTiterVaccinate && (
+                        <input
+                          type="text"
+                          value={ignoreTiterReason}
+                          onChange={(e) => setIgnoreTiterReason(e.target.value)}
+                          placeholder="Reason (required)"
+                          className="w-full border border-red-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-red-300"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Diagnostic Tests */}
               <div className="border border-gray-100 rounded-2xl overflow-hidden">
@@ -3716,7 +4103,7 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       </Dialog>
 
       {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
-      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-88'}`}>
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-80'}`}>
         {notesMinimized ? (
           <button
             onClick={() => setNotesMinimized(false)}

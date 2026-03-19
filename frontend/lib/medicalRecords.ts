@@ -151,6 +151,23 @@ export interface MedicalRecord {
   referral?: boolean;
   discharge?: boolean;
   scheduledSurgery?: boolean;
+  immunityTesting?: {
+    enabled: boolean;
+    species: string;
+    kitName: string;
+    testDate: string;
+    rows: { disease: string; score: number | null; status: string; action: string }[];
+    protectedCount: number;
+    summary: string;
+    markdown: string;
+    tag: string;
+    linkedAppointmentId: string | null;
+    followUpAppointmentId: string | null;
+    followUpDate: string | null;
+    skipSuggested: boolean;
+    ignoreTiter: boolean;
+    ignoreReason: string;
+  } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vaccinations?: any[];
   createdAt: string;
@@ -334,6 +351,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   referral: boolean;
   discharge: boolean;
   scheduledSurgery: boolean;
+  immunityTesting: MedicalRecord['immunityTesting'];
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',
