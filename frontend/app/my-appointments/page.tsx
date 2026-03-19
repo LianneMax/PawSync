@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -256,7 +256,7 @@ function Dropdown({
 }
 
 // ========== MAIN PAGE ==========
-export default function MyAppointmentsPage() {
+function MyAppointmentsPageContent() {
   const searchParams = useSearchParams()
   const petIdFromUrl = searchParams.get('petId')
   const { token } = useAuthStore()
@@ -841,6 +841,22 @@ export default function MyAppointmentsPage() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  )
+}
+
+export default function MyAppointmentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+          </div>
+        </DashboardLayout>
+      }
+    >
+      <MyAppointmentsPageContent />
+    </Suspense>
   )
 }
 

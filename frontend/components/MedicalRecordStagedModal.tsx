@@ -347,6 +347,73 @@ const mapProductToCareType = (productName: string): 'flea' | 'tick' | 'heartworm
   return 'other'
 }
 
+const normalizeServiceToken = (value: string): string =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+
+const derivePreventiveCareFromAppointment = (
+  appointmentTypes: string[],
+  preventiveServices: ProductService[],
+  appointmentDate?: string | null,
+): Omit<PreventiveCare, '_id'>[] => {
+  if (!appointmentDate || !Array.isArray(appointmentTypes) || appointmentTypes.length === 0) return []
+
+  const normalizedDate = appointmentDate.includes('T') ? appointmentDate.split('T')[0] : appointmentDate
+  const normalizedServices = preventiveServices.map((service) => ({
+    ...service,
+    normalizedName: normalizeServiceToken(service.name),
+  }))
+
+  const matchedServices: ProductService[] = []
+  for (const apptType of appointmentTypes) {
+    const raw = String(apptType || '').trim()
+    if (!raw) continue
+    const normalizedType = normalizeServiceToken(raw)
+    const matched = normalizedServices.find((service) =>
+      service._id === raw ||
+      service.normalizedName === normalizedType ||
+      service.normalizedName.includes(normalizedType) ||
+      normalizedType.includes(service.normalizedName),
+    )
+    if (matched && !matchedServices.some((service) => service._id === matched._id)) {
+      matchedServices.push(matched)
+    }
+  }
+
+  if (matchedServices.length > 0) {
+    return matchedServices.map((service) => ({
+      careType: mapProductToCareType(service.name),
+      product: service.name,
+      dateAdministered: normalizedDate,
+      notes: '',
+    }))
+  }
+
+  const legacyServiceByType: Record<string, string> = {
+    deworming: 'Deworming',
+    fleatickprevention: 'Flea & Tick Prevention',
+    heartworm: 'Heartworm Prevention',
+  }
+
+  const seenProducts = new Set<string>()
+  const legacyRows: Omit<PreventiveCare, '_id'>[] = []
+  for (const apptType of appointmentTypes) {
+    const normalizedType = normalizeServiceToken(apptType)
+    const product = legacyServiceByType[normalizedType]
+    if (!product || seenProducts.has(product)) continue
+    seenProducts.add(product)
+    legacyRows.push({
+      careType: mapProductToCareType(product),
+      product,
+      dateAdministered: normalizedDate,
+      notes: '',
+    })
+  }
+
+  return legacyRows
+}
+
 
 function calcAge(dob: string): string {
   const d = new Date(dob)
@@ -569,6 +636,19 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [testsOpen, setTestsOpen] = useState(true)
   const [preventiveOpen, setPreventiveOpen] = useState(true)
 
+  const isPreventiveCareAppt = appointmentTypes.some((apptType) => {
+    const normalizedType = normalizeServiceToken(apptType)
+    return (
+      normalizedType === 'preventivecare' ||
+      normalizedType === 'deworming' ||
+      normalizedType === 'fleatickprevention' ||
+      normalizedType === 'heartworm' ||
+      preventiveCareServices.some((service) =>
+        service._id === apptType || normalizeServiceToken(service.name) === normalizedType,
+      )
+    )
+  })
+
   const loadData = useCallback(async () => {
     if (!token) return
     const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes, deliveryServicesRes, histRes, medHistRes] = await Promise.all([
@@ -699,21 +779,13 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         setLossReportedBy(pl.reportedBy || 'vet')
       }
       
-      // Auto-populate preventive care only for preventive care appointment types
-      const isPreventiveCareApptType = appointmentTypes.some((t) =>
-        ['flea-tick-prevention', 'deworming', 'heartworm', 'preventive-care'].includes(t)
+      const autoPreventiveCare = derivePreventiveCareFromAppointment(
+        appointmentTypes,
+        prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items ? prevCareServicesRes.data.items : [],
+        appointmentDate,
       )
-      if ((!r.preventiveCare || r.preventiveCare.length === 0) && appointmentDate && isPreventiveCareApptType) {
-        let normalizedDate = appointmentDate
-        if (appointmentDate.includes('T')) {
-          normalizedDate = appointmentDate.split('T')[0]
-        }
-        const autoPop: typeof preventiveCare = [
-          { careType: 'deworming', product: 'Deworming', dateAdministered: normalizedDate, notes: '' },
-          { careType: 'flea', product: 'Flea & Tick Prevention', dateAdministered: normalizedDate, notes: '' },
-          { careType: 'heartworm', product: 'Heartworm Prevention', dateAdministered: normalizedDate, notes: '' },
-        ]
-        setPreventiveCare(autoPop)
+      if ((!r.preventiveCare || r.preventiveCare.length === 0) && autoPreventiveCare.length > 0) {
+        setPreventiveCare(autoPreventiveCare)
       } else {
         // Normalize old 'Flea and Tick Prevention' to new 'Flea & Tick Prevention'
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -955,37 +1027,14 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     return null
   }
 
-  // Auto-populate preventive care when appointment date is set — only for preventive care appointments
-  const isPreventiveCareAppt = appointmentTypes.some((t) =>
-    ['flea-tick-prevention', 'deworming', 'heartworm', 'preventive-care'].includes(t)
-  )
-
+  // Auto-populate preventive care based on appointment-selected preventive services
   useEffect(() => {
-    // Only proceed if we have an appointment date AND it's a preventive care appointment
-    if (!appointmentDate || !isPreventiveCareAppt) {
-      return
+    if (!appointmentDate || preventiveCare.length > 0) return
+    const autoPop = derivePreventiveCareFromAppointment(appointmentTypes, preventiveCareServices, appointmentDate)
+    if (autoPop.length > 0) {
+      setPreventiveCare(autoPop)
     }
-
-    // Check if record already has preventive care saved
-    if (preventiveCare.length > 0) {
-      return // Already has data (either saved or already auto-populated)
-    }
-
-    // Normalize appointment date
-    let normalizedDate = appointmentDate
-    if (appointmentDate.includes('T')) {
-      normalizedDate = appointmentDate.split('T')[0]
-    }
-
-    // Always add all preventive care services (Deworming, Flea & Tick Prevention, Heartworm Prevention)
-    const autoPop: typeof preventiveCare = [
-      { careType: 'deworming', product: 'Deworming', dateAdministered: normalizedDate, notes: '' },
-      { careType: 'flea', product: 'Flea & Tick Prevention', dateAdministered: normalizedDate, notes: '' },
-      { careType: 'heartworm', product: 'Heartworm Prevention', dateAdministered: normalizedDate, notes: '' },
-    ]
-
-    setPreventiveCare(autoPop)
-  }, [appointmentDate, isPreventiveCareAppt, preventiveCare.length])
+  }, [appointmentDate, appointmentTypes, preventiveCare.length, preventiveCareServices])
 
   // Convert surgery images state into the base64 payload for updateMedicalRecord
   const buildSurgeryImagesPayload = () =>

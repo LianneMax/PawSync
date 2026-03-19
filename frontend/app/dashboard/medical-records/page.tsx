@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -52,7 +52,7 @@ function formatDate(dateStr: string): string {
 
 // ==================== MAIN CONTENT COMPONENT ====================
 
-export default function MedicalRecordsContent() {
+function MedicalRecordsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { token } = useAuthStore()
@@ -453,5 +453,21 @@ export default function MedicalRecordsContent() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  )
+}
+
+export default function MedicalRecordsContent() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+          </div>
+        </DashboardLayout>
+      }
+    >
+      <MedicalRecordsPageContent />
+    </Suspense>
   )
 }
