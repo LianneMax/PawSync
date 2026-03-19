@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -30,6 +30,7 @@ import {
   Video,
   Users,
   Check,
+  Search,
 } from 'lucide-react'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
 import { toast } from 'sonner'
@@ -146,6 +147,49 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function toYmd(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getAppointmentDateYmd(dateValue: string) {
+  if (!dateValue) return ''
+  if (dateValue.includes('T')) return dateValue.split('T')[0]
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue
+  const parsed = new Date(dateValue)
+  if (isNaN(parsed.getTime())) return ''
+  return toYmd(parsed)
+}
+
+function getRangeForDateFilter(filter: 'today' | 'week' | 'month' | 'year') {
+  const now = new Date()
+  const start = new Date(now)
+  const end = new Date(now)
+
+  if (filter === 'today') {
+    return { startYmd: toYmd(start), endYmd: toYmd(end) }
+  }
+
+  if (filter === 'week') {
+    const dayIndex = start.getDay()
+    start.setDate(start.getDate() - dayIndex)
+    end.setDate(start.getDate() + 6)
+    return { startYmd: toYmd(start), endYmd: toYmd(end) }
+  }
+
+  if (filter === 'month') {
+    start.setDate(1)
+    end.setMonth(end.getMonth() + 1, 0)
+    return { startYmd: toYmd(start), endYmd: toYmd(end) }
+  }
+
+  start.setMonth(0, 1)
+  end.setMonth(11, 31)
+  return { startYmd: toYmd(start), endYmd: toYmd(end) }
+}
+
 
 // ---- Dropdown component ----
 function Dropdown({
@@ -219,17 +263,135 @@ export default function MyAppointmentsPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [serviceType, setServiceType] = useState<'all' | 'medical' | 'grooming'>('all')
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [myPets, setMyPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(!!petIdFromUrl)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
+  const [petSearch, setPetSearch] = useState('')
+  const [selectedPetId, setSelectedPetId] = useState<string>('')
+  const [petSearchOpen, setPetSearchOpen] = useState(false)
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('all')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+  const [customDateOpen, setCustomDateOpen] = useState(false)
 
-  // Filtered appointments based on service type
-  const filteredAppointments = appointments.filter((a) => {
-    if (serviceType === 'all') return true
-    const isGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
-    return serviceType === 'grooming' ? isGrooming : !isGrooming
-  })
+  useEffect(() => {
+    const loadMyPets = async () => {
+      try {
+        const res = await getMyPets(token || undefined)
+        if (res.status === 'SUCCESS' && res.data) {
+          setMyPets(res.data.pets)
+        }
+      } catch {
+        // silent
+      }
+    }
+    if (token) loadMyPets()
+  }, [token])
+
+  const petOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+
+    myPets.forEach((pet) => {
+      if (pet?._id && pet?.name) {
+        map.set(String(pet._id), { id: String(pet._id), name: pet.name })
+      }
+    })
+
+    appointments.forEach((appt) => {
+      const petObj = typeof appt.petId === 'object' && appt.petId ? appt.petId : null
+      const petId = petObj?._id ? String(petObj._id) : ''
+      const petName = petObj?.name || ''
+      if (petId && petName && !map.has(petId)) {
+        map.set(petId, { id: petId, name: petName })
+      }
+    })
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [myPets, appointments])
+
+  const selectedPet = useMemo(
+    () => petOptions.find((p) => p.id === selectedPetId) || null,
+    [petOptions, selectedPetId],
+  )
+
+  useEffect(() => {
+    if (selectedPet) {
+      setPetSearch(selectedPet.name)
+    } else if (selectedPetId === '') {
+      setPetSearch('')
+    }
+  }, [selectedPet, selectedPetId])
+
+  const suggestedPets = useMemo(() => {
+    const q = petSearch.trim().toLowerCase()
+    if (!q) return petOptions.slice(0, 8)
+    return petOptions.filter((pet) => pet.name.toLowerCase().includes(q)).slice(0, 8)
+  }, [petOptions, petSearch])
+
+  // Filtered appointments based on service type + pet + date
+  const filteredAppointments = useMemo(() => {
+    let startYmd = ''
+    let endYmd = ''
+
+    if (dateFilter === 'custom') {
+      if (customStartDate && customEndDate) {
+        startYmd = customStartDate <= customEndDate ? customStartDate : customEndDate
+        endYmd = customStartDate <= customEndDate ? customEndDate : customStartDate
+      }
+    } else if (dateFilter !== 'all') {
+      const range = getRangeForDateFilter(dateFilter)
+      startYmd = range.startYmd
+      endYmd = range.endYmd
+    }
+
+    return appointments.filter((a) => {
+      if (serviceType !== 'all') {
+        const isGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+        if (serviceType === 'grooming' && !isGrooming) return false
+        if (serviceType === 'medical' && isGrooming) return false
+      }
+
+      if (selectedPetId) {
+        const apptPetId = typeof a.petId === 'string' ? a.petId : a.petId?._id
+        if (!apptPetId || String(apptPetId) !== selectedPetId) return false
+      }
+
+      if (startYmd && endYmd) {
+        const apptYmd = getAppointmentDateYmd(a.date)
+        if (!apptYmd || apptYmd < startYmd || apptYmd > endYmd) return false
+      }
+
+      return true
+    })
+  }, [appointments, serviceType, selectedPetId, dateFilter, customStartDate, customEndDate])
+
+  const activeFilters = useMemo(() => {
+    const items: Array<{ key: 'service' | 'pet' | 'date'; label: string }> = []
+    if (serviceType !== 'all') {
+      items.push({
+        key: 'service',
+        label: serviceType === 'medical' ? 'Medical Services' : 'Clinic Services',
+      })
+    }
+    if (selectedPet) {
+      items.push({ key: 'pet', label: selectedPet.name })
+    }
+    if (dateFilter !== 'all') {
+      if (dateFilter === 'today') items.push({ key: 'date', label: 'Today' })
+      if (dateFilter === 'week') items.push({ key: 'date', label: 'This Week' })
+      if (dateFilter === 'month') items.push({ key: 'date', label: 'This Month' })
+      if (dateFilter === 'year') items.push({ key: 'date', label: 'This Year' })
+      if (dateFilter === 'custom' && customStartDate && customEndDate) {
+        items.push({ key: 'date', label: `${formatDate(customStartDate)} - ${formatDate(customEndDate)}` })
+      }
+      if (dateFilter === 'custom' && (!customStartDate || !customEndDate)) {
+        items.push({ key: 'date', label: 'Custom Date' })
+      }
+    }
+    return items
+  }, [serviceType, selectedPet, dateFilter, customStartDate, customEndDate])
 
   // Load appointments
   const loadAppointments = useCallback(async () => {
@@ -349,6 +511,178 @@ export default function MyAppointmentsPage() {
             </button>
           ))}
         </div>
+
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+          <div className="relative w-full md:max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={petSearch}
+                placeholder="Search pet..."
+                onFocus={() => setPetSearchOpen(true)}
+                onBlur={() => setTimeout(() => setPetSearchOpen(false), 120)}
+                onChange={(e) => {
+                  const next = e.target.value
+                  setPetSearch(next)
+                  setPetSearchOpen(true)
+                  if (selectedPet && next !== selectedPet.name) {
+                    setSelectedPetId('')
+                  }
+                }}
+                className="w-full pl-10 pr-20 py-2.5 border border-gray-200 rounded-xl bg-white text-sm text-[#4F4F4F] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]/40"
+              />
+              {(selectedPetId || petSearch) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPetId('')
+                    setPetSearch('')
+                    setPetSearchOpen(false)
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100"
+                >
+                  All Pets
+                </button>
+              )}
+            </div>
+
+            {petSearchOpen && suggestedPets.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-56 overflow-y-auto">
+                {suggestedPets.map((pet) => (
+                  <button
+                    key={pet.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPetId(pet.id)
+                      setPetSearch(pet.name)
+                      setPetSearchOpen(false)
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-[#4F4F4F] hover:bg-[#7FA5A3]/10"
+                  >
+                    {pet.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {petSearchOpen && petSearch.trim().length > 0 && suggestedPets.length === 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 px-4 py-3 text-sm text-gray-400">
+                No pets found
+              </div>
+            )}
+          </div>
+
+          <div className="relative w-full md:w-auto">
+            <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-100 overflow-x-auto">
+              {([
+                { value: 'today', label: 'Today' },
+                { value: 'week', label: 'This Week' },
+                { value: 'month', label: 'This Month' },
+                { value: 'year', label: 'This Year' },
+                { value: 'custom', label: 'Custom' },
+              ] as const).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setDateFilter(option.value)
+                    setCustomDateOpen(option.value === 'custom')
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                    dateFilter === option.value
+                      ? 'bg-[#7FA5A3] text-white shadow-sm'
+                      : 'text-[#4F4F4F] hover:bg-gray-50'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+              {dateFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFilter('all')
+                    setCustomDateOpen(false)
+                    setCustomStartDate('')
+                    setCustomEndDate('')
+                  }}
+                  className="px-3 py-2 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-50"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {dateFilter === 'custom' && customDateOpen && (
+              <div className="absolute right-0 mt-2 w-full md:w-[520px] bg-white border border-gray-200 rounded-2xl shadow-lg p-4 z-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Start Date</p>
+                    <DatePicker
+                      value={customStartDate}
+                      onChange={(value) => setCustomStartDate(value)}
+                      allowFutureDates
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">End Date</p>
+                    <DatePicker
+                      value={customEndDate}
+                      onChange={(value) => setCustomEndDate(value)}
+                      allowFutureDates
+                      minDate={customStartDate ? new Date(customStartDate) : undefined}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setCustomDateOpen(false)}
+                    className="px-4 py-2 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-100"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {activeFilters.map((filter) => (
+              <span
+                key={`${filter.key}-${filter.label}`}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#7FA5A3]/10 text-[#5A7C7A]"
+              >
+                {filter.label}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (filter.key === 'service') setServiceType('all')
+                    if (filter.key === 'pet') {
+                      setSelectedPetId('')
+                      setPetSearch('')
+                    }
+                    if (filter.key === 'date') {
+                      setDateFilter('all')
+                      setCustomStartDate('')
+                      setCustomEndDate('')
+                      setCustomDateOpen(false)
+                    }
+                  }}
+                  className="text-[#5A7C7A] hover:text-[#476B6B]"
+                  aria-label={`Remove ${filter.label} filter`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Appointments List */}
         {loading ? (
