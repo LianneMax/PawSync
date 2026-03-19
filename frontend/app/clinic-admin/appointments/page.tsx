@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { DatePicker } from '@/components/ui/date-picker'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
+import { getVaccinationsByPet as getPetVaccinations } from '@/lib/vaccinations'
 
 // ==================== CONSTANTS ====================
 
@@ -151,6 +152,10 @@ function formatSlotTime(time: string) {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function hasVaccinationService(types: string[]): boolean {
+  return types.some((type) => String(type).toLowerCase().includes('vaccination'))
 }
 
 // ==================== DROPDOWN COMPONENT ====================
@@ -1542,6 +1547,9 @@ function ClinicScheduleModal({
   const [isWalkIn, setIsWalkIn] = useState(false)
   const [isEmergency, setIsEmergency] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [titerFirst, setTiterFirst] = useState(false)
+  const [titerTouched, setTiterTouched] = useState(false)
+  const [titerAutoMessage, setTiterAutoMessage] = useState(false)
 
   const groomingTypeValues = new Set([
     'basic-grooming',
@@ -1646,6 +1654,9 @@ function ClinicScheduleModal({
   // Reset pet when owner changes
   useEffect(() => {
     setSelectedPetId('')
+    setTiterFirst(false)
+    setTiterTouched(false)
+    setTiterAutoMessage(false)
   }, [selectedOwner])
 
   // Reset form on close
@@ -1664,6 +1675,9 @@ function ClinicScheduleModal({
       setSlotsIsClosed(false)
       setIsWalkIn(false)
       setIsEmergency(false)
+      setTiterFirst(false)
+      setTiterTouched(false)
+      setTiterAutoMessage(false)
     } else {
       // Auto-set branch for clinic admins
       if (isClinicAdmin && adminBranch && !selectedBranchId) {
@@ -1699,6 +1713,34 @@ function ClinicScheduleModal({
       loadServices()
     }
   }, [open, token, isClinicAdmin, adminBranch, selectedBranchId])
+
+  useEffect(() => {
+    const run = async () => {
+      if (!selectedPetId || !hasVaccinationService(selectedTypes) || mode === 'online' || !token) {
+        if (!titerTouched) setTiterFirst(false)
+        setTiterAutoMessage(false)
+        return
+      }
+
+      try {
+        const existing = await getPetVaccinations(selectedPetId, token)
+        const hasPast = Array.isArray(existing) && existing.length > 0
+        if (!hasPast && !titerTouched) {
+          setTiterFirst(true)
+          setTiterAutoMessage(true)
+          return
+        }
+        if (hasPast && !titerTouched) {
+          setTiterFirst(false)
+        }
+        setTiterAutoMessage(false)
+      } catch {
+        setTiterAutoMessage(false)
+      }
+    }
+
+    run()
+  }, [selectedPetId, selectedTypes, mode, token, titerTouched])
 
   // Build branch options (only the admin's clinic branches)
   const branchOptions = branches.map((branch) => ({
@@ -1746,6 +1788,7 @@ function ClinicScheduleModal({
         endTime: selectedSlot.endTime,
         isWalkIn,
         isEmergency,
+        titer_first: titerFirst,
       }
       
       // Only include vetId if it has a value (medical appointments)
@@ -1994,6 +2037,31 @@ function ClinicScheduleModal({
                 minDate={new Date(new Date().setHours(0, 0, 0, 0))}
               />
             </div>
+
+            {mode !== 'online' && hasVaccinationService(selectedTypes) && (
+              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={titerFirst}
+                    onChange={(e) => {
+                      setTiterFirst(e.target.checked)
+                      setTiterTouched(true)
+                      setTiterAutoMessage(false)
+                    }}
+                    className="mt-0.5 w-4 h-4 accent-[#476B6B]"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-[#2C3E2D]">Perform Titer Test First</p>
+                    {titerAutoMessage && (
+                      <p className="text-xs text-[#476B6B] mt-1">
+                        Auto-selected: No prior vaccines found. Titer checks immunity before vaccinating.
+                      </p>
+                    )}
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* Walk-In / Emergency Toggles */}
             <div className="space-y-2.5">

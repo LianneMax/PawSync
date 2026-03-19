@@ -76,31 +76,16 @@ export interface PregnancyRecord {
   gestationDate: string | null;
   expectedDueDate: string | null;
   litterNumber: number | null;
-  confirmationMethod?: 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown';
-  confirmationSource?: 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown';
-  confidence?: 'high' | 'medium' | 'low';
-  confirmedAt?: string | null;
-  notes?: string;
 }
 
 export interface PregnancyDelivery {
   deliveryDate: string | null;
-  deliveryType: string;
+  deliveryType: 'natural' | 'c-section';
   laborDuration: string;
   liveBirths: number;
   stillBirths: number;
   motherCondition: 'stable' | 'critical' | 'recovering';
   vetRemarks: string;
-  deliveryLocation?: 'in_clinic' | 'outside_clinic' | 'unknown';
-  reportedBy?: 'vet' | 'owner' | 'external_vet' | 'unknown';
-}
-
-export interface PregnancyLoss {
-  lossDate: string | null;
-  lossType: 'miscarriage' | 'reabsorption' | 'abortion' | 'other';
-  gestationalAgeAtLoss: number | null;
-  notes: string;
-  reportedBy: 'vet' | 'owner' | 'external_vet' | 'unknown';
 }
 
 export interface FollowUp {
@@ -112,6 +97,31 @@ export interface FollowUp {
   sharedWithOwner: boolean;
   media?: { _id?: string; data?: string; contentType: string; description: string }[];
   createdAt: string;
+}
+
+export interface TiterDiseaseRow {
+  disease: string;
+  score: number | null;
+  status: 'Protected' | 'Not Protected' | '';
+  action: 'None' | 'Vaccinate' | '';
+}
+
+export interface ImmunityTesting {
+  enabled: boolean;
+  species: 'canine' | 'feline' | null;
+  kitName: string;
+  testDate: string | null;
+  rows: TiterDiseaseRow[];
+  protectedCount: number;
+  summary: string;
+  markdown: string;
+  tag: string;
+  linkedAppointmentId: string | null;
+  followUpAppointmentId: string | null;
+  followUpDate: string | null;
+  skipSuggested: boolean;
+  ignoreTiter: boolean;
+  ignoreReason: string;
 }
 
 export interface MedicalRecord {
@@ -135,6 +145,7 @@ export interface MedicalRecord {
   subjective: string;
   assessment: string;
   plan: string;
+  immunityTesting?: ImmunityTesting | null;
   medications: Medication[];
   diagnosticTests: DiagnosticTest[];
   preventiveCare: PreventiveCare[];
@@ -144,7 +155,6 @@ export interface MedicalRecord {
   confinementDays: number;
   pregnancyRecord?: PregnancyRecord | null;
   pregnancyDelivery?: PregnancyDelivery | null;
-  pregnancyLoss?: PregnancyLoss | null;
   surgeryRecord?: { surgeryType: string; vetRemarks: string; images?: ImageFragment[] } | null;
   billingId?: string;
   followUps?: FollowUp[];
@@ -330,10 +340,10 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { data: string; contentType: string; description: string }[] } | null;
   pregnancyRecord: PregnancyRecord | null;
   pregnancyDelivery: PregnancyDelivery | null;
-  pregnancyLoss: PregnancyLoss | null;
   referral: boolean;
   discharge: boolean;
   scheduledSurgery: boolean;
+  immunityTesting: ImmunityTesting | null;
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',
@@ -414,11 +424,4 @@ export const getPreventiveCareServices = async (token?: string): Promise<Product
  */
 export const getSurgeryServices = async (token?: string): Promise<ProductServicesResponse> => {
   return authenticatedFetch(`/product-services?type=Service&category=Surgeries`, { method: 'GET' }, token);
-};
-
-/**
- * Fetch pregnancy delivery services from the product-services catalog
- */
-export const getPregnancyDeliveryServices = async (token?: string): Promise<ProductServicesResponse> => {
-  return authenticatedFetch(`/product-services?type=Service&category=Pregnancy Delivery`, { method: 'GET' }, token);
 };
