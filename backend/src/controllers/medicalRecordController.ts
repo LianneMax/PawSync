@@ -6,7 +6,11 @@ import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
+import Billing from '../models/Billing';
+import ProductService from '../models/ProductService';
+import VaccineType from '../models/VaccineType';
 import { createNotification } from '../services/notificationService';
+import { sendBillingPendingPayment } from '../services/emailService';
 import { getPregnancySnapshot, syncPregnancyFromMedicalRecord, getPregnancyEpisodeHistory } from '../services/pregnancyDomainService';
 import type { PregnancyEvidenceSource } from '../models/PregnancyEvidence';
 
@@ -35,6 +39,245 @@ function addMinutesToTime(time: string, minutes: number): string {
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
 }
 
+
+/**
+ * Helper — normalise a string for fuzzy name matching.
+ */
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Helper — find the first catalog entry whose name matches (exact then partial).
+ */
+function matchByName(name: string, catalog: any[]): any | undefined {
+  const n = normalizeName(name);
+  return (
+    catalog.find((c) => normalizeName(c.name) === n) ||
+    catalog.find((c) => normalizeName(c.name).includes(n) || n.includes(normalizeName(c.name)))
+  );
+}
+
+/**
+ * Rebuild the billing items from the current state of a medical record and save.
+ * Called every time a medical record is updated so the billing always reflects the latest MR.
+ * Skips records with no linked billing or billing already marked as paid.
+ */
+export async function syncBillingFromRecord(recordId: string): Promise<void> {
+  try {
+    const record = await MedicalRecord.findById(recordId).lean();
+    if (!record || !(record as any).billingId) return;
+
+    const billing = await Billing.findById((record as any).billingId);
+    if (!billing || billing.status === 'paid') return;
+
+    // Fetch full catalogs (active only)
+    const [allProducts, allVaccineTypes] = await Promise.all([
+      ProductService.find({ isActive: true }).lean(),
+      VaccineType.find({ isActive: true }).lean(),
+    ]);
+
+    const medCatalog  = allProducts.filter((p: any) => p.category === 'Medication');
+    const diagCatalog = allProducts.filter((p: any) => p.category === 'Diagnostic Tests');
+    const careCatalog = allProducts.filter((p: any) => p.category === 'Preventive Care');
+
+    const newItems: any[] = [];
+
+    // Medications — quantity comes from medication.quantity (default 1)
+    for (const med of (record as any).medications ?? []) {
+      if (!med.name) continue;
+      const match =
+        medCatalog.find(
+          (c: any) =>
+            normalizeName(c.name) === normalizeName(med.name) &&
+            (!c.administrationRoute || c.administrationRoute === med.route),
+        ) || matchByName(med.name, medCatalog);
+      newItems.push({
+        productServiceId: match ? match._id : null,
+        vaccineTypeId: null,
+        name: match ? match.name : med.name,
+        type: 'Product',
+        unitPrice: match ? match.price : 0,
+        quantity: med.quantity ?? 1,
+      });
+    }
+
+    // Diagnostic Tests — quantity 1
+    for (const test of (record as any).diagnosticTests ?? []) {
+      if (!test.name) continue;
+      const match = matchByName(test.name, diagCatalog);
+      newItems.push({
+        productServiceId: match ? match._id : null,
+        vaccineTypeId: null,
+        name: match ? match.name : test.name,
+        type: 'Service',
+        unitPrice: match ? match.price : 0,
+        quantity: 1,
+      });
+    }
+
+    // Preventive Care — quantity 1
+    for (const care of (record as any).preventiveCare ?? []) {
+      if (!care.product) continue;
+      const match = matchByName(care.product, careCatalog);
+      newItems.push({
+        productServiceId: match ? match._id : null,
+        vaccineTypeId: null,
+        name: match ? match.name : care.product,
+        type: 'Service',
+        unitPrice: match ? match.price : 0,
+        quantity: 1,
+      });
+    }
+
+    // Vaccinations — pull price from VaccineType.pricePerDose
+    const vaccinations = await Vaccination.find({ medicalRecordId: recordId }).lean();
+    for (const vax of vaccinations) {
+      const vaccTypeId = vax.vaccineTypeId
+        ? typeof vax.vaccineTypeId === 'object'
+          ? (vax.vaccineTypeId as any).toString()
+          : vax.vaccineTypeId
+        : null;
+      const vaccType = vaccTypeId
+        ? allVaccineTypes.find((v: any) => v._id.toString() === vaccTypeId)
+        : null;
+      newItems.push({
+        productServiceId: null,
+        vaccineTypeId: vaccTypeId || null,
+        name: vaccType ? vaccType.name : (vax as any).vaccineName || 'Vaccine',
+        type: 'Service',
+        unitPrice: vaccType ? vaccType.pricePerDose : 0,
+        quantity: 1,
+      });
+    }
+
+    // Confinement — quantity = number of days
+    if ((record as any).confinementAction !== 'none' && (record as any).confinementDays > 0) {
+      const confService = allProducts.find(
+        (p: any) => p.type === 'Service' && normalizeName(p.name).includes('confinement'),
+      );
+      newItems.push({
+        productServiceId: confService ? confService._id : null,
+        vaccineTypeId: null,
+        name: confService ? confService.name : 'Confinement',
+        type: 'Service',
+        unitPrice: confService ? confService.price : 0,
+        quantity: (record as any).confinementDays,
+      });
+    }
+
+    // Pregnancy Delivery — deliveryType stores the selected service name from the 'Pregnancy Delivery' catalog
+    if ((record as any).pregnancyDelivery?.deliveryType) {
+      const deliveryCatalog = allProducts.filter((p: any) => p.category === 'Pregnancy Delivery');
+      const match = matchByName((record as any).pregnancyDelivery.deliveryType, deliveryCatalog);
+      newItems.push({
+        productServiceId: match ? match._id : null,
+        vaccineTypeId: null,
+        name: match ? match.name : (record as any).pregnancyDelivery.deliveryType,
+        type: 'Service',
+        unitPrice: match ? match.price : 0,
+        quantity: 1,
+      });
+    }
+
+    // Appointment types — add services that are not already covered by MR field sync
+    if ((record as any).appointmentId) {
+      const appt = await Appointment.findById((record as any).appointmentId)
+        .select('types')
+        .lean();
+
+      if (appt?.types?.length) {
+        // Human-readable labels keyed by appointment type value
+        const APPT_TYPE_LABEL: Record<string, string> = {
+          'consultation':             'Consultation',
+          'general-checkup':          'General Checkup',
+          'primary-treatment':        'Primary Treatment',
+          'outpatient-treatment':     'Outpatient Treatment',
+          'inpatient-care':           'Inpatient Care',
+          'point-of-care-diagnostic': 'Point of Care Diagnostic',
+          'laser-therapy':            'Laser Therapy',
+          'dental-scaling':           'Dental Scaling',
+          'cbc':                      'CBC Test',
+          'blood-chemistry-16':       'Blood Chemistry (16)',
+          'pcr-test':                 'PCR Test',
+          'x-ray':                    'X-Ray',
+          'ultrasound':               'Ultrasound',
+          'abdominal-surgery':        'Abdominal Surgery',
+          'orthopedic-surgery':       'Orthopedic Surgery',
+          'Sterilization':            'Sterilization',
+          'General Consultation':     'General Consultation',
+        };
+
+        // These are fully covered by other sync paths — skip to avoid double-billing
+        const SKIP_APPT_TYPES = new Set([
+          'vaccination', 'rabies-vaccination', 'puppy-litter-vaccination', 'booster',
+          'deworming', 'flea-tick-prevention', 'Preventive Care',
+          'basic-grooming', 'full-grooming', 'Grooming',
+        ]);
+
+        // productServiceIds already in newItems — used for dedup
+        const usedIds = new Set(
+          newItems.map((i) => i.productServiceId?.toString()).filter(Boolean),
+        );
+
+        for (const apptType of appt.types) {
+          if (SKIP_APPT_TYPES.has(apptType)) continue;
+
+          const label =
+            APPT_TYPE_LABEL[apptType] ||
+            apptType.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+          // Name-match against entire catalog
+          const match = matchByName(label, allProducts);
+
+          // Dedup: skip if same product already added from another sync path
+          if (match && usedIds.has(match._id.toString())) continue;
+
+          newItems.push({
+            productServiceId: match ? match._id : null,
+            vaccineTypeId: null,
+            name: match ? match.name : label,
+            type: 'Service',
+            unitPrice: match ? match.price : 0,
+            quantity: 1,
+          });
+
+          if (match) usedIds.add(match._id.toString());
+        }
+      }
+    }
+
+    // Titer testing fallback — when titer is performed during a vaccination appointment
+    // (appointment type 'vaccination' is in SKIP_APPT_TYPES so not caught above).
+    // Detected by the "Immunity Testing" marker appended to the plan field.
+    const hasTiterItem = newItems.some((item) => item.name.toLowerCase().includes('titer'));
+    if (!hasTiterItem && typeof (record as any).plan === 'string' && (record as any).plan.includes('Immunity Testing')) {
+      const titerMatch = allProducts.find((p: any) => normalizeName(p.name).includes('titer'));
+      if (titerMatch) {
+        newItems.push({
+          productServiceId: titerMatch._id,
+          vaccineTypeId: null,
+          name: titerMatch.name,
+          type: 'Service',
+          unitPrice: titerMatch.price,
+          quantity: 1,
+        });
+      }
+    }
+
+    const subtotal = newItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    billing.items = newItems;
+    billing.subtotal = subtotal;
+    billing.totalAmountDue = Math.max(0, subtotal - billing.discount);
+    if (newItems.length > 0) {
+      billing.serviceLabel = newItems.map((i) => i.name).join(', ');
+    }
+    await billing.save();
+  } catch (err) {
+    console.error('[MedicalRecord] syncBillingFromRecord error:', err);
+    // Non-fatal — don't block the medical record save
+  }
+}
 
 /**
  * Create a new medical record.
@@ -706,6 +949,51 @@ export const updateRecord = async (req: Request, res: Response) => {
 
 
     await record.save();
+
+    // Sync billing items from the updated medical record (fire-and-forget, non-fatal)
+    syncBillingFromRecord(record._id.toString()).catch((e) =>
+      console.error('[MedicalRecord] Background billing sync failed:', e),
+    );
+
+    // When the medical record is completed, notify the owner that the invoice is ready for payment
+    if (stage === 'completed' && record.billingId) {
+      try {
+        const billing = await Billing.findById(record.billingId)
+          .populate('ownerId', 'firstName lastName email')
+          .populate('petId', 'name')
+          .populate('vetId', 'firstName lastName');
+        if (billing) {
+          const owner = billing.ownerId as any;
+          const pet   = billing.petId   as any;
+          const vet   = billing.vetId   as any;
+          if (owner?.email && pet?.name) {
+            sendBillingPendingPayment({
+              ownerEmail:    owner.email,
+              ownerFirstName: owner.firstName,
+              petName:       pet.name,
+              vetName:       vet ? `${vet.firstName} ${vet.lastName}` : 'the veterinarian',
+              items:         billing.items,
+              subtotal:      billing.subtotal,
+              discount:      billing.discount,
+              totalAmountDue: billing.totalAmountDue,
+              serviceDate:   billing.serviceDate,
+            });
+          }
+          if (owner?._id && pet?.name) {
+            await createNotification(
+              owner._id.toString(),
+              'bill_due',
+              'New Invoice Ready',
+              `A new invoice of ₱${billing.totalAmountDue.toFixed(2)} for ${pet.name} is ready for payment.`,
+              { billingId: billing._id },
+            );
+          }
+        }
+      } catch (billNotifyErr) {
+        console.error('[MedicalRecord] Billing notification on completion failed:', billNotifyErr);
+        // Non-fatal
+      }
+    }
 
     // Auto-schedule post-delivery follow-up when mother condition is critical
     if (stage === 'completed' && pregnancyDelivery && pregnancyDelivery.motherCondition === 'critical') {

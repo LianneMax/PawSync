@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { refreshBillingPrices } from '@/lib/billingSync'
 import {
   Search,
-  Plus,
+
   Trash2,
   ChevronDown,
   Receipt,
@@ -39,9 +39,11 @@ function authHeaders(): Record<string, string> {
 interface ApiBillingItem {
   _id: string
   productServiceId: string
+  vaccineTypeId?: string
   name: string
   type: 'Service' | 'Product'
   unitPrice: number
+  quantity: number
 }
 
 interface ApiBilling {
@@ -51,11 +53,12 @@ interface ApiBilling {
   vetId: { _id: string; firstName: string; lastName: string }
   clinicId: { _id: string; name: string }
   clinicBranchId: { _id: string; name: string }
+  medicalRecordId: { _id: string; stage: string } | null
   items: ApiBillingItem[]
   subtotal: number
   discount: number
   totalAmountDue: number
-  status: 'awaiting_approval' | 'pending_payment' | 'paid'
+  status: 'pending_payment' | 'paid'
   serviceLabel: string
   serviceDate: string
   createdAt: string
@@ -82,15 +85,15 @@ interface ApiMedicalRecord {
 type AdminStatus = 'Running' | 'Paid' | 'Pending Payment'
 type OwnerStatus = 'Paid' | 'Pending Payment' | 'Running'
 
-function mapAdminStatus(status: string): AdminStatus {
-  if (status === 'paid') return 'Paid'
-  if (status === 'pending_payment') return 'Pending Payment'
+function mapAdminStatus(billing: ApiBilling): AdminStatus {
+  if (billing.status === 'paid') return 'Paid'
+  if (billing.status === 'pending_payment' && billing.medicalRecordId?.stage === 'completed') return 'Pending Payment'
   return 'Running'
 }
 
-function mapOwnerStatus(status: string): OwnerStatus {
-  if (status === 'paid') return 'Paid'
-  if (status === 'pending_payment') return 'Pending Payment'
+function mapOwnerStatus(billing: ApiBilling): OwnerStatus {
+  if (billing.status === 'paid') return 'Paid'
+  if (billing.status === 'pending_payment' && billing.medicalRecordId?.stage === 'completed') return 'Pending Payment'
   return 'Running'
 }
 
@@ -197,7 +200,7 @@ function PetOwnerBilling() {
                 </tr>
               )}
               {!loading && filtered.map((b) => {
-                const status = mapOwnerStatus(b.status)
+                const status = mapOwnerStatus(b)
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4 text-sm font-medium text-[#4F4F4F]">{b.petId?.name || '-'}</td>
@@ -212,7 +215,7 @@ function PetOwnerBilling() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        {b.status === 'pending_payment' && (
+                        {b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed' && (
                           <button
                             onClick={() => setPayingBilling(b)}
                             className="inline-flex items-center px-3 py-1.5 bg-[#3D5A58] hover:bg-[#2e4341] text-white text-xs font-medium rounded-lg transition-colors"
@@ -281,266 +284,13 @@ function groupByCategory(items: ProductServiceOption[]) {
   return result
 }
 
-// ==================== VET APPROVAL MODAL ====================
-
-function VetApprovalModal({
-  billing,
-  onClose,
-  onApproved,
-}: {
-  billing: ApiBilling
-  onClose: () => void
-  onApproved: () => void
-}) {
-  const [loading, setLoading] = useState(false)
-  const [catalog, setCatalog] = useState<(ProductServiceOption & { category: string })[]>([])
-  const [showAddPanel, setShowAddPanel] = useState(false)
-  const [addSearch, setAddSearch] = useState('')
-  const [selectedItems, setSelectedItems] = useState(
-    billing.items.map((item) => ({
-      _id: item.productServiceId || item._id,
-      name: item.name,
-      type: item.type,
-      price: item.unitPrice,
-    }))
-  )
-
-  useEffect(() => {
-    fetch(`${API_BASE}/product-services`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.status === 'SUCCESS') {
-          setCatalog(
-            (data.data.items || [])
-              .filter((i: any) => i.isActive)
-              .map((i: any) => ({
-                _id: i._id,
-                name: i.name,
-                type: i.type,
-                price: i.price,
-                category: i.category || i.type,
-              }))
-          )
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const filteredGrouped = useMemo(() => {
-    const q = addSearch.toLowerCase()
-    const filtered = q
-      ? catalog.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            c.category.toLowerCase().includes(q)
-        )
-      : catalog
-    return groupByCategory(filtered)
-  }, [addSearch, catalog])
-
-  const total = selectedItems.reduce((s, p) => s + p.price, 0)
-
-  const addItem = (p: ProductServiceOption & { category: string }) => {
-    if (!selectedItems.find((s) => s._id === p._id)) {
-      setSelectedItems((prev) => [...prev, { _id: p._id, name: p.name, type: p.type, price: p.price }])
-    }
-    setAddSearch('')
-    setShowAddPanel(false)
-  }
-
-  const removeItem = (id: string) => {
-    setSelectedItems((prev) => prev.filter((p) => p._id !== id))
-  }
-
-  const handleApprove = async () => {
-    setLoading(true)
-    try {
-      // Step 1: save updated items
-      const saveRes = await fetch(`${API_BASE}/billings/${billing._id}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          items: selectedItems.map((p) => ({
-            productServiceId: p._id,
-            name: p.name,
-            type: p.type,
-            unitPrice: p.price,
-          })),
-        }),
-      })
-      const saveData = await saveRes.json()
-      if (saveData.status !== 'SUCCESS') {
-        alert(saveData.message || 'Failed to save billing items')
-        return
-      }
-
-      // Step 2: approve
-      const res = await fetch(`${API_BASE}/billings/${billing._id}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({}),
-      })
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
-        onApproved()
-        onClose()
-      } else {
-        alert(data.message || 'Failed to approve billing')
-      }
-    } catch (e) {
-      console.error('Approve billing error:', e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Products and Services</h2>
-          <p className="text-sm text-gray-400">Review and edit the billing details before approval</p>
-        </div>
-
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {selectedItems.map((item) => (
-                <tr key={item._id}>
-                  <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'Service' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {item.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[#4F4F4F]">₱ {item.price.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => removeItem(item._id)}
-                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                      title="Remove"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {selectedItems.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">
-                    No items. Use &ldquo;Add Service / Product&rdquo; below.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Add panel */}
-        <div className="mb-5">
-          {!showAddPanel ? (
-            <button
-              onClick={() => setShowAddPanel(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-[#476B6B] hover:text-[#3a5858] transition-colors py-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Service / Product
-            </button>
-          ) : (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <input
-                  type="text"
-                  value={addSearch}
-                  onChange={(e) => setAddSearch(e.target.value)}
-                  placeholder="Search medications, services…"
-                  className="flex-1 text-xs bg-transparent outline-none text-[#4F4F4F] placeholder:text-gray-400"
-                  autoFocus
-                />
-                <button
-                  onClick={() => { setShowAddPanel(false); setAddSearch('') }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto">
-                {filteredGrouped.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-5">No results found</p>
-                ) : (
-                  filteredGrouped.map(({ category, items: catItems }) => (
-                    <div key={category}>
-                      <div className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
-                      </div>
-                      {catItems.map((entry) => (
-                        <button
-                          key={entry._id}
-                          onClick={() => addItem(entry as ProductServiceOption & { category: string })}
-                          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#f0f7f7] text-left border-t border-gray-50 transition-colors"
-                        >
-                          <p className="text-sm font-medium text-[#4F4F4F]">{entry.name}</p>
-                          <span className="text-xs font-semibold text-[#476B6B] shrink-0 ml-4">
-                            ₱ {entry.price.toLocaleString()}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-end justify-between gap-6">
-          <div className="border border-gray-200 rounded-xl p-4 w-56 shrink-0">
-            <p className="text-sm font-semibold text-[#3D5A58] mb-1">Order Summary</p>
-            <p className="text-xs text-gray-400 mb-3">Amount Due</p>
-            <div className="border-t border-gray-200 pt-3 flex justify-between text-sm font-semibold">
-              <span className="text-[#4F4F4F]">Total Amount Due</span>
-              <span className="text-[#4F4F4F]">₱ {total.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={handleApprove}
-              disabled={loading}
-              className="px-8 py-2 bg-[#3D5A58] text-white rounded-lg text-sm font-medium hover:bg-[#2e4341] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Approving...' : 'Approve'}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-8 py-2 border border-gray-300 text-[#4F4F4F] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ==================== VET VIEW ====================
 
 function VetBilling() {
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [approvingBilling, setApprovingBilling] = useState<ApiBilling | null>(null)
+  const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
 
   const fetchBillings = useCallback(async () => {
     setLoading(true)
@@ -608,7 +358,7 @@ function VetBilling() {
                 </tr>
               )}
               {!loading && filtered.map((b) => {
-                const adminStatus = mapAdminStatus(b.status)
+                const adminStatus = mapAdminStatus(b)
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4">
@@ -626,14 +376,13 @@ function VetBilling() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      {b.status === 'awaiting_approval' && (
-                        <button
-                          onClick={() => setApprovingBilling(b)}
-                          className="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
-                        >
-                          Review
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setViewingBilling(b)}
+                        className="text-gray-400 hover:text-[#476B6B] transition-colors"
+                        title="View billing details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 )
@@ -649,11 +398,10 @@ function VetBilling() {
         </div>
       </div>
 
-      {approvingBilling && (
-        <VetApprovalModal
-          billing={approvingBilling}
-          onClose={() => setApprovingBilling(null)}
-          onApproved={fetchBillings}
+      {viewingBilling && (
+        <ViewBillingModal
+          billing={viewingBilling}
+          onClose={() => setViewingBilling(null)}
         />
       )}
     </div>
@@ -992,7 +740,7 @@ function CreateBillingModal({
         <div className="bg-white rounded-2xl p-8 w-full max-w-xl mx-4 shadow-xl">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-[#4F4F4F] mb-1">Billing Information</h2>
-            <p className="text-sm text-gray-400">View and edit the billing information accordingly before sending to veterinarian</p>
+            <p className="text-sm text-gray-400">Review and confirm the billing information</p>
           </div>
 
           <div className="flex gap-6">
@@ -1113,7 +861,7 @@ function CreateBillingModal({
               disabled={submitting}
               className="px-8 py-2 bg-[#3D5A58] text-white rounded-lg text-sm font-medium hover:bg-[#2e4341] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Sending...' : 'Send For Approval'}
+              {submitting ? 'Creating...' : 'Create Billing'}
             </button>
             <button
               onClick={onClose}
@@ -1306,7 +1054,9 @@ function ViewBillingModal({
               <tr>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Price</th>
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">Qty</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Unit Price</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1319,12 +1069,14 @@ function ViewBillingModal({
                       {item.type}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-sm text-center text-[#4F4F4F]">{item.quantity ?? 1}</td>
                   <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱ {item.unitPrice.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-right font-medium text-[#4F4F4F]">₱ {((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</td>
                 </tr>
               ))}
               {billing.items.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">No items</td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">No items</td>
                 </tr>
               )}
             </tbody>
@@ -1568,7 +1320,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_approval' | 'pending_payment' | 'paid'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending_payment' | 'paid'>('all')
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const [showQRModal, setShowQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
@@ -1663,8 +1415,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
         <div className="flex items-center gap-2 mb-4">
           {([
             { value: 'all', label: 'All' },
-            { value: 'awaiting_approval', label: 'Running' },
-            { value: 'pending_payment', label: 'Pending Payment' },
+            { value: 'pending_payment', label: 'Running' },
             { value: 'paid', label: 'Paid' },
           ] as const).map(({ value, label }) => (
             <button
@@ -1734,7 +1485,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                 </tr>
               )}
               {!loading && filteredData.map((b) => {
-                const status = mapAdminStatus(b.status)
+                const status = mapAdminStatus(b)
+                const canMarkPaid = b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed'
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4">
@@ -1765,7 +1517,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        {b.status === 'pending_payment' && (
+                        {canMarkPaid && (
                           <button
                             onClick={() => setMarkingPaidBilling(b)}
                             className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"

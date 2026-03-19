@@ -1272,7 +1272,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         } : {}),
       }, token)
       if (billingId && recordCreatedAt) {
-        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })) }).catch(() => {})
+        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })), titerEnabled: titerEnabled && !skipTiterSuggested, deliveryServiceName: pregnancyDelivery ? (pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || '') : undefined, appointmentTypes }).catch(() => {})
       }
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
@@ -1710,7 +1710,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         } : {}),
       }, token)
       if (billingId && recordCreatedAt) {
-        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })) }).catch(() => {})
+        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })), titerEnabled: titerEnabled && !skipTiterSuggested, deliveryServiceName: pregnancyDelivery ? (pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || '') : undefined, appointmentTypes }).catch(() => {})
       }
       await syncPregnancyStatus()
       if (!alreadyCompleted && appointmentId) {

@@ -6,6 +6,7 @@ export interface IBillingItem {
   name: string;
   type: 'Service' | 'Product';
   unitPrice: number;
+  quantity: number;
 }
 
 export interface IBilling extends Document {
@@ -20,7 +21,7 @@ export interface IBilling extends Document {
   subtotal: number;
   discount: number;
   totalAmountDue: number;
-  status: 'awaiting_approval' | 'pending_payment' | 'paid';
+  status: 'pending_payment' | 'paid';
   paidAt: Date | null;
   amountPaid: number | null;
   paymentMethod: 'cash' | 'card' | 'qr' | null;
@@ -55,6 +56,11 @@ const BillingItemSchema = new Schema(
       type: Number,
       required: [true, 'Unit price is required'],
       min: 0,
+    },
+    quantity: {
+      type: Number,
+      default: 1,
+      min: 1,
     },
   },
   { _id: true }
@@ -124,8 +130,8 @@ const BillingSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['awaiting_approval', 'pending_payment', 'paid'],
-      default: 'awaiting_approval',
+      enum: ['pending_payment', 'paid'],
+      default: 'pending_payment',
       index: true,
     },
     paidAt: {

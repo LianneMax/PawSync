@@ -3,8 +3,9 @@ import Billing from '../models/Billing';
 import User from '../models/User';
 import Clinic from '../models/Clinic';
 import MedicalRecord from '../models/MedicalRecord';
-import { sendBillingPendingPayment, sendBillingPaidReceipt } from '../services/emailService';
+import { sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+import { syncBillingFromRecord } from './medicalRecordController';
 
 // Populate fields shared across all views
 const POPULATE_BILLING = [
@@ -13,6 +14,7 @@ const POPULATE_BILLING = [
   { path: 'vetId', select: 'firstName lastName' },
   { path: 'clinicId', select: 'name' },
   { path: 'clinicBranchId', select: 'name' },
+  { path: 'medicalRecordId', select: 'stage' },
 ];
 
 /**
@@ -46,8 +48,8 @@ export const createBilling = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'ownerId and petId are required' });
     }
 
-    // Only allow valid non-paid statuses to be set at creation time
-    const resolvedStatus = (status === 'pending_payment') ? 'pending_payment' : 'awaiting_approval';
+    // Billing always starts as pending_payment; ignore any other incoming status
+    const resolvedStatus = 'pending_payment';
 
     let clinicId = req.user.clinicId;
 
@@ -67,7 +69,7 @@ export const createBilling = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
     }
 
-    const subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0), 0);
+    const subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
     const totalAmountDue = Math.max(0, subtotal - discount);
 
     // Auto-generate serviceLabel from item names if not provided
@@ -91,9 +93,13 @@ export const createBilling = async (req: Request, res: Response) => {
       serviceDate: serviceDate || new Date(),
     });
 
-    // Link billing back to the medical record so the page knows one already exists
+    // Link billing back to the medical record so the page knows one already exists,
+    // then immediately sync billing items from the medical record's current state.
     if (medicalRecordId) {
       await MedicalRecord.findByIdAndUpdate(medicalRecordId, { billingId: billing._id });
+      syncBillingFromRecord(medicalRecordId).catch((e) =>
+        console.error('[Billing] Background billing sync after create failed:', e),
+      );
     }
 
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING);
@@ -335,53 +341,10 @@ export const updateBilling = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Billing record not found' });
     }
 
-    const isClinicStaff =
-      req.user.userType === 'clinic-admin';
-    const isVet = req.user.userType === 'veterinarian';
+    const isClinicStaff = req.user.userType === 'clinic-admin';
 
-    if (!isClinicStaff && !isVet) {
+    if (!isClinicStaff) {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
-    }
-
-    // Vet can only approve (awaiting_approval → pending_payment)
-    if (isVet) {
-      if (!billing.vetId || billing.vetId.toString() !== req.user.userId) {
-        return res.status(403).json({ status: 'ERROR', message: 'You are not the assigned veterinarian for this billing' });
-      }
-      if (billing.status !== 'awaiting_approval') {
-        return res.status(400).json({ status: 'ERROR', message: 'Only billings awaiting approval can be approved' });
-      }
-      billing.status = 'pending_payment';
-      await billing.save();
-      const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
-
-      // Send payment-due email to owner (fire-and-forget)
-      if (populated?.ownerId?.email && populated.petId?.name && populated.vetId) {
-        sendBillingPendingPayment({
-          ownerEmail: populated.ownerId.email,
-          ownerFirstName: populated.ownerId.firstName,
-          petName: populated.petId.name,
-          vetName: `${populated.vetId.firstName} ${populated.vetId.lastName}`,
-          items: populated.items,
-          subtotal: populated.subtotal,
-          discount: populated.discount,
-          totalAmountDue: populated.totalAmountDue,
-          serviceDate: populated.serviceDate,
-        });
-        await createNotification(
-          populated.ownerId._id.toString(),
-          'bill_due',
-          'New Invoice Ready',
-          `A new invoice of ₱${populated.totalAmountDue.toFixed(2)} for ${populated.petId.name} is ready for payment.`,
-          { billingId: billing._id }
-        );
-      }
-
-      return res.status(200).json({
-        status: 'SUCCESS',
-        message: 'Billing approved',
-        data: { billing: populated },
-      });
     }
 
     // Clinic admin: update any field
@@ -397,7 +360,7 @@ export const updateBilling = async (req: Request, res: Response) => {
     if (items !== undefined) {
       billing.items = items;
       const discountValue = discount !== undefined ? discount : billing.discount;
-      billing.subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0), 0);
+      billing.subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
       billing.discount = discountValue;
       billing.totalAmountDue = Math.max(0, billing.subtotal - billing.discount);
     } else if (discount !== undefined) {
@@ -438,8 +401,13 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Billing is already marked as paid' });
     }
 
-    if (billing.status !== 'pending_payment') {
-      return res.status(400).json({ status: 'ERROR', message: 'Billing must be approved by the veterinarian before it can be marked as paid' });
+    // Billing can only be paid once the linked medical record is completed
+    if (!billing.medicalRecordId) {
+      return res.status(400).json({ status: 'ERROR', message: 'No medical record linked to this billing' });
+    }
+    const linkedRecord = await MedicalRecord.findById(billing.medicalRecordId).select('stage').lean();
+    if (!linkedRecord || (linkedRecord as any).stage !== 'completed') {
+      return res.status(400).json({ status: 'ERROR', message: 'Billing can only be marked as paid after the medical record is completed' });
     }
 
     const { amountPaid, paymentMethod } = req.body;

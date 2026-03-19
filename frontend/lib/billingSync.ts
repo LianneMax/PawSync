@@ -27,6 +27,32 @@ function matchByName(name: string, catalog: CatalogEntry[]): CatalogEntry | unde
  * Automatically syncs a billing record's items from the current state of a medical record.
  * Called silently after saving a medical record — no UI interaction needed.
  */
+const APPT_TYPE_LABEL: Record<string, string> = {
+  'consultation':             'Consultation',
+  'general-checkup':          'General Checkup',
+  'primary-treatment':        'Primary Treatment',
+  'outpatient-treatment':     'Outpatient Treatment',
+  'inpatient-care':           'Inpatient Care',
+  'point-of-care-diagnostic': 'Point of Care Diagnostic',
+  'laser-therapy':            'Laser Therapy',
+  'dental-scaling':           'Dental Scaling',
+  'cbc':                      'CBC Test',
+  'blood-chemistry-16':       'Blood Chemistry (16)',
+  'pcr-test':                 'PCR Test',
+  'x-ray':                    'X-Ray',
+  'ultrasound':               'Ultrasound',
+  'abdominal-surgery':        'Abdominal Surgery',
+  'orthopedic-surgery':       'Orthopedic Surgery',
+  'Sterilization':            'Sterilization',
+  'General Consultation':     'General Consultation',
+}
+
+const SKIP_APPT_TYPES = new Set([
+  'vaccination', 'rabies-vaccination', 'puppy-litter-vaccination', 'booster',
+  'deworming', 'flea-tick-prevention', 'Preventive Care',
+  'basic-grooming', 'full-grooming', 'Grooming',
+])
+
 export async function syncBillingFromRecord({
   billingId,
   petId,
@@ -36,6 +62,9 @@ export async function syncBillingFromRecord({
   recordCreatedAt,
   recordVaccinations,
   token,
+  titerEnabled,
+  deliveryServiceName,
+  appointmentTypes,
 }: {
   billingId: string
   petId: string
@@ -45,6 +74,9 @@ export async function syncBillingFromRecord({
   recordCreatedAt: string
   recordVaccinations?: any[]
   token: string
+  titerEnabled?: boolean
+  deliveryServiceName?: string
+  appointmentTypes?: string[]
 }): Promise<void> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -166,6 +198,51 @@ export async function syncBillingFromRecord({
       type: 'Service',
       unitPrice: match ? match.price : 0,
     })
+  }
+
+  // Titer Testing — add the matching service from the catalog when titer was performed
+  if (titerEnabled) {
+    const hasTiterItem = billingItems.some((i: any) => (i.name || '').toLowerCase().includes('titer'))
+    if (!hasTiterItem) {
+      const titerMatch = allCatalog.find((c) => normalizeName(c.name).includes('titer'))
+      billingItems.push({
+        ...(titerMatch ? { productServiceId: titerMatch.id } : {}),
+        name: titerMatch ? titerMatch.name : 'Titer Testing',
+        type: 'Service',
+        unitPrice: titerMatch ? titerMatch.price : 0,
+      })
+    }
+  }
+
+  // Pregnancy Delivery — add the chosen delivery method's price
+  if (deliveryServiceName) {
+    const deliveryCatalog = allCatalog.filter((c) => c.category === 'Pregnancy Delivery')
+    const deliveryMatch = matchByName(deliveryServiceName, deliveryCatalog)
+    billingItems.push({
+      ...(deliveryMatch ? { productServiceId: deliveryMatch.id } : {}),
+      name: deliveryMatch ? deliveryMatch.name : deliveryServiceName,
+      type: 'Service',
+      unitPrice: deliveryMatch ? deliveryMatch.price : 0,
+    })
+  }
+
+  // Appointment types — consultation type and other services tied to the appointment
+  if (appointmentTypes?.length) {
+    const usedIds = new Set(billingItems.map((i: any) => i.productServiceId).filter(Boolean))
+    for (const apptType of appointmentTypes) {
+      if (SKIP_APPT_TYPES.has(apptType)) continue
+      const label = APPT_TYPE_LABEL[apptType] ||
+        apptType.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      const match = matchByName(label, productServices)
+      if (match && usedIds.has(match.id)) continue
+      billingItems.push({
+        ...(match ? { productServiceId: match.id } : {}),
+        name: match ? match.name : label,
+        type: 'Service',
+        unitPrice: match ? match.price : 0,
+      })
+      if (match) usedIds.add(match.id)
+    }
   }
 
   if (billingItems.length === 0) return

@@ -257,11 +257,14 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
     setMedAssociatedServiceId('')
   }, [admRoute])
 
-  // Fetch preventive care services when route is preventive
+  // Fetch services when route is preventive (Preventive Care only) or injection (all services)
   useEffect(() => {
-    if (admRoute !== 'preventive') { setPreventiveServices([]); return }
+    if (admRoute !== 'preventive' && admRoute !== 'injection') { setPreventiveServices([]); return }
     setLoadingPreventiveServices(true)
-    fetch(`${apiUrl}/product-services?type=Service&category=Preventive Care`, {
+    const url = admRoute === 'injection'
+      ? `${apiUrl}/product-services?type=Service`
+      : `${apiUrl}/product-services?type=Service&category=Preventive Care`
+    fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then((r) => r.json())
@@ -445,7 +448,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         ...(medIntervalDays ? { intervalDays: parseInt(medIntervalDays) } : {}),
         ...(medWeightMin ? { weightMin: parseFloat(medWeightMin) } : {}),
         ...(medWeightMax ? { weightMax: parseFloat(medWeightMax) } : {}),
-        ...(admRoute === 'preventive' && medAssociatedServiceId ? { associatedServiceId: medAssociatedServiceId } : {}),
+        ...((admRoute === 'preventive' || admRoute === 'injection') && medAssociatedServiceId ? { associatedServiceId: medAssociatedServiceId } : {}),
         ...(admRoute === 'preventive' && medPreventiveDuration ? { preventiveDuration: parseInt(medPreventiveDuration), preventiveDurationUnit: medPreventiveDurationUnit } : {}),
       }
       const res = await fetch(`${apiUrl}/product-services`, {
@@ -654,11 +657,11 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </div>
               )}
 
-              {/* Associated Preventive Care Service — preventive route only */}
-              {admRoute === 'preventive' && (
+              {/* Associated Service — preventive and injection routes */}
+              {(admRoute === 'preventive' || admRoute === 'injection') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Associated Service <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                    {admRoute === 'injection' ? 'Linked Service' : 'Associated Service'} <span className="text-xs text-gray-400 font-normal">(Optional)</span>
                   </label>
                   {loadingPreventiveServices ? (
                     <p className="text-xs text-gray-400 py-2">Loading services...</p>
@@ -1236,11 +1239,14 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
     prevAdmRouteRef.current = admRoute
   }, [admRoute, isMedication])
 
-  // Fetch preventive care services when route is preventive
+  // Fetch services when route is preventive (Preventive Care only) or injection (all services)
   useEffect(() => {
-    if (admRoute !== 'preventive') { setPreventiveServices([]); return }
+    if (admRoute !== 'preventive' && admRoute !== 'injection') { setPreventiveServices([]); return }
     setLoadingPreventiveServices(true)
-    fetch(`${apiUrl}/product-services?type=Service&category=Preventive Care`, {
+    const url = admRoute === 'injection'
+      ? `${apiUrl}/product-services?type=Service`
+      : `${apiUrl}/product-services?type=Service&category=Preventive Care`
+    fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then((r) => r.json())
@@ -1317,7 +1323,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.intervalDays = intervalDays ? parseInt(intervalDays) : null
         body.weightMin = weightMin ? parseFloat(weightMin) : null
         body.weightMax = weightMax ? parseFloat(weightMax) : null
-        body.associatedServiceId = admRoute === 'preventive' && associatedServiceId ? associatedServiceId : null
+        body.associatedServiceId = (admRoute === 'preventive' || admRoute === 'injection') && associatedServiceId ? associatedServiceId : null
         body.preventiveDuration = admRoute === 'preventive' && preventiveDuration ? parseInt(preventiveDuration) : null
         body.preventiveDurationUnit = admRoute === 'preventive' && preventiveDuration ? preventiveDurationUnit : null
         body.pricingType = pricingType
@@ -1497,11 +1503,11 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                 </div>
               )}
 
-              {/* Associated Preventive Care Service — preventive route only */}
-              {admRoute === 'preventive' && (
+              {/* Associated Service — preventive and injection routes */}
+              {(admRoute === 'preventive' || admRoute === 'injection') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Associated Service <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                    {admRoute === 'injection' ? 'Linked Service' : 'Associated Service'} <span className="text-xs text-gray-400 font-normal">(Optional)</span>
                   </label>
                   {loadingPreventiveServices ? (
                     <p className="text-xs text-gray-400 py-2">Loading services...</p>
