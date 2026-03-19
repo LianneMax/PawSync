@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, requestPetTag, togglePetLost, type Pet as APIPet } from '@/lib/pets'
-import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown } from 'lucide-react'
+import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,8 @@ export default function MyPetsPage() {
   const [pets, setPets] = useState<APIPet[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [petTypeFilter, setPetTypeFilter] = useState<'all' | 'dog' | 'cat'>('all')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -50,6 +52,7 @@ export default function MyPetsPage() {
   const [clinicBranches, setClinicBranches] = useState<ClinicBranch[]>([])
   const [loadingClinics, setLoadingClinics] = useState(false)
   const [togglingLostPetId, setTogglingLostPetId] = useState<string | null>(null)
+  const searchContainerRef = useRef<HTMLDivElement | null>(null)
 
   const fetchPets = useCallback(async () => {
     if (!token) {
@@ -116,10 +119,44 @@ export default function MyPetsPage() {
     }
   }
 
-  const filteredPets = pets.filter((pet) =>
-    pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    pet.breed.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!searchContainerRef.current) return
+      if (!searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const getPetType = (pet: APIPet): 'dog' | 'cat' | 'other' => {
+    const raw = String((pet as any).species || (pet as any).type || (pet as any).petType || '').toLowerCase()
+    if (raw.includes('dog') || raw.includes('canine')) return 'dog'
+    if (raw.includes('cat') || raw.includes('feline')) return 'cat'
+    return 'other'
+  }
+
+  const filteredPets = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+
+    return pets.filter((pet) => {
+      const matchesType = petTypeFilter === 'all' ? true : getPetType(pet) === petTypeFilter
+      const matchesSearch = query.length === 0 ? true : pet.name.toLowerCase().includes(query)
+      return matchesType && matchesSearch
+    })
+  }, [pets, petTypeFilter, searchQuery])
+
+  const suggestions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return []
+
+    return pets
+      .filter((pet) => (petTypeFilter === 'all' ? true : getPetType(pet) === petTypeFilter))
+      .filter((pet) => pet.name.toLowerCase().includes(query))
+      .slice(0, 8)
+  }, [pets, petTypeFilter, searchQuery])
 
   // Calculate minimum pickup date (tomorrow)
   const minPickupDate = new Date()
@@ -145,16 +182,95 @@ export default function MyPetsPage() {
         </div>
 
         {/* Header */}
-        <div className="mb-6">
-          <div className="relative inline-block">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="mb-6 space-y-3">
+          <div ref={searchContainerRef} className="relative inline-block">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search pets..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent w-48"
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              className="bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent w-56"
             />
+
+            {showSuggestions && searchQuery.trim().length > 0 && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                {suggestions.length > 0 ? (
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {suggestions.map((pet) => (
+                      <button
+                        key={pet._id}
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery(pet.name)
+                          setShowSuggestions(false)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-[#F8F6F2] transition-colors"
+                      >
+                        {pet.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-3 py-2 text-sm text-gray-500">No results found</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-1 bg-white border border-gray-200 rounded-full p-1">
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'dog', label: 'Dogs' },
+                { key: 'cat', label: 'Cats' },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setPetTypeFilter(option.key as 'all' | 'dog' | 'cat')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                    petTypeFilter === option.key
+                      ? 'bg-[#7FA5A3] text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {(petTypeFilter !== 'all' || searchQuery.trim()) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {petTypeFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setPetTypeFilter('all')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EAF1F1] text-[#3D5E5C] hover:bg-[#dfe9e8] transition-colors"
+                  >
+                    {petTypeFilter === 'dog' ? 'Dogs' : 'Cats'}
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                {searchQuery.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setShowSuggestions(false)
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EAF1F1] text-[#3D5E5C] hover:bg-[#dfe9e8] transition-colors"
+                  >
+                    &quot;{searchQuery.trim()}&quot;
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -187,13 +303,6 @@ export default function MyPetsPage() {
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FEE2E2] border border-[#900B09] text-[#900B09] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
                     <AlertTriangle className="w-3 h-3" />
                     Marked as Lost
-                  </div>
-                )}
-
-                {/* Pregnancy badge */}
-                {pet.sex === 'female' && pet.pregnancyStatus === 'pregnant' && (
-                  <div className="absolute -top-3 right-4 bg-pink-100 border border-pink-400 text-pink-700 text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
-                    Pregnant
                   </div>
                 )}
 
@@ -234,21 +343,28 @@ export default function MyPetsPage() {
 
                 <div className="bg-[#F8F6F2] rounded-xl px-3 py-2 mb-5">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide">Sex and Sterilization</p>
-                  <p className="text-sm font-bold text-[#4F4F4F]">
-                    {pet.sex && pet.sterilization
-                      ? `${pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1)} - ${
-                          pet.sterilization === 'spayed'
-                            ? 'Spayed'
-                            : pet.sterilization === 'unspayed'
-                            ? 'Unspayed'
-                            : pet.sterilization === 'neutered'
-                            ? 'Neutered'
-                            : pet.sterilization === 'unneutered'
-                            ? 'Unneutered'
-                            : 'Unknown'
-                        }`
-                      : '-'}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-[#4F4F4F]">
+                      {pet.sex && pet.sterilization
+                        ? `${pet.sex.charAt(0).toUpperCase() + pet.sex.slice(1)} - ${
+                            pet.sterilization === 'spayed'
+                              ? 'Spayed'
+                              : pet.sterilization === 'unspayed'
+                              ? 'Unspayed'
+                              : pet.sterilization === 'neutered'
+                              ? 'Neutered'
+                              : pet.sterilization === 'unneutered'
+                              ? 'Unneutered'
+                              : 'Unknown'
+                          }`
+                        : '-'}
+                    </p>
+                    {pet.sex === 'female' && pet.pregnancyStatus === 'pregnant' && (
+                      <span className="inline-flex items-center bg-pink-100 border border-pink-400 text-pink-700 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shrink-0">
+                        Pregnant
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
@@ -322,7 +438,7 @@ export default function MyPetsPage() {
           <div className="bg-white rounded-2xl p-12 text-center border border-gray-200">
             <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-[#4F4F4F] mb-2">No pets found</h2>
-            <p className="text-gray-500">No pets match &quot;{searchQuery}&quot;. Try a different search.</p>
+            <p className="text-gray-500">No pets match your active filters. Try adjusting search or pet type.</p>
           </div>
         ) : (
           /* Empty state - no pets at all */
