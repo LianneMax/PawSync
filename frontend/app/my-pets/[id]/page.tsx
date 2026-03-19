@@ -34,6 +34,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface PopulatedOwner {
   contactNumber?: string
@@ -103,6 +104,8 @@ export default function PetProfilePage() {
   const [lostContact, setLostContact] = useState('')
   const [lostMessage, setLostMessage] = useState('')
   const [isMarkingLost, setIsMarkingLost] = useState(false)
+  const hasRegisteredNfcTag = Boolean(pet?.nfcTagId?.trim() && pet.nfcTagId !== '-')
+  const lostPetLockedMessage = 'Purchase a pet tag first to unlock this feature.'
 
   // Editable fields
   const [editName, setEditName] = useState('')
@@ -418,7 +421,7 @@ export default function PetProfilePage() {
   }
 
   const openLostModal = () => {
-    if (!pet) return
+    if (!pet || !hasRegisteredNfcTag) return
     setLostNameShown(pet.name)
     setLostContact(typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '' : '')
     setLostMessage('If you found me, please call or message my owner and feel free to share your current location with them.')
@@ -427,6 +430,10 @@ export default function PetProfilePage() {
 
   const handleReportLost = async () => {
     if (!pet || !token) return
+    if (!hasRegisteredNfcTag) {
+      toast('NFC Tag Required', { description: lostPetLockedMessage })
+      return
+    }
     setIsMarkingLost(true)
     try {
       const response = await togglePetLost(pet._id, true, token, {
@@ -1119,20 +1126,42 @@ export default function PetProfilePage() {
 
                 {/* Request Pet Tag Replacement & Mark as Lost Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4 mb-4">
-                  <button
-                    onClick={handleRequestNfcTag}
-                    disabled={isSubmittingRequest || !pet.nfcTagId}
-                    className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmittingRequest ? 'Submitting...' : 'Request Replacement Pet Tag'}
-                  </button>
-                  <button
-                    onClick={openLostModal}
-                    disabled={pet.isLost}
-                    className="px-6 py-2.5 bg-[#900B09] text-white font-semibold rounded-lg hover:bg-[#7A0907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Mark as Lost
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <button
+                          onClick={handleRequestNfcTag}
+                          disabled={isSubmittingRequest || !hasRegisteredNfcTag}
+                          className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isSubmittingRequest ? 'Submitting...' : 'Request Replacement Pet Tag'}
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    {!hasRegisteredNfcTag && (
+                      <TooltipContent side="top" sideOffset={8}>
+                        Register a pet tag first before requesting a replacement.
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <button
+                          onClick={openLostModal}
+                          disabled={pet.isLost || !hasRegisteredNfcTag}
+                          className="px-6 py-2.5 bg-[#900B09] text-white font-semibold rounded-lg hover:bg-[#7A0907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Mark as Lost
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    {!hasRegisteredNfcTag && (
+                      <TooltipContent side="top" sideOffset={8}>
+                        {lostPetLockedMessage}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
                 </div>
 
                 {/* Request History Section */}
@@ -1607,7 +1636,7 @@ export default function PetProfilePage() {
             </button>
             <button
               onClick={handleReportLost}
-              disabled={isMarkingLost}
+              disabled={isMarkingLost || !hasRegisteredNfcTag}
               className="flex-1 px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <AlertTriangle className="w-4 h-4" />
