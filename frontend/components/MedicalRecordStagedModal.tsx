@@ -131,6 +131,8 @@ const emptyMedication = (): Omit<Medication, '_id'> => ({
   notes: '',
   status: 'active',
   quantity: null,
+  pricingType: '',
+  piecesPerPack: null,
 })
 
 const emptyDiagnosticTest = (): Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] } => ({
@@ -635,6 +637,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [medsOpen, setMedsOpen] = useState(true)
   const [testsOpen, setTestsOpen] = useState(true)
   const [preventiveOpen, setPreventiveOpen] = useState(true)
+  const [preventiveMedicationDispensing, setPreventiveMedicationDispensing] = useState<Record<string, 'singlePill' | 'pack' | ''>>({})
 
   const isPreventiveCareAppt = appointmentTypes.some((apptType) => {
     const normalizedType = normalizeServiceToken(apptType)
@@ -668,6 +671,35 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
 
       return associatedServiceId === matchedPreventiveService._id
     })
+  }
+
+  const deriveSinglePillQuantity = (service: ProductService): number | null => {
+    const administrationMethod = service.administrationMethod?.toLowerCase() ?? ''
+    const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
+
+    if (administrationMethod === 'syrup' || service.administrationRoute?.toLowerCase() === 'topical' || administrationMethod === 'topical') {
+      return 1
+    }
+
+    const isTabletOrCapsule = administrationMethod === 'tablets' || administrationMethod === 'capsules'
+    if (!isTabletOrCapsule || service.dosePerKg == null || isNaN(bodyWeight) || bodyWeight <= 0) {
+      return null
+    }
+
+    const rawMg = service.dosePerKg * bodyWeight
+    const netContent = service.netContent
+    const durationDays = service.duration
+    let dosesPerDay: number | null = service.frequency ?? null
+    if (!dosesPerDay && service.frequencyLabel) {
+      const everyHoursMatch = service.frequencyLabel.match(/every\s+(\d+(?:\.\d+)?)\s+hours?/i)
+      if (everyHoursMatch) dosesPerDay = 24 / parseFloat(everyHoursMatch[1])
+      const timesPerDayMatch = service.frequencyLabel.match(/(\d+)\s+times?\s+per\s+day/i)
+      if (timesPerDayMatch) dosesPerDay = parseInt(timesPerDayMatch[1])
+    }
+    if (netContent && netContent > 0 && dosesPerDay && durationDays) {
+      return Math.ceil((rawMg / netContent) * dosesPerDay * durationDays)
+    }
+    return null
   }
 
   const loadData = useCallback(async () => {
@@ -3648,7 +3680,9 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                       ? (selectedService.frequencyNotes || m.frequency)
                                       : (selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency),
                                     duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
-                                    quantity: autoQuantity,
+                                    quantity: selectedService.pricingType === 'pack' ? 1 : autoQuantity,
+                                    pricingType: selectedService.pricingType || '',
+                                    piecesPerPack: selectedService.piecesPerPack ?? null,
                                   }
                                 }
                                 return { ...m, name: selectedName }
@@ -3681,6 +3715,32 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                           <input type="text" placeholder={isTopical ? 'Application instructions (e.g. apply twice daily)' : 'Frequency (e.g. twice daily)'} value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className={`border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]${isTopical ? ' col-span-2' : ''}`} />
                           <input type="text" placeholder="Duration (e.g. 7 days)" value={med.duration} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                           <input type="number" placeholder="Qty" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                          <DropdownField
+                            value={med.pricingType || ''}
+                            onValueChange={(value) => setMedications((prev) => prev.map((m, j) => {
+                              if (j !== i) return m
+                              const nextPricingType = value as Medication['pricingType']
+                              const selectedService = medicationServices.find((service) => service.name === m.name)
+                              const recomputedSinglePillQty = selectedService ? deriveSinglePillQuantity(selectedService) : null
+                              return {
+                                ...m,
+                                pricingType: nextPricingType,
+                                quantity:
+                                  nextPricingType === 'pack'
+                                    ? 1
+                                    : nextPricingType === 'singlePill'
+                                      ? (recomputedSinglePillQty ?? m.quantity)
+                                      : m.quantity,
+                              }
+                            }))}
+                            placeholder="Dispensing"
+                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                            options={[
+                              { value: '', label: 'Dispensing' },
+                              { value: 'singlePill', label: 'Individual Pill Packages' },
+                              { value: 'pack', label: `Bottle${med.piecesPerPack ? ` (${med.piecesPerPack} pcs)` : ''}` },
+                            ]}
+                          />
                           {!isTopical && <DropdownField
                             value={med.status}
                             onValueChange={(value) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, status: value as Medication['status'] } : m))}
@@ -3775,6 +3835,26 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               associatedPreventiveMeds.map((med, medIndex) => (
                                 <div key={`${med._id}-${medIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
                                   <p className="text-xs font-semibold text-[#4F4F4F]">{med.name}</p>
+                                  <div className="mt-1.5">
+                                    <p className="text-[10px] text-gray-400 mb-1">Dispensing</p>
+                                    <DropdownField
+                                      value={preventiveMedicationDispensing[`${i}-${med._id}`] || med.pricingType || ''}
+                                      onValueChange={(value) => {
+                                        const key = `${i}-${med._id}`
+                                        setPreventiveMedicationDispensing((prev) => ({
+                                          ...prev,
+                                          [key]: value as 'singlePill' | 'pack' | '',
+                                        }))
+                                      }}
+                                      placeholder="Dispensing"
+                                      className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                      options={[
+                                        { value: '', label: 'Dispensing' },
+                                        { value: 'singlePill', label: 'Individual Pill Packages' },
+                                        { value: 'pack', label: `Bottle${med.piecesPerPack ? ` (${med.piecesPerPack} pcs)` : ''}` },
+                                      ]}
+                                    />
+                                  </div>
                                   <div className="grid grid-cols-3 gap-2 mt-1.5">
                                     <div>
                                       <p className="text-[10px] text-gray-400">Administration Method</p>
@@ -3782,7 +3862,11 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-gray-400">Duration</p>
-                                      <p className="text-xs text-gray-600">{med.durationLabel || (med.duration ? `${med.duration} days` : '—')}</p>
+                                      <p className="text-xs text-gray-600">
+                                        {med.preventiveDuration
+                                          ? `${med.preventiveDuration} ${med.preventiveDurationUnit || 'months'}`
+                                          : '—'}
+                                      </p>
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-gray-400">Interval Days</p>

@@ -50,6 +50,8 @@ export interface Medication {
   notes: string;
   status: 'active' | 'completed' | 'discontinued';
   quantity?: number | null;
+  pricingType?: 'singlePill' | 'pack' | '';
+  piecesPerPack?: number | null;
 }
 
 export interface DiagnosticTest {
@@ -399,6 +401,10 @@ export interface ProductService {
   frequencyNotes?: string;
   duration?: number;
   durationLabel?: string;
+  preventiveDuration?: number;
+  preventiveDurationUnit?: 'months' | 'years';
+  pricingType?: 'singlePill' | 'pack';
+  piecesPerPack?: number;
   createdAt: string;
   updatedAt: string;
 }

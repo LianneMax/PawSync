@@ -16,6 +16,8 @@ export interface IMedication {
   notes: string;
   status: 'active' | 'completed' | 'discontinued';
   quantity?: number | null;
+  pricingType?: 'singlePill' | 'pack' | '';
+  piecesPerPack?: number | null;
 }
 
 export interface IDiagnosticTest {
@@ -179,6 +181,8 @@ const MedicationSchema = new Schema(
     notes: { type: String, default: '' },
     status: { type: String, enum: ['active', 'completed', 'discontinued'], default: 'active' },
     quantity: { type: Number, default: null },
+    pricingType: { type: String, enum: ['singlePill', 'pack', ''], default: '' },
+    piecesPerPack: { type: Number, default: null },
   },
   { _id: true }
 );
