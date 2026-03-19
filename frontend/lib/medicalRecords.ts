@@ -67,7 +67,6 @@ export interface PreventiveCare {
   careType: 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other';
   product: string;
   dateAdministered: string | null;
-  nextDueDate: string | null;
   notes: string;
 }
 

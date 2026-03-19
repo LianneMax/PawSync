@@ -31,7 +31,6 @@ export interface IPreventiveCare {
   careType: 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other';
   product: string;
   dateAdministered: Date | null;
-  nextDueDate: Date | null;
   notes: string;
 }
 
@@ -201,7 +200,6 @@ const PreventiveCareSchema = new Schema(
     careType: { type: String, enum: ['flea', 'tick', 'heartworm', 'deworming', 'other'], default: 'other' },
     product: { type: String, default: '' },
     dateAdministered: { type: Date, default: null },
-    nextDueDate: { type: Date, default: null },
     notes: { type: String, default: '' }
   },
   { _id: true }
