@@ -649,6 +649,27 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     )
   })
 
+  const getAssociatedPreventiveMedications = (preventiveServiceName: string): ProductService[] => {
+    const normalizedServiceName = normalizeServiceToken(preventiveServiceName)
+    const matchedPreventiveService = preventiveCareServices.find((service) =>
+      normalizeServiceToken(service.name) === normalizedServiceName,
+    )
+    if (!matchedPreventiveService?._id) return []
+
+    return medicationServices.filter((service) => {
+      if (service.type !== 'Product') return false
+      if (service.category !== 'Medication') return false
+      if (service.administrationRoute !== 'preventive') return false
+
+      const associatedServiceId =
+        typeof service.associatedServiceId === 'string'
+          ? service.associatedServiceId
+          : service.associatedServiceId?._id
+
+      return associatedServiceId === matchedPreventiveService._id
+    })
+  }
+
   const loadData = useCallback(async () => {
     if (!token) return
     const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes, deliveryServicesRes, histRes, medHistRes] = await Promise.all([
@@ -3705,6 +3726,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                 {preventiveOpen && (
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
                     {preventiveCare.map((care, i) => {
+                      const associatedPreventiveMeds = getAssociatedPreventiveMedications(care.product)
                       return (
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
@@ -3745,6 +3767,33 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 className="w-full"
                               />
                             </div>
+                          </div>
+
+                          <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
+                            <p className="text-[11px] font-semibold text-[#476B6B]">Associated Preventive Medication</p>
+                            {associatedPreventiveMeds.length > 0 ? (
+                              associatedPreventiveMeds.map((med, medIndex) => (
+                                <div key={`${med._id}-${medIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
+                                  <p className="text-xs font-semibold text-[#4F4F4F]">{med.name}</p>
+                                  <div className="grid grid-cols-3 gap-2 mt-1.5">
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">Administration Method</p>
+                                      <p className="text-xs text-gray-600">{med.administrationMethod || '—'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">Duration</p>
+                                      <p className="text-xs text-gray-600">{med.durationLabel || (med.duration ? `${med.duration} days` : '—')}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-gray-400">Interval Days</p>
+                                      <p className="text-xs text-gray-600">{med.intervalDays ? `${med.intervalDays} days` : '—'}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[11px] text-gray-500">No preventive medication linked to this preventive care service.</p>
+                            )}
                           </div>
                           
                           <input 

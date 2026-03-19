@@ -387,8 +387,9 @@ export interface ProductService {
   description: string;
   isActive: boolean;
   intervalDays?: number;
-  administrationRoute?: 'oral' | 'topical' | 'injection';
+  administrationRoute?: 'oral' | 'topical' | 'injection' | 'preventive';
   administrationMethod?: string;
+  associatedServiceId?: string | { _id: string; name?: string };
   netContent?: number;
   dosePerKg?: number;
   doseUnit?: string;
