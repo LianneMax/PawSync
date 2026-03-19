@@ -147,7 +147,6 @@ const emptyPreventiveCare = (): Omit<PreventiveCare, '_id'> => ({
   careType: 'other',
   product: '',
   dateAdministered: null,
-  nextDueDate: null,
   notes: '',
 })
 
@@ -562,7 +561,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
   const [diagnosticTests, setDiagnosticTests] = useState<(Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] })[]>([])
   const [preventiveCare, setPreventiveCare] = useState<Omit<PreventiveCare, '_id'>[]>([])
-  const [preventiveCareManuallyEdited, setPreventiveCareManuallyEdited] = useState<Set<number>>(new Set())
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
   const [images, setImages] = useState<{ data: string; contentType: string; description: string }[]>([])
 
@@ -706,40 +704,15 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         ['flea-tick-prevention', 'deworming', 'heartworm', 'preventive-care'].includes(t)
       )
       if ((!r.preventiveCare || r.preventiveCare.length === 0) && appointmentDate && isPreventiveCareApptType) {
-        const addDays = (dateStr: string, days: number): string => {
-          let normalized = dateStr
-          if (dateStr.includes('T')) {
-            normalized = dateStr.split('T')[0]
-          }
-          const [year, month, day] = normalized.split('-').map(Number)
-          const date = new Date(year, month - 1, day)
-          date.setDate(date.getDate() + days)
-          const y = date.getFullYear()
-          const m = String(date.getMonth() + 1).padStart(2, '0')
-          const d = String(date.getDate()).padStart(2, '0')
-          return `${y}-${m}-${d}`
-        }
         let normalizedDate = appointmentDate
         if (appointmentDate.includes('T')) {
           normalizedDate = appointmentDate.split('T')[0]
         }
-        // Only auto-populate care items that are actually due (nextDueDate <= appointment date)
-        const isItemDue = (careTypes: string[], intervalDays: number): boolean => {
-          if (!prevRecord?.preventiveCare) return true
-          const prev = prevRecord.preventiveCare.find((c) => careTypes.includes(c.careType))
-          if (!prev?.nextDueDate) return true
-          return new Date(prev.nextDueDate) <= new Date(normalizedDate)
-        }
-        const autoPop: typeof preventiveCare = []
-        if (isItemDue(['deworming'], 90)) {
-          autoPop.push({ careType: 'deworming', product: 'Deworming', dateAdministered: normalizedDate, nextDueDate: addDays(normalizedDate, 90), notes: '' })
-        }
-        if (isItemDue(['flea', 'tick'], 30)) {
-          autoPop.push({ careType: 'flea', product: 'Flea & Tick Prevention', dateAdministered: normalizedDate, nextDueDate: addDays(normalizedDate, 30), notes: '' })
-        }
-        if (isItemDue(['heartworm'], 30)) {
-          autoPop.push({ careType: 'heartworm', product: 'Heartworm Prevention', dateAdministered: normalizedDate, nextDueDate: addDays(normalizedDate, 30), notes: '' })
-        }
+        const autoPop: typeof preventiveCare = [
+          { careType: 'deworming', product: 'Deworming', dateAdministered: normalizedDate, notes: '' },
+          { careType: 'flea', product: 'Flea & Tick Prevention', dateAdministered: normalizedDate, notes: '' },
+          { careType: 'heartworm', product: 'Heartworm Prevention', dateAdministered: normalizedDate, notes: '' },
+        ]
         setPreventiveCare(autoPop)
       } else {
         // Normalize old 'Flea and Tick Prevention' to new 'Flea & Tick Prevention'
@@ -998,23 +971,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       return // Already has data (either saved or already auto-populated)
     }
 
-    // Helper to calculate next due date
-    const addDays = (dateStr: string, days: number): string => {
-      let normalized = dateStr
-      if (dateStr.includes('T')) {
-        normalized = dateStr.split('T')[0]
-      }
-      
-      const [year, month, day] = normalized.split('-').map(Number)
-      const date = new Date(year, month - 1, day)
-      date.setDate(date.getDate() + days)
-      
-      const y = date.getFullYear()
-      const m = String(date.getMonth() + 1).padStart(2, '0')
-      const d = String(date.getDate()).padStart(2, '0')
-      return `${y}-${m}-${d}`
-    }
-
     // Normalize appointment date
     let normalizedDate = appointmentDate
     if (appointmentDate.includes('T')) {
@@ -1023,31 +979,12 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
 
     // Always add all preventive care services (Deworming, Flea & Tick Prevention, Heartworm Prevention)
     const autoPop: typeof preventiveCare = [
-      {
-        careType: 'deworming',
-        product: 'Deworming',
-        dateAdministered: normalizedDate,
-        nextDueDate: addDays(normalizedDate, 90),
-        notes: ''
-      },
-      {
-        careType: 'flea',
-        product: 'Flea & Tick Prevention',
-        dateAdministered: normalizedDate,
-        nextDueDate: addDays(normalizedDate, 30),
-        notes: ''
-      },
-      {
-        careType: 'heartworm',
-        product: 'Heartworm Prevention',
-        dateAdministered: normalizedDate,
-        nextDueDate: addDays(normalizedDate, 30),
-        notes: ''
-      }
+      { careType: 'deworming', product: 'Deworming', dateAdministered: normalizedDate, notes: '' },
+      { careType: 'flea', product: 'Flea & Tick Prevention', dateAdministered: normalizedDate, notes: '' },
+      { careType: 'heartworm', product: 'Heartworm Prevention', dateAdministered: normalizedDate, notes: '' },
     ]
 
     setPreventiveCare(autoPop)
-    setPreventiveCareManuallyEdited(new Set()) // Reset manual edits on auto-populate
   }, [appointmentDate, isPreventiveCareAppt, preventiveCare.length])
 
   // Convert surgery images state into the base64 payload for updateMedicalRecord
@@ -1637,7 +1574,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         careType: mapProductToCareType(care.product),
         product: care.product,
         dateAdministered: care.dateAdministered,
-        nextDueDate: care.nextDueDate,
         notes: care.notes,
       }))
       
@@ -3720,12 +3656,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                 {preventiveOpen && (
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
                     {preventiveCare.map((care, i) => {
-                      const selectedService = preventiveCareServices.find((s) => s.name.toLowerCase() === care.product.toLowerCase())
-                      const base = care.dateAdministered ? new Date(care.dateAdministered) : null
-                      const calculatedNextDue = base && selectedService?.intervalDays
-                        ? (() => { const d = new Date(base); d.setDate(d.getDate() + (selectedService.intervalDays as number)); return d })()
-                        : null
-                      
                       return (
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
@@ -3738,33 +3668,11 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             <DropdownField
                               value={care.product}
                               onValueChange={(value) => {
-                                const selected = preventiveCareServices.find((s) => s.name.toLowerCase() === value.toLowerCase())
                                 setPreventiveCare((prev) => prev.map((c, j) =>
                                   j === i
-                                    ? {
-                                        ...c,
-                                        product: value,
-                                        careType: mapProductToCareType(value),
-                                        // Auto-calculate nextDueDate if dateAdministered is set and selected service has interval
-                                        ...(c.dateAdministered && selected?.intervalDays
-                                          ? {
-                                              nextDueDate: (() => {
-                                                const d = new Date(c.dateAdministered)
-                                                d.setDate(d.getDate() + (selected.intervalDays as number))
-                                                return d.toISOString().split('T')[0]
-                                              })(),
-                                            }
-                                          : {}
-                                        ),
-                                      }
+                                    ? { ...c, product: value, careType: mapProductToCareType(value) }
                                     : c
                                 ))
-                                // Reset manual edit flag when product changes
-                                setPreventiveCareManuallyEdited((prev) => {
-                                  const newSet = new Set(prev)
-                                  newSet.delete(i)
-                                  return newSet
-                                })
                               }}
                               placeholder="Select a preventive care service"
                               className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
@@ -3772,7 +3680,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 { value: '', label: 'Select a preventive care service' },
                                 ...preventiveCareServices.map((service) => ({
                                   value: service.name,
-                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}${service.intervalDays ? ` [${service.intervalDays}d]` : ''}`,
+                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
                                 })),
                               ]}
                             />
@@ -3781,21 +3689,8 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               <DatePicker
                                 value={care.dateAdministered || ''}
                                 onChange={(value) => {
-                                  const dateValue = value
-                                  const selected = preventiveCareServices.find((s) => s.name.toLowerCase() === care.product.toLowerCase())
-                                  
-                                  // Always recalculate nextDueDate UNLESS vet has manually edited it
-                                  let newNextDueDate = care.nextDueDate
-                                  if (dateValue && selected?.intervalDays && !preventiveCareManuallyEdited.has(i)) {
-                                    const d = new Date(dateValue)
-                                    d.setDate(d.getDate() + (selected.intervalDays as number))
-                                    newNextDueDate = d.toISOString().split('T')[0]
-                                  }
-                                  
-                                  setPreventiveCare((prev) => prev.map((c, j) => 
-                                    j === i 
-                                      ? { ...c, dateAdministered: dateValue || null, nextDueDate: newNextDueDate }
-                                      : c
+                                  setPreventiveCare((prev) => prev.map((c, j) =>
+                                    j === i ? { ...c, dateAdministered: value || null } : c
                                   ))
                                 }}
                                 className="w-full"
@@ -3803,32 +3698,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             </div>
                           </div>
                           
-                          {/* Auto-calculated Next Due Date Display */}
-                          {calculatedNextDue && (
-                            <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg p-2">
-                              <p className="text-[10px] font-bold text-[#4569B1] uppercase tracking-wide">Suggested Next Due Date</p>
-                              <p className="font-semibold text-[#4569B1] text-xs mt-0.5">
-                                {care.nextDueDate && care.nextDueDate !== calculatedNextDue.toISOString().split('T')[0]
-                                  ? new Date(care.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                  : calculatedNextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                                }
-                              </p>
-                            </div>
-                          )}
-                          
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Next Due Date (Optional - Override)</label>
-                            <DatePicker
-                              value={care.nextDueDate || ''}
-                              onChange={(value) => {
-                                setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, nextDueDate: value || null } : c))
-                                // Mark this item as manually edited
-                                setPreventiveCareManuallyEdited((prev) => new Set([...prev, i]))
-                              }}
-                              allowFutureDates
-                              className="w-full"
-                            />
-                          </div>
                           <input 
                             type="text" 
                             placeholder="Notes (optional)" 
