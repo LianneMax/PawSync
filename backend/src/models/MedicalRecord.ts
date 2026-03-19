@@ -122,6 +122,7 @@ export interface IMedicalRecord extends Document {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  confinementRecordId: mongoose.Types.ObjectId | null;
   referral: boolean;
   discharge: boolean;
   scheduledSurgery: boolean;
@@ -386,6 +387,12 @@ const MedicalRecordSchema = new Schema(
     confinementDays: {
       type: Number,
       default: 0
+    },
+    confinementRecordId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ConfinementRecord',
+      default: null,
+      index: true,
     },
     referral: {
       type: Boolean,

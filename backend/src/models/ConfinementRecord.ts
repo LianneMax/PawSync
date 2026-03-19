@@ -6,6 +6,8 @@ export interface IConfinementRecord extends Document {
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId | null;
   appointmentId: mongoose.Types.ObjectId | null;
+  medicalRecordIds: mongoose.Types.ObjectId[];
+  billingId: mongoose.Types.ObjectId | null;
   reason: string;
   notes: string;
   admissionDate: Date;
@@ -42,6 +44,21 @@ const ConfinementRecordSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Appointment',
       default: null,
+    },
+    medicalRecordIds: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: 'MedicalRecord',
+        },
+      ],
+      default: [],
+    },
+    billingId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Billing',
+      default: null,
+      index: true,
     },
     reason: {
       type: String,

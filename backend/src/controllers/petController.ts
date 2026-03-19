@@ -5,6 +5,7 @@ import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
 import Vaccination from '../models/Vaccination';
+import ConfinementRecord from '../models/ConfinementRecord';
 import QRCode from 'qrcode';
 import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
@@ -625,13 +626,57 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
     pet.isConfined = isConfined;
     let confinementDays = 0;
     if (isConfined) {
-      pet.confinedSince = new Date();
+      const now = new Date();
+      pet.confinedSince = now;
+
+      let confinementRecord = await ConfinementRecord.findOne({
+        petId: pet._id,
+        status: 'admitted',
+      }).sort({ admissionDate: -1 });
+
+      if (!confinementRecord) {
+        const latestRecord = await MedicalRecord.findOne({ petId: pet._id })
+          .select('vetId clinicId clinicBranchId appointmentId chiefComplaint visitSummary')
+          .sort({ createdAt: -1 })
+          .lean();
+
+        if (latestRecord?.vetId && latestRecord?.clinicId) {
+          confinementRecord = new ConfinementRecord({
+            petId: pet._id,
+            vetId: latestRecord.vetId,
+            clinicId: latestRecord.clinicId,
+            clinicBranchId: latestRecord.clinicBranchId ?? null,
+            appointmentId: latestRecord.appointmentId ?? null,
+            reason: (latestRecord as any).chiefComplaint || 'Confinement monitoring',
+            notes: (latestRecord as any).visitSummary || 'Created from pet confinement status update',
+            admissionDate: now,
+            status: 'admitted',
+          } as any);
+          await confinementRecord.save();
+        }
+      }
+
+      if (confinementRecord) {
+        (pet as any).currentConfinementRecordId = confinementRecord._id;
+      }
     } else {
       if (pet.confinedSince) {
         const msPerDay = 1000 * 60 * 60 * 24;
         confinementDays = Math.max(1, Math.ceil((Date.now() - pet.confinedSince.getTime()) / msPerDay));
       }
       pet.confinedSince = null;
+
+      const activeConfinement = (pet as any).currentConfinementRecordId
+        ? await ConfinementRecord.findById((pet as any).currentConfinementRecordId)
+        : await ConfinementRecord.findOne({ petId: pet._id, status: 'admitted' }).sort({ admissionDate: -1 });
+
+      if (activeConfinement) {
+        activeConfinement.status = 'discharged';
+        activeConfinement.dischargeDate = new Date();
+        await activeConfinement.save();
+      }
+
+      (pet as any).currentConfinementRecordId = null;
     }
     await pet.save();
 

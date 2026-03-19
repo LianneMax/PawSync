@@ -7,6 +7,7 @@ import Appointment from '../models/Appointment';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
 import Billing from '../models/Billing';
+import ConfinementRecord from '../models/ConfinementRecord';
 import ProductService from '../models/ProductService';
 import VaccineType from '../models/VaccineType';
 import { createNotification } from '../services/notificationService';
@@ -297,7 +298,16 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
     }
 
     let { petId, clinicId, clinicBranchId, vetId, appointmentId } = req.body;
-    const { vitals, images, overallObservation, visitSummary, vetNotes } = req.body;
+    const {
+      vitals,
+      images,
+      overallObservation,
+      visitSummary,
+      vetNotes,
+      confinementAction,
+      confinementDays,
+      confinementRecordId,
+    } = req.body;
 
     // BR-MR-03: Pre-fill from appointment if provided
     if (appointmentId) {
@@ -358,8 +368,17 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       visitSummary: visitSummary || '',
       vetNotes: vetNotes || '',
       overallObservation: overallObservation || '',
+      confinementAction: confinementAction || 'none',
+      confinementDays: typeof confinementDays === 'number' ? confinementDays : 0,
+      confinementRecordId: confinementRecordId || null,
       isCurrent: true
     });
+
+    if (confinementRecordId) {
+      await ConfinementRecord.findByIdAndUpdate(confinementRecordId, {
+        $addToSet: { medicalRecordIds: record._id },
+      });
+    }
 
     const populated = await MedicalRecord.findById(record._id)
       .populate('vetId', 'firstName lastName')
@@ -801,7 +820,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     const {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
-      medications, diagnosticTests, preventiveCare, confinementAction, confinementDays,
+      medications, diagnosticTests, preventiveCare, confinementAction, confinementDays, confinementRecordId,
       referral, discharge, scheduledSurgery,
       surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource
     } = req.body;
@@ -825,9 +844,93 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
     if (confinementAction !== undefined) record.confinementAction = confinementAction;
     if (confinementDays !== undefined) record.confinementDays = confinementDays;
+    if (confinementRecordId !== undefined) (record as any).confinementRecordId = confinementRecordId || null;
     if (referral !== undefined) record.referral = referral;
     if (discharge !== undefined) record.discharge = discharge;
     if (scheduledSurgery !== undefined) record.scheduledSurgery = scheduledSurgery;
+
+    if (confinementAction === 'confined') {
+      let linkedConfinement = (record as any).confinementRecordId
+        ? await ConfinementRecord.findById((record as any).confinementRecordId)
+        : null;
+
+      if (!linkedConfinement) {
+        linkedConfinement = await ConfinementRecord.findOne({
+          petId: record.petId,
+          status: 'admitted',
+        }).sort({ admissionDate: -1 });
+      }
+
+      if (!linkedConfinement) {
+        linkedConfinement = new ConfinementRecord({
+          petId: record.petId,
+          vetId: record.vetId,
+          clinicId: record.clinicId,
+          clinicBranchId: record.clinicBranchId ?? null,
+          appointmentId: record.appointmentId ?? null,
+          reason: chiefComplaint || record.chiefComplaint || 'Confinement monitoring',
+          notes: visitSummary || record.visitSummary || '',
+          admissionDate: new Date(),
+          status: 'admitted',
+          medicalRecordIds: [record._id],
+        } as any);
+        await linkedConfinement.save();
+      } else {
+        await ConfinementRecord.findByIdAndUpdate(linkedConfinement._id, {
+          $addToSet: { medicalRecordIds: record._id },
+          $set: {
+            clinicId: record.clinicId,
+            clinicBranchId: record.clinicBranchId ?? null,
+            appointmentId: record.appointmentId ?? null,
+            vetId: record.vetId,
+          },
+        });
+      }
+
+      (record as any).confinementRecordId = linkedConfinement._id;
+      await Pet.findByIdAndUpdate(record.petId, {
+        $set: {
+          isConfined: true,
+          confinedSince: (linkedConfinement as any).admissionDate || new Date(),
+          currentConfinementRecordId: linkedConfinement._id,
+        },
+      });
+    }
+
+    if (confinementAction === 'released') {
+      let linkedConfinement = (record as any).confinementRecordId
+        ? await ConfinementRecord.findById((record as any).confinementRecordId)
+        : null;
+
+      if (!linkedConfinement) {
+        linkedConfinement = await ConfinementRecord.findOne({
+          petId: record.petId,
+          status: 'admitted',
+        }).sort({ admissionDate: -1 });
+      }
+
+      if (linkedConfinement) {
+        const dischargeAt = new Date();
+        await ConfinementRecord.findByIdAndUpdate(linkedConfinement._id, {
+          $set: {
+            status: 'discharged',
+            dischargeDate: dischargeAt,
+            vetId: record.vetId,
+          },
+          $addToSet: { medicalRecordIds: record._id },
+        });
+
+        (record as any).confinementRecordId = linkedConfinement._id;
+      }
+
+      await Pet.findByIdAndUpdate(record.petId, {
+        $set: {
+          isConfined: false,
+          confinedSince: null,
+          currentConfinementRecordId: null,
+        },
+      });
+    }
 
     if (images) {
       record.images = images.map((img: { data: string; contentType: string; description?: string }) => ({
@@ -949,6 +1052,12 @@ export const updateRecord = async (req: Request, res: Response) => {
 
 
     await record.save();
+
+    if ((record as any).confinementRecordId) {
+      await ConfinementRecord.findByIdAndUpdate((record as any).confinementRecordId, {
+        $addToSet: { medicalRecordIds: record._id },
+      });
+    }
 
     // Sync billing items from the updated medical record (fire-and-forget, non-fatal)
     syncBillingFromRecord(record._id.toString()).catch((e) =>

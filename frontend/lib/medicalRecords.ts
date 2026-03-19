@@ -143,6 +143,7 @@ export interface MedicalRecord {
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  confinementRecordId?: string | null;
   pregnancyRecord?: PregnancyRecord | null;
   pregnancyDelivery?: PregnancyDelivery | null;
   pregnancyLoss?: PregnancyLoss | null;
@@ -252,6 +253,9 @@ export const createMedicalRecord = async (recordData: {
   visitSummary?: string;
   vetNotes?: string;
   sharedWithOwner?: boolean;
+  confinementAction?: 'none' | 'confined' | 'released';
+  confinementDays?: number;
+  confinementRecordId?: string;
 }, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch('/medical-records', {
     method: 'POST',
@@ -345,6 +349,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   sharedWithOwner: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
+  confinementRecordId: string | null;
   surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { data: string; contentType: string; description: string }[] } | null;
   pregnancyRecord: PregnancyRecord | null;
   pregnancyDelivery: PregnancyDelivery | null;

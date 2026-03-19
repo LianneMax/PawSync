@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import ConfinementRecord from '../models/ConfinementRecord';
 import User from '../models/User';
+import Pet from '../models/Pet';
+import MedicalRecord from '../models/MedicalRecord';
 
 /**
  * GET /api/confinement
@@ -45,22 +47,39 @@ export const createConfinementRecord = async (req: Request, res: Response) => {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ status: 'ERROR', message: 'User not found' });
 
-    const { petId, reason, notes, admissionDate, appointmentId } = req.body;
+    const { petId, reason, notes, admissionDate, appointmentId, medicalRecordId, billingId } = req.body;
     if (!petId || !reason || !admissionDate) {
       return res.status(400).json({ status: 'ERROR', message: 'petId, reason, and admissionDate are required' });
     }
 
-    const record = await ConfinementRecord.create({
+    const record = new ConfinementRecord({
       petId,
       vetId: req.user.userId,
       clinicId: user.clinicId,
       clinicBranchId: user.clinicBranchId ?? undefined,
       appointmentId: appointmentId ?? undefined,
+      medicalRecordIds: medicalRecordId ? [medicalRecordId] : [],
+      billingId: billingId ?? null,
       reason,
       notes: notes || '',
       admissionDate: new Date(admissionDate),
       status: 'admitted',
     } as any);
+    await record.save();
+
+    await Pet.findByIdAndUpdate(petId, {
+      $set: {
+        isConfined: true,
+        confinedSince: new Date(admissionDate),
+        currentConfinementRecordId: record._id,
+      },
+    });
+
+    if (medicalRecordId) {
+      await MedicalRecord.findByIdAndUpdate(medicalRecordId, {
+        $set: { confinementRecordId: record._id },
+      });
+    }
 
     return res.status(201).json({ status: 'SUCCESS', data: { record } });
   } catch (error) {
@@ -80,12 +99,46 @@ export const updateConfinementRecord = async (req: Request, res: Response) => {
     const record = await ConfinementRecord.findById(req.params.id);
     if (!record) return res.status(404).json({ status: 'ERROR', message: 'Record not found' });
 
-    const { notes, dischargeDate, status } = req.body;
+    const { notes, dischargeDate, status, medicalRecordId, billingId } = req.body;
     if (notes !== undefined) record.notes = notes;
     if (dischargeDate !== undefined) record.dischargeDate = new Date(dischargeDate);
     if (status !== undefined) record.status = status;
+    if (billingId !== undefined) (record as any).billingId = billingId;
+    if (medicalRecordId) {
+      const currentIds = ((record as any).medicalRecordIds || []).map((id: any) => id.toString());
+      if (!currentIds.includes(medicalRecordId)) {
+        (record as any).medicalRecordIds = [...((record as any).medicalRecordIds || []), medicalRecordId];
+      }
+    }
 
     await record.save();
+
+    if (medicalRecordId) {
+      await MedicalRecord.findByIdAndUpdate(medicalRecordId, {
+        $set: { confinementRecordId: record._id },
+      });
+    }
+
+    if (status === 'discharged') {
+      await Pet.findByIdAndUpdate(record.petId, {
+        $set: {
+          isConfined: false,
+          confinedSince: null,
+          currentConfinementRecordId: null,
+        },
+      });
+    }
+
+    if (status === 'admitted') {
+      await Pet.findByIdAndUpdate(record.petId, {
+        $set: {
+          isConfined: true,
+          confinedSince: record.admissionDate,
+          currentConfinementRecordId: record._id,
+        },
+      });
+    }
+
     return res.status(200).json({ status: 'SUCCESS', data: { record } });
   } catch (error) {
     console.error('Update confinement error:', error);

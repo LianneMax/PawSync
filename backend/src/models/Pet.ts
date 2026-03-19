@@ -29,6 +29,7 @@ export interface IPet extends Document {
   lostReportedByStranger: boolean;
   isConfined: boolean;
   confinedSince: Date | null;
+  currentConfinementRecordId: mongoose.Types.ObjectId | null;
   lastScannedLat: number | null;
   lastScannedLng: number | null;
   lastScannedAt: Date | null;
@@ -167,6 +168,11 @@ const PetSchema = new Schema(
     },
     confinedSince: {
       type: Date,
+      default: null
+    },
+    currentConfinementRecordId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ConfinementRecord',
       default: null
     },
     lastScannedLat: {

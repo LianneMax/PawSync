@@ -16,6 +16,7 @@ export interface IBilling extends Document {
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
   medicalRecordId: mongoose.Types.ObjectId | null;
+  confinementRecordId: mongoose.Types.ObjectId | null;
   appointmentId: mongoose.Types.ObjectId | null;
   items: IBillingItem[];
   subtotal: number;
@@ -100,6 +101,12 @@ const BillingSchema = new Schema(
     medicalRecordId: {
       type: Schema.Types.ObjectId,
       ref: 'MedicalRecord',
+      default: null,
+      index: true,
+    },
+    confinementRecordId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ConfinementRecord',
       default: null,
       index: true,
     },

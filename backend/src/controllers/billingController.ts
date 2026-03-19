@@ -3,6 +3,7 @@ import Billing from '../models/Billing';
 import User from '../models/User';
 import Clinic from '../models/Clinic';
 import MedicalRecord from '../models/MedicalRecord';
+import ConfinementRecord from '../models/ConfinementRecord';
 import { sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { syncBillingFromRecord } from './medicalRecordController';
@@ -15,6 +16,7 @@ const POPULATE_BILLING = [
   { path: 'clinicId', select: 'name' },
   { path: 'clinicBranchId', select: 'name' },
   { path: 'medicalRecordId', select: 'stage' },
+  { path: 'confinementRecordId', select: 'status admissionDate dischargeDate' },
 ];
 
 /**
@@ -36,6 +38,7 @@ export const createBilling = async (req: Request, res: Response) => {
       vetId,
       clinicBranchId,
       medicalRecordId,
+      confinementRecordId,
       appointmentId,
       items = [],
       discount = 0,
@@ -60,14 +63,22 @@ export const createBilling = async (req: Request, res: Response) => {
     }
 
     // Fall back 2: derive from the linked medical record (most reliable when admin has record access)
+    let linkedRecord: any = null;
     if (!clinicId && medicalRecordId) {
-      const linkedRecord = await MedicalRecord.findById(medicalRecordId).select('clinicId').lean();
+      linkedRecord = await MedicalRecord.findById(medicalRecordId).select('clinicId confinementRecordId').lean();
       clinicId = (linkedRecord as any)?.clinicId?.toString();
+    } else if (medicalRecordId) {
+      linkedRecord = await MedicalRecord.findById(medicalRecordId).select('confinementRecordId').lean();
     }
 
     if (!clinicId) {
       return res.status(400).json({ status: 'ERROR', message: 'Clinic information is missing from your account' });
     }
+
+    const resolvedConfinementRecordId =
+      confinementRecordId ||
+      linkedRecord?.confinementRecordId ||
+      null;
 
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
     const totalAmountDue = Math.max(0, subtotal - discount);
@@ -84,6 +95,7 @@ export const createBilling = async (req: Request, res: Response) => {
       status: resolvedStatus,
       clinicBranchId: clinicBranchId || req.user.clinicBranchId || null,
       medicalRecordId: medicalRecordId || null,
+      confinementRecordId: resolvedConfinementRecordId,
       appointmentId: appointmentId || null,
       items,
       subtotal,
@@ -100,6 +112,12 @@ export const createBilling = async (req: Request, res: Response) => {
       syncBillingFromRecord(medicalRecordId).catch((e) =>
         console.error('[Billing] Background billing sync after create failed:', e),
       );
+    }
+
+    if (resolvedConfinementRecordId) {
+      await ConfinementRecord.findByIdAndUpdate(resolvedConfinementRecordId, {
+        $set: { billingId: billing._id },
+      });
     }
 
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING);
@@ -289,6 +307,30 @@ export const getBillingByMedicalRecord = async (req: Request, res: Response) => 
 };
 
 /**
+ * GET /api/billings/confinement-record/:confinementRecordId
+ * Clinic staff — get billing records linked to a specific confinement record.
+ */
+export const getBillingsByConfinementRecord = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const billings = await Billing.find({ confinementRecordId: req.params.confinementRecordId })
+      .populate(POPULATE_BILLING)
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { billings, total: billings.length },
+    });
+  } catch (error) {
+    console.error('Get billings by confinement record error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching billing records' });
+  }
+};
+
+/**
  * GET /api/billings/:id
  * Any authenticated clinic staff or the record's owner — get a single billing.
  */
@@ -348,12 +390,15 @@ export const updateBilling = async (req: Request, res: Response) => {
     }
 
     // Clinic admin: update any field
-    const { ownerId, petId, vetId, clinicBranchId, items, discount, serviceLabel, serviceDate } = req.body;
+    const { ownerId, petId, vetId, clinicBranchId, confinementRecordId, items, discount, serviceLabel, serviceDate } = req.body;
+
+    const previousConfinementRecordId = billing.confinementRecordId ? billing.confinementRecordId.toString() : null;
 
     if (ownerId !== undefined) billing.ownerId = ownerId;
     if (petId !== undefined) billing.petId = petId;
     if (vetId !== undefined) billing.vetId = vetId;
     if (clinicBranchId !== undefined) billing.clinicBranchId = clinicBranchId;
+    if (confinementRecordId !== undefined) billing.confinementRecordId = confinementRecordId;
     if (serviceLabel !== undefined) billing.serviceLabel = serviceLabel;
     if (serviceDate !== undefined) billing.serviceDate = serviceDate;
 
@@ -369,6 +414,20 @@ export const updateBilling = async (req: Request, res: Response) => {
     }
 
     await billing.save();
+
+    if (confinementRecordId !== undefined) {
+      if (previousConfinementRecordId && previousConfinementRecordId !== confinementRecordId) {
+        await ConfinementRecord.findByIdAndUpdate(previousConfinementRecordId, {
+          $set: { billingId: null },
+        });
+      }
+      if (confinementRecordId) {
+        await ConfinementRecord.findByIdAndUpdate(confinementRecordId, {
+          $set: { billingId: billing._id },
+        });
+      }
+    }
+
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING);
 
     return res.status(200).json({

@@ -5,6 +5,7 @@ import {
   listMyInvoices,
   listBillingsForVet,
   getBillingByMedicalRecord,
+  getBillingsByConfinementRecord,
   getBillingById,
   updateBilling,
   markBillingAsPaid,
@@ -30,6 +31,10 @@ router.get('/vet', authMiddleware, veterinarianOnly, listBillingsForVet);
 // Clinic staff — get billing linked to a specific medical record
 // GET /api/billings/medical-record/:medicalRecordId
 router.get('/medical-record/:medicalRecordId', authMiddleware, vetOrClinicAdminOnly, getBillingByMedicalRecord);
+
+// Clinic staff — get billings linked to a specific confinement record
+// GET /api/billings/confinement-record/:confinementRecordId
+router.get('/confinement-record/:confinementRecordId', authMiddleware, vetOrClinicAdminOnly, getBillingsByConfinementRecord);
 
 // Clinic admin — all billings for their clinic
 // GET /api/billings
