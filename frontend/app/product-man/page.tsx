@@ -51,7 +51,7 @@ interface ProductItem {
   pricingType?: 'singlePill' | 'pack'
   piecesPerPack?: number
   injectionPricingType?: 'singleDose' | 'mlPerKg'
-  vialConcentration?: number
+  doseConcentration?: number
   associatedServiceId?: string
   associatedServiceName?: string
   preventiveDuration?: number
@@ -425,12 +425,12 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
         ...(medPricingType === 'pack' && medPiecesPerPack ? { piecesPerPack: parseInt(medPiecesPerPack) } : {}),
         ...(admRoute === 'injection' ? {
           injectionPricingType: medInjectionPricingType,
-          ...(medInjectionPricingType === 'mlPerKg' && medVialConcentration ? { vialConcentration: parseFloat(medVialConcentration) } : {}),
+          ...(medVialConcentration ? { doseConcentration: parseFloat(medVialConcentration) } : {}),
         } : {}),
         ...(medFrequencyNotes ? { frequencyNotes: medFrequencyNotes } : {}),
         ...(medNetContent ? { netContent: parseFloat(medNetContent) } : {}),
         ...(medDosePerKg ? { dosePerKg: parseFloat(medDosePerKg) } : {}),
-        ...(medDoseUnit ? { doseUnit: medDoseUnit } : {}),
+        ...(admRoute !== 'injection' && medDoseUnit ? { doseUnit: medDoseUnit } : {}),
         ...(medFreqTimesPerDay || medFreqEveryHours ? {
           ...(medFreqTimesPerDay ? { frequency: parseInt(medFreqTimesPerDay) } : {}),
           frequencyLabel: [
@@ -487,7 +487,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
           pricingType: i.pricingType,
           piecesPerPack: i.piecesPerPack,
           injectionPricingType: i.injectionPricingType,
-          vialConcentration: i.vialConcentration,
+          doseConcentration: i.doseConcentration,
           associatedServiceId: i.associatedServiceId,
           preventiveDuration: i.preventiveDuration,
           preventiveDurationUnit: i.preventiveDurationUnit,
@@ -695,7 +695,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                             : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
                         }`}
                       >
-                        {type === 'singleDose' ? 'Single Dose' : 'ML/KG Pricing'}
+                        {type === 'singleDose' ? 'Single Dose' : 'ml/kg'}
                       </button>
                     ))}
                   </div>
@@ -718,23 +718,6 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                     value={medNetContent}
                     onChange={(e) => setMedNetContent(e.target.value)}
                     placeholder="e.g. 500"
-                    min="0"
-                    step="any"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                  />
-                </div>
-              )}
-
-              {/* Vial Concentration — ML/KG pricing only */}
-              {admRoute === 'injection' && medInjectionPricingType === 'mlPerKg' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Vial Concentration (mg/mL)</label>
-                  <input
-                    type="number"
-                    onWheel={(e) => e.currentTarget.blur()}
-                    value={medVialConcentration}
-                    onChange={(e) => setMedVialConcentration(e.target.value)}
-                    placeholder="e.g. 50"
                     min="0"
                     step="any"
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
@@ -783,7 +766,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
               {/* Price */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Price {medPricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal">(per pack)</span> : admRoute === 'injection' && medInjectionPricingType === 'mlPerKg' ? <span className="text-xs text-gray-400 font-normal">(per ML/KG)</span> : <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>}
+                  Price {medPricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal">(per pack)</span> : admRoute === 'injection' && medInjectionPricingType === 'mlPerKg' ? <span className="text-xs text-gray-400 font-normal">(per ml/kg)</span> : <span className="text-xs text-gray-400 font-normal">(per piece / dose)</span>}
                 </label>
                 <input
                   type="number"
@@ -815,14 +798,14 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 </p>
                 <div className="space-y-3">
 
-                  {/* Dose basis — oral / injection only */}
-                  {admRoute && admRoute !== 'preventive' && admRoute !== 'topical' && (
+                  {/* Dose basis — oral only: dose per kg + dose unit */}
+                  {admRoute === 'oral' && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Dose per kg (mg/kg)</label>
                         <input
                           type="number"
-                        onWheel={(e) => e.currentTarget.blur()}
+                          onWheel={(e) => e.currentTarget.blur()}
                           value={medDosePerKg}
                           onChange={(e) => setMedDosePerKg(e.target.value)}
                           placeholder="e.g. 10"
@@ -845,6 +828,70 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                         />
                       </div>
                     </div>
+                  )}
+
+                  {/* Dose basis — injection: dose per kg + dose concentration, no dose unit */}
+                  {admRoute === 'injection' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Dose per kg (mg/kg)</label>
+                        <input
+                          type="number"
+                          onWheel={(e) => e.currentTarget.blur()}
+                          value={medDosePerKg}
+                          onChange={(e) => setMedDosePerKg(e.target.value)}
+                          placeholder="e.g. 10"
+                          min="0"
+                          step="any"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          {medInjectionPricingType === 'mlPerKg' ? 'Vial concentration (mg/mL)' : 'Dose concentration (mg/mL)'}
+                        </label>
+                        <input
+                          type="number"
+                          onWheel={(e) => e.currentTarget.blur()}
+                          value={medVialConcentration}
+                          onChange={(e) => setMedVialConcentration(e.target.value)}
+                          placeholder="e.g. 50"
+                          min="0"
+                          step="any"
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                        />
+                      </div>
+                      {medInjectionPricingType === 'singleDose' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Min weight (kg)</label>
+                            <input
+                              type="number"
+                              onWheel={(e) => e.currentTarget.blur()}
+                              value={medWeightMin}
+                              onChange={(e) => setMedWeightMin(e.target.value)}
+                              placeholder="e.g. 5"
+                              min="0"
+                              step="any"
+                              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Max weight (kg)</label>
+                            <input
+                              type="number"
+                              onWheel={(e) => e.currentTarget.blur()}
+                              value={medWeightMax}
+                              onChange={(e) => setMedWeightMax(e.target.value)}
+                              placeholder="e.g. 20"
+                              min="0"
+                              step="any"
+                              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* Frequency notes + frequency type — topical only */}
@@ -1196,7 +1243,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [pricingType, setPricingType] = useState<'singlePill' | 'pack'>((item.pricingType as 'singlePill' | 'pack') || 'singlePill')
   const [piecesPerPack, setPiecesPerPack] = useState(item.piecesPerPack != null ? String(item.piecesPerPack) : '')
   const [injectionPricingType, setInjectionPricingType] = useState<'singleDose' | 'mlPerKg'>((item.injectionPricingType as 'singleDose' | 'mlPerKg') || 'singleDose')
-  const [vialConcentration, setVialConcentration] = useState(item.vialConcentration != null ? String(item.vialConcentration) : '')
+  const [vialConcentration, setVialConcentration] = useState(item.doseConcentration != null ? String(item.doseConcentration) : '')
   const [associatedServiceId, setAssociatedServiceId] = useState(item.associatedServiceId || '')
   const [preventiveDuration, setPreventiveDuration] = useState(item.preventiveDuration != null ? String(item.preventiveDuration) : '')
   const [preventiveDurationUnit, setPreventiveDurationUnit] = useState<'months' | 'years'>(item.preventiveDurationUnit || 'months')
@@ -1306,7 +1353,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.frequencyNotes = frequencyNotes || null
         body.netContent = netContent ? parseFloat(netContent) : null
         body.dosePerKg = dosePerKg ? parseFloat(dosePerKg) : null
-        body.doseUnit = doseUnit || null
+        body.doseUnit = admRoute !== 'injection' ? (doseUnit || null) : null
+        body.doseConcentration = admRoute === 'injection' && vialConcentration ? parseFloat(vialConcentration) : null
         body.frequency = freqTimesPerDay ? parseInt(freqTimesPerDay) : null
         body.frequencyLabel = (freqTimesPerDay || freqEveryHours)
           ? [
@@ -1329,7 +1377,6 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         body.pricingType = pricingType
         body.piecesPerPack = pricingType === 'pack' && piecesPerPack ? parseInt(piecesPerPack) : null
         body.injectionPricingType = admRoute === 'injection' ? injectionPricingType : null
-        body.vialConcentration = admRoute === 'injection' && injectionPricingType === 'mlPerKg' && vialConcentration ? parseFloat(vialConcentration) : null
       }
       if (showBranchSection) {
         body.branchAvailability = Array.from(branchState.entries()).map(([branchId, isActive]) => ({ branchId, isActive }))
@@ -1370,7 +1417,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
           pricingType: data.data.item.pricingType,
           piecesPerPack: data.data.item.piecesPerPack,
           injectionPricingType: data.data.item.injectionPricingType,
-          vialConcentration: data.data.item.vialConcentration,
+          doseConcentration: data.data.item.doseConcentration,
           associatedServiceId: data.data.item.associatedServiceId,
           preventiveDuration: data.data.item.preventiveDuration,
           preventiveDurationUnit: data.data.item.preventiveDurationUnit,
@@ -1579,7 +1626,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                             : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
                         }`}
                       >
-                        {type === 'singleDose' ? 'Single Dose' : 'ML/KG Pricing'}
+                        {type === 'singleDose' ? 'Single Dose' : 'ml/kg'}
                       </button>
                     ))}
                   </div>
@@ -1609,28 +1656,12 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                 </div>
               )}
 
-              {/* Vial Concentration — ML/KG pricing only */}
-              {isMedication && admRoute === 'injection' && injectionPricingType === 'mlPerKg' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Vial Concentration (mg/mL)</label>
-                  <input
-                    type="number"
-                    onWheel={(e) => e.currentTarget.blur()}
-                    value={vialConcentration}
-                    onChange={(e) => setVialConcentration(e.target.value)}
-                    placeholder="e.g. 50"
-                    min="0"
-                    step="any"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-                  />
-                </div>
-              )}
             </>
           )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Price{isMedication && pricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal ml-1">(per pack)</span> : isMedication && admRoute === 'injection' && injectionPricingType === 'mlPerKg' ? <span className="text-xs text-gray-400 font-normal ml-1">(per ML/KG)</span> : isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
+              Price{isMedication && pricingType === 'pack' ? <span className="text-xs text-gray-400 font-normal ml-1">(per pack)</span> : isMedication && admRoute === 'injection' && injectionPricingType === 'mlPerKg' ? <span className="text-xs text-gray-400 font-normal ml-1">(per ml/kg)</span> : isMedication && <span className="text-xs text-gray-400 font-normal ml-1">(per piece / dose)</span>}
             </label>
             <input
               type="number"
@@ -1664,7 +1695,8 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
               </p>
               <div className="space-y-3">
 
-                {admRoute && admRoute !== 'preventive' && admRoute !== 'topical' && (
+                {/* Dose basis — oral only: dose per kg + dose unit */}
+                {admRoute === 'oral' && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Dose per kg (mg/kg)</label>
@@ -1693,6 +1725,70 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                       />
                     </div>
                   </div>
+                )}
+
+                {/* Dose basis — injection: dose per kg + dose concentration, no dose unit */}
+                {admRoute === 'injection' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Dose per kg (mg/kg)</label>
+                      <input
+                        type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
+                        value={dosePerKg}
+                        onChange={(e) => setDosePerKg(e.target.value)}
+                        placeholder="e.g. 10"
+                        min="0"
+                        step="any"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        {injectionPricingType === 'mlPerKg' ? 'Vial concentration (mg/mL)' : 'Dose concentration (mg/mL)'}
+                      </label>
+                      <input
+                        type="number"
+                        onWheel={(e) => e.currentTarget.blur()}
+                        value={vialConcentration}
+                        onChange={(e) => setVialConcentration(e.target.value)}
+                        placeholder="e.g. 50"
+                        min="0"
+                        step="any"
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                      />
+                    </div>
+                    {injectionPricingType === 'singleDose' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Min weight (kg)</label>
+                          <input
+                            type="number"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={weightMin}
+                            onChange={(e) => setWeightMin(e.target.value)}
+                            placeholder="e.g. 5"
+                            min="0"
+                            step="any"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Max weight (kg)</label>
+                          <input
+                            type="number"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={weightMax}
+                            onChange={(e) => setWeightMax(e.target.value)}
+                            placeholder="e.g. 20"
+                            min="0"
+                            step="any"
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Frequency notes + frequency type — topical only */}
@@ -2136,6 +2232,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
             netContent: item.netContent,
             dosePerKg: item.dosePerKg,
             doseUnit: item.doseUnit,
+            doseConcentration: item.doseConcentration,
             frequency: item.frequency,
             frequencyLabel: item.frequencyLabel,
             duration: item.duration,
@@ -2143,6 +2240,12 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
             intervalDays: item.intervalDays,
             weightMin: item.weightMin,
             weightMax: item.weightMax,
+            pricingType: item.pricingType,
+            piecesPerPack: item.piecesPerPack,
+            injectionPricingType: item.injectionPricingType,
+            associatedServiceId: item.associatedServiceId,
+            preventiveDuration: item.preventiveDuration,
+            preventiveDurationUnit: item.preventiveDurationUnit,
             branchAvailability: mapBranchAvailability(item.branchAvailability),
           }))
           setData(items)
@@ -2539,8 +2642,8 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                                         </span>
                                       </div>
                                     )}
-                                    {/* mg/kg — oral and injection only */}
-                                    {(item.administrationRoute === 'oral' || item.administrationRoute === 'injection') && (
+                                    {/* mg/kg + dose unit — oral only */}
+                                    {item.administrationRoute === 'oral' && (
                                       <>
                                         <div className="flex justify-between items-center">
                                           <span className="text-xs text-gray-500">mg/kg</span>
@@ -2552,6 +2655,39 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
                                           <span className="text-xs text-gray-500">Dose Unit</span>
                                           <span className="text-xs font-medium text-gray-800">{item.doseUnit || '—'}</span>
                                         </div>
+                                      </>
+                                    )}
+                                    {/* mg/kg + dose/vial concentration — injection only */}
+                                    {item.administrationRoute === 'injection' && (
+                                      <>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">mg/kg</span>
+                                          <span className="text-xs font-medium text-gray-800">
+                                            {item.dosePerKg != null ? `${item.dosePerKg} mg/kg` : '—'}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-gray-500">
+                                            {item.injectionPricingType === 'mlPerKg' ? 'Vial Conc.' : 'Dose Conc.'}
+                                          </span>
+                                          <span className="text-xs font-medium text-gray-800">
+                                            {item.doseConcentration != null ? `${item.doseConcentration} mg/mL` : '—'}
+                                          </span>
+                                        </div>
+                                        {item.injectionPricingType === 'singleDose' && (
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-xs text-gray-500">Weight Range</span>
+                                            <span className="text-xs font-medium text-gray-800">
+                                              {item.weightMin != null && item.weightMax != null
+                                                ? `${item.weightMin}–${item.weightMax} kg`
+                                                : item.weightMin != null
+                                                ? `≥ ${item.weightMin} kg`
+                                                : item.weightMax != null
+                                                ? `≤ ${item.weightMax} kg`
+                                                : '—'}
+                                            </span>
+                                          </div>
+                                        )}
                                       </>
                                     )}
                                     {/* Frequency Notes — topical only */}
