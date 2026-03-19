@@ -273,7 +273,7 @@ export const updatePet = async (req: Request, res: Response) => {
           req.user!.userId,
           'pet_found',
           'Pet Marked as Found',
-          `${pet.name} has been marked as found. Lost alerts and scan tracking were cleared.`,
+          `${pet.name} has been marked as found. Lost status, alerts, and appointments have been cleared.`,
           { petId: pet._id }
         );
         const owner = await User.findById(req.user!.userId).select('firstName email');

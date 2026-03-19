@@ -355,12 +355,12 @@ export async function sendLostPetScanAlert(params: {
     await getResend().emails.send({
       from: FROM,
       to: params.ownerEmail,
-      subject: `PawSync – Someone Scanned ${params.petName}'s Profile`,
+      subject: `PawSync – Someone Scanned ${params.petName}'s NFC/QR Pet Tag`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Someone Found ${params.petName}!</h2>
           <p>Hi ${params.ownerFirstName},</p>
-          <p>Someone just scanned <strong>${params.petName}</strong>'s QR tag and viewed their public profile. They may be trying to return your pet.</p>
+          <p>Someone just scanned <strong>${params.petName}</strong>&apos;s NFC/QR Pet Tag and viewed their public profile. They may be trying to return your pet.</p>
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
             <p style="margin: 0;">Your contact information is visible on the public profile so they can reach you directly.</p>
           </div>
@@ -436,7 +436,7 @@ export async function sendPetFoundConfirmation(params: {
           <p>Hi ${params.ownerFirstName},</p>
           <p>You successfully marked <strong>${params.petName}</strong> as found.</p>
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
-            <p style="margin: 0;">Lost status, alerts, and scan tracking have been cleared for this pet.</p>
+            <p style="margin: 0;">Lost status, alerts, and appointments have been cleared for this pet.</p>
           </div>
           <div style="text-align: center; margin: 24px 0;">
             <a href="${petUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Open My Pet Profile</a>
