@@ -690,100 +690,104 @@ export default function MyAppointmentsPage() {
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredAppointments.length > 0 ? (
-          <div className="space-y-4">
-            {filteredAppointments.map((appt) => (
-              <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {appt.petId?.photo ? (
-                    <img src={appt.petId.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
-                      <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                    <p className="text-xs text-gray-500">
-                      Dr. {appt.vetId?.firstName} {appt.vetId?.lastName} &middot; {appt.clinicBranchId?.name || appt.clinicId?.name}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
-                      </span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
-                      </span>
+          <div className="md:max-h-[calc(100vh-22rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
+            <div className="space-y-4">
+              {filteredAppointments.map((appt) => (
+                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {appt.petId?.photo ? (
+                      <img src={appt.petId.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                        <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
+                      <p className="text-xs text-gray-500">
+                        Dr. {appt.vetId?.firstName} {appt.vetId?.lastName} &middot; {appt.clinicBranchId?.name || appt.clinicId?.name}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
+                        </span>
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-wrap gap-1">
-                    {appt.types.map((t) => (
-                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap gap-1">
+                      {appt.types.map((t) => (
+                        <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
+                      ))}
+                    </div>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                      getDisplayStatus(appt) === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                      getDisplayStatus(appt) === 'in_clinic' ? 'bg-yellow-100 text-yellow-700' :
+                      getDisplayStatus(appt) === 'confirmed' ? 'bg-green-100 text-green-700' :
+                      getDisplayStatus(appt) === 'completed' ? 'bg-green-100 text-green-700' :
+                      getDisplayStatus(appt) === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      getDisplayStatus(appt) === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {getDisplayStatus(appt) === 'in_progress' ? 'In Progress' :
+                       getDisplayStatus(appt) === 'in_clinic' ? 'In Clinic' :
+                       getDisplayStatus(appt) === 'confirmed' ? 'Confirmed' :
+                       getDisplayStatus(appt) === 'pending' ? 'Pending' :
+                       getDisplayStatus(appt) === 'cancelled' ? 'Cancelled' :
+                       getDisplayStatus(appt) === 'completed' ? 'Completed' :
+                       (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
+                    </span>
+                    {(appt.status === 'pending' || appt.status === 'confirmed') && getDisplayStatus(appt) !== 'cancelled' && activeTab === 'upcoming' && (
+                      <button
+                        onClick={() => handleCancel(appt._id)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    getDisplayStatus(appt) === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
-                    getDisplayStatus(appt) === 'in_clinic' ? 'bg-yellow-100 text-yellow-700' :
-                    getDisplayStatus(appt) === 'confirmed' ? 'bg-green-100 text-green-700' :
-                    getDisplayStatus(appt) === 'completed' ? 'bg-green-100 text-green-700' :
-                    getDisplayStatus(appt) === 'pending' ? 'bg-amber-100 text-amber-700' :
-                    getDisplayStatus(appt) === 'cancelled' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {getDisplayStatus(appt) === 'in_progress' ? 'In Progress' :
-                     getDisplayStatus(appt) === 'in_clinic' ? 'In Clinic' :
-                     getDisplayStatus(appt) === 'confirmed' ? 'Confirmed' :
-                     getDisplayStatus(appt) === 'pending' ? 'Pending' :
-                     getDisplayStatus(appt) === 'cancelled' ? 'Cancelled' :
-                     getDisplayStatus(appt) === 'completed' ? 'Completed' :
-                     (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
-                  </span>
-                  {(appt.status === 'pending' || appt.status === 'confirmed') && getDisplayStatus(appt) !== 'cancelled' && activeTab === 'upcoming' && (
-                    <button
-                      onClick={() => handleCancel(appt._id)}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium"
-                    >
-                      Cancel
-                    </button>
-                  )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-              {activeTab === 'upcoming' ? (
-                <>
-                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-6">
-                    {serviceType === 'all'
-                      ? 'No upcoming appointments'
-                      : serviceType === 'medical'
-                      ? 'No upcoming medical service appointments'
-                      : 'No upcoming clinic service appointments'}
-                  </p>
-                  <button
-                    onClick={() => setModalOpen(true)}
-                    className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Set an Appointment
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">
-                    {serviceType === 'all'
-                      ? 'No past appointments'
-                      : serviceType === 'medical'
-                      ? 'No past medical service appointments'
-                      : 'No past clinic service appointments'}
-                  </p>
-                </>
-              )}
+          <div className="md:max-h-[calc(100vh-22rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
+            <div className="bg-white rounded-2xl p-6 shadow-sm">
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                {activeTab === 'upcoming' ? (
+                  <>
+                    <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-6">
+                      {serviceType === 'all'
+                        ? 'No upcoming appointments'
+                        : serviceType === 'medical'
+                        ? 'No upcoming medical service appointments'
+                        : 'No upcoming clinic service appointments'}
+                    </p>
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Set an Appointment
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">
+                      {serviceType === 'all'
+                        ? 'No past appointments'
+                        : serviceType === 'medical'
+                        ? 'No past medical service appointments'
+                        : 'No past clinic service appointments'}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}

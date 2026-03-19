@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -151,6 +151,22 @@ function formatSlotTime(time: string) {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function toYmd(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getAppointmentDateYmd(dateValue: string) {
+  if (!dateValue) return ''
+  if (dateValue.includes('T')) return dateValue.split('T')[0]
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue
+  const parsed = new Date(dateValue)
+  if (isNaN(parsed.getTime())) return ''
+  return toYmd(parsed)
 }
 
 // ==================== DROPDOWN COMPONENT ====================
@@ -717,6 +733,191 @@ export default function ClinicAdminAppointmentsPage() {
 
   // Calendar date
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [ownerFilterQuery, setOwnerFilterQuery] = useState('')
+  const [ownerFilterOpen, setOwnerFilterOpen] = useState(false)
+  const [selectedOwnerId, setSelectedOwnerId] = useState('')
+  const [selectedPetId, setSelectedPetId] = useState('')
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('all')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+  const [customDateOpen, setCustomDateOpen] = useState(false)
+
+  const showListFilters = activeTab === 'previous' || (activeTab === 'upcoming' && viewMode === 'list')
+
+  const ownerOptions = useMemo(() => {
+    const grouped = new Map<string, { ownerId: string; ownerName: string; pets: Array<{ petId: string; petName: string }> }>()
+
+    appointments.forEach((appt) => {
+      const ownerObj = typeof appt.ownerId === 'object' && appt.ownerId ? appt.ownerId : null
+      const ownerId = ownerObj?._id ? String(ownerObj._id) : ''
+      const ownerName = [ownerObj?.firstName, ownerObj?.lastName].filter(Boolean).join(' ').trim()
+      const petObj = typeof appt.petId === 'object' && appt.petId ? appt.petId : null
+      const petId = petObj?._id ? String(petObj._id) : ''
+      const petName = petObj?.name || 'Pet'
+
+      if (!ownerId || !ownerName) return
+
+      if (!grouped.has(ownerId)) {
+        grouped.set(ownerId, { ownerId, ownerName, pets: [] })
+      }
+
+      if (petId) {
+        const ownerEntry = grouped.get(ownerId)!
+        if (!ownerEntry.pets.some((p) => p.petId === petId)) {
+          ownerEntry.pets.push({ petId, petName })
+        }
+      }
+    })
+
+    return Array.from(grouped.values()).sort((a, b) => a.ownerName.localeCompare(b.ownerName))
+  }, [appointments])
+
+  const selectedOwner = useMemo(
+    () => ownerOptions.find((o) => o.ownerId === selectedOwnerId) || null,
+    [ownerOptions, selectedOwnerId],
+  )
+
+  const selectedPet = useMemo(
+    () => selectedOwner?.pets.find((p) => p.petId === selectedPetId) || null,
+    [selectedOwner, selectedPetId],
+  )
+
+  useEffect(() => {
+    if (selectedOwner) {
+      setOwnerFilterQuery(selectedOwner.ownerName)
+    } else if (!selectedOwnerId) {
+      setOwnerFilterQuery('')
+    }
+  }, [selectedOwner, selectedOwnerId])
+
+  const suggestedOwners = useMemo(() => {
+    const q = ownerFilterQuery.trim().toLowerCase()
+    if (!q) return ownerOptions.slice(0, 8)
+    return ownerOptions.filter((o) => o.ownerName.toLowerCase().includes(q)).slice(0, 8)
+  }, [ownerOptions, ownerFilterQuery])
+
+  const selectedOwnerPets = useMemo(
+    () => (selectedOwner?.pets || []).slice().sort((a, b) => a.petName.localeCompare(b.petName)),
+    [selectedOwner],
+  )
+
+  const displayedAppointments = useMemo(() => {
+    if (!showListFilters) return appointments
+
+    const today = new Date()
+    const todayYmd = toYmd(today)
+    let startYmd = ''
+    let endYmd = ''
+
+    if (dateFilter === 'custom') {
+      if (customStartDate && customEndDate) {
+        startYmd = customStartDate <= customEndDate ? customStartDate : customEndDate
+        endYmd = customStartDate <= customEndDate ? customEndDate : customStartDate
+      }
+    } else if (dateFilter !== 'all') {
+      if (activeTab === 'upcoming') {
+        const weekEnd = new Date(today)
+        weekEnd.setDate(weekEnd.getDate() + (6 - weekEnd.getDay()))
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        const yearEnd = new Date(today.getFullYear(), 11, 31)
+
+        if (dateFilter === 'today') {
+          startYmd = todayYmd
+          endYmd = todayYmd
+        }
+        if (dateFilter === 'week') {
+          startYmd = todayYmd
+          endYmd = toYmd(weekEnd)
+        }
+        if (dateFilter === 'month') {
+          startYmd = todayYmd
+          endYmd = toYmd(monthEnd)
+        }
+        if (dateFilter === 'year') {
+          startYmd = todayYmd
+          endYmd = toYmd(yearEnd)
+        }
+      } else {
+        const weekStart = new Date(today)
+        weekStart.setDate(weekStart.getDate() - 6)
+        const monthStart = new Date(today)
+        monthStart.setDate(monthStart.getDate() - 29)
+        const yearStart = new Date(today)
+        yearStart.setDate(yearStart.getDate() - 364)
+
+        if (dateFilter === 'today') {
+          startYmd = todayYmd
+          endYmd = todayYmd
+        }
+        if (dateFilter === 'week') {
+          startYmd = toYmd(weekStart)
+          endYmd = todayYmd
+        }
+        if (dateFilter === 'month') {
+          startYmd = toYmd(monthStart)
+          endYmd = todayYmd
+        }
+        if (dateFilter === 'year') {
+          startYmd = toYmd(yearStart)
+          endYmd = todayYmd
+        }
+      }
+    }
+
+    return appointments.filter((appt) => {
+      if (selectedOwnerId) {
+        const ownerId = typeof appt.ownerId === 'string' ? appt.ownerId : appt.ownerId?._id
+        if (!ownerId || String(ownerId) !== selectedOwnerId) return false
+      }
+
+      if (selectedPetId) {
+        const petId = typeof appt.petId === 'string' ? appt.petId : appt.petId?._id
+        if (!petId || String(petId) !== selectedPetId) return false
+      }
+
+      if (startYmd && endYmd) {
+        const apptYmd = getAppointmentDateYmd(appt.date)
+        if (!apptYmd || apptYmd < startYmd || apptYmd > endYmd) return false
+      }
+
+      return true
+    })
+  }, [appointments, showListFilters, selectedOwnerId, selectedPetId, dateFilter, customStartDate, customEndDate, activeTab])
+
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: 'owner' | 'pet' | 'date'; label: string }> = []
+
+    if (selectedOwner) {
+      chips.push({ key: 'owner', label: selectedOwner.ownerName })
+    }
+    if (selectedPet) {
+      chips.push({ key: 'pet', label: selectedPet.petName })
+    }
+
+    if (dateFilter !== 'all') {
+      if (activeTab === 'upcoming') {
+        if (dateFilter === 'today') chips.push({ key: 'date', label: 'Today' })
+        if (dateFilter === 'week') chips.push({ key: 'date', label: 'This Week' })
+        if (dateFilter === 'month') chips.push({ key: 'date', label: 'This Month' })
+        if (dateFilter === 'year') chips.push({ key: 'date', label: 'This Year' })
+      } else {
+        if (dateFilter === 'today') chips.push({ key: 'date', label: 'Today' })
+        if (dateFilter === 'week') chips.push({ key: 'date', label: 'One Week Ago' })
+        if (dateFilter === 'month') chips.push({ key: 'date', label: 'One Month Ago' })
+        if (dateFilter === 'year') chips.push({ key: 'date', label: 'One Year Ago' })
+      }
+
+      if (dateFilter === 'custom') {
+        if (customStartDate && customEndDate) {
+          chips.push({ key: 'date', label: `${formatDate(customStartDate)} - ${formatDate(customEndDate)}` })
+        } else {
+          chips.push({ key: 'date', label: 'Custom Date' })
+        }
+      }
+    }
+
+    return chips
+  }, [selectedOwner, selectedPet, dateFilter, customStartDate, customEndDate, activeTab])
 
   // Load clinic + branches (for clinic admins, vets, etc.)
   useEffect(() => {
@@ -1190,6 +1391,221 @@ export default function ClinicAdminAppointmentsPage() {
           )}
         </div>
 
+        {showListFilters && (
+          <>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+              <div className="relative w-full md:max-w-md">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={ownerFilterQuery}
+                    placeholder="Search pet owner..."
+                    onFocus={() => setOwnerFilterOpen(true)}
+                    onBlur={() => setTimeout(() => setOwnerFilterOpen(false), 120)}
+                    onChange={(e) => {
+                      const next = e.target.value
+                      setOwnerFilterQuery(next)
+                      setOwnerFilterOpen(true)
+                      if (selectedOwner && next !== selectedOwner.ownerName) {
+                        setSelectedOwnerId('')
+                        setSelectedPetId('')
+                      }
+                    }}
+                    className="w-full pl-10 pr-24 py-2.5 border border-gray-200 rounded-xl bg-white text-sm text-[#4F4F4F] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]/40"
+                  />
+                  {(selectedOwnerId || ownerFilterQuery) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOwnerFilterQuery('')
+                        setSelectedOwnerId('')
+                        setSelectedPetId('')
+                        setOwnerFilterOpen(false)
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {ownerFilterOpen && suggestedOwners.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto">
+                    {suggestedOwners.map((owner) => (
+                      <button
+                        key={owner.ownerId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOwnerId(owner.ownerId)
+                          setSelectedPetId('')
+                          setOwnerFilterQuery(owner.ownerName)
+                          setOwnerFilterOpen(false)
+                        }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-[#7FA5A3]/10"
+                      >
+                        <p className="text-sm font-medium text-[#4F4F4F]">{owner.ownerName}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Pets: {owner.pets.map((p) => p.petName).join(', ') || 'No pets'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {ownerFilterOpen && ownerFilterQuery.trim().length > 0 && suggestedOwners.length === 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 px-4 py-3 text-sm text-gray-400">
+                    No pet owners found
+                  </div>
+                )}
+
+                {selectedOwnerPets.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPetId('')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        selectedPetId === ''
+                          ? 'bg-[#7FA5A3] text-white'
+                          : 'bg-white border border-gray-200 text-[#4F4F4F] hover:bg-gray-50'
+                      }`}
+                    >
+                      All Pets
+                    </button>
+                    {selectedOwnerPets.map((pet) => (
+                      <button
+                        key={pet.petId}
+                        type="button"
+                        onClick={() => setSelectedPetId(pet.petId)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                          selectedPetId === pet.petId
+                            ? 'bg-[#7FA5A3] text-white'
+                            : 'bg-white border border-gray-200 text-[#4F4F4F] hover:bg-gray-50'
+                        }`}
+                      >
+                        {pet.petName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative w-full md:w-auto">
+                <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-100 overflow-x-auto">
+                  {([
+                    { value: 'today', label: 'Today' },
+                    { value: 'week', label: activeTab === 'upcoming' ? 'This Week' : 'One Week Ago' },
+                    { value: 'month', label: activeTab === 'upcoming' ? 'This Month' : 'One Month Ago' },
+                    { value: 'year', label: activeTab === 'upcoming' ? 'This Year' : 'One Year Ago' },
+                    { value: 'custom', label: 'Custom' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setDateFilter(option.value)
+                        setCustomDateOpen(option.value === 'custom')
+                      }}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                        dateFilter === option.value
+                          ? 'bg-[#7FA5A3] text-white shadow-sm'
+                          : 'text-[#4F4F4F] hover:bg-gray-50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                  {dateFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateFilter('all')
+                        setCustomStartDate('')
+                        setCustomEndDate('')
+                        setCustomDateOpen(false)
+                      }}
+                      className="px-3 py-2 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-50"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {dateFilter === 'custom' && customDateOpen && (
+                  <div className="absolute right-0 mt-2 w-full md:w-[520px] bg-white border border-gray-200 rounded-2xl shadow-lg p-4 z-20">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Start Date</p>
+                        <DatePicker
+                          value={customStartDate}
+                          onChange={setCustomStartDate}
+                          allowFutureDates
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">End Date</p>
+                        <DatePicker
+                          value={customEndDate}
+                          onChange={setCustomEndDate}
+                          allowFutureDates
+                          minDate={customStartDate ? new Date(customStartDate) : undefined}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setCustomDateOpen(false)}
+                        className="px-4 py-2 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-100"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {activeFilterChips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {activeFilterChips.map((chip) => (
+                  <span
+                    key={`${chip.key}-${chip.label}`}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#7FA5A3]/10 text-[#5A7C7A]"
+                  >
+                    {chip.label}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (chip.key === 'owner') {
+                          setSelectedOwnerId('')
+                          setSelectedPetId('')
+                          setOwnerFilterQuery('')
+                        }
+                        if (chip.key === 'pet') {
+                          setSelectedPetId('')
+                        }
+                        if (chip.key === 'date') {
+                          setDateFilter('all')
+                          setCustomStartDate('')
+                          setCustomEndDate('')
+                          setCustomDateOpen(false)
+                        }
+                      }}
+                      className="text-[#5A7C7A] hover:text-[#476B6B]"
+                      aria-label={`Remove ${chip.label} filter`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -1208,104 +1624,108 @@ export default function ClinicAdminAppointmentsPage() {
             scheduleType={scheduleType}
             branches={branches}
           />
-        ) : appointments.length > 0 ? (
+        ) : displayedAppointments.length > 0 ? (
           /* ---- LIST VIEW ---- */
-          <div className="space-y-4">
-            {appointments.map((appt) => (
-              <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {appt.petId?.photo ? (
-                    <Image src={appt.petId.photo} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
-                      <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                    <p className="text-xs text-gray-500">
-                      Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
-                      </span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
-                      </span>
+          <div className="md:max-h-[calc(100vh-24rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
+            <div className="space-y-4">
+              {displayedAppointments.map((appt) => (
+                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {appt.petId?.photo ? (
+                      <Image src={appt.petId.photo} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                        <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
+                      <p className="text-xs text-gray-500">
+                        Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
+                        </span>
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-wrap gap-1">
-                    {appt.isEmergency && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
-                    )}
-                    {appt.isWalkIn && !appt.isEmergency && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
-                    )}
-                    {appt.types.map((t) => (
-                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap gap-1">
+                      {appt.isEmergency && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
+                      )}
+                      {appt.isWalkIn && !appt.isEmergency && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
+                      )}
+                      {appt.types.map((t) => (
+                        <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
+                      ))}
+                    </div>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
+                      appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                      appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      appt.status === 'in_clinic' ? 'bg-blue-100 text-blue-700' :
+                      appt.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
+                      appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      appt.status === 'completed' ? 'bg-gray-100 text-gray-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {appt.status}
+                    </span>
+                    {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleCheckIn(appt._id)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                        >
+                          Check-in
+                        </button>
+                        <button
+                          onClick={() => setRescheduleTarget(appt)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                        >
+                          Reschedule
+                        </button>
+                        <button
+                          onClick={() => handleCancel(appt._id)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>                  )}
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
-                    appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                    appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                    appt.status === 'in_clinic' ? 'bg-blue-100 text-blue-700' :
-                    appt.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                    appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                    appt.status === 'completed' ? 'bg-gray-100 text-gray-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {appt.status}
-                  </span>
-                  {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleCheckIn(appt._id)}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
-                      >
-                        Check-in
-                      </button>
-                      <button
-                        onClick={() => setRescheduleTarget(appt)}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        onClick={() => handleCancel(appt._id)}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>                  )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : (
           /* ---- EMPTY STATE ---- */
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-              {activeTab === 'upcoming' ? (
-                <>
-                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-6">No upcoming appointments</p>
-                  <button
-                    onClick={() => setModalOpen(true)}
-                    className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Set an Appointment
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No past appointments</p>
-                </>
-              )}
+          <div className="md:max-h-[calc(100vh-24rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
+            <div className="bg-white rounded-2xl p-6 shadow-sm">
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                {activeTab === 'upcoming' ? (
+                  <>
+                    <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-6">No upcoming appointments</p>
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Set an Appointment
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No past appointments</p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
