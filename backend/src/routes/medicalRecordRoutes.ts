@@ -13,6 +13,7 @@ import {
   createFollowUp,
   getRecordImage,
   getMedicalHistory,
+  getPregnancyHistory,
 } from '../controllers/medicalRecordController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -59,6 +60,12 @@ router.get('/pet/:petId/historical', authMiddleware, getHistoricalRecords);
  * Get aggregated medical history for a pet (operations, medications, vaccines, pregnancies, etc.)
  */
 router.get('/pet/:petId/medical-history', authMiddleware, getMedicalHistory);
+
+/**
+ * GET /api/medical-records/pet/:petId/pregnancy-history
+ * Get all pregnancy episodes for a pet in chronological order.
+ */
+router.get('/pet/:petId/pregnancy-history', authMiddleware, getPregnancyHistory);
 
 /**
  * GET /api/medical-records/pet/:petId
