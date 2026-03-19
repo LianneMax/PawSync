@@ -29,7 +29,8 @@ export interface IProductService extends Document {
 
   // Internal dose basis for mg/kg workflow
   dosePerKg?: number;         // e.g. 10 → "10 mg/kg"
-  doseUnit?: string;          // e.g. 'mg', 'mL', 'drops', 'tablet'
+  doseUnit?: string;          // e.g. 'mg', 'mL', 'drops', 'tablet' (not used for injections)
+  doseConcentration?: number; // mg/mL — vial concentration for injections (single dose & ml/kg)
 
   // Pre-filled defaults (guide values, editable per case)
   dosageAmount?: string;      // e.g. "500mg", "5mL" — computed guide value
@@ -41,9 +42,9 @@ export interface IProductService extends Document {
 
   // Preventive-specific
   intervalDays?: number;      // days until next due (for scheduling)
-  weightMin?: number;         // kg — lower bound for weight-range-based preventives
-  weightMax?: number;         // kg — upper bound for weight-range-based preventives
-  associatedServiceId?: mongoose.Types.ObjectId;  // linked Preventive Care service
+  weightMin?: number;         // kg — lower bound for weight range (preventives & single-dose injections)
+  weightMax?: number;         // kg — upper bound for weight range (preventives & single-dose injections)
+  associatedServiceId?: mongoose.Types.ObjectId;  // linked service (Preventive Care service, or any service for injections)
   preventiveDuration?: number;                    // how long the protection lasts
   preventiveDurationUnit?: 'months' | 'years';    // unit for preventiveDuration
 
@@ -87,6 +88,7 @@ const ProductServiceSchema: Schema = new Schema(
     netContent: { type: Number, default: null, min: 0 },
     dosePerKg: { type: Number, default: null, min: 0 },
     doseUnit: { type: String, default: null },
+    doseConcentration: { type: Number, default: null, min: 0 },
     dosageAmount: { type: String, default: null },
     frequencyNotes: { type: String, default: null },
     frequency: { type: Number, default: null, min: 1 },
