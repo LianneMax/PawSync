@@ -176,7 +176,6 @@ export default function VetAppointmentsPage() {
   const [activePetId, setActivePetId] = useState<string | null>(null)
   const [activeAppointmentTypes, setActiveAppointmentTypes] = useState<string[]>([])
   const [activeAppointmentDate, setActiveAppointmentDate] = useState<string | null>(null)
-  const [activeAppointmentTiterFirst, setActiveAppointmentTiterFirst] = useState(false)
 
   const loadAppointments = useCallback(async () => {
     if (!token) return
@@ -299,7 +298,6 @@ export default function VetAppointmentsPage() {
           setActivePetId(petId)
           setActiveAppointmentTypes(appt.types || [])
           setActiveAppointmentDate(appt.date || null)
-          setActiveAppointmentTiterFirst(appt.titer_first === true)
           setModalOpen(true)
           loadAppointments()
         }
@@ -323,7 +321,6 @@ export default function VetAppointmentsPage() {
         setActivePetId(petId)
         setActiveAppointmentTypes(appt.types || [])
         setActiveAppointmentDate(appt.date || null)
-        setActiveAppointmentTiterFirst(appt.titer_first === true)
         setModalOpen(true)
       } else {
         toast.error('Could not find the visit record. Please try again.')
@@ -340,7 +337,6 @@ export default function VetAppointmentsPage() {
     setActivePetId(null)
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
-    setActiveAppointmentTiterFirst(false)
     loadAppointments()
   }
 
@@ -351,7 +347,6 @@ export default function VetAppointmentsPage() {
     setActivePetId(null)
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
-    setActiveAppointmentTiterFirst(false)
     loadAppointments()
   }
 
@@ -906,7 +901,6 @@ export default function VetAppointmentsPage() {
           appointmentId={activeAppointmentId}
           petId={activePetId}
           appointmentTypes={activeAppointmentTypes}
-          appointmentTiterFirst={activeAppointmentTiterFirst}
           appointmentDate={activeAppointmentDate}
           onComplete={handleModalComplete}
           onClose={handleModalClose}

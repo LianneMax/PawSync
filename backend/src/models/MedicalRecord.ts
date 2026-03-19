@@ -72,31 +72,6 @@ export interface ISurgeryRecord {
   vetRemarks: string;
 }
 
-export interface ITiterDiseaseRow {
-  disease: string;
-  score: number | null;
-  status: 'Protected' | 'Not Protected' | '';
-  action: 'None' | 'Vaccinate' | '';
-}
-
-export interface IImmunityTesting {
-  enabled: boolean;
-  species: 'canine' | 'feline' | null;
-  kitName: string;
-  testDate: Date | null;
-  rows: ITiterDiseaseRow[];
-  protectedCount: number;
-  summary: string;
-  markdown: string;
-  tag: string;
-  linkedAppointmentId: mongoose.Types.ObjectId | null;
-  followUpAppointmentId: mongoose.Types.ObjectId | null;
-  followUpDate: Date | null;
-  skipSuggested: boolean;
-  ignoreTiter: boolean;
-  ignoreReason: string;
-}
-
 export interface IFollowUp {
   _id: mongoose.Types.ObjectId;
   vetId: mongoose.Types.ObjectId;
@@ -139,7 +114,6 @@ export interface IMedicalRecord extends Document {
   subjective: string;   // S - Patient history / owner complaint
   assessment: string;   // A - Diagnosis / clinical assessment
   plan: string;         // P - Treatment plan / next steps
-  immunityTesting?: IImmunityTesting | null;
   medications: IMedication[];
   diagnosticTests: IDiagnosticTest[];
   preventiveCare: IPreventiveCare[];
@@ -294,37 +268,6 @@ const SurgeryRecordSchema = new Schema(
   { _id: false }
 );
 
-const TiterDiseaseRowSchema = new Schema(
-  {
-    disease: { type: String, default: '' },
-    score: { type: Number, min: 0, max: 6, default: null },
-    status: { type: String, enum: ['Protected', 'Not Protected', ''], default: '' },
-    action: { type: String, enum: ['None', 'Vaccinate', ''], default: '' },
-  },
-  { _id: false }
-);
-
-const ImmunityTestingSchema = new Schema(
-  {
-    enabled: { type: Boolean, default: false },
-    species: { type: String, enum: ['canine', 'feline', null], default: null },
-    kitName: { type: String, default: '' },
-    testDate: { type: Date, default: null },
-    rows: { type: [TiterDiseaseRowSchema], default: [] },
-    protectedCount: { type: Number, default: 0 },
-    summary: { type: String, default: '' },
-    markdown: { type: String, default: '' },
-    tag: { type: String, default: '' },
-    linkedAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
-    followUpAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
-    followUpDate: { type: Date, default: null },
-    skipSuggested: { type: Boolean, default: false },
-    ignoreTiter: { type: Boolean, default: false },
-    ignoreReason: { type: String, default: '' },
-  },
-  { _id: false }
-);
-
 const FollowUpSchema = new Schema(
   {
     vetId: {
@@ -425,10 +368,6 @@ const MedicalRecordSchema = new Schema(
     plan: {
       type: String,
       default: ''
-    },
-    immunityTesting: {
-      type: ImmunityTestingSchema,
-      default: null
     },
     medications: [MedicationSchema],
     diagnosticTests: [DiagnosticTestSchema],

@@ -32,7 +32,6 @@ import {
   Check,
 } from 'lucide-react'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
-import { getVaccinationsByPet as getPetVaccinations } from '@/lib/vaccinations'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -145,10 +144,6 @@ function formatSlotTime(time: string) {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function hasVaccinationService(types: string[]): boolean {
-  return types.some((type) => String(type).toLowerCase().includes('vaccination'))
 }
 
 
@@ -548,9 +543,6 @@ function ScheduleModal({
   const [isClosedDay, setIsClosedDay] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [titerFirst, setTiterFirst] = useState(false)
-  const [titerTouched, setTiterTouched] = useState(false)
-  const [titerAutoMessage, setTiterAutoMessage] = useState(false)
 
   const groomingTypeValues = new Set([
     'basic-grooming',
@@ -583,7 +575,7 @@ function ScheduleModal({
     const loadServices = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-        const categories = ['General Consultation', 'Preventive Care', 'Diagnostic Tests', 'Surgeries', 'Grooming']
+        const categories = ['General Consultation', 'Preventive Care', 'Surgeries', 'Grooming']
         const categoryMap: Record<string, any[]> = {}
         
         // Fetch services for each category
@@ -612,14 +604,6 @@ function ScheduleModal({
             id: 'preventive',
             label: 'Preventive Care',
             services: (categoryMap['Preventive Care'] || []).map((item: any) => ({
-              value: normalizeAppointmentType(item.name),
-              label: item.name,
-            })),
-          },
-          {
-            id: 'diagnostic',
-            label: 'Diagnostic Tests',
-            services: (categoryMap['Diagnostic Tests'] || []).map((item: any) => ({
               value: normalizeAppointmentType(item.name),
               label: item.name,
             })),
@@ -749,44 +733,8 @@ function ScheduleModal({
       setSlots([])
       setIsClosedDay(false)
       setBranchVets([])
-      setTiterFirst(false)
-      setTiterTouched(false)
-      setTiterAutoMessage(false)
     }
   }, [open])
-
-  useEffect(() => {
-    setTiterTouched(false)
-    setTiterAutoMessage(false)
-  }, [selectedPetId])
-
-  useEffect(() => {
-    const run = async () => {
-      if (!selectedPetId || !hasVaccinationService(selectedTypes) || mode === 'online' || !token) {
-        if (!titerTouched) setTiterFirst(false)
-        setTiterAutoMessage(false)
-        return
-      }
-
-      try {
-        const existing = await getPetVaccinations(selectedPetId, token)
-        const hasPast = Array.isArray(existing) && existing.length > 0
-        if (!hasPast && !titerTouched) {
-          setTiterFirst(true)
-          setTiterAutoMessage(true)
-          return
-        }
-        if (hasPast && !titerTouched) {
-          setTiterFirst(false)
-        }
-        setTiterAutoMessage(false)
-      } catch {
-        setTiterAutoMessage(false)
-      }
-    }
-
-    run()
-  }, [selectedPetId, selectedTypes, mode, token, titerTouched])
 
   // Build flat list of branches with clinic name for the dropdown
   const branchOptions = clinics.flatMap((clinic) =>
@@ -893,7 +841,6 @@ function ScheduleModal({
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
-        titer_first: titerFirst,
       }, token || undefined)
 
       if (res.status === 'SUCCESS') {
@@ -1093,31 +1040,6 @@ function ScheduleModal({
                 minDate={new Date(new Date().setHours(0, 0, 0, 0))}
               />
             </div>
-
-            {mode !== 'online' && hasVaccinationService(selectedTypes) && (
-              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={titerFirst}
-                    onChange={(e) => {
-                      setTiterFirst(e.target.checked)
-                      setTiterTouched(true)
-                      setTiterAutoMessage(false)
-                    }}
-                    className="mt-0.5 w-4 h-4 accent-[#476B6B]"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-[#2C3E2D]">Perform Titer Test First</p>
-                    {titerAutoMessage && (
-                      <p className="text-xs text-[#476B6B] mt-1">
-                        Auto-selected: No prior vaccines found. Titer checks immunity before vaccinating.
-                      </p>
-                    )}
-                  </div>
-                </label>
-              </div>
-            )}
           </div>
 
           {/* Right: Time Table */}

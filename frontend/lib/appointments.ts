@@ -20,7 +20,6 @@ export interface Appointment {
   endTime: string;
   status: 'pending' | 'confirmed' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
-  titer_first?: boolean;
   isWalkIn: boolean;
   isEmergency: boolean;
   medicalRecordId: string | null;
@@ -54,7 +53,6 @@ export const createAppointment = async (data: {
   startTime: string;
   endTime: string;
   notes?: string;
-  titer_first?: boolean;
 }, token?: string) => {
   return authenticatedFetch('/appointments', {
     method: 'POST',
@@ -152,7 +150,6 @@ export const createClinicAppointment = async (data: {
   notes?: string;
   isWalkIn?: boolean;
   isEmergency?: boolean;
-  titer_first?: boolean;
 }, token?: string) => {
   return authenticatedFetch('/appointments/clinic', {
     method: 'POST',

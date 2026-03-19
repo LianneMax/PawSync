@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
+import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
 import { getPetById, updatePetConfinement, updatePetPregnancyStatus } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
@@ -69,7 +69,6 @@ interface Props {
   appointmentId?: string
   petId: string
   appointmentTypes?: string[]
-  appointmentTiterFirst?: boolean
   appointmentDate?: string | null
   onComplete: () => void
   onClose: () => void
@@ -162,40 +161,6 @@ interface VaccineFormItem {
   doseNumber: number
   vaccineCreated: boolean
   createdVaccineId: string | null
-}
-
-type TiterSpecies = 'canine' | 'feline'
-
-interface TiterRow {
-  disease: string
-  score: number | null
-  status: 'Protected' | 'Not Protected' | ''
-  action: 'None' | 'Vaccinate' | ''
-}
-
-const TITERS_BY_SPECIES: Record<TiterSpecies, string[]> = {
-  canine: ['CPV', 'CDV', 'CAV-1'],
-  feline: ['FPV', 'FCV', 'FHV'],
-}
-
-const buildTiterRows = (species: TiterSpecies): TiterRow[] => {
-  return TITERS_BY_SPECIES[species].map((disease) => ({
-    disease,
-    score: null,
-    status: '',
-    action: '',
-  }))
-}
-
-const computeTiterStatusAction = (score: number | null): Pick<TiterRow, 'status' | 'action'> => {
-  if (score === null || Number.isNaN(score)) return { status: '', action: '' }
-  if (score >= 3) return { status: 'Protected', action: 'None' }
-  return { status: 'Not Protected', action: 'Vaccinate' }
-}
-
-const isTiterTestingService = (value: string) => {
-  const normalized = String(value || '').toLowerCase()
-  return normalized.includes('titer testing') || normalized.includes('titer-test') || normalized.includes('titer')
 }
 
 const emptyVaccine = (): VaccineFormItem => ({
@@ -399,7 +364,7 @@ function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: 
   }
 }
 
-export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, onComplete, onClose }: Props) {
+export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentDate, onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
   const [step, setStep] = useState<StepKey>(1)
   const [pet, setPet] = useState<Pet | null>(null)
@@ -447,7 +412,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
 
   // Whether this appointment includes vaccination/booster
   const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination' || t === 'rabies-vaccination')
-  const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingService(t))
 
   // Whether this appointment is a surgery appointment
   const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) =>
@@ -514,14 +478,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
   const [objective, setObjective] = useState('') // maps to overallObservation
   const [assessment, setAssessment] = useState('')
   const [plan, setPlan] = useState('')
-  const [titerEnabled, setTiterEnabled] = useState<boolean>(appointmentTiterFirst || hasTiterTestingService)
-  const [titerSpecies, setTiterSpecies] = useState<TiterSpecies>('canine')
-  const [titerRows, setTiterRows] = useState<TiterRow[]>(buildTiterRows('canine'))
-  const [titerKitName, setTiterKitName] = useState('VCheck')
-  const [skipTiterSuggested, setSkipTiterSuggested] = useState(false)
-  const [ignoreTiterVaccinate, setIgnoreTiterVaccinate] = useState(false)
-  const [ignoreTiterReason, setIgnoreTiterReason] = useState('')
-  const [titerImages, setTiterImages] = useState<{ data: string; contentType: string; description: string }[]>([])
   const [xray] = useState(false)
   const [ultrasound] = useState(false)
   const [availedProducts] = useState(false)
@@ -531,16 +487,31 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
   const [gestationDate, setGestationDate] = useState('')
   const [expectedDueDate, setExpectedDueDate] = useState('')
   const [litterNumber, setLitterNumber] = useState('')
+  const [pregnancyConfirmationMethod, setPregnancyConfirmationMethod] = useState<'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown'>('unknown')
+  const [pregnancyConfirmationSource, setPregnancyConfirmationSource] = useState<'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown'>('this_clinic')
+  const [pregnancyConfidence, setPregnancyConfidence] = useState<'high' | 'medium' | 'low'>('medium')
+  const [pregnancyNotes, setPregnancyNotes] = useState('')
 
   // Pregnancy delivery
   const [pregnancyDelivery, setPregnancyDelivery] = useState(false)
+  const [pregnancyDeliveryServices, setPregnancyDeliveryServices] = useState<ProductService[]>([])
+  const [deliveryServiceId, setDeliveryServiceId] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')
-  const [deliveryType, setDeliveryType] = useState<'natural' | 'c-section'>('natural')
   const [laborDuration, setLaborDuration] = useState('')
   const [liveBirths, setLiveBirths] = useState('')
   const [stillBirths, setStillBirths] = useState('')
   const [motherCondition, setMotherCondition] = useState<'stable' | 'critical' | 'recovering'>('stable')
   const [deliveryVetRemarks, setDeliveryVetRemarks] = useState('')
+  const [deliveryLocation, setDeliveryLocation] = useState<'in_clinic' | 'outside_clinic' | 'unknown'>('in_clinic')
+  const [deliveryReportedBy, setDeliveryReportedBy] = useState<'vet' | 'owner' | 'external_vet' | 'unknown'>('vet')
+
+  // Pregnancy loss
+  const [pregnancyLoss, setPregnancyLoss] = useState(false)
+  const [lossDate, setLossDate] = useState('')
+  const [lossType, setLossType] = useState<'miscarriage' | 'reabsorption' | 'abortion' | 'other'>('miscarriage')
+  const [gestationalAgeAtLoss, setGestationalAgeAtLoss] = useState('')
+  const [lossNotes, setLossNotes] = useState('')
+  const [lossReportedBy, setLossReportedBy] = useState<'vet' | 'owner' | 'external_vet' | 'unknown'>('vet')
 
   // Step 3 fields
   const [visitSummary, setVisitSummary] = useState('')
@@ -558,12 +529,13 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
 
   const loadData = useCallback(async () => {
     if (!token) return
-    const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes, histRes, medHistRes] = await Promise.all([
+    const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes, deliveryServicesRes, histRes, medHistRes] = await Promise.all([
       getRecordById(recordId, token),
       getPetById(petId, token),
       getDiagnosticTestServices(token),
       getMedicationServices(token),
       getPreventiveCareServices(token),
+      getPregnancyDeliveryServices(token),
       getHistoricalRecords(petId, token),
       getMedicalHistory(petId, token).catch(() => null),
     ])
@@ -605,32 +577,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       setObjective(r.overallObservation || '')
       setAssessment(r.assessment || '')
       setPlan(r.plan || '')
-
-      if (r.immunityTesting) {
-        const savedSpecies = (r.immunityTesting.species || 'canine') as TiterSpecies
-        setTiterEnabled(r.immunityTesting.enabled === true)
-        setTiterSpecies(savedSpecies)
-        setTiterKitName(r.immunityTesting.kitName || 'VCheck')
-        setSkipTiterSuggested(r.immunityTesting.skipSuggested === true)
-        setIgnoreTiterVaccinate(r.immunityTesting.ignoreTiter === true)
-        setIgnoreTiterReason(r.immunityTesting.ignoreReason || '')
-        if (Array.isArray(r.immunityTesting.rows) && r.immunityTesting.rows.length > 0) {
-          setTiterRows(r.immunityTesting.rows.map((row) => {
-            const score = typeof row.score === 'number' ? row.score : null
-            const computed = computeTiterStatusAction(score)
-            return {
-              disease: row.disease,
-              score,
-              status: (row.status || computed.status) as TiterRow['status'],
-              action: (row.action || computed.action) as TiterRow['action'],
-            }
-          }))
-        } else {
-          setTiterRows(buildTiterRows(savedSpecies))
-        }
-      } else {
-        setTiterEnabled(appointmentTiterFirst || hasTiterTestingService)
-      }
       setVisitSummary(r.visitSummary || '')
       setReferral(r.referral ?? false)
       setDischarge(r.discharge ?? false)
@@ -646,19 +592,43 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
         setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
         setExpectedDueDate(r.pregnancyRecord.expectedDueDate ? r.pregnancyRecord.expectedDueDate.split('T')[0] : '')
         setLitterNumber(r.pregnancyRecord.litterNumber != null ? String(r.pregnancyRecord.litterNumber) : '')
+        setPregnancyConfirmationMethod(r.pregnancyRecord.confirmationMethod || 'unknown')
+        setPregnancyConfirmationSource(r.pregnancyRecord.confirmationSource || 'this_clinic')
+        setPregnancyConfidence(r.pregnancyRecord.confidence || 'medium')
+        setPregnancyNotes(r.pregnancyRecord.notes || '')
       } else if (petRes.data?.pet?.pregnancyStatus === 'pregnant') {
         // Pet is already pregnant from a previous record — auto-check and lock
         setUltrasoundPregnant(true)
+        setPregnancyConfirmationMethod(medHistRes?.pregnancyEpisode?.latestConfirmationMethod || 'unknown')
+        setPregnancyConfirmationSource(medHistRes?.pregnancyEpisode?.latestConfirmationSource || 'unknown')
+        setPregnancyConfidence(medHistRes?.pregnancyEpisode?.confidence || 'low')
+        if (medHistRes?.pregnancyEpisode?.expectedDueDate) {
+          setExpectedDueDate(medHistRes.pregnancyEpisode.expectedDueDate.split('T')[0])
+        }
+        if (medHistRes?.pregnancyEpisode?.litterNumber != null) {
+          setLitterNumber(String(medHistRes.pregnancyEpisode.litterNumber))
+        }
       }
       if (r.pregnancyDelivery) {
         setPregnancyDelivery(true)
         setDeliveryDate(r.pregnancyDelivery.deliveryDate ? r.pregnancyDelivery.deliveryDate.split('T')[0] : '')
-        setDeliveryType(r.pregnancyDelivery.deliveryType || 'natural')
+        // deliveryServiceId is restored after delivery services load in the services block below
         setLaborDuration(r.pregnancyDelivery.laborDuration || '')
         setLiveBirths(r.pregnancyDelivery.liveBirths != null ? String(r.pregnancyDelivery.liveBirths) : '')
         setStillBirths(r.pregnancyDelivery.stillBirths != null ? String(r.pregnancyDelivery.stillBirths) : '')
         setMotherCondition(r.pregnancyDelivery.motherCondition || 'stable')
         setDeliveryVetRemarks(r.pregnancyDelivery.vetRemarks || '')
+        setDeliveryLocation(r.pregnancyDelivery.deliveryLocation || 'in_clinic')
+        setDeliveryReportedBy(r.pregnancyDelivery.reportedBy || 'vet')
+      }
+      if ((r as any).pregnancyLoss) {
+        const pl = (r as any).pregnancyLoss
+        setPregnancyLoss(true)
+        setLossDate(pl.lossDate ? pl.lossDate.split('T')[0] : '')
+        setLossType(pl.lossType || 'miscarriage')
+        setGestationalAgeAtLoss(pl.gestationalAgeAtLoss != null ? String(pl.gestationalAgeAtLoss) : '')
+        setLossNotes(pl.notes || '')
+        setLossReportedBy(pl.reportedBy || 'vet')
       }
       
       // Auto-populate preventive care only for preventive care appointment types
@@ -800,13 +770,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       const loadedPet = petRes.data.pet
       setPet(loadedPet)
       setConfined(loadedPet.isConfined || false)
-      const autoSpecies: TiterSpecies = loadedPet.species === 'feline' ? 'feline' : 'canine'
-      setTiterSpecies((prev) => {
-        if (prev !== autoSpecies) {
-          setTiterRows(buildTiterRows(autoSpecies))
-        }
-        return autoSpecies
-      })
       if (isVaccinationAppt) {
         const speciesMap: Record<string, string> = { canine: 'dog', feline: 'cat' }
         const apiSpecies = speciesMap[loadedPet.species] ?? loadedPet.species
@@ -862,11 +825,85 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
     if (prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items) {
       setPreventiveCareServices(prevCareServicesRes.data.items)
     }
-  }, [recordId, petId, token, isVaccinationAppt, hasTiterTestingService, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate, appointmentTiterFirst])
+    if (deliveryServicesRes.status === 'SUCCESS' && deliveryServicesRes.data?.items) {
+      setPregnancyDeliveryServices(deliveryServicesRes.data.items)
+      // Restore saved delivery service from existing record
+      const savedDeliveryType = recordRes.data?.record?.pregnancyDelivery?.deliveryType
+      if (savedDeliveryType) {
+        const match = deliveryServicesRes.data.items.find((s: ProductService) =>
+          s.name.toLowerCase() === savedDeliveryType.toLowerCase()
+        )
+        if (match) setDeliveryServiceId(match._id)
+      }
+    }
+  }, [recordId, petId, token, isVaccinationAppt, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate])
 
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  const inferPregnancyMethodFromDiagnostics = () => {
+    const hasUltrasoundTest = diagnosticTests.some(
+      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
+    )
+    if (hasUltrasoundTest) return 'ultrasound' as const
+
+    const hasPalpation = diagnosticTests.some((t) => {
+      const text = `${t.name || ''} ${t.result || ''} ${t.notes || ''}`.toLowerCase()
+      return text.includes('palpation') || text.includes('abdominal palpation')
+    })
+    if (hasPalpation) return 'abdominal_palpation' as const
+
+    const hasClinicalObservation = diagnosticTests.some((t) => {
+      const text = `${t.name || ''} ${t.result || ''} ${t.notes || ''}`.toLowerCase()
+      return text.includes('clinical observation') || text.includes('pregnan') || text.includes('gravid') || text.includes('fetal')
+    })
+    if (hasClinicalObservation) return 'clinical_observation' as const
+
+    return 'unknown' as const
+  }
+
+  const hasPregnancyEvidence = () => {
+    return inferPregnancyMethodFromDiagnostics() !== 'unknown' || pet?.pregnancyStatus === 'pregnant' || pregnancyConfirmationMethod !== 'unknown'
+  }
+
+  // Gestation age in days (from gestationDate to today)
+  const getGestationAgeDays = (): number | null => {
+    if (!gestationDate) return null
+    const start = new Date(gestationDate)
+    if (isNaN(start.getTime())) return null
+    return Math.floor((Date.now() - start.getTime()) / 86400000)
+  }
+
+  // Species-appropriate due date suggestion (midpoint: canine ~63d, feline ~63d)
+  const suggestDueDate = (fromDate: string): string => {
+    const d = new Date(fromDate)
+    if (isNaN(d.getTime())) return ''
+    d.setDate(d.getDate() + 63)
+    return d.toISOString().split('T')[0]
+  }
+
+  // Date validation errors
+  const pregnancyDateError = (): string | null => {
+    if (gestationDate && expectedDueDate) {
+      if (new Date(expectedDueDate) <= new Date(gestationDate)) {
+        return 'Expected due date must be after the gestation date'
+      }
+    }
+    return null
+  }
+
+  const deliveryDateError = (): string | null => {
+    if (deliveryDate && gestationDate) {
+      if (new Date(deliveryDate) < new Date(gestationDate)) {
+        return 'Delivery date cannot be before the gestation date'
+      }
+    }
+    if (deliveryDate && new Date(deliveryDate) > new Date()) {
+      return 'Delivery date cannot be in the future'
+    }
+    return null
+  }
 
   // Auto-populate preventive care when appointment date is set — only for preventive care appointments
   const isPreventiveCareAppt = appointmentTypes.some((t) =>
@@ -971,69 +1008,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
     return objective + (objective ? '\n\n' : '') + `Services availed: ${extras.join(', ')}`
   }
 
-  const buildImmunityTestingPayload = () => {
-    if (!isVaccinationAppt && !hasTiterTestingService) return null
-
-    const normalizedRows = titerRows.map((row) => {
-      const computed = computeTiterStatusAction(row.score)
-      return {
-        disease: row.disease,
-        score: row.score,
-        status: computed.status,
-        action: computed.action,
-      }
-    })
-
-    const protectedCount = normalizedRows.filter((row) => row.status === 'Protected').length
-    const vaccinateFor = normalizedRows.filter((row) => row.action === 'Vaccinate').map((row) => row.disease)
-    const titerDate = new Date().toISOString().split('T')[0]
-    const speciesLabel = titerSpecies === 'canine' ? 'Canine' : 'Feline'
-    const planLine = ignoreTiterVaccinate
-      ? `Ignore titer; vaccinate anyway. Reason: ${ignoreTiterReason || 'No reason provided.'}`
-      : vaccinateFor.length > 0
-        ? `Retest ${vaccinateFor.join(', ')} in 7 days.`
-        : 'Cleared to vaccinate.'
-    const summary = `# Protected: ${protectedCount}/3 | Vaccinate for: ${vaccinateFor.length > 0 ? vaccinateFor.join(', ') : 'None'}`
-    const markdown = [
-      `Titer: ${titerDate} (${speciesLabel} ${titerKitName || 'VCheck'})`,
-      '| Disease | Score | Status | Action |',
-      '|---------|-------|--------|--------|',
-      ...normalizedRows.map((row) => `| ${row.disease} | ${row.score ?? '-'} | ${row.status || '-'} | ${row.action || '-'} |`),
-      `Plan: ${planLine}`,
-    ].join('\n')
-
-    return {
-      enabled: titerEnabled,
-      species: titerSpecies,
-      kitName: titerKitName || 'VCheck',
-      testDate: titerDate,
-      rows: normalizedRows,
-      protectedCount,
-      summary,
-      markdown,
-      tag: `#titer-${titerSpecies}-${titerDate}`,
-      linkedAppointmentId: appointmentId || null,
-      followUpAppointmentId: null,
-      followUpDate: null,
-      skipSuggested: skipTiterSuggested,
-      ignoreTiter: ignoreTiterVaccinate,
-      ignoreReason: ignoreTiterReason,
-    }
-  }
-
-  const mergePlanWithTiterMarkdown = (basePlan: string, immunityPayload: ReturnType<typeof buildImmunityTestingPayload>) => {
-    const planText = (basePlan || '').trim()
-    const sanitized = planText.includes('Immunity Testing\nTiter:')
-      ? planText.split('Immunity Testing\nTiter:')[0].trimEnd()
-      : planText
-
-    if (!immunityPayload || immunityPayload.enabled !== true || skipTiterSuggested) {
-      return sanitized
-    }
-
-    return `${sanitized}${sanitized ? '\n\n' : ''}Immunity Testing\n${immunityPayload.markdown}`
-  }
-
   // Computes the confinement action for logging and syncs the pet's isConfined flag.
   // Returns 'confined', 'released', or 'none'.
   const syncConfinement = async (): Promise<{ action: 'none' | 'confined' | 'released'; days: number }> => {
@@ -1080,12 +1054,10 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
       const diagImgs = buildDiagnosticTestImages()
-      const immunityPayload = buildImmunityTestingPayload()
-      const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
       // Combine all images: diagnostic test images + general images
-      const allImages = [...diagImgs, ...images, ...titerImages]
+      const allImages = [...diagImgs, ...images]
       
       // Remove images from diagnostic tests before sending to API
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
@@ -1096,8 +1068,7 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
         subjective,
         overallObservation: buildExtraObservation(),
         assessment,
-        plan: effectivePlan,
-        immunityTesting: immunityPayload,
+        plan,
         visitSummary,
         medications,
         diagnosticTests: diagnosticTestsToSend,
@@ -1165,54 +1136,84 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
   }
 
   const buildPregnancyPayload = () => {
-    const hasUltrasound = diagnosticTests.some(
-      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
-    )
+    const hasEvidence = hasPregnancyEvidence()
     const alreadyPregnant = pet?.pregnancyStatus === 'pregnant'
+    const inferredMethod = inferPregnancyMethodFromDiagnostics()
+    const effectiveMethod = pregnancyConfirmationMethod === 'unknown' ? inferredMethod : pregnancyConfirmationMethod
+    const effectiveConfidence = effectiveMethod === 'ultrasound' ? 'high' : pregnancyConfidence
+    const resolvedDeliveryType = pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || ''
+
+    // When loss is recorded, override pregnancyRecord.isPregnant to false
+    const effectiveIsPregnant = pregnancyLoss ? false : ultrasoundPregnant
+
     return {
-      ...((hasUltrasound || alreadyPregnant) ? {
+      ...((hasEvidence || alreadyPregnant || pregnancyLoss) ? {
         pregnancyRecord: {
-          isPregnant: ultrasoundPregnant,
-          gestationDate: ultrasoundPregnant && gestationDate ? gestationDate : null,
-          expectedDueDate: ultrasoundPregnant && expectedDueDate ? expectedDueDate : null,
-          litterNumber: ultrasoundPregnant && litterNumber ? parseInt(litterNumber) : null,
+          isPregnant: effectiveIsPregnant,
+          gestationDate: effectiveIsPregnant && gestationDate ? gestationDate : null,
+          expectedDueDate: effectiveIsPregnant && expectedDueDate ? expectedDueDate : null,
+          litterNumber: effectiveIsPregnant && litterNumber ? parseInt(litterNumber) : null,
+          confirmationMethod: effectiveIsPregnant ? effectiveMethod : 'unknown',
+          confirmationSource: effectiveIsPregnant ? pregnancyConfirmationSource : 'unknown',
+          confidence: effectiveIsPregnant ? effectiveConfidence : 'low',
+          confirmedAt: effectiveIsPregnant ? new Date().toISOString() : null,
+          notes: pregnancyNotes,
         },
       } : {}),
       ...(pregnancyDelivery ? {
         pregnancyDelivery: {
           deliveryDate: deliveryDate || null,
-          deliveryType,
+          deliveryType: resolvedDeliveryType,
           laborDuration,
           liveBirths: parseInt(liveBirths) || 0,
           stillBirths: parseInt(stillBirths) || 0,
           motherCondition,
           vetRemarks: deliveryVetRemarks,
+          deliveryLocation,
+          reportedBy: deliveryReportedBy,
+        },
+      } : {}),
+      ...(pregnancyLoss ? {
+        pregnancyLoss: {
+          lossDate: lossDate || null,
+          lossType,
+          gestationalAgeAtLoss: gestationalAgeAtLoss ? parseInt(gestationalAgeAtLoss) : null,
+          notes: lossNotes,
+          reportedBy: lossReportedBy,
         },
       } : {}),
     }
   }
 
   const syncPregnancyStatus = async () => {
-    const hasUltrasoundTest = diagnosticTests.some(
-      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
-    )
-    if (pregnancyDelivery) {
+    const hasEvidence = hasPregnancyEvidence()
+    if (pregnancyDelivery || pregnancyLoss) {
       await updatePetPregnancyStatus(petId, 'not_pregnant', token!)
-    } else if (hasUltrasoundTest && ultrasoundPregnant) {
+    } else if (hasEvidence && ultrasoundPregnant) {
       await updatePetPregnancyStatus(petId, 'pregnant', token!)
     }
+  }
+
+  const getEffectiveLitterNumber = (): number | null => {
+    if (ultrasoundPregnant && litterNumber) return parseInt(litterNumber)
+    if (medHistoryData?.pregnancyEpisode?.litterNumber != null) return medHistoryData.pregnancyEpisode.litterNumber
+    if (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null) {
+      return previousRecord.pregnancyRecord.litterNumber
+    }
+    return null
   }
 
   const handleProceedStep2 = async () => {
     if (!token) return
 
+    if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
+      toast.error('Please select a pregnancy confirmation method')
+      return
+    }
+
     // Validate delivery birth counts match litter number
     if (pregnancyDelivery) {
-      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
-        ? parseInt(litterNumber)
-        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
-          ? previousRecord.pregnancyRecord.litterNumber
-          : null
+      const effectiveLitterNumber = getEffectiveLitterNumber()
       if (effectiveLitterNumber != null) {
         const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
         if (totalBirths !== effectiveLitterNumber) {
@@ -1228,35 +1229,18 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       return
     }
     
-    const immunityPayload = buildImmunityTestingPayload()
-    const hasUnscoredTiter = titerEnabled && !skipTiterSuggested && (immunityPayload?.rows || []).some((row) => row.score === null)
-    if (hasUnscoredTiter) {
-      toast.error('Please complete all titer scores before proceeding')
-      return
-    }
-
-    if (titerEnabled && !skipTiterSuggested && ignoreTiterVaccinate && !ignoreTiterReason.trim()) {
-      toast.error('Please provide a reason when ignoring titer results')
-      return
-    }
-
-    const hasLowImmunity = titerEnabled && !skipTiterSuggested && !ignoreTiterVaccinate &&
-      (immunityPayload?.rows || []).some((row) => row.action === 'Vaccinate')
-
     setSaving(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const diagImgs = buildDiagnosticTestImages()
-      const allImages = [...diagImgs, ...images, ...titerImages]
+      const allImages = [...diagImgs, ...images]
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
-      const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       
       await updateMedicalRecord(recordId, {
         subjective,
         overallObservation: buildExtraObservation(),
         assessment,
-        plan: effectivePlan,
-        immunityTesting: immunityPayload,
+        plan,
         diagnosticTests: diagnosticTestsToSend,
         confinementAction,
         confinementDays,
@@ -1272,11 +1256,7 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       await syncPregnancyStatus()
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
-      if (isVaccinationAppt && hasLowImmunity) {
-        setStep(4)
-      } else {
-        setStep(3)
-      }
+      setStep(isVaccinationAppt ? 3 : 3)
     } catch {
       toast.error('Failed to save notes')
     } finally {
@@ -1419,13 +1399,26 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
   const handleCompleteRecord = async () => {
     if (!token) return
 
+    if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
+      toast.error('Please select a pregnancy confirmation method')
+      return
+    }
+
+    const pregDateErr = pregnancyDateError()
+    if (pregDateErr) {
+      toast.error(pregDateErr)
+      return
+    }
+
+    const delivDateErr = deliveryDateError()
+    if (delivDateErr) {
+      toast.error(delivDateErr)
+      return
+    }
+
     // Validate delivery birth counts match litter number
     if (pregnancyDelivery) {
-      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
-        ? parseInt(litterNumber)
-        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
-          ? previousRecord.pregnancyRecord.litterNumber
-          : null
+      const effectiveLitterNumber = getEffectiveLitterNumber()
       if (effectiveLitterNumber != null) {
         const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
         if (totalBirths !== effectiveLitterNumber) {
@@ -1453,16 +1446,12 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       
       // Extract diagnostic test images and combine with general images
       const diagImgs = buildDiagnosticTestImages()
-      const allImages = [...diagImgs, ...images, ...titerImages]
+      const allImages = [...diagImgs, ...images]
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
-      const immunityPayload = buildImmunityTestingPayload()
-      const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       
       await updateMedicalRecord(recordId, {
         stage: 'completed',
         visitSummary,
-        plan: effectivePlan,
-        immunityTesting: immunityPayload,
         medications,
         diagnosticTests: diagnosticTestsToSend,
         preventiveCare: sanitizedPreventiveCare,
@@ -1515,24 +1504,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
       }
       reader.readAsDataURL(file)
     })
-  }
-
-  const handleTiterImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string
-        const base64 = result.split(',')[1]
-        setTiterImages((prev) => [...prev, {
-          data: base64,
-          contentType: file.type,
-          description: `Titer cassette - ${file.name}`,
-        }])
-      }
-      reader.readAsDataURL(file)
-    })
-    e.target.value = ''
   }
 
   const handleDiagnosticTestImageUpload = (testIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2019,174 +1990,6 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                 </div>
               </div>
 
-              {(isVaccinationAppt || hasTiterTestingService) && (
-                <div className="border border-[#7FA5A3]/30 rounded-2xl overflow-hidden bg-[#f0f7f7]">
-                  <div className="px-4 py-3 border-b border-[#7FA5A3]/20 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-[#476B6B]">Immunity Testing</p>
-                      <p className="text-[11px] text-[#5A7C7A]">Document titer testing during procedure</p>
-                    </div>
-                    <label className="flex items-center gap-2 text-xs font-medium text-[#2C3E2D]">
-                      <input
-                        type="checkbox"
-                        checked={titerEnabled}
-                        onChange={(e) => setTiterEnabled(e.target.checked)}
-                        className="w-4 h-4 accent-[#476B6B]"
-                      />
-                      Perform Titer Test First
-                    </label>
-                  </div>
-
-                  {titerEnabled && (
-                    <div className="px-4 py-3 space-y-3">
-                      {allPetVaccinations.length > 0 && (
-                        <label className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={skipTiterSuggested}
-                            onChange={(e) => setSkipTiterSuggested(e.target.checked)}
-                            className="w-4 h-4 accent-amber-600"
-                          />
-                          Past titer/vaccine history found. Skip titer?
-                        </label>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[11px] text-gray-500 mb-1">Species</label>
-                          <DropdownField
-                            value={titerSpecies}
-                            onValueChange={(value) => {
-                              const species = value as TiterSpecies
-                              setTiterSpecies(species)
-                              setTiterRows(buildTiterRows(species))
-                            }}
-                            placeholder="Species"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white"
-                            options={[
-                              { value: 'canine', label: 'Canine' },
-                              { value: 'feline', label: 'Feline' },
-                            ]}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] text-gray-500 mb-1">Test Kit</label>
-                          <input
-                            type="text"
-                            value={titerKitName}
-                            onChange={(e) => setTiterKitName(e.target.value)}
-                            placeholder="VCheck"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                          />
-                        </div>
-                      </div>
-
-                      {!skipTiterSuggested && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden bg-white">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="text-left px-2 py-1.5">Disease</th>
-                                <th className="text-left px-2 py-1.5">Score (0-6)</th>
-                                <th className="text-left px-2 py-1.5">Status</th>
-                                <th className="text-left px-2 py-1.5">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {titerRows.map((row, idx) => {
-                                const computed = computeTiterStatusAction(row.score)
-                                return (
-                                  <tr key={row.disease} className="border-t border-gray-100">
-                                    <td className="px-2 py-1.5 font-medium text-gray-700">{row.disease}</td>
-                                    <td className="px-2 py-1.5">
-                                      <select
-                                        value={row.score ?? ''}
-                                        onChange={(e) => {
-                                          const value = e.target.value === '' ? null : Number(e.target.value)
-                                          setTiterRows((prev) => prev.map((item, j) => {
-                                            if (j !== idx) return item
-                                            const next = computeTiterStatusAction(value)
-                                            return { ...item, score: value, status: next.status, action: next.action }
-                                          }))
-                                        }}
-                                        className="border border-gray-200 rounded px-2 py-1 bg-white"
-                                      >
-                                        <option value="">Select</option>
-                                        {[0, 1, 2, 3, 4, 5, 6].map((score) => (
-                                          <option key={score} value={score}>{score}</option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                    <td className="px-2 py-1.5 text-gray-700">{computed.status || '-'}</td>
-                                    <td className="px-2 py-1.5 text-gray-700">{computed.action || '-'}</td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-2">
-                        <label className="flex items-center gap-1.5 cursor-pointer px-2.5 py-1.5 border border-dashed border-gray-300 rounded-lg bg-white hover:border-[#7FA5A3] transition-colors">
-                          <Upload className="w-3 h-3 text-gray-400" />
-                          <span className="text-xs text-gray-600">Take/Upload cassette photo</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            multiple
-                            onChange={handleTiterImageUpload}
-                            className="hidden"
-                          />
-                        </label>
-                        <p className="text-[11px] text-[#476B6B]">
-                          # Protected: {(titerRows || []).filter((r) => (r.score ?? -1) >= 3).length}/3 |
-                          {' '}Vaccinate for: {(titerRows || []).filter((r) => (r.score ?? 7) < 3 && r.score !== null).map((r) => r.disease).join(', ') || 'None'}
-                        </p>
-                      </div>
-
-                      {titerImages.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {titerImages.map((img, idx) => (
-                            <div key={`${img.description}-${idx}`} className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1">
-                              <span className="text-[11px] text-gray-600">{img.description}</span>
-                              <button
-                                type="button"
-                                onClick={() => setTiterImages((prev) => prev.filter((_, i) => i !== idx))}
-                                className="text-gray-400 hover:text-red-500"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <label className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={ignoreTiterVaccinate}
-                          onChange={(e) => setIgnoreTiterVaccinate(e.target.checked)}
-                          className="w-4 h-4 accent-red-600"
-                        />
-                        Ignore titer; vaccinate anyway
-                      </label>
-
-                      {ignoreTiterVaccinate && (
-                        <input
-                          type="text"
-                          value={ignoreTiterReason}
-                          onChange={(e) => setIgnoreTiterReason(e.target.value)}
-                          placeholder="Reason (required)"
-                          className="w-full border border-red-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-red-300"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Diagnostic Tests */}
               <div className="border border-gray-100 rounded-2xl overflow-hidden">
                 <button
@@ -2267,13 +2070,18 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                 )}
               </div>
 
-              {/* ── ULTRASOUND PREGNANCY RESULT ── */}
-              {pet?.sex === 'female' && (pet?.pregnancyStatus === 'pregnant' || diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound'))) && (
+              {/* ── PREGNANCY ASSESSMENT ── */}
+              {pet?.sex === 'female' && (
                 <div className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
                   <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
-                    <span className="text-sm font-semibold text-green-700">Ultrasound — Pregnancy Result</span>
+                    <span className="text-sm font-semibold text-green-700">Pregnancy Assessment</span>
                   </div>
                   <div className="px-4 py-3 space-y-3">
+                    {pet?.sterilization === 'spayed' && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        This pet is recorded as spayed. Marking as pregnant may be incorrect — verify with the owner before proceeding.
+                      </p>
+                    )}
                     {pet?.pregnancyStatus === 'pregnant' && (
                       <p className="text-xs text-green-700 bg-green-100 border border-green-200 rounded-lg px-3 py-2">
                         This pet is already recorded as pregnant. Pregnancy status is locked until delivery is recorded.
@@ -2290,17 +2098,68 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                       <span className="text-sm text-gray-700 font-medium">Pet is Pregnant</span>
                     </label>
                     {ultrasoundPregnant && (
-                      <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-3 pt-1">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Method</label>
+                            <DropdownField
+                              value={pregnancyConfirmationMethod}
+                              onValueChange={(value) => setPregnancyConfirmationMethod(value as 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown')}
+                              placeholder="Select method"
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              options={[
+                                { value: 'unknown', label: 'Unknown / Not specified' },
+                                { value: 'ultrasound', label: 'Ultrasound' },
+                                { value: 'abdominal_palpation', label: 'Abdominal Palpation' },
+                                { value: 'clinical_observation', label: 'Clinical Observation' },
+                                { value: 'external_documentation', label: 'External Documentation' },
+                              ]}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Source</label>
+                            <DropdownField
+                              value={pregnancyConfirmationSource}
+                              onValueChange={(value) => setPregnancyConfirmationSource(value as 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown')}
+                              placeholder="Select source"
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              options={[
+                                { value: 'this_clinic', label: 'This Clinic' },
+                                { value: 'external_clinic', label: 'External Clinic' },
+                                { value: 'owner_reported', label: 'Owner Reported' },
+                                { value: 'inferred', label: 'Inferred from Records' },
+                                { value: 'unknown', label: 'Unknown' },
+                              ]}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confidence</label>
+                            <DropdownField
+                              value={pregnancyConfidence}
+                              onValueChange={(value) => setPregnancyConfidence(value as 'high' | 'medium' | 'low')}
+                              placeholder="Select confidence"
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              options={[
+                                { value: 'high', label: 'High' },
+                                { value: 'medium', label: 'Medium' },
+                                { value: 'low', label: 'Low' },
+                              ]}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Gestation Date</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs text-gray-500">Gestation Date</label>
+                            {(() => { const days = getGestationAgeDays(); return days !== null && days >= 0 ? <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{days}d pregnant</span> : null })()}
+                          </div>
                           <DatePicker
                             value={gestationDate}
                             onChange={(value) => {
                               setGestationDate(value)
-                              if (value) {
-                                const date = new Date(value)
-                                date.setDate(date.getDate() + 63)
-                                setExpectedDueDate(date.toISOString().split('T')[0])
+                              if (value && !expectedDueDate) {
+                                setExpectedDueDate(suggestDueDate(value))
                               }
                             }}
                             className="w-full"
@@ -2314,6 +2173,9 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                             allowFutureDates
                             className="w-full"
                           />
+                          {pregnancyDateError() && (
+                            <p className="text-xs text-red-600 mt-1">{pregnancyDateError()}</p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Litter Number</label>
@@ -2326,6 +2188,105 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                           />
                         </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Pregnancy Notes</label>
+                          <textarea
+                            rows={2}
+                            value={pregnancyNotes}
+                            onChange={(e) => setPregnancyNotes(e.target.value)}
+                            placeholder="Supporting findings, signs, or provenance details…"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 resize-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── PREGNANCY LOSS ── */}
+                    {!pregnancyDelivery && (
+                      <div className="border border-rose-100 rounded-xl overflow-hidden bg-rose-50/30 mt-2">
+                        <div className="px-3 py-2 border-b border-rose-100">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={pregnancyLoss}
+                              onChange={(e) => {
+                                setPregnancyLoss(e.target.checked)
+                                if (e.target.checked) setUltrasoundPregnant(false)
+                              }}
+                              className="w-4 h-4 accent-rose-600"
+                            />
+                            <span className="text-xs font-semibold text-rose-700">Pregnancy Loss / Ended Without Delivery</span>
+                          </label>
+                        </div>
+                        {pregnancyLoss && (
+                          <div className="px-3 py-3 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Loss Date</label>
+                                <DatePicker
+                                  value={lossDate}
+                                  onChange={setLossDate}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Loss Type</label>
+                                <DropdownField
+                                  value={lossType}
+                                  onValueChange={(v) => setLossType(v as typeof lossType)}
+                                  placeholder="Select type"
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                                  options={[
+                                    { value: 'miscarriage', label: 'Miscarriage' },
+                                    { value: 'reabsorption', label: 'Reabsorption' },
+                                    { value: 'abortion', label: 'Abortion / Termination' },
+                                    { value: 'other', label: 'Other' },
+                                  ]}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Gestational Age at Loss (days)</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={gestationalAgeAtLoss}
+                                  onChange={(e) => setGestationalAgeAtLoss(e.target.value)}
+                                  placeholder="e.g. 30"
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Reported By</label>
+                                <DropdownField
+                                  value={lossReportedBy}
+                                  onValueChange={(v) => setLossReportedBy(v as typeof lossReportedBy)}
+                                  placeholder="Select"
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                                  options={[
+                                    { value: 'vet', label: 'Veterinarian' },
+                                    { value: 'owner', label: 'Owner' },
+                                    { value: 'external_vet', label: 'External Vet' },
+                                    { value: 'unknown', label: 'Unknown' },
+                                  ]}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                              <textarea
+                                rows={2}
+                                value={lossNotes}
+                                onChange={(e) => setLossNotes(e.target.value)}
+                                placeholder="Clinical details, context, or observations…"
+                                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400 resize-none"
+                              />
+                            </div>
+                            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                              Recording a pregnancy loss will update the pet&apos;s pregnancy status to Not Pregnant.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2360,14 +2321,11 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Delivery Type</label>
                         <DropdownField
-                          value={deliveryType}
-                          onValueChange={(value) => setDeliveryType(value as 'natural' | 'c-section')}
-                          placeholder="Natural"
+                          value={deliveryServiceId}
+                          onValueChange={setDeliveryServiceId}
+                          placeholder="Select delivery type"
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          options={[
-                            { value: 'natural', label: 'Natural' },
-                            { value: 'c-section', label: 'C-Section' },
-                          ]}
+                          options={pregnancyDeliveryServices.map(s => ({ value: s._id, label: s.name }))}
                         />
                       </div>
                       <div>
@@ -2416,6 +2374,35 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Location</label>
+                        <DropdownField
+                          value={deliveryLocation}
+                          onValueChange={(value) => setDeliveryLocation(value as 'in_clinic' | 'outside_clinic' | 'unknown')}
+                          placeholder="Select location"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          options={[
+                            { value: 'in_clinic', label: 'In Clinic' },
+                            { value: 'outside_clinic', label: 'Outside Clinic' },
+                            { value: 'unknown', label: 'Unknown' },
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Reported By</label>
+                        <DropdownField
+                          value={deliveryReportedBy}
+                          onValueChange={(value) => setDeliveryReportedBy(value as 'vet' | 'owner' | 'external_vet' | 'unknown')}
+                          placeholder="Select reporter"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          options={[
+                            { value: 'vet', label: 'Veterinarian' },
+                            { value: 'owner', label: 'Owner' },
+                            { value: 'external_vet', label: 'External Veterinarian' },
+                            { value: 'unknown', label: 'Unknown' },
+                          ]}
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Vet Remarks</label>
@@ -2428,11 +2415,7 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                       />
                     </div>
                     {(() => {
-                      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
-                        ? parseInt(litterNumber)
-                        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
-                          ? previousRecord.pregnancyRecord.litterNumber
-                          : null
+                      const effectiveLitterNumber = getEffectiveLitterNumber()
                       if (effectiveLitterNumber == null) return null
                       const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
                       const matched = totalBirths === effectiveLitterNumber
@@ -2447,6 +2430,11 @@ const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'
                     <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
+                    {motherCondition === 'critical' && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        A post-delivery follow-up appointment will be automatically scheduled in <strong>3 days</strong> due to critical maternal condition.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
