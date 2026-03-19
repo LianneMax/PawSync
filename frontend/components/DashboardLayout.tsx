@@ -98,6 +98,12 @@ function getNotificationIcon(type: NotificationType) {
           <PawPrint className="w-5 h-5 text-[#DC2626]" />
         </div>
       )
+    case 'pet_found':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+          <PawPrint className="w-5 h-5 text-[#16A34A]" />
+        </div>
+      )
     case 'appointment_scheduled':
     default:
       return (

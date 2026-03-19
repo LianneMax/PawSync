@@ -3,13 +3,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronRight, Loader, ShieldCheck, Syringe } from 'lucide-react'
 import { getVaccinationsByPet, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -80,7 +73,18 @@ function isInSeriesPhase(vax: Vaccination): boolean {
 }
 
 function getDoseDropdownLabel(v: Vaccination) {
-  const dose = !v.doseNumber || v.doseNumber === 1 ? 'Initial' : `Booster ${v.doseNumber - 1}`
+  const doseNumber = v.doseNumber ?? 1
+  const vaccineType = typeof v.vaccineTypeId === 'object' && v.vaccineTypeId !== null ? v.vaccineTypeId : null
+  const totalSeries = vaccineType?.totalSeries ?? 1
+  const isSeries = Boolean(vaccineType?.isSeries && totalSeries > 1)
+
+  let dose = 'Initial'
+  if (isSeries) {
+    dose = doseNumber <= totalSeries ? `Series ${doseNumber}/${totalSeries}` : `Booster #${doseNumber - totalSeries}`
+  } else if (doseNumber > 1) {
+    dose = `Booster ${doseNumber - 1}`
+  }
+
   const date = v.dateAdministered
     ? new Date(v.dateAdministered).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : ''
@@ -114,7 +118,7 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
   const openSheet = (vax: Vaccination) => {
     const group = vaccinations
       .filter((item) => item.vaccineName === vax.vaccineName)
-      .sort((a, b) => new Date(b.dateAdministered ?? 0).getTime() - new Date(a.dateAdministered ?? 0).getTime())
+      .sort((a, b) => new Date(a.dateAdministered ?? 0).getTime() - new Date(b.dateAdministered ?? 0).getTime())
     setSelectedVaxGroup(group)
   }
 
@@ -145,6 +149,9 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
   }, [petId, token, refreshKey])
 
   const latestVax = vaccinations[0]
+  const cardVaccinations = vaccinations.filter(
+    (item, index, arr) => arr.findIndex((v) => v.vaccineName === item.vaccineName) === index
+  )
 
   const getVetName = (vax: Vaccination): string => {
     if (typeof vax.vetId === 'object' && vax.vetId !== null) {
@@ -242,12 +249,12 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
               <div>
                 <div className="mx-6 mt-4 rounded-[19px] overflow-hidden bg-[#EFEFEF]">
                   <div className="divide-y divide-gray-200">
-                    {vaccinations.length === 0 ? (
+                    {cardVaccinations.length === 0 ? (
                       <div className="px-5 py-8 text-center">
                         <p className="text-sm text-gray-400">No vaccinations recorded yet.</p>
                       </div>
                     ) : (
-                      vaccinations.map((vax) => {
+                      cardVaccinations.map((vax) => {
                         const isNegative = Boolean(vax.expiryDate && isExpired(vax.expiryDate)) || vax.status === 'overdue'
                         const dateToShow = vax.expiryDate ?? vax.nextDueDate ?? null
 
@@ -365,17 +372,17 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
               <div className="w-full border-t-2 border-dashed border-gray-200" />
             </div>
 
-            {vaccinations.length === 0 ? (
+            {cardVaccinations.length === 0 ? (
               <div className="px-5 py-6 text-center">
                 <p style={{ fontFamily: 'var(--font-outfit)' }} className="text-sm text-gray-400">No vaccination records on file yet.</p>
               </div>
             ) : (
               <div className="px-5 py-4">
-                {vaccinations.map((vax, idx) => (
+                {cardVaccinations.map((vax, idx) => (
                   <div
                     key={vax._id}
                     className="flex items-center justify-between py-3"
-                    style={{ borderBottom: idx !== vaccinations.length - 1 ? '1px solid #E5E7EB' : 'none' }}
+                    style={{ borderBottom: idx !== cardVaccinations.length - 1 ? '1px solid #E5E7EB' : 'none' }}
                   >
                     <p style={{ fontFamily: 'var(--font-outfit)' }} className="font-semibold text-[#1a1a1a] text-sm leading-tight pr-2">{vax.vaccineName}</p>
                     <div className="text-right shrink-0">
@@ -453,6 +460,9 @@ function VaxDetailSheet({
   onClose: () => void
 }) {
   const [closing, setClosing] = useState(false)
+  const orderedVaccinations = [...vaccinations].sort(
+    (a, b) => new Date(a.dateAdministered ?? 0).getTime() - new Date(b.dateAdministered ?? 0).getTime()
+  )
   const [selectedIdx, setSelectedIdx] = useState(0)
 
   const handleClose = () => {
@@ -460,12 +470,20 @@ function VaxDetailSheet({
     setTimeout(onClose, 320)
   }
 
-  const vax = vaccinations[selectedIdx]
+  const vax = orderedVaccinations[selectedIdx]
   const vetName =
     typeof vax.vetId === 'object' && vax.vetId !== null
       ? `Dr. ${vax.vetId.firstName} ${vax.vetId.lastName}`
       : '—'
   const clinicName = typeof vax.clinicId === 'object' && vax.clinicId !== null ? vax.clinicId.name : '—'
+  const totalDoses = orderedVaccinations.length
+  const vaxType = typeof vax.vaccineTypeId === 'object' && vax.vaccineTypeId !== null ? vax.vaccineTypeId : null
+  const totalSeries = vaxType?.totalSeries ?? 1
+  const isSeries = Boolean(vaxType?.isSeries && totalSeries > 1)
+  const currentDoseNumber = vax.doseNumber ?? 1
+  const currentSeriesDose = Math.min(currentDoseNumber, totalSeries)
+  const seriesProgressPct = Math.round((currentSeriesDose / totalSeries) * 100)
+  const showSeriesProgress = isSeries && currentDoseNumber <= totalSeries
 
   const rows = [
     { label: 'Vaccine name', value: vax.vaccineName || '—' },
@@ -499,29 +517,47 @@ function VaxDetailSheet({
             <p className="text-[17px] font-bold text-[#333]">{vax.vaccineName} Details</p>
           </div>
 
-          {vaccinations.length > 1 && (
+          {totalDoses > 1 && (
             <div className="mb-4">
-              <label className="block text-[11px] text-gray-400 uppercase tracking-wider mb-1.5">Select dose</label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="w-full bg-[#F3F3F3] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#333] focus:outline-none focus:ring-2 focus:ring-[#476B6B] pr-8 relative text-left"
-                  >
-                    {getDoseDropdownLabel(vaccinations[selectedIdx])}{selectedIdx === 0 ? ' (Most recent)' : ''}
-                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-56 overflow-y-auto rounded-xl">
-                  <DropdownMenuRadioGroup value={String(selectedIdx)} onValueChange={(value) => setSelectedIdx(Number(value))}>
-                    {vaccinations.map((item, i) => (
-                      <DropdownMenuRadioItem key={item._id} value={String(i)}>
-                        {getDoseDropdownLabel(item)}{i === 0 ? ' (Most recent)' : ''}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <label className="block text-[11px] text-gray-400 uppercase tracking-wider mb-1.5">Dose timeline</label>
+              <div className="bg-[#F3F3F3] rounded-xl px-3 py-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIdx((prev) => Math.max(0, prev - 1))}
+                  disabled={selectedIdx === 0}
+                  className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Previous dose"
+                >
+                  <ChevronRight className="w-4 h-4 text-[#4F4F4F] rotate-180" />
+                </button>
+
+                <div className="flex-1 text-center">
+                  <p className="text-sm font-semibold text-[#333]">{getDoseDropdownLabel(vax)}</p>
+                  <p className="text-[11px] text-gray-500">Dose {selectedIdx + 1} of {totalDoses} · Oldest to latest</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedIdx((prev) => Math.min(totalDoses - 1, prev + 1))}
+                  disabled={selectedIdx === totalDoses - 1}
+                  className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Next dose"
+                >
+                  <ChevronRight className="w-4 h-4 text-[#4F4F4F]" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showSeriesProgress && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Series status</p>
+                <p className="text-xs font-semibold text-[#4F4F4F]">{currentSeriesDose}/{totalSeries}</p>
+              </div>
+              <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-full bg-[#476B6B] rounded-full transition-all" style={{ width: `${seriesProgressPct}%` }} />
+              </div>
             </div>
           )}
 

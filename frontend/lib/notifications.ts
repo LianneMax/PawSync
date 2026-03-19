@@ -9,7 +9,8 @@ export type NotificationType =
   | 'bill_due'
   | 'bill_paid'
   | 'vaccine_due'
-  | 'pet_lost';
+  | 'pet_lost'
+  | 'pet_found';
 
 export interface Notification {
   _id: string;

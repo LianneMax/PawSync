@@ -6,7 +6,7 @@ import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
 import Vaccination from '../models/Vaccination';
 import QRCode from 'qrcode';
-import { sendLostPetConfirmation, sendLostPetScanAlert } from '../services/emailService';
+import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundConfirmation } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 
 /** Decode JWT from Authorization header without failing if absent/invalid */
@@ -266,6 +266,28 @@ export const updatePet = async (req: Request, res: Response) => {
       }).catch((err) => console.error('[Notification] Lost pet notification error:', err));
     }
 
+    // Send found confirmation when owner marks pet as found again
+    if (wasLost && !pet.isLost) {
+      Promise.resolve().then(async () => {
+        await createNotification(
+          req.user!.userId,
+          'pet_found',
+          'Pet Marked as Found',
+          `${pet.name} has been marked as found. Lost alerts and scan tracking were cleared.`,
+          { petId: pet._id }
+        );
+        const owner = await User.findById(req.user!.userId).select('firstName email');
+        if (owner?.email) {
+          sendPetFoundConfirmation({
+            ownerEmail: owner.email,
+            ownerFirstName: owner.firstName,
+            petName: pet.name,
+            petId: (pet._id as any).toString(),
+          });
+        }
+      }).catch((err) => console.error('[Notification] Pet found notification error:', err));
+    }
+
     return res.status(200).json({
       status: 'SUCCESS',
       message: 'Pet updated successfully',
@@ -470,7 +492,7 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
  */
 export const reportPetMissing = async (req: Request, res: Response) => {
   try {
-    const pet = await Pet.findById(req.params.id);
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'firstName email');
 
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
@@ -499,6 +521,34 @@ export const reportPetMissing = async (req: Request, res: Response) => {
     }
 
     await pet.save();
+
+    // Notify owner (in-app + email) when the pet is marked missing from public flow
+    const ownerId = typeof pet.ownerId === 'object' && pet.ownerId !== null
+      ? (pet.ownerId as any)._id
+      : pet.ownerId;
+
+    if (ownerId) {
+      await createNotification(
+        ownerId,
+        'pet_lost',
+        isOwner ? 'Pet Reported as Lost' : 'Pet Marked Missing by Finder',
+        isOwner
+          ? `${pet.name} has been marked as lost. Their public profile is now active — anyone who scans their tag can contact you.`
+          : `${pet.name} was reported missing by a finder. Check recent location activity and public profile details.`,
+        { petId: pet._id }
+      );
+    }
+
+    const owner = pet.ownerId as any;
+    if (owner?.email) {
+      sendLostPetConfirmation({
+        ownerEmail: owner.email,
+        ownerFirstName: owner.firstName,
+        petName: pet.name,
+        petId: (pet._id as any).toString(),
+        species: pet.species,
+      });
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -686,21 +736,44 @@ export const scanPetAlert = async (req: Request, res: Response) => {
  */
 export const reportPetFound = async (req: Request, res: Response) => {
   try {
-    const pet = await Pet.findById(req.params.id);
+    const pet = await Pet.findById(req.params.id).populate('ownerId', 'firstName email');
 
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    const { latitude, longitude } = req.body;
+    const rawLatitude = req.body?.latitude;
+    const rawLongitude = req.body?.longitude;
+    const latitude = typeof rawLatitude === 'number' ? rawLatitude : Number(rawLatitude);
+    const longitude = typeof rawLongitude === 'number' ? rawLongitude : Number(rawLongitude);
+    const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude);
+    let reportedAt: Date | null = null;
 
-    if (typeof latitude === 'number' && typeof longitude === 'number') {
+    if (hasCoords) {
       const now = new Date();
       pet.scanLocations.push({ lat: latitude, lng: longitude, scannedAt: now });
       pet.lastScannedLat = latitude;
       pet.lastScannedLng = longitude;
       pet.lastScannedAt = now;
+      reportedAt = now;
       await pet.save();
+    }
+
+    const owner = pet.ownerId as any;
+    const ownerUserId = owner?._id ?? pet.ownerId;
+    if (ownerUserId) {
+      await createNotification(
+        ownerUserId,
+        'pet_lost',
+        'New Pet Sighting Shared',
+        `A finder shared a location for ${pet.name}. Check your lost pet profile for latest details.`,
+        {
+          petId: pet._id,
+          latitude: hasCoords ? latitude : undefined,
+          longitude: hasCoords ? longitude : undefined,
+          reportedAt: reportedAt ?? new Date(),
+        }
+      );
     }
 
     return res.status(200).json({ status: 'SUCCESS', message: 'Location recorded. The owner has been notified.' });

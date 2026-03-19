@@ -376,6 +376,80 @@ export async function sendLostPetScanAlert(params: {
   }
 }
 
+// ─── Pet Found Alert (finder shared location) ─────────────────────────────────
+
+export async function sendPetFoundAlert(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  petId: string;
+  scannedAt?: Date | string;
+  latitude?: number;
+  longitude?: number;
+}) {
+  const publicUrl = `${FRONTEND_URL}/pet/${params.petId}`;
+  const hasCoords = typeof params.latitude === 'number' && typeof params.longitude === 'number';
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – ${params.petName} Was Reported Found`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Great News — Someone Reported ${params.petName}</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>A finder reported <strong>${params.petName}</strong> as found from your public profile.</p>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            ${params.scannedAt ? `<p style="margin: 4px 0;"><strong>Reported At:</strong> ${formatDate(params.scannedAt)}</p>` : ''}
+            ${hasCoords ? `<p style="margin: 4px 0;"><strong>Coordinates:</strong> ${params.latitude}, ${params.longitude}</p>` : ''}
+            <p style="margin: 4px 0;">Open your pet profile to review details and contact information.</p>
+          </div>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${publicUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Open Pet Profile</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendPetFoundAlert error:', err);
+  }
+}
+
+// ─── Pet Found Confirmation (owner marked pet as found) ─────────────────────
+
+export async function sendPetFoundConfirmation(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  petId: string;
+}) {
+  const petUrl = `${FRONTEND_URL}/my-pets/${params.petId}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – ${params.petName} Marked as Found`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">${params.petName} Is Marked as Found</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>You successfully marked <strong>${params.petName}</strong> as found.</p>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0;">Lost status, alerts, and scan tracking have been cleared for this pet.</p>
+          </div>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${petUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Open My Pet Profile</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendPetFoundConfirmation error:', err);
+  }
+}
+
 // ─── Vet Branch Invitation ────────────────────────────────────────────────────
 
 export async function sendVetInvitation(params: {
