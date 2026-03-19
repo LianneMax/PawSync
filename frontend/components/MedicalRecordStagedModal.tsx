@@ -1819,6 +1819,19 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     }
   }
 
+  const updateAllVitalNotes = (value: string) => {
+    setVitals((prev) => {
+      const updated = { ...prev }
+      REQUIRED_VITAL_KEYS.forEach((key) => {
+        updated[key] = {
+          ...prev[key],
+          notes: value,
+        }
+      })
+      return updated
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="flex items-stretch gap-3 w-full max-w-[88vw] h-[92vh]">
@@ -2088,7 +2101,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                         : null
                       const trend = pct != null ? (Math.abs(pct) < 5 ? 'stable' : pct > 0 ? 'up' : 'down') : null
                       return (
-                        <div key={key} className="grid grid-cols-2 gap-2 pt-3 first:pt-0 border-t border-gray-50 first:border-0">
+                        <div key={key} className="pt-3 first:pt-0 border-t border-gray-50 first:border-0">
                           <div>
                             <label className="block text-xs text-gray-400 mb-1">{label} <span className="text-gray-300">({unit})</span> <span className="text-[#900B09]">*</span></label>
                             <input
@@ -2117,24 +2130,25 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               </div>
                             )}
                           </div>
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Notes <span className="text-gray-300">(optional)</span></label>
-                            <input
-                              type="text"
-                              value={vitals[key]?.notes ?? ''}
-                              onChange={(e) => updateVital(key, 'notes', e.target.value)}
-                              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                              placeholder="Optional"
-                            />
-                          </div>
                           {vitalsErrors[key] ? (
-                            <p className="col-span-2 text-xs text-[#900B09] -mt-1">{vitalsErrors[key]}</p>
+                            <p className="text-xs text-[#900B09] -mt-1">{vitalsErrors[key]}</p>
                           ) : showRequiredErrors && !vitals[key]?.value && vitals[key]?.value !== 0 ? (
-                            <p className="col-span-2 text-xs text-[#900B09] -mt-1">This field is required</p>
+                            <p className="text-xs text-[#900B09] -mt-1">This field is required</p>
                           ) : null}
                         </div>
                       )
                     })}
+
+                    <div className="pt-3 border-t border-gray-50">
+                      <label className="block text-xs text-gray-400 mb-1">Notes <span className="text-gray-300">(for all vitals)</span></label>
+                      <input
+                        type="text"
+                        value={vitals.crt?.notes ?? ''}
+                        onChange={(e) => updateAllVitalNotes(e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                        placeholder="Add one note for all vitals"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -3122,41 +3136,46 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                         ]}
                       />
 
-                      {/* Dose selector — shows series doses then boosters */}
+                      {/* Dose timeline — extends boosters progressively without fixed cap */}
                       {vt && (() => {
                         const effectiveSeries = getEffectiveSeries(vt)
-                        // Show series doses + 3 potential booster slots (or more if already given)
                         const maxPriorDose = Math.max(0, ...Array.from(priorAdministeredDoses))
-                        const showUpTo = Math.max(effectiveSeries + 3, maxPriorDose + 1, v.doseNumber)
-                        const doses = Array.from({ length: showUpTo }, (_, d) => d + 1)
+                        const latestDose = Math.max(maxPriorDose, v.doseNumber)
+                        const timelineLength = Math.max(effectiveSeries, latestDose + 1)
+                        const doses = Array.from({ length: timelineLength }, (_, d) => d + 1)
                         return (
                           <div>
-                            <p className="text-[10px] text-gray-400 mb-1">Dose</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {doses.map((n) => {
+                            <p className="text-[10px] text-gray-400 mb-2">Dose Timeline</p>
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                              {doses.map((n, index) => {
                                 const isDone = priorAdministeredDoses.has(n)
                                 const isSelected = v.doseNumber === n
+                                const isBooster = n > effectiveSeries
                                 const label = getDoseLabel(vt, n)
                                 return (
-                                  <button
-                                    key={n}
-                                    type="button"
-                                    disabled={isDone}
-                                    onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => {
-                                      if (j !== i) return item
-                                      const nextDueDate = computeAutoNextDueDateString(vt, n, item.dateAdministered)
-                                      return { ...item, doseNumber: n, nextDueDate }
-                                    }))}
-                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
-                                      isDone
-                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
-                                        : isSelected
-                                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
-                                    }`}
-                                  >
-                                    {label}{isDone ? ' ✓' : ''}
-                                  </button>
+                                  <div key={n} className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      disabled={isDone}
+                                      onClick={() => !isDone && setVaccines((prev) => prev.map((item, j) => {
+                                        if (j !== i) return item
+                                        const nextDueDate = computeAutoNextDueDateString(vt, n, item.dateAdministered)
+                                        return { ...item, doseNumber: n, nextDueDate }
+                                      }))}
+                                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors whitespace-nowrap ${
+                                        isDone
+                                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed line-through'
+                                          : isSelected
+                                            ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                                            : isBooster
+                                              ? 'bg-[#C5D8FF] text-[#4569B1] border-[#8FAEE6] hover:border-[#4569B1]'
+                                              : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
+                                      }`}
+                                    >
+                                      {label}{isDone ? ' ✓' : ''}
+                                    </button>
+                                    {index < doses.length - 1 && <div className="w-5 h-px bg-gray-300" />}
+                                  </div>
                                 )
                               })}
                             </div>
@@ -3164,15 +3183,9 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                         )
                       })()}
 
-                      {/* Expires | Next Due badges */}
+                      {/* Next Due / Next Expiry badges */}
                       {vt && base && (
                         <div className="grid grid-cols-2 gap-2">
-                          {expiry && (
-                            <div className="bg-[#F4D3D2] border border-[#983232] rounded-lg p-2">
-                              <p className="text-[9px] font-bold text-[#983232] uppercase tracking-wide">Expires</p>
-                              <p className="font-bold text-[#983232] text-xs mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                            </div>
-                          )}
                           {nextDue && (
                             <div className="bg-[#C5D8FF] border border-[#4569B1] rounded-lg p-2">
                               <p className="text-[9px] font-bold text-[#4569B1] uppercase tracking-wide">
@@ -3186,6 +3199,12 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                   : nextDue.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                 }
                               </p>
+                            </div>
+                          )}
+                          {vt.isSeries && expiry && (
+                            <div className="bg-[#F4D3D2] border border-[#983232] rounded-lg p-2">
+                              <p className="text-[9px] font-bold text-[#983232] uppercase tracking-wide">Next Expiry</p>
+                              <p className="font-bold text-[#983232] text-xs mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                             </div>
                           )}
                         </div>
