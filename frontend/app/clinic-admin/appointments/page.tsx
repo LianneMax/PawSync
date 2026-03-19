@@ -13,6 +13,7 @@ import {
   cancelAppointment,
   rescheduleAppointment,
   clinicCheckInAppointment,
+  updateAppointmentStatus,
   type Appointment,
   type TimeSlot,
   type PetOwner,
@@ -466,28 +467,39 @@ function CalendarGridView({
                           </div>
                           <div className="flex items-center justify-end gap-2 mt-2">
                             {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => onCheckIn(appt._id)}
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                                >
+                                  Check-in
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onReschedule(appt)}
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                                >
+                                  Reschedule
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onCancel(appt._id)}
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {appt.status === 'in_progress' && (
                               <button
                                 type="button"
-                                onClick={() => onCheckIn(appt._id)}
-                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 opacity-70 cursor-not-allowed"
+                                title="Complete appointment action coming soon"
                               >
-                                Check-in
+                                Complete Appointment
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => onReschedule(appt)}
-                              className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                            >
-                              Reschedule
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onCancel(appt._id)}
-                              className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                            >
-                              Cancel
-                            </button>
                           </div>
                         </div>
                       )
@@ -639,20 +651,24 @@ function CalendarGridView({
                                   Check-in
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => onReschedule(appt)}
-                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                              >
-                                Reschedule
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onCancel(appt._id)}
-                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                              >
-                                Cancel
-                              </button>
+                              {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => onReschedule(appt)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                                  >
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onCancel(appt._id)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
                         )
@@ -1036,7 +1052,84 @@ export default function ClinicAdminAppointmentsPage() {
     }
   }
 
-  const handleCheckIn = (id: string) => {
+  const handleClinicServiceStatusChange = async (id: string, nextStatus: 'in_progress' | 'completed') => {
+    setCheckInSubmitting(true)
+    try {
+      const appointment = appointments.find(a => a._id === id)
+      if (!appointment) {
+        toast.error('Appointment not found')
+        return
+      }
+
+      // Backend transition rules do not allow pending -> in_progress directly.
+      // For clinic services check-in, move pending -> confirmed first.
+      if (nextStatus === 'in_progress' && appointment.status === 'pending') {
+        const confirmRes = await updateAppointmentStatus(id, 'confirmed', token || undefined)
+        if (confirmRes.status !== 'SUCCESS') {
+          toast.error(confirmRes.message || 'Failed to check in')
+          return
+        }
+      }
+
+      const res = await updateAppointmentStatus(id, nextStatus, token || undefined)
+
+      if (res.status === 'SUCCESS') {
+        setAppointments(prev => prev.map(appt => appt._id === id ? { ...appt, status: nextStatus } : appt))
+
+        if (appointment && nextStatus === 'in_progress') {
+          const isGroomingOnly = appointment.types?.some(t => GROOMING_TYPES.includes(t)) &&
+            !appointment.types?.some(t => !GROOMING_TYPES.includes(t))
+          if (isGroomingOnly) {
+            await createGroomingBilling(appointment)
+          }
+        }
+
+        const petName = appointment?.petId?.name || 'Pet'
+        toast(
+          <div className="flex gap-2">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              {nextStatus === 'completed' ? (
+                <Check className="w-4 h-4 text-blue-600" />
+              ) : (
+                <LogIn className="w-4 h-4 text-blue-600" />
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">
+                {nextStatus === 'completed' ? 'Appointment Completed' : 'Patient Checked In'}
+              </p>
+              <p className="text-sm text-gray-600">
+                {nextStatus === 'completed'
+                  ? `${petName} appointment is now completed.`
+                  : `${petName} is now in progress.`}
+              </p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        )
+
+        loadAppointments()
+      } else {
+        toast.error(res.message || 'Failed to update appointment status')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setCheckInSubmitting(false)
+    }
+  }
+
+  const handleCheckIn = async (id: string) => {
+    const appointment = appointments.find(a => a._id === id)
+    if (!appointment) return
+
+    if (scheduleType === 'grooming') {
+      if (appointment.status === 'confirmed' || appointment.status === 'pending') {
+        await handleClinicServiceStatusChange(id, 'in_progress')
+      }
+      return
+    }
+
     setAppointmentToCheckIn(id)
   }
 
@@ -1676,27 +1769,65 @@ export default function ClinicAdminAppointmentsPage() {
                     }`}>
                       {appt.status}
                     </span>
-                    {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleCheckIn(appt._id)}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
-                        >
-                          Check-in
-                        </button>
-                        <button
-                          onClick={() => setRescheduleTarget(appt)}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                        >
-                          Reschedule
-                        </button>
-                        <button
-                          onClick={() => handleCancel(appt._id)}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                        >
-                          Cancel
-                        </button>
-                      </div>                  )}
+                    {activeTab === 'upcoming' && (
+                      scheduleType === 'grooming' ? (
+                        <div className="flex items-center gap-2">
+                          {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                            <>
+                              <button
+                                onClick={() => handleCheckIn(appt._id)}
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                              >
+                                Check-in
+                              </button>
+                              <button
+                                onClick={() => setRescheduleTarget(appt)}
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                              >
+                                Reschedule
+                              </button>
+                              <button
+                                onClick={() => handleCancel(appt._id)}
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                          {appt.status === 'in_progress' && (
+                            <button
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 opacity-70 cursor-not-allowed"
+                              title="Complete appointment action coming soon"
+                            >
+                              Complete Appointment
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        (appt.status === 'confirmed' || appt.status === 'pending') && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleCheckIn(appt._id)}
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                            >
+                              Check-in
+                            </button>
+                            <button
+                              onClick={() => setRescheduleTarget(appt)}
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                            >
+                              Reschedule
+                            </button>
+                            <button
+                              onClick={() => handleCancel(appt._id)}
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )
+                      )
+                    )}
                   </div>
                 </div>
               ))}
@@ -2606,6 +2737,13 @@ function RescheduleModal({
   const [rescheduleIsClosed, setRescheduleIsClosed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  const isGroomingOnly = useMemo(() => {
+    if (!appointment?.types?.length) return false
+    const hasGrooming = appointment.types.some((type) => String(type).toLowerCase().includes('groom'))
+    const hasMedical = appointment.types.some((type) => !String(type).toLowerCase().includes('groom'))
+    return hasGrooming && !hasMedical
+  }, [appointment])
+
   // Reset state when appointment changes
   useEffect(() => {
     if (appointment) {
@@ -2618,16 +2756,30 @@ function RescheduleModal({
     }
   }, [appointment])
 
-  // Load slots when date changes
+  // Load slots when date changes.
+  // Grooming-only appointments can be rescheduled without a vet assignment.
   useEffect(() => {
     const vetId = appointment?.vetId?._id
-    if (!vetId || !selectedDate) { setSlots([]); setRescheduleIsClosed(false); return }
+    const branchId = appointment?.clinicBranchId?._id || appointment?.clinicBranchId
+    if (!selectedDate || (!isGroomingOnly && !vetId) || (isGroomingOnly && !branchId)) {
+      setSlots([])
+      setRescheduleIsClosed(false)
+      return
+    }
     const load = async () => {
       setLoadingSlots(true)
       setSelectedSlot(null)
       try {
-        const branchId = appointment?.clinicBranchId?._id || appointment?.clinicBranchId
-        const res = await getAvailableSlots(vetId, selectedDate, token || undefined, branchId || undefined)
+        let res
+        if (isGroomingOnly) {
+          res = await authenticatedFetch(
+            `/appointments/grooming-slots?branchId=${branchId}&date=${selectedDate}`,
+            { method: 'GET' },
+            token || undefined
+          )
+        } else {
+          res = await getAvailableSlots(vetId, selectedDate, token || undefined, branchId || undefined)
+        }
         if (res.status === 'SUCCESS' && res.data) {
           setRescheduleIsClosed(res.data.isClosed ?? false)
           setSlots(res.data.slots ?? [])
@@ -2639,10 +2791,14 @@ function RescheduleModal({
       finally { setLoadingSlots(false) }
     }
     load()
-  }, [appointment, selectedDate, token])
+  }, [appointment, selectedDate, token, isGroomingOnly])
 
   const handleReschedule = async () => {
     if (!appointment || !selectedSlot) return
+    if (!['pending', 'confirmed'].includes(appointment.status)) {
+      toast.error('Only pending or confirmed appointments can be rescheduled.')
+      return
+    }
     setSubmitting(true)
     try {
       const res = await rescheduleAppointment(appointment._id, {
@@ -2720,7 +2876,9 @@ function RescheduleModal({
                 <div>
                   <p className="font-semibold text-sm text-[#4F4F4F]">{appointment.petId?.name || 'Pet'}</p>
                   <p className="text-xs text-gray-500">
-                    Dr. {appointment.vetId?.firstName} {appointment.vetId?.lastName}
+                    {appointment.vetId?.firstName
+                      ? `Dr. ${appointment.vetId.firstName} ${appointment.vetId?.lastName || ''}`.trim()
+                      : 'Grooming service'}
                   </p>
                 </div>
               </div>

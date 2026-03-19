@@ -536,7 +536,7 @@ export const cancelAppointment = async (req: Request, res: Response) => {
     }
 
     const isOwner = appointment.ownerId.toString() === req.user.userId;
-    const isVet = appointment.vetId.toString() === req.user.userId;
+    const isVet = appointment.vetId ? appointment.vetId.toString() === req.user.userId : false;
     const isAdmin = req.user.userType === 'clinic-admin';
 
     if (!isOwner && !isVet && !isAdmin) {
@@ -606,7 +606,9 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Appointment not found' });
     }
 
-    if (appointment.vetId.toString() !== req.user.userId && req.user.userType !== 'clinic-admin') {
+    const isAdmin = req.user.userType === 'clinic-admin';
+    const isAssignedVet = appointment.vetId ? appointment.vetId.toString() === req.user.userId : false;
+    if (!isAdmin && !isAssignedVet) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this appointment' });
     }
 
@@ -626,8 +628,9 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     await appointment.save();
 
     // When checking in (confirmed → in_progress), auto-create a draft medical record
+    // only for appointments that have an assigned vet.
     let medicalRecordId: string | undefined;
-    if (status === 'in_progress') {
+    if (status === 'in_progress' && appointment.vetId) {
       const existingRecord = await MedicalRecord.findOne({ appointmentId: appointment._id });
       if (!existingRecord) {
         // Mark any previous current records for this pet as historical
@@ -779,14 +782,28 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Date, start time, and end time are required' });
     }
 
-    // Check if the new slot is available
-    const conflict = await Appointment.findOne({
+    // Check if the new slot is available.
+    // Grooming-only appointments may not have a vet assignment, so conflict by branch + grooming types.
+    const groomingTypes = ['basic-grooming', 'full-grooming'];
+    const hasGrooming = appointment.types.some((t) => groomingTypes.includes(t));
+    const hasMedical = appointment.types.some((t) => !groomingTypes.includes(t));
+    const isGroomingOnly = hasGrooming && !hasMedical;
+
+    const conflictQuery: any = {
       _id: { $ne: appointment._id },
-      vetId: appointment.vetId,
       date: new Date(date),
       startTime,
       status: { $in: ['pending', 'confirmed'] }
-    });
+    };
+
+    if (isGroomingOnly) {
+      conflictQuery.clinicBranchId = appointment.clinicBranchId;
+      conflictQuery.types = { $in: groomingTypes };
+    } else {
+      conflictQuery.vetId = appointment.vetId;
+    }
+
+    const conflict = await Appointment.findOne(conflictQuery);
 
     if (conflict) {
       return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
