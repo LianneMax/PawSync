@@ -2152,11 +2152,12 @@ function SortHeader({
 
 // ==================== PRODUCTS / SERVICES TAB ====================
 
-function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
+function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequest }: {
   tab: 'Products' | 'Services'
   token: string | null
   isMainBranch: boolean
   userBranchId: string | null
+  openAddRequest: number
 }) {
   const [data, setData] = useState<ProductItem[]>([])
   const [branches, setBranches] = useState<BranchInfo[]>([])
@@ -2267,6 +2268,14 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
     setError('')
     fetchData()
   }, [tab, token]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Open Add modal when parent requests it (button lives in the main page header area).
+  useEffect(() => {
+    if (!isMainBranch) return
+    if (openAddRequest > 0) {
+      setShowModal(true)
+    }
+  }, [openAddRequest, isMainBranch])
 
   const handleSort = (key: string) => {
     if (sortKey === key) setSortAsc(!sortAsc)
@@ -2404,18 +2413,6 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId }: {
           onClose={() => setEditingItem(null)}
           onSaved={handleUpdated}
         />
-      )}
-
-      {isMainBranch && (
-        <div className="flex justify-center mb-6">
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all shadow-sm"
-          >
-            <Plus className="w-4 h-4 text-gray-500" />
-            Add New {isProducts ? 'Product' : 'Service'}
-          </button>
-        </div>
       )}
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -2961,6 +2958,7 @@ export default function ProductManPage() {
   const isMainBranch = user?.isMainBranch ?? false
   const userBranchId = user?.clinicBranchId ?? null
   const [activeTab, setActiveTab] = useState<Tab>('Products')
+  const [openAddRequest, setOpenAddRequest] = useState(0)
 
   const tabs: Tab[] = ['Products', 'Services', 'Vaccines']
 
@@ -2973,12 +2971,12 @@ export default function ProductManPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-fit shadow-sm">
+        <div className="inline-flex gap-1 mb-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
                 activeTab === tab
                   ? 'bg-[#3D5E5C] text-white shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -2989,8 +2987,20 @@ export default function ProductManPage() {
           ))}
         </div>
 
-        {activeTab === 'Products' && <ProductServiceTab tab="Products" token={token} isMainBranch={isMainBranch} userBranchId={userBranchId} />}
-        {activeTab === 'Services' && <ProductServiceTab tab="Services" token={token} isMainBranch={isMainBranch} userBranchId={userBranchId} />}
+        {isMainBranch && (activeTab === 'Products' || activeTab === 'Services') && (
+          <div className="mb-6">
+            <button
+              onClick={() => setOpenAddRequest((prev) => prev + 1)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4 text-gray-500" />
+              Add New {activeTab === 'Products' ? 'Product' : 'Service'}
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'Products' && <ProductServiceTab tab="Products" token={token} isMainBranch={isMainBranch} userBranchId={userBranchId} openAddRequest={openAddRequest} />}
+        {activeTab === 'Services' && <ProductServiceTab tab="Services" token={token} isMainBranch={isMainBranch} userBranchId={userBranchId} openAddRequest={openAddRequest} />}
         {activeTab === 'Vaccines' && <VaccinesTab token={token} />}
       </div>
     </DashboardLayout>
