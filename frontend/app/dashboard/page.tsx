@@ -134,6 +134,12 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
   }
 }
 
+function hasRegisteredNfcTag(pet: Pick<Pet, 'nfcTagId'> | null | undefined): boolean {
+  if (!pet) return false
+  const tagId = pet.nfcTagId?.trim()
+  return Boolean(tagId && tagId !== '-')
+}
+
 interface DashboardAppointment {
   id: string
   title: string
@@ -265,6 +271,8 @@ function PetDetailModal({
   onNavigateToMedicalRecords: () => void
 }) {
   const router = useRouter()
+  const canUseLostPetFeature = hasRegisteredNfcTag(pet)
+  const lostPetLockedMessage = 'Purchase a pet tag first to unlock this feature.'
 
   if (!pet) return null
 
@@ -454,16 +462,24 @@ function PetDetailModal({
                 <ChevronRight className="w-4 h-4 text-[#679D82]" />
               </button>
             ) : (
-              <button
-                className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-                onClick={() => onReportLost(pet)}
-              >
-                <div>
-                  <p className="font-semibold text-[#4F4F4F] text-sm">Report {pet.name} as Lost</p>
-                  <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </button>
+              <div title={canUseLostPetFeature ? undefined : lostPetLockedMessage}>
+                <button
+                  type="button"
+                  disabled={!canUseLostPetFeature}
+                  className={`w-full border rounded-xl p-4 text-left transition-colors flex items-center justify-between ${
+                    canUseLostPetFeature
+                      ? 'border-gray-200 hover:bg-gray-50'
+                      : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-70'
+                  }`}
+                  onClick={() => canUseLostPetFeature && onReportLost(pet)}
+                >
+                  <div>
+                    <p className="font-semibold text-[#4F4F4F] text-sm">Report {pet.name} as Lost</p>
+                    <p className="text-xs text-gray-400">Update NFC tag to show Lost Status</p>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 ${canUseLostPetFeature ? 'text-gray-400' : 'text-gray-300'}`} />
+                </button>
+              </div>
             )}
             <button
               className="w-full border border-red-200 rounded-xl p-4 text-left hover:bg-red-50 transition-colors flex items-center justify-between"
@@ -1096,8 +1112,10 @@ export default function DashboardPage() {
 
   const handleQuickAction = (href: string) => {
     if (href === '#') {
+      const firstPetWithTag = pets.find((pet) => hasRegisteredNfcTag(pet))
+      if (!firstPetWithTag) return
       if (pets.length > 0) {
-        setReportLostPet(pets[0])
+        setReportLostPet(firstPetWithTag)
         setReportLostFromDetail(false)
         setReportLostOpen(true)
       }
@@ -1214,19 +1232,36 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500">Common tasks at your Fingertips</p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action) => (
-              <div
-                key={action.label}
-                className="bg-white rounded-2xl border border-gray-200 p-5 cursor-pointer hover:shadow-md hover:border-[#7FA5A3] transition-all group"
-                onClick={() => handleQuickAction(action.href)}
-              >
-                <div className="w-10 h-10 bg-[#F8F6F2] rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#7FA5A3]/15 transition-colors">
-                  {action.icon}
+            {quickActions.map((action) => {
+              const isLostPetAction = action.href === '#'
+              const canUseAction = isLostPetAction ? pets.some((pet) => hasRegisteredNfcTag(pet)) : true
+              const actionTooltip = !canUseAction && isLostPetAction
+                ? 'Purchase a pet tag first to unlock this feature.'
+                : undefined
+
+              return (
+                <div
+                  key={action.label}
+                  title={actionTooltip}
+                  className={`bg-white rounded-2xl border p-5 transition-all group ${
+                    canUseAction
+                      ? 'border-gray-200 cursor-pointer hover:shadow-md hover:border-[#7FA5A3]'
+                      : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-70'
+                  }`}
+                  onClick={() => canUseAction && handleQuickAction(action.href)}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 transition-colors ${
+                    canUseAction
+                      ? 'bg-[#F8F6F2] group-hover:bg-[#7FA5A3]/15'
+                      : 'bg-gray-100'
+                  }`}>
+                    {action.icon}
+                  </div>
+                  <p className="font-semibold text-[#4F4F4F] text-sm">{action.label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{action.description}</p>
                 </div>
-                <p className="font-semibold text-[#4F4F4F] text-sm">{action.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{action.description}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
 

@@ -942,7 +942,7 @@ export const getPetsForOwner = async (req: Request, res: Response) => {
     }
 
     const pets = await Pet.find({ ownerId: ownerId as string })
-      .select('name species breed photo')
+      .select('name species breed photo isLost')
       .sort({ name: 1 });
 
     return res.status(200).json({
@@ -977,6 +977,13 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     }
     if (pet.ownerId.toString() !== ownerId) {
       return res.status(400).json({ status: 'ERROR', message: 'Pet does not belong to the selected owner' });
+    }
+
+    if (pet.isLost) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Cannot schedule an appointment for ${pet.name} as they are marked as lost. Please update their status once they are found.`
+      });
     }
 
     // Validate types based on mode

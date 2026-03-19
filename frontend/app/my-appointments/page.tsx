@@ -910,6 +910,7 @@ function ScheduleModal({
   const hasGrooming = selectedTypes.some((type) => groomingTypeValues.has(type))
   const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
+  const selectedPet = pets.find((pet) => pet._id === selectedPetId) || null
 
   // Load pets + clinics/branches when modal opens
   useEffect(() => {
@@ -992,7 +993,12 @@ function ScheduleModal({
   // Auto-select pet if initialPetId is provided
   useEffect(() => {
     if (open && initialPetId && pets.length > 0) {
-      setSelectedPetId(initialPetId)
+      const initialPet = pets.find((pet) => pet._id === initialPetId)
+      if (initialPet && !initialPet.isLost) {
+        setSelectedPetId(initialPetId)
+      } else {
+        setSelectedPetId('')
+      }
     }
   }, [open, initialPetId, pets])
 
@@ -1168,6 +1174,7 @@ function ScheduleModal({
 
   const handleSubmit = async () => {
     if (!selectedPetId) return toast.error('Please select a pet')
+    if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!mode) return toast.error('Please select a mode of appointment')
@@ -1280,7 +1287,7 @@ function ScheduleModal({
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
             {/* Lost Pet Warning */}
-            {selectedPetId && pets.find(p => p._id === selectedPetId)?.isLost && (
+            {selectedPet?.isLost && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-800 font-medium">⚠️ This pet is marked as lost</p>
                 <p className="text-xs text-yellow-700 mt-1">Appointments cannot be scheduled for lost pets. Please update their status once they are found.</p>
@@ -1374,7 +1381,7 @@ function ScheduleModal({
                   categories={serviceCategories.map((cat) => ({
                     ...cat,
                     services: cat.services?.filter((svc: any) =>
-                      pets.find((p) => p._id === selectedPetId)?.sex === 'male'
+                      selectedPet?.sex === 'male'
                         ? !svc.label.toLowerCase().includes('maternity')
                         : true
                     ),
@@ -1491,7 +1498,7 @@ function ScheduleModal({
         <div className="flex items-center justify-center gap-4 px-8 pb-8 shrink-0">
           <button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || Boolean(selectedPet?.isLost)}
             className="px-8 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
           >
             {submitting ? 'Booking...' : 'Set an appointment'}

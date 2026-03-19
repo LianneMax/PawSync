@@ -179,6 +179,7 @@ function Dropdown({
   options,
   onSelect,
   disabled,
+  disabledOptions = [],
 }: {
   label: string
   value: string
@@ -186,6 +187,7 @@ function Dropdown({
   options: { value: string; label: string }[]
   onSelect: (val: string) => void
   disabled?: boolean
+  disabledOptions?: string[]
 }) {
   const selected = options.find((o) => o.value === value)
 
@@ -208,17 +210,30 @@ function Dropdown({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-48 overflow-y-auto rounded-xl">
-          {options.map((opt) => (
-            <DropdownMenuItem
-              key={opt.value}
-              onSelect={() => onSelect(opt.value)}
-              className={`px-4 py-2.5 text-sm transition-colors ${
-                opt.value === value ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium' : 'text-[#4F4F4F]'
-              }`}
-            >
-              {opt.label}
-            </DropdownMenuItem>
-          ))}
+          {options.map((opt) => {
+            const isDisabledOption = disabledOptions.includes(opt.value)
+            return (
+              <DropdownMenuItem
+                key={opt.value}
+                disabled={isDisabledOption}
+                onSelect={() => {
+                  if (!isDisabledOption) onSelect(opt.value)
+                }}
+                className={`px-4 py-2.5 text-sm transition-colors ${
+                  isDisabledOption
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : opt.value === value
+                      ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium'
+                      : 'text-[#4F4F4F]'
+                }`}
+              >
+                <div className="flex w-full items-center justify-between">
+                  <span>{opt.label}</span>
+                  {isDisabledOption && <span className="text-xs text-gray-400">(Lost Pet)</span>}
+                </div>
+              </DropdownMenuItem>
+            )
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -2071,7 +2086,7 @@ function ClinicScheduleModal({
 
   // Form state
   const [selectedOwner, setSelectedOwner] = useState<PetOwner | null>(null)
-  const [ownerPets, setOwnerPets] = useState<{ _id: string; name: string; species: string; breed: string; photo: string | null }[]>([])
+  const [ownerPets, setOwnerPets] = useState<{ _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean }[]>([])
   const [branchVets, setBranchVets] = useState<BranchVet[]>([])
   const [serviceCategories, setServiceCategories] = useState<any[]>([])
   const [loadingVets, setLoadingVets] = useState(false)
@@ -2106,6 +2121,7 @@ function ClinicScheduleModal({
   const hasGrooming = selectedTypes.some((type) => groomingTypeValues.has(type))
   const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
+  const selectedPet = ownerPets.find((pet) => pet._id === selectedPetId) || null
   
   // For clinic admins, lock branch to their assigned branch
   const adminBranch = isClinicAdmin && userClinicBranchId 
@@ -2273,6 +2289,7 @@ function ClinicScheduleModal({
   const handleSubmit = async () => {
     if (!selectedOwner) return toast.error('Please select a pet owner')
     if (!selectedPetId) return toast.error('Please select a pet')
+    if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!mode) return toast.error('Please select a mode of appointment')
@@ -2401,6 +2418,13 @@ function ClinicScheduleModal({
         <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
+            {selectedPet?.isLost && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 font-medium">⚠️ This pet is marked as lost</p>
+                <p className="text-xs text-yellow-700 mt-1">Appointments cannot be scheduled for lost pets. Please update their status once they are found.</p>
+              </div>
+            )}
+
             {/* Owner Search (full width) */}
             <OwnerSearch
               value={selectedOwner}
@@ -2438,6 +2462,7 @@ function ClinicScheduleModal({
                   value={selectedPetId}
                   placeholder="Choose a pet"
                   options={ownerPets.map((p) => ({ value: p._id, label: p.name }))}
+                  disabledOptions={ownerPets.filter((pet) => pet.isLost).map((pet) => pet._id)}
                   onSelect={setSelectedPetId}
                 />
               )}
@@ -2701,7 +2726,7 @@ function ClinicScheduleModal({
         <div className="flex items-center justify-center gap-4 px-8 py-4 shrink-0 border-t border-gray-100">
           <button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || Boolean(selectedPet?.isLost)}
             className="px-8 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
           >
             {submitting ? 'Booking...' : 'Set an appointment'}
