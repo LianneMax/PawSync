@@ -3,6 +3,7 @@ import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
+import Pet from '../models/Pet';
 import {
   sendAppointmentReminder,
   sendAppointmentMissed,
@@ -10,6 +11,7 @@ import {
   sendVaccinationDueReminderVet,
 } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+import { getPregnancySnapshot } from '../services/pregnancyDomainService';
 
 export function startScheduler() {
   // Run every day at midnight
@@ -172,7 +174,106 @@ export function startScheduler() {
       console.error('[Scheduler] Vaccination upcoming reminder error:', err);
     }
 
-    // ── 4. Purge expired unverified accounts ─────────────────────────────────
+    // ── 4. Pregnancy overdue detection (3+ days past due) ────────────────────
+    try {
+      const threeDaysAgo = new Date(now);
+      threeDaysAgo.setUTCDate(threeDaysAgo.getUTCDate() - 3);
+
+      const pregnantPets = await Pet.find({ pregnancyStatus: 'pregnant', sex: 'female' })
+        .populate('ownerId', '_id firstName email')
+        .populate('assignedVetId', '_id firstName email')
+        .lean();
+
+      for (const pet of pregnantPets) {
+        try {
+          const snapshot = await getPregnancySnapshot(pet._id.toString());
+          const dueDate = snapshot.activeEpisode?.expectedDueDate;
+          if (!dueDate || dueDate >= threeDaysAgo) continue;
+
+          const overdueDays = Math.floor((now.getTime() - new Date(dueDate).getTime()) / 86400000);
+          const dueDateStr = new Date(dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const owner = (pet as any).ownerId;
+          const vet = (pet as any).assignedVetId;
+
+          if (owner?._id) {
+            await createNotification(
+              owner._id.toString(),
+              'pregnancy_overdue',
+              'Delivery Overdue',
+              `${pet.name}'s expected delivery date was ${dueDateStr} (${overdueDays} days ago). Please contact your vet immediately.`,
+              { petId: pet._id }
+            );
+          }
+          if (vet?._id) {
+            await createNotification(
+              vet._id.toString(),
+              'pregnancy_overdue',
+              'Patient Delivery Overdue',
+              `${pet.name}'s expected delivery date was ${dueDateStr} (${overdueDays} days ago). Follow up with the owner.`,
+              { petId: pet._id }
+            );
+          }
+        } catch (petErr) {
+          console.error(`[Scheduler] Pregnancy overdue check failed for pet ${pet._id}:`, petErr);
+        }
+      }
+      console.log(`[Scheduler] Checked ${pregnantPets.length} pregnant pet(s) for overdue delivery`);
+    } catch (err) {
+      console.error('[Scheduler] Pregnancy overdue detection error:', err);
+    }
+
+    // ── 5. Pregnancy due in 7 days ────────────────────────────────────────────
+    try {
+      const in7Days = new Date(now);
+      in7Days.setUTCDate(in7Days.getUTCDate() + 7);
+      const in8Days = new Date(in7Days);
+      in8Days.setUTCDate(in8Days.getUTCDate() + 1);
+
+      const pregnantPets7 = await Pet.find({ pregnancyStatus: 'pregnant', sex: 'female' })
+        .populate('ownerId', '_id firstName email')
+        .populate('assignedVetId', '_id firstName email')
+        .lean();
+
+      for (const pet of pregnantPets7) {
+        try {
+          const snapshot = await getPregnancySnapshot(pet._id.toString());
+          const dueDate = snapshot.activeEpisode?.expectedDueDate;
+          if (!dueDate) continue;
+          const dueDateObj = new Date(dueDate);
+          if (dueDateObj < in7Days || dueDateObj >= in8Days) continue;
+
+          const dueDateStr = dueDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const owner = (pet as any).ownerId;
+          const vet = (pet as any).assignedVetId;
+
+          if (owner?._id) {
+            await createNotification(
+              owner._id.toString(),
+              'pregnancy_due_soon',
+              'Delivery Due in 7 Days',
+              `${pet.name}'s expected delivery date is ${dueDateStr}. Please prepare and monitor for signs of labor.`,
+              { petId: pet._id }
+            );
+          }
+          if (vet?._id) {
+            await createNotification(
+              vet._id.toString(),
+              'pregnancy_due_soon',
+              'Patient Delivery Due in 7 Days',
+              `${pet.name}'s expected delivery date is ${dueDateStr}. Consider scheduling a pre-delivery checkup.`,
+              { petId: pet._id }
+            );
+          }
+        } catch (petErr) {
+          console.error(`[Scheduler] Pregnancy due-soon check failed for pet ${pet._id}:`, petErr);
+        }
+      }
+      console.log(`[Scheduler] Checked ${pregnantPets7.length} pregnant pet(s) for upcoming delivery`);
+    } catch (err) {
+      console.error('[Scheduler] Pregnancy due-soon detection error:', err);
+    }
+
+    // ── 6. Purge expired unverified accounts ─────────────────────────────────
     try {
       const purgeResult = await User.deleteMany({
         emailVerified: false,
@@ -185,7 +286,7 @@ export function startScheduler() {
       console.error('[Scheduler] Unverified account purge error:', err);
     }
 
-    // ── 5. Appointment 24-hour reminders ─────────────────────────────────────
+    // ── 7. Appointment 24-hour reminders ─────────────────────────────────────
     try {
       const tomorrowStart = new Date(now);
       tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);

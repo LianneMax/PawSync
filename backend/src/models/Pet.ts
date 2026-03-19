@@ -18,6 +18,9 @@ export interface IPet extends Document {
   bloodType: string | null;
   allergies: string[];
   pregnancyStatus?: 'pregnant' | 'not_pregnant' | null;
+  totalPregnancies: number;
+  totalLitters: number;
+  lastDeliveryDate: Date | null;
   assignedVetId: mongoose.Types.ObjectId | null;
   isLost: boolean;
   lostContactName: string | null;
@@ -106,6 +109,18 @@ const PetSchema = new Schema(
     allergies: {
       type: [String],
       default: []
+    },
+    totalPregnancies: {
+      type: Number,
+      default: 0,
+    },
+    totalLitters: {
+      type: Number,
+      default: 0,
+    },
+    lastDeliveryDate: {
+      type: Date,
+      default: null,
     },
     pregnancyStatus: {
       type: String,

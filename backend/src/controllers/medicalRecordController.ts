@@ -7,6 +7,8 @@ import Appointment from '../models/Appointment';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
 import { createNotification } from '../services/notificationService';
+import { getPregnancySnapshot, syncPregnancyFromMedicalRecord, getPregnancyEpisodeHistory } from '../services/pregnancyDomainService';
+import type { PregnancyEvidenceSource } from '../models/PregnancyEvidence';
 
 /**
  * Helper — returns true if req.user is a clinic-admin or clinic-admin.
@@ -276,11 +278,17 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       .populate('appointmentId', 'date startTime types status')
       .sort({ createdAt: -1 });
 
+    const pregnancy = await getPregnancySnapshot(req.params.petId);
+
     return res.status(200).json({
       status: 'SUCCESS',
       data: {
         currentRecord,
-        historicalRecords
+        historicalRecords,
+        petPregnancy: {
+          status: pregnancy.status,
+          activeEpisode: pregnancy.activeEpisode,
+        },
       }
     });
   } catch (error) {
@@ -341,9 +349,17 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'SUCCESS', message: 'No current medical record', data: { record: null } });
     }
 
+    const pregnancy = await getPregnancySnapshot(req.params.petId);
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { record }
+      data: {
+        record,
+        petPregnancy: {
+          status: pregnancy.status,
+          activeEpisode: pregnancy.activeEpisode,
+        },
+      }
     });
   } catch (error) {
     console.error('Get current record error:', error);
@@ -397,9 +413,17 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       .populate('appointmentId', 'date startTime types status')
       .sort({ createdAt: -1 });
 
+    const pregnancy = await getPregnancySnapshot(req.params.petId);
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { records }
+      data: {
+        records,
+        petPregnancy: {
+          status: pregnancy.status,
+          activeEpisode: pregnancy.activeEpisode,
+        },
+      }
     });
   } catch (error) {
     console.error('Get historical records error:', error);
@@ -417,7 +441,7 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     const record = await MedicalRecord.findById(req.params.id)
-      .populate('petId', 'name species breed sex dateOfBirth weight photo color sterilization nfcTagId microchipNumber allergies ownerId')
+      .populate('petId', 'name species breed sex dateOfBirth weight photo color sterilization nfcTagId microchipNumber allergies ownerId pregnancyStatus')
       .populate('vetId', 'firstName lastName email')
       .populate('clinicId', 'name address phone email')
       .populate('clinicBranchId', 'name address phone')
@@ -464,9 +488,17 @@ export const getRecordById = async (req: Request, res: Response) => {
       delete recordObj.vetNotes;
     }
 
+    const pregnancy = await getPregnancySnapshot((record.petId as any)._id.toString());
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { record: recordObj }
+      data: {
+        record: recordObj,
+        petPregnancy: {
+          status: pregnancy.status,
+          activeEpisode: pregnancy.activeEpisode,
+        },
+      }
     });
   } catch (error) {
     console.error('Get record error:', error);
@@ -496,9 +528,17 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'SUCCESS', message: 'No medical record for this appointment', data: { record: null } });
     }
 
+    const pregnancy = await getPregnancySnapshot((record.petId as any)._id.toString());
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { record }
+      data: {
+        record,
+        petPregnancy: {
+          status: pregnancy.status,
+          activeEpisode: pregnancy.activeEpisode,
+        },
+      }
     });
   } catch (error) {
     console.error('Get record by appointment error:', error);
@@ -594,7 +634,7 @@ export const updateRecord = async (req: Request, res: Response) => {
       stage, chiefComplaint, subjective, assessment, plan,
       medications, diagnosticTests, preventiveCare, confinementAction, confinementDays,
       referral, discharge, scheduledSurgery,
-      surgeryRecord, pregnancyRecord, pregnancyDelivery
+      surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource
     } = req.body;
 
     if (vitals) record.vitals = vitals;
@@ -604,6 +644,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (surgeryRecord !== undefined) (record as any).surgeryRecord = surgeryRecord;
     if (pregnancyRecord !== undefined) (record as any).pregnancyRecord = pregnancyRecord;
     if (pregnancyDelivery !== undefined) (record as any).pregnancyDelivery = pregnancyDelivery;
+    if (pregnancyLoss !== undefined) (record as any).pregnancyLoss = pregnancyLoss;
     if (sharedWithOwner !== undefined) record.sharedWithOwner = sharedWithOwner;
     if (stage !== undefined) record.stage = stage;
     if (chiefComplaint !== undefined) record.chiefComplaint = chiefComplaint;
@@ -747,7 +788,105 @@ export const updateRecord = async (req: Request, res: Response) => {
       }
     }
 
+
     await record.save();
+
+    // Auto-schedule post-delivery follow-up when mother condition is critical
+    if (stage === 'completed' && pregnancyDelivery && pregnancyDelivery.motherCondition === 'critical') {
+      try {
+        const followUpDate = addDays(new Date(), 3);
+        followUpDate.setUTCHours(0, 0, 0, 0);
+
+        let resolvedBranchId: string | null = record.clinicBranchId
+          ? record.clinicBranchId.toString()
+          : null;
+
+        if (!resolvedBranchId && record.clinicId) {
+          const branch = await ClinicBranch.findOne({ clinicId: record.clinicId }).select('_id').lean();
+          if (branch) resolvedBranchId = branch._id.toString();
+        }
+
+        if (record.clinicId && resolvedBranchId) {
+          const pet = await Pet.findById(record.petId).select('ownerId name').lean();
+          const candidateSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+
+          for (const startTime of candidateSlots) {
+            const endTime = addMinutesToTime(startTime, 30);
+            try {
+              const followUpAppt = await Appointment.create({
+                petId: record.petId,
+                ownerId: (pet as any)?.ownerId,
+                vetId: record.vetId,
+                clinicId: record.clinicId,
+                clinicBranchId: resolvedBranchId,
+                mode: 'face-to-face',
+                types: ['checkup'],
+                date: followUpDate,
+                startTime,
+                endTime,
+                status: 'confirmed',
+                notes: 'Post-delivery follow-up — maternal critical condition',
+              });
+
+              const dateStr = followUpDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+              const petName = (pet as any)?.name || 'The patient';
+
+              if ((pet as any)?.ownerId) {
+                createNotification(
+                  (pet as any).ownerId.toString(),
+                  'appointment_scheduled',
+                  'Post-Delivery Follow-Up Scheduled',
+                  `${petName} had a critical delivery. A follow-up appointment has been automatically scheduled for ${dateStr}.`,
+                  { appointmentId: followUpAppt._id, petId: record.petId }
+                ).catch(() => {});
+              }
+              if (record.vetId) {
+                createNotification(
+                  record.vetId.toString(),
+                  'appointment_scheduled',
+                  'Post-Delivery Follow-Up Scheduled',
+                  `${petName} had a critical delivery. A follow-up appointment has been automatically scheduled for ${dateStr}.`,
+                  { appointmentId: followUpAppt._id, petId: record.petId }
+                ).catch(() => {});
+              }
+              break;
+            } catch (slotErr: any) {
+              if (slotErr?.code === 11000) continue;
+              break;
+            }
+          }
+        }
+      } catch (followUpErr) {
+        console.error('[MedicalRecord] Error scheduling critical post-delivery follow-up:', followUpErr);
+        // Don't block record save on scheduling error
+      }
+    }
+
+    if (pregnancyRecord !== undefined || pregnancyDelivery !== undefined || pregnancyLoss !== undefined) {
+      try {
+        await syncPregnancyFromMedicalRecord({
+          petId: record.petId.toString(),
+          actorId: req.user.userId,
+          medicalRecordId: record._id.toString(),
+          pregnancyRecord: pregnancyRecord === undefined ? undefined : pregnancyRecord,
+          pregnancyDelivery: pregnancyDelivery === undefined ? undefined : pregnancyDelivery,
+          pregnancyLoss: pregnancyLoss === undefined ? undefined : pregnancyLoss,
+          diagnosticTests: (diagnosticTests || record.diagnosticTests || []).map((t: any) => ({
+            testType: t.testType,
+            name: t.name,
+          })),
+          evidenceSource: (pregnancyEvidenceSource as PregnancyEvidenceSource | undefined),
+        });
+      } catch (pregErr) {
+        console.error('[MedicalRecord] Pregnancy domain sync failed:', pregErr);
+        return res.status(400).json({
+          status: 'ERROR',
+          message: pregErr instanceof Error ? pregErr.message : 'Pregnancy validation failed',
+        });
+      }
+    }
+
+    const pregnancy = await getPregnancySnapshot(record.petId.toString());
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -760,7 +899,11 @@ export const updateRecord = async (req: Request, res: Response) => {
             contentType: img.contentType,
             description: img.description
           }))
-        }
+        },
+        petPregnancy: {
+          status: pregnancy.status,
+          activeEpisode: pregnancy.activeEpisode,
+        },
       }
     });
   } catch (error: any) {
@@ -1090,6 +1233,8 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
       });
     }
 
+    const pregnancySnapshot = await getPregnancySnapshot(petId);
+
     return res.status(200).json({
       status: 'SUCCESS',
       data: {
@@ -1109,7 +1254,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
           nfcTagId: pet.nfcTagId,
           photo: pet.photo,
           allergies: pet.allergies,
-          pregnancyStatus: pet.pregnancyStatus,
+          pregnancyStatus: pregnancySnapshot.status,
         },
         operations,
         medications,
@@ -1117,6 +1262,10 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
         latestSOAP,
         vaccinations: formattedVaccinations,
         pregnancyRecords,
+        petPregnancy: {
+          status: pregnancySnapshot.status,
+          activeEpisode: pregnancySnapshot.activeEpisode,
+        },
       }
     });
   } catch (error) {
@@ -1146,5 +1295,50 @@ export const getRecordImage = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get image error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the image' });
+  }
+};
+
+/**
+ * Get the full pregnancy episode history for a pet.
+ * Returns all closed + active pregnancy episodes in chronological order.
+ */
+export const getPregnancyHistory = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.petId).lean();
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    const isAdmin = isClinicAdminUser(req);
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      if (assignment) {
+        isAuthorizedVet = true;
+      } else {
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
+    }
+
+    if (!isOwner && !isAuthorizedVet && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this pet\'s pregnancy history' });
+    }
+
+    const history = await getPregnancyEpisodeHistory(req.params.petId);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { history },
+    });
+  } catch (error) {
+    console.error('Get pregnancy history error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching pregnancy history' });
   }
 };

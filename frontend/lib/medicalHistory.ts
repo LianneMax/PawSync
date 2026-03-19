@@ -57,14 +57,36 @@ export interface VaccinationRecord {
 }
 
 export interface PregnancyRecord {
+  eventType?: 'pregnancy_assessment' | 'delivery'
   date?: string
   isPregnant?: boolean
   gestationDate?: string
   expectedDueDate?: string
   litterNumber?: number
+  confirmationMethod?: 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown'
+  confirmationSource?: 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown'
+  confidence?: 'high' | 'medium' | 'low'
   deliveryDate?: string
   deliveryType?: 'natural' | 'c-section'
+  deliveryLocation?: 'in_clinic' | 'outside_clinic' | 'unknown'
+  reportedBy?: 'vet' | 'owner' | 'external_vet' | 'unknown'
   motherCondition?: string
+}
+
+export interface PregnancyEpisode {
+  status: 'none' | 'suspected' | 'probable' | 'confirmed' | 'delivered' | 'ended_without_delivery' | 'outcome_unknown'
+  startedAt: string | null
+  expectedDueDate: string | null
+  litterNumber: number | null
+  latestConfirmationMethod: 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown'
+  latestConfirmationSource: 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown'
+  confidence: 'high' | 'medium' | 'low'
+  deliveryDate: string | null
+  deliveryType: 'natural' | 'c-section' | null
+  deliveryLocation: 'in_clinic' | 'outside_clinic' | 'unknown'
+  totalLiveBirths: number | null
+  totalStillBirths: number | null
+  inferredFromRecords: boolean
 }
 
 export interface MedicalHistory {
@@ -75,6 +97,7 @@ export interface MedicalHistory {
   latestSOAP: LatestSOAP | null
   vaccinations: VaccinationRecord[]
   pregnancyRecords: PregnancyRecord[]
+  pregnancyEpisode: PregnancyEpisode
 }
 
 export async function getMedicalHistory(petId: string, token: string): Promise<MedicalHistory> {

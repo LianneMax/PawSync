@@ -76,16 +76,31 @@ export interface PregnancyRecord {
   gestationDate: string | null;
   expectedDueDate: string | null;
   litterNumber: number | null;
+  confirmationMethod?: 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown';
+  confirmationSource?: 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown';
+  confidence?: 'high' | 'medium' | 'low';
+  confirmedAt?: string | null;
+  notes?: string;
 }
 
 export interface PregnancyDelivery {
   deliveryDate: string | null;
-  deliveryType: 'natural' | 'c-section';
+  deliveryType: string;
   laborDuration: string;
   liveBirths: number;
   stillBirths: number;
   motherCondition: 'stable' | 'critical' | 'recovering';
   vetRemarks: string;
+  deliveryLocation?: 'in_clinic' | 'outside_clinic' | 'unknown';
+  reportedBy?: 'vet' | 'owner' | 'external_vet' | 'unknown';
+}
+
+export interface PregnancyLoss {
+  lossDate: string | null;
+  lossType: 'miscarriage' | 'reabsorption' | 'abortion' | 'other';
+  gestationalAgeAtLoss: number | null;
+  notes: string;
+  reportedBy: 'vet' | 'owner' | 'external_vet' | 'unknown';
 }
 
 export interface FollowUp {
@@ -129,6 +144,7 @@ export interface MedicalRecord {
   confinementDays: number;
   pregnancyRecord?: PregnancyRecord | null;
   pregnancyDelivery?: PregnancyDelivery | null;
+  pregnancyLoss?: PregnancyLoss | null;
   surgeryRecord?: { surgeryType: string; vetRemarks: string; images?: ImageFragment[] } | null;
   billingId?: string;
   followUps?: FollowUp[];
@@ -314,6 +330,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { data: string; contentType: string; description: string }[] } | null;
   pregnancyRecord: PregnancyRecord | null;
   pregnancyDelivery: PregnancyDelivery | null;
+  pregnancyLoss: PregnancyLoss | null;
   referral: boolean;
   discharge: boolean;
   scheduledSurgery: boolean;
@@ -397,4 +414,11 @@ export const getPreventiveCareServices = async (token?: string): Promise<Product
  */
 export const getSurgeryServices = async (token?: string): Promise<ProductServicesResponse> => {
   return authenticatedFetch(`/product-services?type=Service&category=Surgeries`, { method: 'GET' }, token);
+};
+
+/**
+ * Fetch pregnancy delivery services from the product-services catalog
+ */
+export const getPregnancyDeliveryServices = async (token?: string): Promise<ProductServicesResponse> => {
+  return authenticatedFetch(`/product-services?type=Service&category=Pregnancy Delivery`, { method: 'GET' }, token);
 };

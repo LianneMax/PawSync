@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
+import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
 import { getPetById, updatePetConfinement, updatePetPregnancyStatus } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
@@ -498,16 +498,31 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [gestationDate, setGestationDate] = useState('')
   const [expectedDueDate, setExpectedDueDate] = useState('')
   const [litterNumber, setLitterNumber] = useState('')
+  const [pregnancyConfirmationMethod, setPregnancyConfirmationMethod] = useState<'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown'>('unknown')
+  const [pregnancyConfirmationSource, setPregnancyConfirmationSource] = useState<'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown'>('this_clinic')
+  const [pregnancyConfidence, setPregnancyConfidence] = useState<'high' | 'medium' | 'low'>('medium')
+  const [pregnancyNotes, setPregnancyNotes] = useState('')
 
   // Pregnancy delivery
   const [pregnancyDelivery, setPregnancyDelivery] = useState(false)
+  const [pregnancyDeliveryServices, setPregnancyDeliveryServices] = useState<ProductService[]>([])
+  const [deliveryServiceId, setDeliveryServiceId] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')
-  const [deliveryType, setDeliveryType] = useState<'natural' | 'c-section'>('natural')
   const [laborDuration, setLaborDuration] = useState('')
   const [liveBirths, setLiveBirths] = useState('')
   const [stillBirths, setStillBirths] = useState('')
   const [motherCondition, setMotherCondition] = useState<'stable' | 'critical' | 'recovering'>('stable')
   const [deliveryVetRemarks, setDeliveryVetRemarks] = useState('')
+  const [deliveryLocation, setDeliveryLocation] = useState<'in_clinic' | 'outside_clinic' | 'unknown'>('in_clinic')
+  const [deliveryReportedBy, setDeliveryReportedBy] = useState<'vet' | 'owner' | 'external_vet' | 'unknown'>('vet')
+
+  // Pregnancy loss
+  const [pregnancyLoss, setPregnancyLoss] = useState(false)
+  const [lossDate, setLossDate] = useState('')
+  const [lossType, setLossType] = useState<'miscarriage' | 'reabsorption' | 'abortion' | 'other'>('miscarriage')
+  const [gestationalAgeAtLoss, setGestationalAgeAtLoss] = useState('')
+  const [lossNotes, setLossNotes] = useState('')
+  const [lossReportedBy, setLossReportedBy] = useState<'vet' | 'owner' | 'external_vet' | 'unknown'>('vet')
 
   // Step 3 fields
   const [visitSummary, setVisitSummary] = useState('')
@@ -525,12 +540,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const loadData = useCallback(async () => {
     if (!token) return
-    const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes, histRes, medHistRes] = await Promise.all([
+    const [recordRes, petRes, diagServicesRes, medServicesRes, prevCareServicesRes, deliveryServicesRes, histRes, medHistRes] = await Promise.all([
       getRecordById(recordId, token),
       getPetById(petId, token),
       getDiagnosticTestServices(token),
       getMedicationServices(token),
       getPreventiveCareServices(token),
+      getPregnancyDeliveryServices(token),
       getHistoricalRecords(petId, token),
       getMedicalHistory(petId, token).catch(() => null),
     ])
@@ -587,19 +603,43 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
         setExpectedDueDate(r.pregnancyRecord.expectedDueDate ? r.pregnancyRecord.expectedDueDate.split('T')[0] : '')
         setLitterNumber(r.pregnancyRecord.litterNumber != null ? String(r.pregnancyRecord.litterNumber) : '')
+        setPregnancyConfirmationMethod(r.pregnancyRecord.confirmationMethod || 'unknown')
+        setPregnancyConfirmationSource(r.pregnancyRecord.confirmationSource || 'this_clinic')
+        setPregnancyConfidence(r.pregnancyRecord.confidence || 'medium')
+        setPregnancyNotes(r.pregnancyRecord.notes || '')
       } else if (petRes.data?.pet?.pregnancyStatus === 'pregnant') {
         // Pet is already pregnant from a previous record — auto-check and lock
         setUltrasoundPregnant(true)
+        setPregnancyConfirmationMethod(medHistRes?.pregnancyEpisode?.latestConfirmationMethod || 'unknown')
+        setPregnancyConfirmationSource(medHistRes?.pregnancyEpisode?.latestConfirmationSource || 'unknown')
+        setPregnancyConfidence(medHistRes?.pregnancyEpisode?.confidence || 'low')
+        if (medHistRes?.pregnancyEpisode?.expectedDueDate) {
+          setExpectedDueDate(medHistRes.pregnancyEpisode.expectedDueDate.split('T')[0])
+        }
+        if (medHistRes?.pregnancyEpisode?.litterNumber != null) {
+          setLitterNumber(String(medHistRes.pregnancyEpisode.litterNumber))
+        }
       }
       if (r.pregnancyDelivery) {
         setPregnancyDelivery(true)
         setDeliveryDate(r.pregnancyDelivery.deliveryDate ? r.pregnancyDelivery.deliveryDate.split('T')[0] : '')
-        setDeliveryType(r.pregnancyDelivery.deliveryType || 'natural')
+        // deliveryServiceId is restored after delivery services load in the services block below
         setLaborDuration(r.pregnancyDelivery.laborDuration || '')
         setLiveBirths(r.pregnancyDelivery.liveBirths != null ? String(r.pregnancyDelivery.liveBirths) : '')
         setStillBirths(r.pregnancyDelivery.stillBirths != null ? String(r.pregnancyDelivery.stillBirths) : '')
         setMotherCondition(r.pregnancyDelivery.motherCondition || 'stable')
         setDeliveryVetRemarks(r.pregnancyDelivery.vetRemarks || '')
+        setDeliveryLocation(r.pregnancyDelivery.deliveryLocation || 'in_clinic')
+        setDeliveryReportedBy(r.pregnancyDelivery.reportedBy || 'vet')
+      }
+      if ((r as any).pregnancyLoss) {
+        const pl = (r as any).pregnancyLoss
+        setPregnancyLoss(true)
+        setLossDate(pl.lossDate ? pl.lossDate.split('T')[0] : '')
+        setLossType(pl.lossType || 'miscarriage')
+        setGestationalAgeAtLoss(pl.gestationalAgeAtLoss != null ? String(pl.gestationalAgeAtLoss) : '')
+        setLossNotes(pl.notes || '')
+        setLossReportedBy(pl.reportedBy || 'vet')
       }
       
       // Auto-populate preventive care only for preventive care appointment types
@@ -796,11 +836,85 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items) {
       setPreventiveCareServices(prevCareServicesRes.data.items)
     }
+    if (deliveryServicesRes.status === 'SUCCESS' && deliveryServicesRes.data?.items) {
+      setPregnancyDeliveryServices(deliveryServicesRes.data.items)
+      // Restore saved delivery service from existing record
+      const savedDeliveryType = recordRes.data?.record?.pregnancyDelivery?.deliveryType
+      if (savedDeliveryType) {
+        const match = deliveryServicesRes.data.items.find((s: ProductService) =>
+          s.name.toLowerCase() === savedDeliveryType.toLowerCase()
+        )
+        if (match) setDeliveryServiceId(match._id)
+      }
+    }
   }, [recordId, petId, token, isVaccinationAppt, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate])
 
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  const inferPregnancyMethodFromDiagnostics = () => {
+    const hasUltrasoundTest = diagnosticTests.some(
+      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
+    )
+    if (hasUltrasoundTest) return 'ultrasound' as const
+
+    const hasPalpation = diagnosticTests.some((t) => {
+      const text = `${t.name || ''} ${t.result || ''} ${t.notes || ''}`.toLowerCase()
+      return text.includes('palpation') || text.includes('abdominal palpation')
+    })
+    if (hasPalpation) return 'abdominal_palpation' as const
+
+    const hasClinicalObservation = diagnosticTests.some((t) => {
+      const text = `${t.name || ''} ${t.result || ''} ${t.notes || ''}`.toLowerCase()
+      return text.includes('clinical observation') || text.includes('pregnan') || text.includes('gravid') || text.includes('fetal')
+    })
+    if (hasClinicalObservation) return 'clinical_observation' as const
+
+    return 'unknown' as const
+  }
+
+  const hasPregnancyEvidence = () => {
+    return inferPregnancyMethodFromDiagnostics() !== 'unknown' || pet?.pregnancyStatus === 'pregnant' || pregnancyConfirmationMethod !== 'unknown'
+  }
+
+  // Gestation age in days (from gestationDate to today)
+  const getGestationAgeDays = (): number | null => {
+    if (!gestationDate) return null
+    const start = new Date(gestationDate)
+    if (isNaN(start.getTime())) return null
+    return Math.floor((Date.now() - start.getTime()) / 86400000)
+  }
+
+  // Species-appropriate due date suggestion (midpoint: canine ~63d, feline ~63d)
+  const suggestDueDate = (fromDate: string): string => {
+    const d = new Date(fromDate)
+    if (isNaN(d.getTime())) return ''
+    d.setDate(d.getDate() + 63)
+    return d.toISOString().split('T')[0]
+  }
+
+  // Date validation errors
+  const pregnancyDateError = (): string | null => {
+    if (gestationDate && expectedDueDate) {
+      if (new Date(expectedDueDate) <= new Date(gestationDate)) {
+        return 'Expected due date must be after the gestation date'
+      }
+    }
+    return null
+  }
+
+  const deliveryDateError = (): string | null => {
+    if (deliveryDate && gestationDate) {
+      if (new Date(deliveryDate) < new Date(gestationDate)) {
+        return 'Delivery date cannot be before the gestation date'
+      }
+    }
+    if (deliveryDate && new Date(deliveryDate) > new Date()) {
+      return 'Delivery date cannot be in the future'
+    }
+    return null
+  }
 
   // Auto-populate preventive care when appointment date is set — only for preventive care appointments
   const isPreventiveCareAppt = appointmentTypes.some((t) =>
@@ -1067,54 +1181,84 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   const buildPregnancyPayload = () => {
-    const hasUltrasound = diagnosticTests.some(
-      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
-    )
+    const hasEvidence = hasPregnancyEvidence()
     const alreadyPregnant = pet?.pregnancyStatus === 'pregnant'
+    const inferredMethod = inferPregnancyMethodFromDiagnostics()
+    const effectiveMethod = pregnancyConfirmationMethod === 'unknown' ? inferredMethod : pregnancyConfirmationMethod
+    const effectiveConfidence = effectiveMethod === 'ultrasound' ? 'high' : pregnancyConfidence
+    const resolvedDeliveryType = pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || ''
+
+    // When loss is recorded, override pregnancyRecord.isPregnant to false
+    const effectiveIsPregnant = pregnancyLoss ? false : ultrasoundPregnant
+
     return {
-      ...((hasUltrasound || alreadyPregnant) ? {
+      ...((hasEvidence || alreadyPregnant || pregnancyLoss) ? {
         pregnancyRecord: {
-          isPregnant: ultrasoundPregnant,
-          gestationDate: ultrasoundPregnant && gestationDate ? gestationDate : null,
-          expectedDueDate: ultrasoundPregnant && expectedDueDate ? expectedDueDate : null,
-          litterNumber: ultrasoundPregnant && litterNumber ? parseInt(litterNumber) : null,
+          isPregnant: effectiveIsPregnant,
+          gestationDate: effectiveIsPregnant && gestationDate ? gestationDate : null,
+          expectedDueDate: effectiveIsPregnant && expectedDueDate ? expectedDueDate : null,
+          litterNumber: effectiveIsPregnant && litterNumber ? parseInt(litterNumber) : null,
+          confirmationMethod: effectiveIsPregnant ? effectiveMethod : 'unknown',
+          confirmationSource: effectiveIsPregnant ? pregnancyConfirmationSource : 'unknown',
+          confidence: effectiveIsPregnant ? effectiveConfidence : 'low',
+          confirmedAt: effectiveIsPregnant ? new Date().toISOString() : null,
+          notes: pregnancyNotes,
         },
       } : {}),
       ...(pregnancyDelivery ? {
         pregnancyDelivery: {
           deliveryDate: deliveryDate || null,
-          deliveryType,
+          deliveryType: resolvedDeliveryType,
           laborDuration,
           liveBirths: parseInt(liveBirths) || 0,
           stillBirths: parseInt(stillBirths) || 0,
           motherCondition,
           vetRemarks: deliveryVetRemarks,
+          deliveryLocation,
+          reportedBy: deliveryReportedBy,
+        },
+      } : {}),
+      ...(pregnancyLoss ? {
+        pregnancyLoss: {
+          lossDate: lossDate || null,
+          lossType,
+          gestationalAgeAtLoss: gestationalAgeAtLoss ? parseInt(gestationalAgeAtLoss) : null,
+          notes: lossNotes,
+          reportedBy: lossReportedBy,
         },
       } : {}),
     }
   }
 
   const syncPregnancyStatus = async () => {
-    const hasUltrasoundTest = diagnosticTests.some(
-      (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound')
-    )
-    if (pregnancyDelivery) {
+    const hasEvidence = hasPregnancyEvidence()
+    if (pregnancyDelivery || pregnancyLoss) {
       await updatePetPregnancyStatus(petId, 'not_pregnant', token!)
-    } else if (hasUltrasoundTest && ultrasoundPregnant) {
+    } else if (hasEvidence && ultrasoundPregnant) {
       await updatePetPregnancyStatus(petId, 'pregnant', token!)
     }
+  }
+
+  const getEffectiveLitterNumber = (): number | null => {
+    if (ultrasoundPregnant && litterNumber) return parseInt(litterNumber)
+    if (medHistoryData?.pregnancyEpisode?.litterNumber != null) return medHistoryData.pregnancyEpisode.litterNumber
+    if (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null) {
+      return previousRecord.pregnancyRecord.litterNumber
+    }
+    return null
   }
 
   const handleProceedStep2 = async () => {
     if (!token) return
 
+    if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
+      toast.error('Please select a pregnancy confirmation method')
+      return
+    }
+
     // Validate delivery birth counts match litter number
     if (pregnancyDelivery) {
-      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
-        ? parseInt(litterNumber)
-        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
-          ? previousRecord.pregnancyRecord.litterNumber
-          : null
+      const effectiveLitterNumber = getEffectiveLitterNumber()
       if (effectiveLitterNumber != null) {
         const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
         if (totalBirths !== effectiveLitterNumber) {
@@ -1300,13 +1444,26 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const handleCompleteRecord = async () => {
     if (!token) return
 
+    if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
+      toast.error('Please select a pregnancy confirmation method')
+      return
+    }
+
+    const pregDateErr = pregnancyDateError()
+    if (pregDateErr) {
+      toast.error(pregDateErr)
+      return
+    }
+
+    const delivDateErr = deliveryDateError()
+    if (delivDateErr) {
+      toast.error(delivDateErr)
+      return
+    }
+
     // Validate delivery birth counts match litter number
     if (pregnancyDelivery) {
-      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
-        ? parseInt(litterNumber)
-        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
-          ? previousRecord.pregnancyRecord.litterNumber
-          : null
+      const effectiveLitterNumber = getEffectiveLitterNumber()
       if (effectiveLitterNumber != null) {
         const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
         if (totalBirths !== effectiveLitterNumber) {
@@ -2013,13 +2170,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 )}
               </div>
 
-              {/* ── ULTRASOUND PREGNANCY RESULT ── */}
-              {pet?.sex === 'female' && (pet?.pregnancyStatus === 'pregnant' || diagnosticTests.some((t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound'))) && (
+              {/* ── PREGNANCY ASSESSMENT ── */}
+              {pet?.sex === 'female' && (
                 <div className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
                   <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
-                    <span className="text-sm font-semibold text-green-700">Ultrasound — Pregnancy Result</span>
+                    <span className="text-sm font-semibold text-green-700">Pregnancy Assessment</span>
                   </div>
                   <div className="px-4 py-3 space-y-3">
+                    {pet?.sterilization === 'spayed' && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        This pet is recorded as spayed. Marking as pregnant may be incorrect — verify with the owner before proceeding.
+                      </p>
+                    )}
                     {pet?.pregnancyStatus === 'pregnant' && (
                       <p className="text-xs text-green-700 bg-green-100 border border-green-200 rounded-lg px-3 py-2">
                         This pet is already recorded as pregnant. Pregnancy status is locked until delivery is recorded.
@@ -2036,17 +2198,68 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <span className="text-sm text-gray-700 font-medium">Pet is Pregnant</span>
                     </label>
                     {ultrasoundPregnant && (
-                      <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-3 pt-1">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Method</label>
+                            <DropdownField
+                              value={pregnancyConfirmationMethod}
+                              onValueChange={(value) => setPregnancyConfirmationMethod(value as 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown')}
+                              placeholder="Select method"
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              options={[
+                                { value: 'unknown', label: 'Unknown / Not specified' },
+                                { value: 'ultrasound', label: 'Ultrasound' },
+                                { value: 'abdominal_palpation', label: 'Abdominal Palpation' },
+                                { value: 'clinical_observation', label: 'Clinical Observation' },
+                                { value: 'external_documentation', label: 'External Documentation' },
+                              ]}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Source</label>
+                            <DropdownField
+                              value={pregnancyConfirmationSource}
+                              onValueChange={(value) => setPregnancyConfirmationSource(value as 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown')}
+                              placeholder="Select source"
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              options={[
+                                { value: 'this_clinic', label: 'This Clinic' },
+                                { value: 'external_clinic', label: 'External Clinic' },
+                                { value: 'owner_reported', label: 'Owner Reported' },
+                                { value: 'inferred', label: 'Inferred from Records' },
+                                { value: 'unknown', label: 'Unknown' },
+                              ]}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confidence</label>
+                            <DropdownField
+                              value={pregnancyConfidence}
+                              onValueChange={(value) => setPregnancyConfidence(value as 'high' | 'medium' | 'low')}
+                              placeholder="Select confidence"
+                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              options={[
+                                { value: 'high', label: 'High' },
+                                { value: 'medium', label: 'Medium' },
+                                { value: 'low', label: 'Low' },
+                              ]}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Gestation Date</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs text-gray-500">Gestation Date</label>
+                            {(() => { const days = getGestationAgeDays(); return days !== null && days >= 0 ? <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{days}d pregnant</span> : null })()}
+                          </div>
                           <DatePicker
                             value={gestationDate}
                             onChange={(value) => {
                               setGestationDate(value)
-                              if (value) {
-                                const date = new Date(value)
-                                date.setDate(date.getDate() + 63)
-                                setExpectedDueDate(date.toISOString().split('T')[0])
+                              if (value && !expectedDueDate) {
+                                setExpectedDueDate(suggestDueDate(value))
                               }
                             }}
                             className="w-full"
@@ -2060,6 +2273,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             allowFutureDates
                             className="w-full"
                           />
+                          {pregnancyDateError() && (
+                            <p className="text-xs text-red-600 mt-1">{pregnancyDateError()}</p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Litter Number</label>
@@ -2072,6 +2288,105 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                           />
                         </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Pregnancy Notes</label>
+                          <textarea
+                            rows={2}
+                            value={pregnancyNotes}
+                            onChange={(e) => setPregnancyNotes(e.target.value)}
+                            placeholder="Supporting findings, signs, or provenance details…"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 resize-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── PREGNANCY LOSS ── */}
+                    {!pregnancyDelivery && (
+                      <div className="border border-rose-100 rounded-xl overflow-hidden bg-rose-50/30 mt-2">
+                        <div className="px-3 py-2 border-b border-rose-100">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={pregnancyLoss}
+                              onChange={(e) => {
+                                setPregnancyLoss(e.target.checked)
+                                if (e.target.checked) setUltrasoundPregnant(false)
+                              }}
+                              className="w-4 h-4 accent-rose-600"
+                            />
+                            <span className="text-xs font-semibold text-rose-700">Pregnancy Loss / Ended Without Delivery</span>
+                          </label>
+                        </div>
+                        {pregnancyLoss && (
+                          <div className="px-3 py-3 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Loss Date</label>
+                                <DatePicker
+                                  value={lossDate}
+                                  onChange={setLossDate}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Loss Type</label>
+                                <DropdownField
+                                  value={lossType}
+                                  onValueChange={(v) => setLossType(v as typeof lossType)}
+                                  placeholder="Select type"
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                                  options={[
+                                    { value: 'miscarriage', label: 'Miscarriage' },
+                                    { value: 'reabsorption', label: 'Reabsorption' },
+                                    { value: 'abortion', label: 'Abortion / Termination' },
+                                    { value: 'other', label: 'Other' },
+                                  ]}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Gestational Age at Loss (days)</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={gestationalAgeAtLoss}
+                                  onChange={(e) => setGestationalAgeAtLoss(e.target.value)}
+                                  placeholder="e.g. 30"
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Reported By</label>
+                                <DropdownField
+                                  value={lossReportedBy}
+                                  onValueChange={(v) => setLossReportedBy(v as typeof lossReportedBy)}
+                                  placeholder="Select"
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                                  options={[
+                                    { value: 'vet', label: 'Veterinarian' },
+                                    { value: 'owner', label: 'Owner' },
+                                    { value: 'external_vet', label: 'External Vet' },
+                                    { value: 'unknown', label: 'Unknown' },
+                                  ]}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                              <textarea
+                                rows={2}
+                                value={lossNotes}
+                                onChange={(e) => setLossNotes(e.target.value)}
+                                placeholder="Clinical details, context, or observations…"
+                                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400 resize-none"
+                              />
+                            </div>
+                            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                              Recording a pregnancy loss will update the pet&apos;s pregnancy status to Not Pregnant.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2106,14 +2421,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Delivery Type</label>
                         <DropdownField
-                          value={deliveryType}
-                          onValueChange={(value) => setDeliveryType(value as 'natural' | 'c-section')}
-                          placeholder="Natural"
+                          value={deliveryServiceId}
+                          onValueChange={setDeliveryServiceId}
+                          placeholder="Select delivery type"
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          options={[
-                            { value: 'natural', label: 'Natural' },
-                            { value: 'c-section', label: 'C-Section' },
-                          ]}
+                          options={pregnancyDeliveryServices.map(s => ({ value: s._id, label: s.name }))}
                         />
                       </div>
                       <div>
@@ -2162,6 +2474,35 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Location</label>
+                        <DropdownField
+                          value={deliveryLocation}
+                          onValueChange={(value) => setDeliveryLocation(value as 'in_clinic' | 'outside_clinic' | 'unknown')}
+                          placeholder="Select location"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          options={[
+                            { value: 'in_clinic', label: 'In Clinic' },
+                            { value: 'outside_clinic', label: 'Outside Clinic' },
+                            { value: 'unknown', label: 'Unknown' },
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Reported By</label>
+                        <DropdownField
+                          value={deliveryReportedBy}
+                          onValueChange={(value) => setDeliveryReportedBy(value as 'vet' | 'owner' | 'external_vet' | 'unknown')}
+                          placeholder="Select reporter"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          options={[
+                            { value: 'vet', label: 'Veterinarian' },
+                            { value: 'owner', label: 'Owner' },
+                            { value: 'external_vet', label: 'External Veterinarian' },
+                            { value: 'unknown', label: 'Unknown' },
+                          ]}
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Vet Remarks</label>
@@ -2174,11 +2515,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       />
                     </div>
                     {(() => {
-                      const effectiveLitterNumber = (ultrasoundPregnant && litterNumber)
-                        ? parseInt(litterNumber)
-                        : (previousRecord?.pregnancyRecord?.isPregnant && previousRecord.pregnancyRecord.litterNumber != null)
-                          ? previousRecord.pregnancyRecord.litterNumber
-                          : null
+                      const effectiveLitterNumber = getEffectiveLitterNumber()
                       if (effectiveLitterNumber == null) return null
                       const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
                       const matched = totalBirths === effectiveLitterNumber
@@ -2193,6 +2530,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
+                    {motherCondition === 'critical' && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        A post-delivery follow-up appointment will be automatically scheduled in <strong>3 days</strong> due to critical maternal condition.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

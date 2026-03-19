@@ -9,7 +9,10 @@ export type NotificationType =
   | 'bill_due'
   | 'bill_paid'
   | 'vaccine_due'
-  | 'pet_lost';
+  | 'pet_lost'
+  | 'pregnancy_confirmed'
+  | 'pregnancy_due_soon'
+  | 'pregnancy_overdue';
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
@@ -36,6 +39,9 @@ const NotificationSchema = new Schema<INotification>(
         'bill_paid',
         'vaccine_due',
         'pet_lost',
+        'pregnancy_confirmed',
+        'pregnancy_due_soon',
+        'pregnancy_overdue',
       ],
       required: true,
     },

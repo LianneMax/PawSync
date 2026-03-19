@@ -40,16 +40,31 @@ export interface IPregnancyRecord {
   gestationDate: Date | null;
   expectedDueDate: Date | null;
   litterNumber: number | null;
+  confirmationMethod: 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown';
+  confirmationSource: 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown';
+  confidence: 'high' | 'medium' | 'low';
+  confirmedAt: Date | null;
+  notes: string;
 }
 
 export interface IPregnancyDelivery {
   deliveryDate: Date | null;
-  deliveryType: 'natural' | 'c-section';
+  deliveryType: string;
   laborDuration: string;
   liveBirths: number;
   stillBirths: number;
   motherCondition: 'stable' | 'critical' | 'recovering';
   vetRemarks: string;
+  deliveryLocation: 'in_clinic' | 'outside_clinic' | 'unknown';
+  reportedBy: 'vet' | 'owner' | 'external_vet' | 'unknown';
+}
+
+export interface IPregnancyLoss {
+  lossDate: Date | null;
+  lossType: 'miscarriage' | 'reabsorption' | 'abortion' | 'other';
+  gestationalAgeAtLoss: number | null;
+  notes: string;
+  reportedBy: 'vet' | 'owner' | 'external_vet' | 'unknown';
 }
 
 export interface ISurgeryRecord {
@@ -111,6 +126,7 @@ export interface IMedicalRecord extends Document {
   scheduledSurgery: boolean;
   pregnancyRecord?: IPregnancyRecord | null;
   pregnancyDelivery?: IPregnancyDelivery | null;
+  pregnancyLoss?: IPregnancyLoss | null;
   surgeryRecord?: ISurgeryRecord | null;
   billingId: mongoose.Types.ObjectId | null;
   followUps: IFollowUp[];
@@ -197,6 +213,23 @@ const PregnancyRecordSchema = new Schema(
     gestationDate: { type: Date, default: null },
     expectedDueDate: { type: Date, default: null },
     litterNumber: { type: Number, default: null },
+    confirmationMethod: {
+      type: String,
+      enum: ['ultrasound', 'abdominal_palpation', 'clinical_observation', 'external_documentation', 'unknown'],
+      default: 'unknown',
+    },
+    confirmationSource: {
+      type: String,
+      enum: ['this_clinic', 'external_clinic', 'owner_reported', 'inferred', 'unknown'],
+      default: 'unknown',
+    },
+    confidence: {
+      type: String,
+      enum: ['high', 'medium', 'low'],
+      default: 'medium',
+    },
+    confirmedAt: { type: Date, default: null },
+    notes: { type: String, default: '' },
   },
   { _id: false }
 );
@@ -204,12 +237,25 @@ const PregnancyRecordSchema = new Schema(
 const PregnancyDeliverySchema = new Schema(
   {
     deliveryDate: { type: Date, default: null },
-    deliveryType: { type: String, enum: ['natural', 'c-section'], default: 'natural' },
+    deliveryType: { type: String, default: '' },
     laborDuration: { type: String, default: '' },
     liveBirths: { type: Number, default: 0 },
     stillBirths: { type: Number, default: 0 },
     motherCondition: { type: String, enum: ['stable', 'critical', 'recovering'], default: 'stable' },
     vetRemarks: { type: String, default: '' },
+    deliveryLocation: { type: String, enum: ['in_clinic', 'outside_clinic', 'unknown'], default: 'in_clinic' },
+    reportedBy: { type: String, enum: ['vet', 'owner', 'external_vet', 'unknown'], default: 'vet' },
+  },
+  { _id: false }
+);
+
+const PregnancyLossSchema = new Schema(
+  {
+    lossDate: { type: Date, default: null },
+    lossType: { type: String, enum: ['miscarriage', 'reabsorption', 'abortion', 'other'], default: 'miscarriage' },
+    gestationalAgeAtLoss: { type: Number, default: null },
+    notes: { type: String, default: '' },
+    reportedBy: { type: String, enum: ['vet', 'owner', 'external_vet', 'unknown'], default: 'vet' },
   },
   { _id: false }
 );
@@ -362,6 +408,10 @@ const MedicalRecordSchema = new Schema(
     },
     pregnancyDelivery: {
       type: PregnancyDeliverySchema,
+      default: null,
+    },
+    pregnancyLoss: {
+      type: PregnancyLossSchema,
       default: null,
     },
     surgeryRecord: {
