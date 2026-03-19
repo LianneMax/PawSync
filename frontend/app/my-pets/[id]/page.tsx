@@ -10,7 +10,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getPetById, updatePet, togglePetLost, type Pet as APIPet } from '@/lib/pets'
+import { getPetById, updatePet, togglePetLost, updatePetConfinement, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
@@ -104,6 +104,7 @@ export default function PetProfilePage() {
   const [lostContact, setLostContact] = useState('')
   const [lostMessage, setLostMessage] = useState('')
   const [isMarkingLost, setIsMarkingLost] = useState(false)
+  const [isUpdatingConfinement, setIsUpdatingConfinement] = useState(false)
   const hasRegisteredNfcTag = Boolean(pet?.nfcTagId?.trim() && pet.nfcTagId !== '-')
   const lostPetLockedMessage = 'Purchase a pet tag first to unlock this feature.'
 
@@ -494,6 +495,30 @@ export default function PetProfilePage() {
     }
   }
 
+  const handleReleaseFromConfinement = async () => {
+    if (!pet || !token || !pet.isConfined) return
+
+    setIsUpdatingConfinement(true)
+    try {
+      const response = await updatePetConfinement(pet._id, false, token)
+      if (response.status === 'SUCCESS') {
+        const days = response.data?.confinementDays
+        toast('Pet Released', {
+          description: days && days > 0
+            ? `${pet.name} was released after ${days} day${days !== 1 ? 's' : ''} of confinement.`
+            : `${pet.name} was released from confinement.`
+        })
+        await fetchPet()
+      } else {
+        toast('Error', { description: response.message || 'Failed to release pet from confinement.' })
+      }
+    } catch {
+      toast('Error', { description: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsUpdatingConfinement(false)
+    }
+  }
+
   const handleSubmitPetTagRequest = async () => {
     if (!pet || !token || !selectedBranch || !pickupDate) return
     setIsSubmittingRequest(true)
@@ -876,6 +901,29 @@ export default function PetProfilePage() {
               <DetailField label="Last Visit" value={healthMetrics.lastVisit} />
               <DetailField label="Next Visit" value={healthMetrics.nextVisit} />
               <DetailField label="Last SpO2" value={healthMetrics.lastSpo2} />
+
+              <div className="bg-[#F8F6F2] rounded-xl p-4 sm:col-span-2">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Confinement Status</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <span className={`inline-flex items-center w-fit px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    pet.isConfined
+                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                      : 'bg-green-100 text-green-700 border border-green-200'
+                  }`}>
+                    {pet.isConfined ? 'Currently Confined' : 'Not Confined'}
+                  </span>
+
+                  {pet.isConfined && (
+                    <button
+                      onClick={handleReleaseFromConfinement}
+                      disabled={isUpdatingConfinement}
+                      className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#35785C] text-white hover:bg-[#2D6B52] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUpdatingConfinement ? 'Releasing...' : 'Release from Confinement'}
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {/* Allergies - editable */}
               {editing ? (

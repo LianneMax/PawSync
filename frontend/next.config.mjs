@@ -8,6 +8,9 @@ const nextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../'),
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  experimental: {
+    devtoolSegmentExplorer: false,
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
