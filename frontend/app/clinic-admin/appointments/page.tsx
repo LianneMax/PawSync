@@ -1626,102 +1626,106 @@ export default function ClinicAdminAppointmentsPage() {
           />
         ) : displayedAppointments.length > 0 ? (
           /* ---- LIST VIEW ---- */
-          <div className="space-y-4">
-            {displayedAppointments.map((appt) => (
-              <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {appt.petId?.photo ? (
-                    <Image src={appt.petId.photo} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
-                      <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                    <p className="text-xs text-gray-500">
-                      Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
-                      </span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
-                      </span>
+          <div className="md:max-h-[calc(100vh-24rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
+            <div className="space-y-4">
+              {displayedAppointments.map((appt) => (
+                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {appt.petId?.photo ? (
+                      <Image src={appt.petId.photo} alt="" width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                        <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
+                      <p className="text-xs text-gray-500">
+                        Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
+                        </span>
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-wrap gap-1">
-                    {appt.isEmergency && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
-                    )}
-                    {appt.isWalkIn && !appt.isEmergency && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
-                    )}
-                    {appt.types.map((t) => (
-                      <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap gap-1">
+                      {appt.isEmergency && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
+                      )}
+                      {appt.isWalkIn && !appt.isEmergency && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
+                      )}
+                      {appt.types.map((t) => (
+                        <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
+                      ))}
+                    </div>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
+                      appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                      appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      appt.status === 'in_clinic' ? 'bg-blue-100 text-blue-700' :
+                      appt.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
+                      appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      appt.status === 'completed' ? 'bg-gray-100 text-gray-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {appt.status}
+                    </span>
+                    {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleCheckIn(appt._id)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                        >
+                          Check-in
+                        </button>
+                        <button
+                          onClick={() => setRescheduleTarget(appt)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                        >
+                          Reschedule
+                        </button>
+                        <button
+                          onClick={() => handleCancel(appt._id)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>                  )}
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
-                    appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                    appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                    appt.status === 'in_clinic' ? 'bg-blue-100 text-blue-700' :
-                    appt.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                    appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                    appt.status === 'completed' ? 'bg-gray-100 text-gray-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {appt.status}
-                  </span>
-                  {(appt.status === 'confirmed' || appt.status === 'pending') && activeTab === 'upcoming' && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleCheckIn(appt._id)}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
-                      >
-                        Check-in
-                      </button>
-                      <button
-                        onClick={() => setRescheduleTarget(appt)}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        onClick={() => handleCancel(appt._id)}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>                  )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : (
           /* ---- EMPTY STATE ---- */
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-              {activeTab === 'upcoming' ? (
-                <>
-                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 mb-6">No upcoming appointments</p>
-                  <button
-                    onClick={() => setModalOpen(true)}
-                    className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Set an Appointment
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No past appointments</p>
-                </>
-              )}
+          <div className="md:max-h-[calc(100vh-24rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
+            <div className="bg-white rounded-2xl p-6 shadow-sm">
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                {activeTab === 'upcoming' ? (
+                  <>
+                    <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-6">No upcoming appointments</p>
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Set an Appointment
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No past appointments</p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
