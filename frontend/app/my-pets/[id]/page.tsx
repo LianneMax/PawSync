@@ -10,7 +10,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getPetById, updatePet, togglePetLost, updatePetConfinement, type Pet as APIPet } from '@/lib/pets'
+import { getPetById, updatePet, togglePetLost, requestConfinementRelease, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
@@ -500,17 +500,14 @@ export default function PetProfilePage() {
 
     setIsUpdatingConfinement(true)
     try {
-      const response = await updatePetConfinement(pet._id, false, token)
+      const response = await requestConfinementRelease(pet._id, token)
       if (response.status === 'SUCCESS') {
-        const days = response.data?.confinementDays
-        toast('Pet Released', {
-          description: days && days > 0
-            ? `${pet.name} was released after ${days} day${days !== 1 ? 's' : ''} of confinement.`
-            : `${pet.name} was released from confinement.`
+        toast('Release Requested', {
+          description: `${pet.name}'s handling veterinarian has been notified to confirm discharge.`
         })
         await fetchPet()
       } else {
-        toast('Error', { description: response.message || 'Failed to release pet from confinement.' })
+        toast('Error', { description: response.message || 'Failed to request release from confinement.' })
       }
     } catch {
       toast('Error', { description: 'Something went wrong. Please try again.' })

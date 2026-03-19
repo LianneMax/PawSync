@@ -3,6 +3,7 @@ import ConfinementRecord from '../models/ConfinementRecord';
 import User from '../models/User';
 import Pet from '../models/Pet';
 import MedicalRecord from '../models/MedicalRecord';
+import { createNotification } from '../services/notificationService';
 
 /**
  * GET /api/confinement
@@ -162,6 +163,122 @@ export const getConfinementByPet = async (req: Request, res: Response) => {
     return res.status(200).json({ status: 'SUCCESS', data: { records } });
   } catch (error) {
     console.error('Get confinement by pet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * POST /api/confinement/pet/:petId/request-release
+ * Pet owner requests release from confinement for their pet.
+ */
+export const requestConfinementRelease = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+
+    const pet = await Pet.findById(req.params.petId);
+    if (!pet) return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+
+    if (req.user.userType !== 'pet-owner' || pet.ownerId.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the pet owner can request release' });
+    }
+
+    const record = await ConfinementRecord.findOne({
+      petId: pet._id,
+      status: 'admitted',
+    }).sort({ admissionDate: -1 });
+
+    if (!record) {
+      return res.status(404).json({ status: 'ERROR', message: 'No active confinement record found' });
+    }
+
+    if ((record as any).releaseRequestStatus === 'pending') {
+      return res.status(409).json({ status: 'ERROR', message: 'A release request is already pending confirmation' });
+    }
+
+    (record as any).releaseRequestStatus = 'pending';
+    (record as any).releaseRequestedByOwnerId = req.user.userId;
+    (record as any).releaseRequestedAt = new Date();
+    await record.save();
+
+    await createNotification(
+      record.vetId.toString(),
+      'confinement_release_request',
+      'Confinement Release Request',
+      `${pet.name}'s owner requested release from confinement. Please confirm discharge.`,
+      {
+        petId: pet._id,
+        confinementRecordId: record._id,
+        requestedByOwnerId: req.user.userId,
+      }
+    );
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Release request sent to the handling veterinarian',
+      data: { record },
+    });
+  } catch (error) {
+    console.error('Request confinement release error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * PATCH /api/confinement/:id/confirm-release
+ * Handling veterinarian confirms release request and discharges confinement.
+ */
+export const confirmConfinementRelease = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+
+    const record = await ConfinementRecord.findById(req.params.id);
+    if (!record) return res.status(404).json({ status: 'ERROR', message: 'Record not found' });
+
+    if (req.user.userType !== 'veterinarian' || record.vetId.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the handling veterinarian can confirm release' });
+    }
+
+    if ((record as any).releaseRequestStatus !== 'pending') {
+      return res.status(400).json({ status: 'ERROR', message: 'No pending release request to confirm' });
+    }
+
+    const now = new Date();
+    record.status = 'discharged';
+    record.dischargeDate = now;
+    (record as any).releaseRequestStatus = 'approved';
+    (record as any).releaseConfirmedByVetId = req.user.userId;
+    (record as any).releaseConfirmedAt = now;
+    await record.save();
+
+    const pet = await Pet.findById(record.petId);
+    if (pet) {
+      pet.isConfined = false;
+      pet.confinedSince = null;
+      (pet as any).currentConfinementRecordId = null;
+      await pet.save();
+    }
+
+    if ((record as any).releaseRequestedByOwnerId) {
+      await createNotification(
+        (record as any).releaseRequestedByOwnerId.toString(),
+        'confinement_release_confirmed',
+        'Confinement Release Confirmed',
+        `${pet?.name || 'Your pet'} has been discharged from confinement by the veterinarian.`,
+        {
+          petId: pet?._id,
+          confinementRecordId: record._id,
+          confirmedByVetId: req.user.userId,
+        }
+      );
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Confinement released and marked as discharged',
+      data: { record },
+    });
+  } catch (error) {
+    console.error('Confirm confinement release error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
   }
 };

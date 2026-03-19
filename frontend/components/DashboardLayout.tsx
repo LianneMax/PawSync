@@ -104,6 +104,18 @@ function getNotificationIcon(type: NotificationType) {
           <PawPrint className="w-5 h-5 text-[#16A34A]" />
         </div>
       )
+    case 'confinement_release_request':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
+          <PawPrint className="w-5 h-5 text-[#B45309]" />
+        </div>
+      )
+    case 'confinement_release_confirmed':
+      return (
+        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+          <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
+        </div>
+      )
     case 'appointment_scheduled':
     default:
       return (
@@ -214,6 +226,23 @@ export default function DashboardLayout({
     await markAllNotificationsRead().catch(() => {})
   }, [])
 
+  const confirmConfinementRelease = useCallback(async (notification: Notification) => {
+    const confinementRecordId = notification.metadata?.confinementRecordId
+    if (!confinementRecordId) return
+
+    try {
+      await authenticatedFetch(
+        `/confinement/${confinementRecordId}/confirm-release`,
+        { method: 'PATCH' },
+        token || undefined
+      )
+      await markAsRead(notification._id)
+      fetchNotifications()
+    } catch (err) {
+      console.error('[Notifications] Confirm confinement release failed:', err)
+    }
+  }, [fetchNotifications, markAsRead, token])
+
   if (!userData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F6F2]">
@@ -292,6 +321,17 @@ export default function DashboardLayout({
                     <p className="font-semibold text-[#4F4F4F] text-sm">{notification.title}</p>
                     <p className="text-xs text-[#4F4F4F] mt-1 leading-relaxed">{notification.message}</p>
                     <p className="text-[11px] text-[#959595] mt-2 font-medium">{timeAgo(notification.createdAt)}</p>
+                    {userData.userType === 'veterinarian' && notification.type === 'confinement_release_request' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          confirmConfinementRelease(notification)
+                        }}
+                        className="mt-2 inline-flex items-center rounded-md bg-[#5A7C7A] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#476B6B] transition-colors"
+                      >
+                        Confirm Release
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

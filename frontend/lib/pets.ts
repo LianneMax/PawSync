@@ -165,6 +165,15 @@ export const updatePetConfinement = async (id: string, isConfined: boolean, toke
 };
 
 /**
+ * Pet owner requests release confirmation from the handling veterinarian.
+ */
+export const requestConfinementRelease = async (petId: string, token?: string): Promise<{ status: string; message?: string; data?: any }> => {
+  return authenticatedFetch(`/confinement/pet/${petId}/request-release`, {
+    method: 'POST'
+  }, token);
+};
+
+/**
  * Update a pet's pregnancy status.
  * Accessible by the pet owner, treating vet, or clinic admin.
  */

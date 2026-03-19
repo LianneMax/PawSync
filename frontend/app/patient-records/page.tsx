@@ -225,6 +225,8 @@ export default function PatientRecordsPage() {
   const [patientTab, setPatientTab] = useState<'records' | 'vaccinations'>('records')
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [loadingVaccinations, setLoadingVaccinations] = useState(false)
+  const [pendingReleaseRequest, setPendingReleaseRequest] = useState<{ confinementRecordId: string; requestedAt?: string | null } | null>(null)
+  const [confirmingRelease, setConfirmingRelease] = useState(false)
 
   // Load patients from vet's appointments
   const loadPatients = useCallback(async () => {
@@ -308,11 +310,57 @@ export default function PatientRecordsPage() {
     }
   }, [token])
 
+  const loadPendingReleaseRequest = useCallback(async (petId: string) => {
+    if (!token) return
+    try {
+      const res = await authenticatedFetch(`/confinement/pet/${petId}`, { method: 'GET' }, token)
+      const records = res?.data?.records || []
+      const pending = records.find((r: any) => r.status === 'admitted' && r.releaseRequestStatus === 'pending')
+      if (pending?._id) {
+        setPendingReleaseRequest({
+          confinementRecordId: pending._id,
+          requestedAt: pending.releaseRequestedAt || null,
+        })
+      } else {
+        setPendingReleaseRequest(null)
+      }
+    } catch {
+      setPendingReleaseRequest(null)
+    }
+  }, [token])
+
+  const handleConfirmReleaseRequest = async () => {
+    if (!token || !pendingReleaseRequest?.confinementRecordId || !selectedPatient) return
+    setConfirmingRelease(true)
+    try {
+      const res = await authenticatedFetch(
+        `/confinement/${pendingReleaseRequest.confinementRecordId}/confirm-release`,
+        { method: 'PATCH' },
+        token,
+      )
+      if (res?.status === 'SUCCESS') {
+        toast.success('Confinement release confirmed')
+        await Promise.all([
+          loadPendingReleaseRequest(selectedPatient._id),
+          loadRecords(selectedPatient._id),
+        ])
+      } else {
+        toast.error(res?.message || 'Failed to confirm confinement release')
+      }
+    } catch {
+      toast.error('Failed to confirm confinement release')
+    } finally {
+      setConfirmingRelease(false)
+    }
+  }
+
   const handleSelectPatient = (pet: PatientPet) => {
     setSelectedPatient(pet)
     setPatientTab('records')
     setVaccinations([])
+    setPendingReleaseRequest(null)
     loadRecords(pet._id)
+    loadPendingReleaseRequest(pet._id)
   }
 
   const handleBack = () => {
@@ -321,6 +369,7 @@ export default function PatientRecordsPage() {
     setHistoricalRecords([])
     setPatientTab('records')
     setVaccinations([])
+    setPendingReleaseRequest(null)
   }
 
   // Build ordered list of all record IDs for the selected patient
@@ -541,34 +590,48 @@ export default function PatientRecordsPage() {
             </div>
 
             {/* Patient Detail Tabs */}
-            <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
-              <button
-                onClick={() => setPatientTab('records')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  patientTab === 'records'
-                    ? 'bg-white text-[#476B6B] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <ClipboardList className="w-4 h-4" />
-                Medical Records
-              </button>
-              <button
-                onClick={() => {
-                  setPatientTab('vaccinations')
-                  if (selectedPatient && vaccinations.length === 0 && !loadingVaccinations) {
-                    loadVaccinations(selectedPatient._id)
-                  }
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  patientTab === 'vaccinations'
-                    ? 'bg-white text-[#476B6B] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Syringe className="w-4 h-4" />
-                Vaccinations
-              </button>
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+                <button
+                  onClick={() => setPatientTab('records')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    patientTab === 'records'
+                      ? 'bg-white text-[#476B6B] shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Medical Records
+                </button>
+                <button
+                  onClick={() => {
+                    setPatientTab('vaccinations')
+                    if (selectedPatient && vaccinations.length === 0 && !loadingVaccinations) {
+                      loadVaccinations(selectedPatient._id)
+                    }
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    patientTab === 'vaccinations'
+                      ? 'bg-white text-[#476B6B] shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Syringe className="w-4 h-4" />
+                  Vaccinations
+                </button>
+              </div>
+
+              {pendingReleaseRequest && (
+                <button
+                  onClick={handleConfirmReleaseRequest}
+                  disabled={confirmingRelease}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 text-sm font-semibold hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Owner requested release from confinement"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  {confirmingRelease ? 'Confirming...' : 'Confirm Release Request'}
+                </button>
+              )}
             </div>
 
             {/* Medical Records */}

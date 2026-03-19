@@ -13,6 +13,11 @@ export interface IConfinementRecord extends Document {
   admissionDate: Date;
   dischargeDate: Date | null;
   status: 'admitted' | 'discharged';
+  releaseRequestStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  releaseRequestedByOwnerId: mongoose.Types.ObjectId | null;
+  releaseRequestedAt: Date | null;
+  releaseConfirmedByVetId: mongoose.Types.ObjectId | null;
+  releaseConfirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +85,30 @@ const ConfinementRecordSchema = new Schema(
       type: String,
       enum: ['admitted', 'discharged'],
       default: 'admitted',
+    },
+    releaseRequestStatus: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none',
+      index: true,
+    },
+    releaseRequestedByOwnerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    releaseRequestedAt: {
+      type: Date,
+      default: null,
+    },
+    releaseConfirmedByVetId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    releaseConfirmedAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

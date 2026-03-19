@@ -10,7 +10,9 @@ export type NotificationType =
   | 'bill_paid'
   | 'vaccine_due'
   | 'pet_lost'
-  | 'pet_found';
+  | 'pet_found'
+  | 'confinement_release_request'
+  | 'confinement_release_confirmed';
 
 export interface Notification {
   _id: string;
