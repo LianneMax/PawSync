@@ -18,9 +18,10 @@ interface DatePickerProps {
   minDate?: Date; // Minimum allowed date
   maxDate?: Date; // Maximum allowed date
   disabled?: boolean;
+  compact?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate, maxDate, disabled = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate, maxDate, disabled = false, compact = false }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [textValue, setTextValue] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -145,7 +146,8 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
   return (
     <div className={cn('relative', className)}>
       <div className={cn(
-        "relative flex items-center w-full h-13 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus-within:ring-2 focus-within:ring-[#7FA5A3] focus-within:border-transparent transition-all",
+        "relative flex items-center w-full bg-gray-50 border shadow-xs shadow-black/5 focus-within:ring-2 focus-within:ring-[#7FA5A3] focus-within:border-transparent transition-all",
+        compact ? 'h-8 rounded-lg' : 'h-13 rounded-xl',
         error ? 'border-red-400' : 'border-gray-200',
       )}>
         <Popover open={open} onOpenChange={setOpen}>
@@ -153,9 +155,12 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
             <button
               type="button"
               disabled={disabled}
-              className="flex items-center justify-center pl-4 pr-2 h-full text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+              className={cn(
+                'flex items-center justify-center h-full text-gray-400 hover:text-gray-600 transition-colors shrink-0',
+                compact ? 'pl-2.5 pr-1.5' : 'pl-4 pr-2',
+              )}
             >
-              <CalendarIcon className="w-5 h-5" />
+              <CalendarIcon className={cn(compact ? 'w-3.5 h-3.5' : 'w-5 h-5')} />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -171,16 +176,22 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
           onChange={handleTextChange}
           onBlur={handleTextBlur}
           placeholder={placeholder}
-          className="flex-1 h-full bg-transparent text-base outline-none placeholder:text-gray-400 pr-9"
+          className={cn(
+            'flex-1 h-full bg-transparent outline-none placeholder:text-gray-400',
+            compact ? 'text-xs pr-7' : 'text-base pr-9',
+          )}
         />
 
         {date && !disabled && (
           <button
             type="button"
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className={cn(
+              'absolute top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors',
+              compact ? 'right-2.5' : 'right-3',
+            )}
             onClick={handleReset}
           >
-            <X className="w-4 h-4" />
+            <X className={cn(compact ? 'w-3 h-3' : 'w-4 h-4')} />
           </button>
         )}
       </div>

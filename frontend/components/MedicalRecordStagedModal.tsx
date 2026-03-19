@@ -2601,6 +2601,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 setExpectedDueDate(suggestDueDate(value))
                               }
                             }}
+                            compact
                             className="w-full"
                           />
                         </div>
@@ -2610,6 +2611,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             value={expectedDueDate}
                             onChange={setExpectedDueDate}
                             allowFutureDates
+                            compact
                             className="w-full"
                           />
                           {pregnancyDateError() && (
@@ -2666,6 +2668,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 <DatePicker
                                   value={lossDate}
                                   onChange={setLossDate}
+                                  compact
                                   className="w-full"
                                 />
                               </div>
@@ -2754,6 +2757,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                           value={deliveryDate}
                           onChange={setDeliveryDate}
                           allowFutureDates
+                          compact
                           className="w-full"
                         />
                       </div>
@@ -3244,6 +3248,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 }))}
                                 maxDate={new Date()}
                                 error={!!dateInFuture}
+                                compact
                                 className="w-full"
                               />
                               {dateInFuture && (
@@ -3263,6 +3268,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                   minDate={v.dateAdministered ? (() => { const d = new Date(v.dateAdministered); d.setDate(d.getDate() + 1); return d })() : undefined}
                                   allowFutureDates
                                   error={!!nextDueInvalid}
+                                  compact
                                   className="w-full"
                                 />
                                 {nextDueInvalid && (
@@ -3814,7 +3820,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div>
                             <DropdownField
                               value={care.product}
                               onValueChange={(value) => {
@@ -3834,18 +3840,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 })),
                               ]}
                             />
-                            <div>
-                              <label className="block text-xs text-gray-400 mb-1">Date Administered</label>
-                              <DatePicker
-                                value={care.dateAdministered || ''}
-                                onChange={(value) => {
-                                  setPreventiveCare((prev) => prev.map((c, j) =>
-                                    j === i ? { ...c, dateAdministered: value || null } : c
-                                  ))
-                                }}
-                                className="w-full"
-                              />
-                            </div>
                           </div>
 
                           <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
