@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 
 const LastScannedMap = dynamic(() => import('@/components/LastScannedMap'), { ssr: false })
 const ScanLocationsMap = dynamic(() => import('@/components/ScanLocationsMap'), { ssr: false })
@@ -1471,37 +1472,38 @@ export default function PetProfilePage() {
       <Dialog open={showQRCodeModal} onOpenChange={setShowQRCodeModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center">{pet?.name}&apos;s Pet Profile QR Code</DialogTitle>
+            <DialogTitle className="text-center text-[#4F4F4F]">{pet?.name}&apos;s Pet Profile QR Code</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col items-center gap-6 py-6">
             {pet?.qrCode && (
               <>
-                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 w-full max-w-xs">
-                  <Image
-                    src={pet.qrCode}
-                    alt={`QR code for ${pet.name}`}
-                    width={256}
-                    height={256}
-                    className="w-full"
-                    unoptimized
+                <div className="bg-white p-4 rounded-lg border-2 border-[#74a3a7]/40 w-full max-w-xs">
+                  <QRCodeSVG
+                    value={`${window.location.origin}/pet/${pet._id}`}
+                    size={256}
+                    fgColor="#74a3a7"
+                    bgColor="#FFFFFF"
+                    level="M"
+                    marginSize={2}
+                    className="w-full h-auto"
                   />
                 </div>
 
-                <div className="text-center text-sm text-gray-600 w-full">
-                  <p className="font-semibold text-gray-800 mb-2">Scan to view pet profile:</p>
-                  <p className="text-xs text-gray-500 break-all">
-                    {window.location.origin}/pet/{pet._id}
-                  </p>
+                <div className="text-center text-sm text-[#4F4F4F] w-full">
+                  <p className="font-semibold mb-1">Scan to view pet profile</p>
+                  <p className="text-xs">You can also open the profile directly using the button below.</p>
                 </div>
 
-                <div className="w-full flex gap-3 pt-4">
-                  <button
-                    onClick={() => setShowQRCodeModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                <div className="w-full pt-4">
+                  <a
+                    href={`${window.location.origin}/pet/${pet._id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold text-center text-white bg-[#74a3a7] hover:bg-[#658f93] transition-colors"
                   >
-                    Close
-                  </button>
+                    Open Public Profile
+                  </a>
                 </div>
               </>
             )}

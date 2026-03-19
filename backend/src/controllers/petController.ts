@@ -384,8 +384,8 @@ export const transferPet = async (req: Request, res: Response) => {
 export const getPublicPetProfile = async (req: Request, res: Response) => {
   try {
     const pet = await Pet.findById(req.params.id)
-      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost lostReportedByStranger lostContactName lostMessage scanLocations ownerId')
-      .populate('ownerId', 'firstName lastName contactNumber');
+      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost lostReportedByStranger lostContactName lostMessage scanLocations ownerId sterilization microchipNumber')
+      .populate('ownerId', 'firstName lastName contactNumber photo');
 
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
@@ -424,6 +424,8 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           sex: pet.sex,
           dateOfBirth: pet.dateOfBirth,
           weight: pet.weight,
+          sterilization: pet.sterilization,
+          microchipNumber: pet.microchipNumber,
           photo: pet.photo,
           allergies: pet.allergies,
           isLost: pet.isLost,

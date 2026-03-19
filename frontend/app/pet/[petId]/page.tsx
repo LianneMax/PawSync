@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info, ChevronDown } from 'lucide-react'
+import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info, ChevronDown, PawPrint, Calendar, Scissors } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
@@ -36,8 +36,10 @@ interface PetData {
   breed: string
   secondaryBreed?: string
   sex: string
+  sterilization?: 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown' | 'yes' | 'no' | null
   dateOfBirth: string
   weight: number
+  microchipNumber?: string | null
   photo?: string
   allergies: string[]
   pregnancyStatus?: 'pregnant' | 'not_pregnant'
@@ -53,6 +55,7 @@ interface OwnerData {
   firstName: string
   lastName: string
   contactNumber: string
+  photo?: string | null
 }
 
 interface VitalsData {
@@ -166,6 +169,30 @@ export default function PetProfilePage() {
     if (age > 0) return `${age} Year${age !== 1 ? 's' : ''}`
     const months = (today.getFullYear() - birthDate.getFullYear()) * 12 + today.getMonth() - birthDate.getMonth()
     return months > 0 ? `${months} Month${months !== 1 ? 's' : ''}` : 'Newborn'
+  }
+
+  const formatMonthYear = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }
+
+  const getSterilizationLabel = (sterilization?: PetData['sterilization']) => {
+    switch (sterilization) {
+      case 'spayed':
+        return 'Spayed'
+      case 'unspayed':
+        return 'Unspayed'
+      case 'neutered':
+        return 'Neutered'
+      case 'unneutered':
+        return 'Unneutered'
+      case 'yes':
+        return pet?.sex === 'female' ? 'Spayed' : 'Neutered'
+      case 'no':
+        return pet?.sex === 'female' ? 'Unspayed' : 'Unneutered'
+      case 'unknown':
+      default:
+        return 'Unknown'
+    }
   }
 
   const handleReportMissing = async () => {
@@ -447,72 +474,51 @@ export default function PetProfilePage() {
           </button>
         )}
 
-        {/* Info Chips */}
-        <div className="flex gap-3 flex-wrap">
-          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1 min-w-[80px]">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Species</p>
-            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.species}</p>
-          </div>
-          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1 min-w-[80px]">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Gender</p>
-            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.sex}</p>
-          </div>
-          <div className="bg-[#F8F6F2] rounded-xl px-5 py-3 flex-1 min-w-[80px]">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Age</p>
-            <p className="text-base font-bold text-[#4F4F4F]">{calculateAge(pet.dateOfBirth)}</p>
-          </div>
-          {pet.sex === 'female' && pet.pregnancyStatus === 'pregnant' && (
-            <div className="bg-pink-50 border border-pink-200 rounded-xl px-5 py-3 flex-1 min-w-[80px]">
-              <p className="text-[10px] text-pink-400 uppercase tracking-wide mb-0.5">Status</p>
-              <p className="text-base font-bold text-pink-600">Pregnant</p>
-            </div>
-          )}
-        </div>
-
-        {/* Vitals Grid */}
+        {/* Public Pet Information */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Weight</p>
-            <p className="text-lg font-bold text-[#4F4F4F]">
-              {vitals?.weight?.value ?? pet.weight} <span className="text-sm font-semibold text-gray-500">kg</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <PawPrint className="w-3 h-3 text-gray-400" />
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Species</p>
+            </div>
+            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.species}</p>
           </div>
           <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Temperature</p>
-            <p className="text-lg font-bold text-[#4F4F4F]">
-              {vitals?.temperature?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">&deg;C</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <User className="w-3 h-3 text-gray-400" />
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Gender</p>
+            </div>
+            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.sex}</p>
           </div>
           <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Pulse Rate</p>
-            <p className="text-lg font-bold text-[#4F4F4F]">
-              {vitals?.pulseRate?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">bpm</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Calendar className="w-3 h-3 text-gray-400" />
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Age</p>
+            </div>
+            <p className="text-base font-bold text-[#4F4F4F]">{calculateAge(pet.dateOfBirth)}</p>
           </div>
           <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">SpO2</p>
-            <p className="text-lg font-bold text-[#4F4F4F]">
-              {vitals?.spo2?.value ?? '—'} <span className="text-sm font-semibold text-gray-500">%</span>
-            </p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Scissors className="w-3 h-3 text-gray-400" />
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Sterilization</p>
+            </div>
+            <p className="text-base font-bold text-[#4F4F4F]">{getSterilizationLabel(pet.sterilization)}</p>
+          </div>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+            <div className="flex items-center gap-1.5 mb-1">
+              <PawPrint className="w-3 h-3 text-gray-400" />
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Breed</p>
+            </div>
+            <p className="text-base font-bold text-[#4F4F4F] capitalize">{pet.breed}{pet.secondaryBreed ? ` × ${pet.secondaryBreed}` : ''}</p>
+          </div>
+          <div className="bg-[#F8F6F2] rounded-xl px-5 py-4">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Nfc className="w-3 h-3 text-gray-400" />
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Microchip Number</p>
+            </div>
+            <p className="text-base font-bold text-[#4F4F4F]">{pet.microchipNumber || 'Not registered'}</p>
           </div>
         </div>
-
-        {/* Known Allergies */}
-        {pet.allergies && pet.allergies.length > 0 && (
-          <div className="bg-[#F8F6F2] rounded-xl p-4">
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Allergies</p>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {pet.allergies.map((allergy, idx) => (
-                <span
-                  key={idx}
-                  className="bg-[#476B6B] text-white text-xs px-2.5 py-1 rounded-full"
-                >
-                  {allergy}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Vaccination Records */}
         <div>
@@ -529,71 +535,94 @@ export default function PetProfilePage() {
               </span>
             )}
           </div>
-          {vaccinations.length > 0 ? (
-            <div className="space-y-3">
-              {vaccinations.map((vax) => {
-                const statusConfig = {
-                  active: { label: 'Active', classes: 'bg-green-100 text-green-700 border-green-200' },
-                  expired: { label: 'Expired', classes: 'bg-red-100 text-red-700 border-red-200' },
-                  overdue: { label: 'Overdue', classes: 'bg-orange-100 text-orange-700 border-orange-200' },
-                  pending: { label: 'Pending', classes: 'bg-blue-100 text-blue-700 border-blue-200' },
-                }
-                const cfg = statusConfig[vax.status] ?? statusConfig.pending
-                return (
-                  <div key={vax._id} className="bg-[#F8F6F2] rounded-xl px-5 py-4">
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <p className="font-semibold text-[#4F4F4F]">{vax.vaccineName}</p>
-                      <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full shrink-0 ${cfg.classes}`}>
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      {vax.dateAdministered && (
-                        <div>
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Given</p>
-                          <p className="text-xs font-semibold text-[#4F4F4F]">
-                            {new Date(vax.dateAdministered).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </p>
+          <div className="bg-white rounded-[28px] border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-[#476B6B] px-6 py-4 flex items-center justify-between">
+              <img
+                src="/images/logos/pawsync-logo-white.png"
+                alt="PawSync"
+                className="h-8 w-auto object-contain"
+              />
+              <span className="text-white text-sm tracking-wider font-normal">VACCINATION CARD</span>
+            </div>
+
+            <div className="px-6 pt-5 pb-4 flex items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-[#4F4F4F] uppercase tracking-wider mb-1 font-normal">PET&apos;S NAME</p>
+                <p className="text-[22px] font-bold text-[#476B6B] uppercase leading-tight mb-4">{pet.name}</p>
+                <p className="text-[11px] text-[#4F4F4F] uppercase tracking-wider mb-1 font-normal">NFC TAG NO.</p>
+                <p className="text-[18px] text-[#476B6B] font-normal">{pet.microchipNumber || 'Not registered'}</p>
+              </div>
+              <div className="rounded-[19px] overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center w-30 h-27.5">
+                {pet.photo ? (
+                  <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-white/20" />
+                )}
+              </div>
+            </div>
+
+            <div className="relative flex items-center h-6">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 bg-white rounded-r-full z-10" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 bg-white rounded-l-full z-10" />
+              <div className="w-full border-t-2 border-dashed border-gray-200" />
+            </div>
+
+            {vaccinations.length > 0 ? (
+              <div>
+                <div className="mx-5 mt-4 rounded-[19px] overflow-hidden bg-[#EFEFEF]">
+                  <div className="divide-y divide-gray-200">
+                    {vaccinations.map((vax) => {
+                      const dateToShow = vax.expiryDate ?? vax.nextDueDate
+                      const isNegative = vax.status === 'overdue' || vax.status === 'expired'
+
+                      return (
+                        <div key={vax._id} className="w-full flex items-center justify-between px-5 py-4">
+                          <p className="text-[18px] text-[#4F4F4F] font-normal">{vax.vaccineName}</p>
+                          {dateToShow ? (
+                            <div className="text-right">
+                              <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
+                                {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
+                              </p>
+                              <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
+                                {formatMonthYear(dateToShow)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="text-right">
+                              <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">STATUS</p>
+                              <p className="text-[14px] text-[#4F4F4F] capitalize">{vax.status}</p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {vax.expiryDate && (
-                        <div>
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Expires</p>
-                          <p className={`text-xs font-semibold ${vax.status === 'expired' || vax.status === 'overdue' ? 'text-red-500' : 'text-[#4F4F4F]'}`}>
-                            {new Date(vax.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        </div>
-                      )}
-                      {vax.nextDueDate && (
-                        <div>
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Next Due</p>
-                          <p className="text-xs font-semibold text-[#4F4F4F]">
-                            {new Date(vax.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        </div>
-                      )}
-                      {vax.manufacturer && (
-                        <div>
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Manufacturer</p>
-                          <p className="text-xs font-semibold text-[#4F4F4F]">{vax.manufacturer}</p>
-                        </div>
-                      )}
-                    </div>
-                    {vax.vet && (
-                      <p className="text-[11px] text-gray-400 mt-2">
-                        Administered by Dr. {vax.vet.firstName} {vax.vet.lastName}
-                        {vax.clinic ? ` · ${vax.clinic.name}` : ''}
-                      </p>
-                    )}
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="bg-[#F8F6F2] rounded-xl px-5 py-6 text-center">
-              <p className="text-gray-400 text-sm">No vaccination records on file</p>
-            </div>
-          )}
+
+                  {vaccinations[0] && (
+                    <div className="bg-white border-t border-[#C2C2C2] grid grid-cols-2 gap-4 px-5 py-4 rounded-b-[19px]">
+                      <div>
+                        <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-1">ADMINISTERED</p>
+                        <p className="text-[14px] text-[#4F4F4F] truncate">
+                          {vaccinations[0].vet ? `Dr. ${vaccinations[0].vet.firstName} ${vaccinations[0].vet.lastName}` : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-1">VETERINARY CLINIC</p>
+                        <p className="text-[14px] text-[#4F4F4F] truncate">{vaccinations[0].clinic?.name ?? '—'}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mx-5 my-5 flex items-center justify-center gap-2 bg-[#BAE0BD] rounded-full py-2.5 px-4">
+                  <CheckCircle2 className="w-4 h-4 text-[#35785C] shrink-0" />
+                  <span className="text-[13px] text-[#35785C] font-normal">Vet Verified — Linked to Medical Records</span>
+                </div>
+              </div>
+            ) : (
+              <div className="px-6 py-8 text-center text-gray-400 text-sm">No vaccination records on file</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -797,8 +826,19 @@ export default function PetProfilePage() {
               className="rounded-full px-5 py-3 flex items-center gap-3 shadow-lg"
               style={{ backgroundColor: '#7FA5A3', boxShadow: '0 8px 24px rgba(127,165,163,0.45)' }}
             >
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
-                <User className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 bg-white/20 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                {owner.photo ? (
+                  <Image
+                    src={owner.photo}
+                    alt={`${owner.firstName} ${owner.lastName}`}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <User className="w-5 h-5 text-white" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-semibold text-white/70 uppercase tracking-wider">Pet Owner</p>
