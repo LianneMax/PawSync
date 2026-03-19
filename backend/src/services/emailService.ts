@@ -393,12 +393,12 @@ export async function sendPetFoundAlert(params: {
     await getResend().emails.send({
       from: FROM,
       to: params.ownerEmail,
-      subject: `PawSync – ${params.petName} Was Reported Found`,
+      subject: `PawSync – Someone Shared a Location for ${params.petName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #5A7C7A;">Great News — Someone Reported ${params.petName}</h2>
+          <h2 style="color: #5A7C7A;">Someone Shared a Location for ${params.petName}</h2>
           <p>Hi ${params.ownerFirstName},</p>
-          <p>A finder reported <strong>${params.petName}</strong> as found from your public profile.</p>
+          <p>A finder shared their location with you from <strong>${params.petName}</strong>&apos;s public profile.</p>
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
             ${params.scannedAt ? `<p style="margin: 4px 0;"><strong>Reported At:</strong> ${formatDate(params.scannedAt)}</p>` : ''}
             ${hasCoords ? `<p style="margin: 4px 0;"><strong>Coordinates:</strong> ${params.latitude}, ${params.longitude}</p>` : ''}

@@ -14,6 +14,7 @@ export interface AuthResponse {
       firstName: string;
       lastName: string;
       email: string;
+      contactNumber?: string;
       userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
       isVerified: boolean;
       clinicId?: string;
@@ -31,6 +32,7 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
+  contactNumber?: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   isVerified: boolean;
   clinicId?: string;
@@ -171,6 +173,7 @@ export interface GoogleAuthResponse {
       firstName: string;
       lastName: string;
       email: string;
+      contactNumber?: string;
       userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
       isVerified: boolean;
       clinicId?: string;

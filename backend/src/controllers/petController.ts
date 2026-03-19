@@ -6,7 +6,7 @@ import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
 import Vaccination from '../models/Vaccination';
 import QRCode from 'qrcode';
-import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundConfirmation } from '../services/emailService';
+import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 
 /** Decode JWT from Authorization header without failing if absent/invalid */
@@ -774,6 +774,18 @@ export const reportPetFound = async (req: Request, res: Response) => {
           reportedAt: reportedAt ?? new Date(),
         }
       );
+    }
+
+    if (owner?.email) {
+      await sendPetFoundAlert({
+        ownerEmail: owner.email,
+        ownerFirstName: owner.firstName,
+        petName: pet.name,
+        petId: (pet._id as any).toString(),
+        scannedAt: reportedAt ?? new Date(),
+        latitude: hasCoords ? latitude : undefined,
+        longitude: hasCoords ? longitude : undefined,
+      });
     }
 
     return res.status(200).json({ status: 'SUCCESS', message: 'Location recorded. The owner has been notified.' });

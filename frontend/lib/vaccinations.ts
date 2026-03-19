@@ -228,7 +228,7 @@ export interface CreateVaccinationResult extends Vaccination {
   /** ISO date string of the auto-scheduled booster appointment, if any. */
   boosterDate?: string;
   /** ID of the auto-created booster appointment, if any. */
-  boosterAppointmentId?: string;
+  boosterAppointmentId: string | null;
 }
 
 /** Create a new vaccination record (vet only). */

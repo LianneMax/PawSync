@@ -7,12 +7,15 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, togglePetLost, removePet, transferPet, type Pet as APIPet } from '@/lib/pets'
 import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
+import { getProfile } from '@/lib/users'
 import {
   Calendar,
   PawPrint,
   FileText,
   Syringe,
   AlertTriangle,
+  Phone,
+  MessageSquare,
   Plus,
   Clock,
   MapPin,
@@ -27,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -51,6 +55,7 @@ interface Pet {
   nextVisit: string
   image: string | null
   isLost: boolean
+  lostReportedByStranger: boolean
   lostContactName: string | null
   lostContactNumber: string | null
   lostMessage: string | null
@@ -114,6 +119,7 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     nextVisit: '-',
     image: apiPet.photo,
     isLost: apiPet.isLost,
+    lostReportedByStranger: apiPet.lostReportedByStranger,
     lostContactName: apiPet.lostContactName ?? null,
     lostContactNumber: apiPet.lostContactNumber ?? null,
     lostMessage: apiPet.lostMessage ?? null,
@@ -490,6 +496,7 @@ function ReportLostPetModal({
   onClose: () => void
   onMarkedLost?: () => void
 }) {
+  const token = useAuthStore((state) => state.token)
   const [contactName, setContactName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [message, setMessage] = useState('')
@@ -500,6 +507,33 @@ function ReportLostPetModal({
     setSelectedPet(pet)
   }, [pet])
 
+  // Auto-populate fields whenever selected pet changes
+  useEffect(() => {
+    if (!selectedPet) return
+    setContactName(selectedPet.name)
+    setContactNumber(selectedPet.lostContactNumber || '')
+    setMessage(
+      selectedPet.lostMessage ||
+      'If you found me, please call or message my owner and feel free to share your current location with them.'
+    )
+  }, [selectedPet?.id])
+
+  // Always prefer the logged-in owner's contact number when modal opens
+  useEffect(() => {
+    const fetchOwnerContact = async () => {
+      if (!open || !token || !selectedPet) return
+      try {
+        const profile = await getProfile(token)
+        const ownerContact = (profile?.data?.user as { contactNumber?: string } | undefined)?.contactNumber || ''
+        setContactNumber(ownerContact || selectedPet.lostContactNumber || '')
+      } catch {
+        setContactNumber(selectedPet.lostContactNumber || '')
+      }
+    }
+
+    fetchOwnerContact()
+  }, [open, token, selectedPet?.id])
+
   if (!pet && (!pets || pets.length === 0)) return null
 
   const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
@@ -509,9 +543,10 @@ function ReportLostPetModal({
       <DialogContent className="max-w-lg w-[95vw] p-6">
         <DialogHeader className="mb-0">
           <DialogTitle
-            className="text-2xl font-normal text-[#900B09]"
+            className="text-2xl font-normal text-[#900B09] flex items-center gap-2"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
+            <AlertTriangle className="w-6 h-6" />
             Report Lost Pet
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -519,25 +554,28 @@ function ReportLostPetModal({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Info Box */}
-        <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
-          <p className="text-sm font-semibold text-[#B71C1C] mb-2">
-            What happens when you report a pet as lost?
-          </p>
-          <p className="text-xs text-[#4F4F4F] leading-relaxed">
-            When someone scans your pet&apos;s NFC tag, they will see a &quot;LOST PET&quot; alert with your basic
-            contact information. This helps strangers who find your pet contact you immediately.
-          </p>
-          <p className="text-xs text-[#4F4F4F] mt-2 leading-relaxed">
-            Note that you will be able to see the last scanned location of your pet
-          </p>
-        </div>
-
         {/* Form */}
         <div className="space-y-4">
-          <div>
-            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
-            {displayPets.length > 1 ? (
+          {/* Pet Preview */}
+          {selectedPet && (
+            <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
+              <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/20 overflow-hidden flex items-center justify-center shrink-0">
+                {selectedPet.image ? (
+                  <Image src={selectedPet.image} alt={selectedPet.name} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                ) : (
+                  <PawPrint className="w-5 h-5 text-[#7FA5A3]" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-[#4F4F4F] text-sm">{selectedPet.name}</p>
+                <p className="text-xs text-gray-500">{selectedPet.breed}</p>
+              </div>
+            </div>
+          )}
+
+          {displayPets.length > 1 && (
+            <div>
+              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -563,74 +601,88 @@ function ReportLostPetModal({
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F]">
-                {selectedPet?.name} - {selectedPet?.breed}
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Name Shown</label>
-              <input
-                type="text"
-                placeholder="Your Name"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              />
             </div>
-            <div>
-              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Contact Number</label>
-              <input
-                type="text"
-                placeholder="+63 123 456 7890"
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              />
-            </div>
+          )}
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-600">Name Shown on Tag</label>
+            <input
+              type="text"
+              placeholder="Name to display on lost pet alert"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30"
+            />
           </div>
-          <div>
-            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
-              Additional Message (Optional)
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5" /> Contact Number
+            </label>
+            <input
+              type="text"
+              placeholder="Your contact number"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5" /> Additional Message <span className="text-gray-400 text-xs font-normal">(Optional)</span>
             </label>
             <textarea
-              placeholder="e.g., Please call immediately if found. Reward Offered"
+              placeholder="Any details that may help identify your pet..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30 resize-none"
             />
+          </div>
+
+          {/* Warning */}
+          <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
+            <p className="text-xs text-[#900B09]">
+              Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.
+            </p>
           </div>
         </div>
 
-        <button
-          className="w-full bg-[#900B09] hover:bg-[#7A0A08] text-white font-semibold py-3 rounded-xl mt-4 transition-colors flex items-center justify-center gap-2"
-          onClick={async () => {
-            try {
-              const token = useAuthStore.getState().token
-              if (token && selectedPet) {
-                await togglePetLost(selectedPet.id, true, token, {
-                  lostContactName: contactName || undefined,
-                  lostContactNumber: contactNumber || undefined,
-                  lostMessage: message || undefined,
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            className="flex-1 px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors flex items-center justify-center gap-2"
+            onClick={async () => {
+              try {
+                const token = useAuthStore.getState().token
+                if (token && selectedPet) {
+                  await togglePetLost(selectedPet.id, true, token, {
+                    lostContactName: contactName || undefined,
+                    lostContactNumber: contactNumber || undefined,
+                    lostMessage: message || undefined,
+                  })
+                }
+                toast('Pet Reported as Lost', {
+                  description: `${selectedPet?.name} has been marked as lost. NFC tag updated.`,
+                  icon: <AlertTriangle className="w-4 h-4 text-[#900B09]" />,
                 })
+                onMarkedLost?.()
+              } catch {
+                toast('Error', { description: 'Failed to update pet status. Please try again.' })
               }
-              toast('Pet Reported as Lost', {
-                description: `${selectedPet?.name} has been marked as lost. NFC tag updated.`,
-                icon: <AlertTriangle className="w-4 h-4 text-[#900B09]" />,
-              })
-              onMarkedLost?.()
-            } catch {
-              toast('Error', { description: 'Failed to update pet status. Please try again.' })
-            }
-            onClose()
-          }}
-        >
-          <AlertTriangle className="w-4 h-4" />
-          Mark as Lost &amp; Update NFC Tag
-        </button>
+              onClose()
+            }}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-center leading-tight">Mark as Lost &amp;<br />Update NFC Tag</span>
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -877,6 +929,8 @@ export default function DashboardPage() {
   const [reportLostFromDetail, setReportLostFromDetail] = useState(false)
   const [removePetOpen, setRemovePetOpen] = useState(false)
   const [removePetTarget, setRemovePetTarget] = useState<Pet | null>(null)
+  const [strangerReportedLostPet, setStrangerReportedLostPet] = useState<Pet | null>(null)
+  const [showStrangerReportedLostModal, setShowStrangerReportedLostModal] = useState(false)
 
   useEffect(() => {
     if (user?.firstName) {
@@ -904,7 +958,18 @@ export default function DashboardPage() {
           router.replace('/onboarding/pet')
           return
         }
-        setPets(response.data.pets.map(apiPetToDashboardPet))
+        const mappedPets = response.data.pets.map(apiPetToDashboardPet)
+        setPets(mappedPets)
+
+        const strangerReportedPet = mappedPets.find((p) => p.isLost && p.lostReportedByStranger)
+        if (strangerReportedPet) {
+          const seenKey = `stranger-lost-alert-seen-${strangerReportedPet.id}`
+          const hasSeen = typeof window !== 'undefined' && sessionStorage.getItem(seenKey) === '1'
+          if (!hasSeen) {
+            setStrangerReportedLostPet(strangerReportedPet)
+            setShowStrangerReportedLostModal(true)
+          }
+        }
       }
     } catch (error) {
       // Handle error silently
@@ -1272,6 +1337,42 @@ export default function DashboardPage() {
         onClose={() => setRemovePetOpen(false)}
         onPetRemoved={fetchPets}
       />
+
+      <Dialog
+        open={showStrangerReportedLostModal}
+        onOpenChange={(open) => {
+          if (!open && strangerReportedLostPet) {
+            sessionStorage.setItem(`stranger-lost-alert-seen-${strangerReportedLostPet.id}`, '1')
+          }
+          setShowStrangerReportedLostModal(open)
+        }}
+      >
+        <DialogContent className="max-w-md w-[95vw] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-[#900B09] flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Pet Marked as Lost
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Someone found <span className="font-semibold text-[#4F4F4F]">{strangerReportedLostPet?.name}</span> and marked this pet as lost on the public profile. This report has already notified you.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex gap-2">
+            <button
+              onClick={() => {
+                if (strangerReportedLostPet) {
+                  sessionStorage.setItem(`stranger-lost-alert-seen-${strangerReportedLostPet.id}`, '1')
+                }
+                setShowStrangerReportedLostModal(false)
+              }}
+              className="w-full px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors"
+            >
+              Okay
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

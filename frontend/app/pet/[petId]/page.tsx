@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info, ChevronDown, PawPrint, Calendar, Scissors } from 'lucide-react'
+import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, MapPin, Heart, Navigation, Info, ChevronDown, PawPrint, Calendar, Scissors, AlertTriangle, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
@@ -14,6 +14,14 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import {
   Sheet,
   SheetContent,
@@ -112,6 +120,11 @@ export default function PetProfilePage() {
   const [isReportingFound, setIsReportingFound] = useState(false)
   const [isSharingLocation, setIsSharingLocation] = useState(false)
   const [locationShared, setLocationShared] = useState(false)
+  const [showOwnerLostModal, setShowOwnerLostModal] = useState(false)
+  const [showStrangerMissingConfirmModal, setShowStrangerMissingConfirmModal] = useState(false)
+  const [lostNameShown, setLostNameShown] = useState('')
+  const [lostContact, setLostContact] = useState('')
+  const [lostMessage, setLostMessage] = useState('')
   const token = useAuthStore((state) => state.token)
   const userId = useAuthStore((state) => state.user?.id)
   const userType = useAuthStore((state) => state.user?.userType)
@@ -157,6 +170,17 @@ export default function PetProfilePage() {
 
     if (petId) fetchProfile()
   }, [petId])
+
+  const openOwnerLostModal = () => {
+    if (!pet || !owner) return
+    setLostNameShown(pet.name)
+    setLostContact(owner.contactNumber || '')
+    setLostMessage(
+      pet.lostMessage ||
+      'If you found me, please call or message my owner and feel free to share your current location with them.'
+    )
+    setShowOwnerLostModal(true)
+  }
 
   const calculateAge = (dateOfBirth: string) => {
     const birthDate = new Date(dateOfBirth)
@@ -245,6 +269,46 @@ export default function PetProfilePage() {
     }
   }
 
+  const handleOwnerReportLost = async () => {
+    if (!pet || !token) return
+    setIsReporting(true)
+    try {
+      const data = await authenticatedFetch(
+        `/pets/${pet._id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isLost: true,
+            lostContactName: lostNameShown || null,
+            lostContactNumber: lostContact || null,
+            lostMessage: lostMessage || null,
+            lostReportedByStranger: false,
+          }),
+        },
+        token
+      )
+
+      if (data?.status === 'SUCCESS') {
+        setPet((prev) => prev ? {
+          ...prev,
+          isLost: true,
+          lostContactName: lostNameShown || null,
+          lostMessage: lostMessage || null,
+          lostReportedByStranger: false,
+        } : null)
+        setShowOwnerLostModal(false)
+        toast.success('Pet Reported as Lost', { description: `${pet.name} has been marked as lost.` })
+      } else {
+        toast.error('Error', { description: data?.message || 'Failed to report pet as lost' })
+      }
+    } catch {
+      toast.error('Error', { description: 'Something went wrong. Please try again.' })
+    } finally {
+      setIsReporting(false)
+    }
+  }
+
   const handleReportFound = async () => {
     setIsReportingFound(true)
     try {
@@ -266,11 +330,15 @@ export default function PetProfilePage() {
         body.longitude = position.coords.longitude
       }
 
-      await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
+      const response = await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || result?.status !== 'SUCCESS') {
+        throw new Error(result?.message || 'Failed to report pet found')
+      }
 
       // Update local scanLocations so the map refreshes immediately
       if (position) {
@@ -305,11 +373,15 @@ export default function PetProfilePage() {
         body.latitude = position.coords.latitude
         body.longitude = position.coords.longitude
       }
-      await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
+      const response = await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || result?.status !== 'SUCCESS') {
+        throw new Error(result?.message || 'Failed to share location')
+      }
       if (position) {
         setPet(prev => prev ? {
           ...prev,
@@ -387,6 +459,8 @@ export default function PetProfilePage() {
     )
   }
 
+  const isOwner = !!userId && !!owner && userId === owner._id
+
   return (
     <div className="min-h-screen bg-white pb-28">
       {/* Hero Section */}
@@ -412,7 +486,13 @@ export default function PetProfilePage() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-[#4F4F4F]">{pet.name}</h1>
           <button
-            onClick={handleReportMissing}
+            onClick={() => {
+              if (isOwner) {
+                openOwnerLostModal()
+                return
+              }
+              setShowStrangerMissingConfirmModal(true)
+            }}
             disabled={isReporting || pet.isLost}
             className="bg-[#8B2E2E] text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 hover:bg-[#7A2828] transition-colors disabled:opacity-60"
           >
@@ -817,6 +897,139 @@ export default function PetProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Stranger Report Missing Confirmation Modal */}
+      <Dialog
+        open={showStrangerMissingConfirmModal && !isOwner}
+        onOpenChange={(open) => !open && setShowStrangerMissingConfirmModal(false)}
+      >
+        <DialogContent className="max-w-md w-[95vw] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-[#900B09] flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Report Missing Pet?
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Submitting this report will notify the pet owner that someone has flagged this pet as missing. Are you sure you want to continue?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex gap-2">
+            <button
+              onClick={() => setShowStrangerMissingConfirmModal(false)}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                setShowStrangerMissingConfirmModal(false)
+                await handleReportMissing()
+              }}
+              disabled={isReporting}
+              className="flex-1 px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {isReporting ? 'Submitting...' : 'Yes, Notify Owner'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Owner Report Lost Modal (public profile only for logged-in owner) */}
+      <Dialog open={showOwnerLostModal && isOwner} onOpenChange={(open) => !open && setShowOwnerLostModal(false)}>
+        <DialogContent className="sm:max-w-110">
+          <DialogHeader>
+            <DialogTitle
+              className="text-2xl font-normal text-[#900B09] flex items-center gap-2"
+              style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+            >
+              <AlertTriangle className="w-6 h-6" />
+              Report Lost Pet
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              This will mark {pet.name} as lost and notify vets and nearby users.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
+              <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center overflow-hidden shrink-0">
+                {pet.photo ? (
+                  <Image src={pet.photo} alt={pet.name} width={40} height={40} className="w-full h-full object-cover" unoptimized />
+                ) : (
+                  <PawPrint className="w-5 h-5 text-[#7FA5A3]" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-[#4F4F4F] text-sm">{pet.name}</p>
+                <p className="text-xs text-gray-500">{pet.breed}{pet.secondaryBreed ? ` × ${pet.secondaryBreed}` : ''}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-600">Name Shown on Tag</label>
+              <input
+                type="text"
+                value={lostNameShown}
+                onChange={(e) => setLostNameShown(e.target.value)}
+                placeholder="Name to display on lost pet alert"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> Contact Number
+              </label>
+              <input
+                type="text"
+                value={lostContact}
+                onChange={(e) => setLostContact(e.target.value)}
+                placeholder="Your contact number"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5" /> Additional Message <span className="text-gray-400 text-xs font-normal">(Optional)</span>
+              </label>
+              <textarea
+                value={lostMessage}
+                onChange={(e) => setLostMessage(e.target.value)}
+                placeholder="Any details that may help identify your pet..."
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#900B09]/30 resize-none"
+              />
+            </div>
+
+            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
+              <p className="text-xs text-[#900B09]">
+                Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <button
+              onClick={() => setShowOwnerLostModal(false)}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleOwnerReportLost}
+              disabled={isReporting}
+              className="flex-1 px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {isReporting ? 'Marking...' : 'Mark as Lost & Update NFC Tag'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sticky Bottom Bar - Owner Info (pill) */}
       {owner && (

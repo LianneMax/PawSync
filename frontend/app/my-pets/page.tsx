@@ -434,7 +434,7 @@ export default function MyPetsPage() {
                   setIsSubmitting(true);
                   try {
                     const selectedBranch = clinicBranches.find(c => c._id === selectedClinic);
-                    const response = await requestPetTag(selectedPetId, selectedClinic, selectedPickupDate, undefined, token);
+                    const response = await requestPetTag(selectedPetId, selectedClinic, selectedPickupDate, undefined, token ?? undefined);
                     
                     if (response.status === 'SUCCESS') {
                       toast.success('Pet Tag Request Submitted', {
