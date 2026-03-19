@@ -314,16 +314,6 @@ const mapProductToCareType = (productName: string): 'flea' | 'tick' | 'heartworm
   return 'other'
 }
 
-const COMPLAINT_CATEGORIES = [
-  { id: 'vomiting', label: 'Vomiting / GI', suggestedTests: ['Abdominal Ultrasound', 'Blood Chemistry'] },
-  { id: 'respiratory', label: 'Respiratory', suggestedTests: ['Chest X-Ray'] },
-  { id: 'skin', label: 'Skin / Coat', suggestedTests: ['Skin Scraping', 'Fungal Culture'] },
-  { id: 'lethargy', label: 'Lethargy / Weakness', suggestedTests: ['CBC', 'Blood Chemistry', 'Urinalysis'] },
-  { id: 'injury', label: 'Injury / Trauma', suggestedTests: ['X-Ray'] },
-  { id: 'urinary', label: 'Urinary Issues', suggestedTests: ['Urinalysis', 'Abdominal Ultrasound'] },
-  { id: 'eye-ear', label: 'Eye / Ear', suggestedTests: ['Ophthalmoscopy', 'Ear Cytology'] },
-  { id: 'routine', label: 'Routine Check', suggestedTests: [] },
-] as const
 
 function calcAge(dob: string): string {
   const d = new Date(dob)
@@ -415,8 +405,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Previous visit data for system-driven context
   const [previousRecord, setPreviousRecord] = useState<MedicalRecordFull | null>(null)
   const [medHistoryData, setMedHistoryData] = useState<MedicalHistory | null>(null)
-  const [complaintCategory, setComplaintCategory] = useState('')
-  const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'>; action: 'continue' | 'stop' }[]>([])
+const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'>; action: 'continue' | 'stop' }[]>([])
   const [carryoverApplied, setCarryoverApplied] = useState(false)
   const [capsuleWarnings, setCapsuleWarnings] = useState<Record<number, string>>({})
   const [prevContextOpen, setPrevContextOpen] = useState(true)
@@ -1130,40 +1119,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
     setShowRequiredErrors(false)
 
-    // SOAP template pre-fill — only populate empty fields
-    const petName = pet?.name || 'the patient'
-    if (!subjective) {
-      if (isVaccinationAppt) {
-        setSubjective(chiefComplaint || `Owner presents ${petName} for scheduled vaccination. No acute concerns reported.`)
-      } else if (isSurgeryAppt) {
-        setSubjective(chiefComplaint || `Owner presents ${petName} for scheduled surgical procedure.`)
-      } else if (isPreventiveCareAppt) {
-        setSubjective(chiefComplaint || `Owner presents ${petName} for routine preventive care.`)
-      } else {
-        setSubjective(chiefComplaint)
-      }
-    }
-    if (!assessment) {
-      if (isVaccinationAppt) {
-        setAssessment(`${petName} presented for scheduled vaccination. Vitals within acceptable limits. No contraindications observed.`)
-      } else if (isPreventiveCareAppt) {
-        setAssessment(`${petName} in good health. Preventive care administered without complications.`)
-      } else if (previousRecord?.assessment) {
-        setAssessment(`Follow-up. Previous: ${previousRecord.assessment}`)
-      }
-    }
-    if (!plan) {
-      if (isVaccinationAppt) {
-        setPlan(`Vaccinations administered today. Owner advised to monitor for 15–30 minutes post-vaccination for adverse reactions (facial swelling, lethargy, vomiting). Return immediately if reaction occurs. Next booster scheduled per vaccine protocol.`)
-      } else if (isSurgeryAppt) {
-        setPlan(`Pre-surgical assessment completed. Owner consented to procedure. Post-operative care instructions to be provided at discharge.`)
-      } else if (isPreventiveCareAppt) {
-        setPlan(`Preventive care administered as scheduled. Owner reminded of next due dates. Continue as advised.`)
-      } else if (previousRecord?.plan) {
-        setPlan(`Previous plan: ${previousRecord.plan}\n\nCurrent plan: `)
-      }
-    }
-
     setSaving(true)
     try {
       await updateMedicalRecord(recordId, {
@@ -1833,24 +1788,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   Chief Complaint / Reason for Visit <span className="text-[#900B09]">*</span>
                 </label>
 
-                {/* Complaint category chips */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {COMPLAINT_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setComplaintCategory(complaintCategory === cat.id ? '' : cat.id)}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                        complaintCategory === cat.id
-                          ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-
                 <textarea
                   value={chiefComplaint}
                   onChange={(e) => { setChiefComplaint(e.target.value); if (showRequiredErrors && e.target.value.trim()) setShowRequiredErrors(false) }}
@@ -2052,43 +1989,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </div>
                 </div>
               </div>
-
-              {/* Diagnostic test suggestions from complaint category */}
-              {(() => {
-                const cat = COMPLAINT_CATEGORIES.find((c) => c.id === complaintCategory)
-                const suggestions = cat?.suggestedTests ?? []
-                const alreadyAdded = new Set(diagnosticTests.map((t) => t.name))
-                const available = suggestions.filter((s) => !alreadyAdded.has(s))
-                if (!cat || available.length === 0) return null
-                return (
-                  <div className="flex items-start gap-2 px-3 py-2.5 bg-[#f0f7f7] border border-[#7FA5A3]/30 rounded-xl">
-                    <Sparkles className="w-3.5 h-3.5 text-[#476B6B] mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold text-[#476B6B] uppercase tracking-wide mb-1.5">
-                        Suggested tests for &quot;{cat.label}&quot;
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {available.map((test) => (
-                          <button
-                            key={test}
-                            type="button"
-                            onClick={() => {
-                              const isUltrasound = test.toLowerCase().includes('ultrasound')
-                              setDiagnosticTests((prev) => [
-                                ...prev,
-                                { testType: isUltrasound ? 'ultrasound' : 'other', name: test, date: null, result: '', normalRange: '', notes: '', images: [] },
-                              ])
-                            }}
-                            className="flex items-center gap-1 px-2.5 py-1 bg-white border border-[#7FA5A3]/40 rounded-full text-[11px] text-[#476B6B] font-medium hover:bg-[#476B6B] hover:text-white transition-colors"
-                          >
-                            <Plus className="w-3 h-3" /> {test}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
 
               {/* Diagnostic Tests */}
               <div className="border border-gray-100 rounded-2xl overflow-hidden">
