@@ -1451,9 +1451,9 @@ function ScheduleModal({
               ) : (
                 <>
                   <div className="flex-1 overflow-y-auto min-h-0 pr-1">
-                    <div className="h-full min-h-full flex flex-col gap-0.5">
+                    <div className="h-full min-h-full flex flex-col gap-1">
                     {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
-                      <div key={hour} className="flex gap-2 min-h-0" style={{ flex: `${hourSlots.length} 1 0%` }}>
+                      <div key={hour} className="flex gap-2">
                         {/* Hour label */}
                         <div className="w-10 shrink-0 text-right pt-1">
                           <span className="text-[10px] font-medium text-gray-400">
@@ -1461,7 +1461,7 @@ function ScheduleModal({
                           </span>
                         </div>
                         {/* Slot blocks */}
-                        <div className="flex-1 min-h-0 flex flex-col gap-0.5">
+                        <div className="flex-1 flex flex-col gap-1">
                           {hourSlots.map((slot) => {
                             const isSelected = selectedSlot?.startTime === slot.startTime
                             const isAvailable = slot.status === 'available' && !isPastSlot(slot.startTime)
@@ -1479,7 +1479,7 @@ function ScheduleModal({
                                   if (isAvailable) setSelectedSlot(slot)
                                 }}
                                 disabled={!isAvailable}
-                                className={`w-full flex-1 min-h-8 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bg}`}
+                                className={`w-full h-8 px-3 rounded-lg text-xs font-medium leading-none transition-all ${bg}`}
                               >
                                 {formatSlotTime(slot.startTime)} – {formatSlotTime(slot.endTime)}
                               </button>
