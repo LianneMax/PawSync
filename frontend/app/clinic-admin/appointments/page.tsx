@@ -364,13 +364,39 @@ function CalendarGridView({
   scheduleType: 'medical' | 'grooming'
   branches: ClinicBranchItem[]
 }) {
-  const hours = Array.from({ length: 11 }, (_, i) => i + 7) // 7AM to 5PM
+  const parseHourFromTime = (time?: string | null, fallback = 0) => {
+    if (!time || typeof time !== 'string') return fallback
+    const [hourPart] = time.split(':')
+    const parsed = parseInt(hourPart, 10)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  const activeBranch = branches.find((branch) => branch.isMain) || branches[0]
+  const openHour = parseHourFromTime(activeBranch?.openingTime, 7)
+  const closeHour = parseHourFromTime(activeBranch?.closingTime, 17)
+  const hourSpan = Math.max(1, closeHour - openHour)
+  const hours = Array.from({ length: hourSpan }, (_, i) => i + openHour)
+
+  const selectedDateObject = new Date(selectedDate)
+  const selectedDayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][selectedDateObject.getDay()]
+  const branchOperatingDays = activeBranch?.operatingDays || []
+  const isBranchOpenOnSelectedDate = branchOperatingDays.length === 0 || branchOperatingDays.includes(selectedDayName)
+
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  useEffect(() => {
+    setCurrentTime(new Date())
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Navigate date
   const goToDay = (offset: number) => {
     const d = new Date(selectedDate)
     d.setDate(d.getDate() + offset)
-    onDateChange(d.toISOString().split('T')[0])
+    onDateChange(toYmd(d))
   }
 
   const dateLabel = new Date(selectedDate).toLocaleDateString('en-US', {
@@ -379,6 +405,14 @@ function CalendarGridView({
     day: 'numeric',
     year: 'numeric',
   })
+
+  const isViewingToday = selectedDate === toYmd(new Date())
+  const currentHour = currentTime.getHours()
+  const currentMinute = currentTime.getMinutes()
+  const isCurrentTimeVisible = isViewingToday && isBranchOpenOnSelectedDate && currentHour >= openHour && currentHour < closeHour
+  const timelinePercentage = isCurrentTimeVisible
+    ? ((currentHour - openHour + currentMinute / 60) / hourSpan) * 100
+    : 0
 
   // Show active appointments (pending, confirmed, in_clinic, in_progress) for the selected date in the calendar view
   const confirmedAppointments = appointments.filter((a) => {
@@ -425,106 +459,122 @@ function CalendarGridView({
               </div>
             </div>
 
-            {/* Time Rows */}
-            {hours.map((hour) => {
-              const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
-              const hourAppointments = confirmedAppointments.filter((a) => {
-                const startHour = parseInt(a.startTime.split(':')[0])
-                return startHour === hour
-              })
-
-              return (
-                <div key={hour} className="flex border-b border-gray-50 min-h-16">
-                  {/* Time label */}
-                  <div className="w-20 shrink-0 px-3 py-2 text-right">
-                    <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
-                  </div>
-                  {/* Grooming column */}
-                  <div className="flex-1 min-w-60 px-2 py-1.5 border-l border-gray-100">
-                    {hourAppointments.map((appt) => {
-                      const colors = statusColors[appt.status] || statusColors.pending
-                      return (
-                        <div
-                          key={appt._id}
-                          className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
-                        >
-                          <p className="text-xs font-medium text-[#4F4F4F] truncate">
-                            {appt.petId?.name || 'Pet'}
-                          </p>
-                          <p className="text-[10px] text-gray-500 truncate">
-                            {appt.ownerId?.firstName} {appt.ownerId?.lastName}
-                          </p>
-                          <div className="flex items-start justify-between mt-0.5">
-                            <span className="text-[10px] text-gray-400">
-                              {formatSlotTime(appt.startTime)}
-                            </span>
-                            <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
-                              {appt.isEmergency ? 'Emergency' : appt.status}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1 mt-1">
-                            <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
-                              {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
-                            </span>
-                            {appt.isEmergency && (
-                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
-                                Emergency
-                              </span>
-                            )}
-                            {appt.isWalkIn && !appt.isEmergency && (
-                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
-                                Walk-In
-                              </span>
-                            )}
-                            {appt.types.map((t) => (
-                              <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
-                                {formatAppointmentTypeDisplay(t)}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-end gap-2 mt-2">
-                            {(appt.status === 'confirmed' || appt.status === 'pending') && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => onCheckIn(appt._id)}
-                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
-                                >
-                                  Check-in
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onReschedule(appt)}
-                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                                >
-                                  Reschedule
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onCancel(appt._id)}
-                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                                >
-                                  Cancel
-                                </button>
-                              </>
-                            )}
-                            {appt.status === 'in_progress' && (
-                              <button
-                                type="button"
-                                className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 opacity-70 cursor-not-allowed"
-                                title="Complete appointment action coming soon"
-                              >
-                                Complete Appointment
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
+            <div className="relative">
+              {isCurrentTimeVisible && (
+                <div
+                  className="absolute left-0 right-0 z-10 pointer-events-none"
+                  style={{ top: `calc(${timelinePercentage}%)` }}
+                >
+                  <div className="relative flex items-center">
+                    <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
+                      {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </span>
+                    <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
                   </div>
                 </div>
-              )
-            })}
+              )}
+
+              {/* Time Rows */}
+              {hours.map((hour) => {
+                const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
+                const hourAppointments = confirmedAppointments.filter((a) => {
+                  const startHour = parseInt(a.startTime.split(':')[0])
+                  return startHour === hour
+                })
+
+                return (
+                  <div key={hour} className="flex border-b border-gray-50 min-h-16">
+                    {/* Time label */}
+                    <div className="w-20 shrink-0 px-3 py-2 text-right">
+                      <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
+                    </div>
+                    {/* Grooming column */}
+                    <div className="flex-1 min-w-60 px-2 py-1.5 border-l border-gray-100">
+                      {hourAppointments.map((appt) => {
+                        const colors = statusColors[appt.status] || statusColors.pending
+                        return (
+                          <div
+                            key={appt._id}
+                            className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
+                          >
+                            <p className="text-xs font-medium text-[#4F4F4F] truncate">
+                              {appt.petId?.name || 'Pet'}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate">
+                              {appt.ownerId?.firstName} {appt.ownerId?.lastName}
+                            </p>
+                            <div className="flex items-start justify-between mt-0.5">
+                              <span className="text-[10px] text-gray-400">
+                                {formatSlotTime(appt.startTime)}
+                              </span>
+                              <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
+                                {appt.isEmergency ? 'Emergency' : appt.status}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1 mt-1">
+                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
+                                {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
+                              </span>
+                              {appt.isEmergency && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
+                                  Emergency
+                                </span>
+                              )}
+                              {appt.isWalkIn && !appt.isEmergency && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
+                                  Walk-In
+                                </span>
+                              )}
+                              {appt.types.map((t) => (
+                                <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
+                                  {formatAppointmentTypeDisplay(t)}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-end gap-2 mt-2">
+                              {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => onCheckIn(appt._id)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                                  >
+                                    Check-in
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onReschedule(appt)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                                  >
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onCancel(appt._id)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )}
+                              {appt.status === 'in_progress' && (
+                                <button
+                                  type="button"
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 opacity-70 cursor-not-allowed"
+                                  title="Complete appointment action coming soon"
+                                >
+                                  Complete Appointment
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -598,104 +648,120 @@ function CalendarGridView({
             ))}
           </div>
 
-          {/* Time Rows */}
-          {hours.map((hour) => {
-            const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
-
-            return (
-              <div key={hour} className="flex border-b border-gray-50 min-h-16">
-                {/* Time label */}
-                <div className="w-20 shrink-0 px-3 py-2 text-right">
-                  <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
+          <div className="relative">
+            {isCurrentTimeVisible && (
+              <div
+                className="absolute left-0 right-0 z-10 pointer-events-none"
+                style={{ top: `calc(${timelinePercentage}%)` }}
+              >
+                <div className="relative flex items-center">
+                  <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
+                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </span>
+                  <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
                 </div>
-                {/* Vet columns */}
-                {displayVets.map((vet) => {
-                  const vetAppts = (apptMap[vet._id] || []).filter((a) => {
-                    const apptHour = parseInt(a.startTime.split(':')[0])
-                    return apptHour === hour
-                  })
-
-                  return (
-                    <div key={vet._id} className="flex-1 min-w-40 px-2 py-1.5 border-l border-gray-100">
-                      {vetAppts.map((appt) => {
-                        const colors = statusColors[appt.status] || statusColors.pending
-                        return (
-                          <div
-                            key={appt._id}
-                            className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
-                          >
-                            <p className="text-xs font-medium text-[#4F4F4F] truncate">
-                              {appt.petId?.name || 'Pet'}
-                            </p>
-                            <p className="text-[10px] text-gray-500 truncate">
-                              {appt.ownerId?.firstName} {appt.ownerId?.lastName}
-                            </p>
-                            <div className="flex items-start justify-between mt-0.5">
-                              <span className="text-[10px] text-gray-400">
-                                {formatSlotTime(appt.startTime)}
-                              </span>
-                              <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
-                                {appt.isEmergency ? 'Emergency' : appt.status}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1 mt-1">
-                              <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
-                                {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
-                              </span>
-                              {appt.isEmergency && (
-                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
-                                  Emergency
-                                </span>
-                              )}
-                              {appt.isWalkIn && !appt.isEmergency && (
-                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
-                                  Walk-In
-                                </span>
-                              )}
-                              {appt.types.map((t) => (
-                                <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
-                                  {formatAppointmentTypeDisplay(t)}
-                                </span>
-                              ))}
-                            </div>
-                            <div className="flex items-center justify-end gap-2 mt-2">
-                              {(appt.status === 'confirmed' || appt.status === 'pending') && (
-                                <button
-                                  type="button"
-                                  onClick={() => onCheckIn(appt._id)}
-                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
-                                >
-                                  Check-in
-                                </button>
-                              )}
-                              {(appt.status === 'confirmed' || appt.status === 'pending') && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => onReschedule(appt)}
-                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                                  >
-                                    Reschedule
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onCancel(appt._id)}
-                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
               </div>
-            )
-          })}
+            )}
+
+            {/* Time Rows */}
+            {hours.map((hour) => {
+              const timeLabel = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`
+
+              return (
+                <div key={hour} className="flex border-b border-gray-50 min-h-16">
+                  {/* Time label */}
+                  <div className="w-20 shrink-0 px-3 py-2 text-right">
+                    <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
+                  </div>
+                  {/* Vet columns */}
+                  {displayVets.map((vet) => {
+                    const vetAppts = (apptMap[vet._id] || []).filter((a) => {
+                      const apptHour = parseInt(a.startTime.split(':')[0])
+                      return apptHour === hour
+                    })
+
+                    return (
+                      <div key={vet._id} className="flex-1 min-w-40 px-2 py-1.5 border-l border-gray-100">
+                        {vetAppts.map((appt) => {
+                          const colors = statusColors[appt.status] || statusColors.pending
+                          return (
+                            <div
+                              key={appt._id}
+                              className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
+                            >
+                              <p className="text-xs font-medium text-[#4F4F4F] truncate">
+                                {appt.petId?.name || 'Pet'}
+                              </p>
+                              <p className="text-[10px] text-gray-500 truncate">
+                                {appt.ownerId?.firstName} {appt.ownerId?.lastName}
+                              </p>
+                              <div className="flex items-start justify-between mt-0.5">
+                                <span className="text-[10px] text-gray-400">
+                                  {formatSlotTime(appt.startTime)}
+                                </span>
+                                <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
+                                  {appt.isEmergency ? 'Emergency' : appt.status}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1 mt-1">
+                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-gray-100 text-gray-500 capitalize">
+                                  {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
+                                </span>
+                                {appt.isEmergency && (
+                                  <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
+                                    Emergency
+                                  </span>
+                                )}
+                                {appt.isWalkIn && !appt.isEmergency && (
+                                  <span className="px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-700 font-medium">
+                                    Walk-In
+                                  </span>
+                                )}
+                                {appt.types.map((t) => (
+                                  <span key={t} className="px-1.5 py-0.5 text-[9px] rounded bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
+                                    {formatAppointmentTypeDisplay(t)}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-end gap-2 mt-2">
+                                {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onCheckIn(appt._id)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                                  >
+                                    Check-in
+                                  </button>
+                                )}
+                                {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => onReschedule(appt)}
+                                      className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                                    >
+                                      Reschedule
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onCancel(appt._id)}
+                                      className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -729,6 +795,9 @@ interface ClinicBranchItem {
   name: string
   address: string
   isMain: boolean
+  openingTime?: string | null
+  closingTime?: string | null
+  operatingDays?: string[]
 }
 
 interface ClinicInfo {
@@ -767,7 +836,7 @@ export default function ClinicAdminAppointmentsPage() {
   const [allVets, setAllVets] = useState<BranchVet[]>([])
 
   // Calendar date
-  const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [calendarDate, setCalendarDate] = useState(() => toYmd(new Date()))
   const [ownerFilterQuery, setOwnerFilterQuery] = useState('')
   const [ownerFilterOpen, setOwnerFilterOpen] = useState(false)
   const [selectedOwnerId, setSelectedOwnerId] = useState('')

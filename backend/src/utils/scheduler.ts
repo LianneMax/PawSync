@@ -357,10 +357,12 @@ export function startScheduler() {
       // Only consider appointments for today or earlier
       const todayStart = new Date(now);
       todayStart.setUTCHours(0, 0, 0, 0);
+      const tomorrowStart = new Date(todayStart);
+      tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
 
       const activeAppointments = await Appointment.find({
         status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'] },
-        date: { $lte: todayStart },
+        date: { $lt: tomorrowStart },
       })
         .populate('ownerId', 'firstName lastName email')
         .populate('petId', 'name isLost status')
