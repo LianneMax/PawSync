@@ -349,10 +349,74 @@ const mapProductToCareType = (productName: string): 'flea' | 'tick' | 'heartworm
   return 'other'
 }
 
+// Determine injection care type from a product/medication name
+const getInjectionCareType = (name: string): 'flea' | 'deworming' | 'heartworm' | null => {
+  const lower = name.toLowerCase()
+  if (lower.includes('heartworm')) return 'heartworm'
+  if (lower.includes('flea') || lower.includes('tick')) return 'flea'
+  if (lower.includes('deworm')) return 'deworming'
+  return null
+}
+
+// Calculate injection dosage (mL) and adjusted price for mlPerKg injections
+const calculateInjectionDosage = (
+  service: { name: string; price: number; injectionPricingType?: string },
+  weightKg: number,
+  careTypeOverride?: 'flea' | 'deworming' | 'heartworm' | null,
+): { dosageMl: number; price: number } | null => {
+  if (String(service.injectionPricingType || '').toLowerCase() !== 'mlperkg') return null
+  if (isNaN(weightKg) || weightKg <= 0) return null
+
+  const type = careTypeOverride !== undefined ? careTypeOverride : getInjectionCareType(service.name)
+  const basePrice = service.price ?? 0
+
+  if (type === 'flea') {
+    const increments = Math.ceil(weightKg / 5)
+    return {
+      dosageMl: parseFloat((increments * 0.4).toFixed(2)),
+      price: parseFloat((basePrice * Math.pow(1.15, increments)).toFixed(2)),
+    }
+  }
+  if (type === 'deworming') {
+    const increments = Math.ceil(weightKg / 2)
+    return {
+      dosageMl: parseFloat((increments * 0.2).toFixed(2)),
+      price: parseFloat((basePrice + increments * 100).toFixed(2)),
+    }
+  }
+  if (type === 'heartworm') {
+    const increments = Math.ceil(weightKg / 1)
+    return {
+      dosageMl: parseFloat((increments * 0.5).toFixed(2)),
+      price: parseFloat((basePrice * Math.pow(1.05, increments)).toFixed(2)),
+    }
+  }
+  return null
+}
+
 const normalizeServiceToken = (value: string): string =>
   String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
+
+const isProductMedicationService = (service: ProductService): boolean => {
+  const normalizedType = String(service.type || '').toLowerCase()
+  const normalizedCategory = String(service.category || '').toLowerCase()
+  return normalizedType === 'product' && normalizedCategory === 'medication'
+}
+
+const getAssociatedServiceIdValue = (service: ProductService): string | null => {
+  if (!service.associatedServiceId) return null
+  if (typeof service.associatedServiceId === 'string') return service.associatedServiceId
+  const nestedId = (service.associatedServiceId as { _id?: unknown })._id
+  if (typeof nestedId === 'string') return nestedId
+  if (nestedId != null) return String(nestedId)
+  return null
+}
+
+const DEBUG_PREVENTIVE_INJECTION_MAPPING =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.NEXT_PUBLIC_DEBUG_PREVENTIVE_INJECTION !== '0'
 
 const derivePreventiveCareFromAppointment = (
   appointmentTypes: string[],
@@ -655,22 +719,96 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const getAssociatedPreventiveMedications = (preventiveServiceName: string): ProductService[] => {
     const normalizedServiceName = normalizeServiceToken(preventiveServiceName)
     const matchedPreventiveService = preventiveCareServices.find((service) =>
-      normalizeServiceToken(service.name) === normalizedServiceName,
+      normalizeServiceToken(service.name) === normalizedServiceName ||
+      normalizeServiceToken(service.name).includes(normalizedServiceName) ||
+      normalizedServiceName.includes(normalizeServiceToken(service.name)),
     )
     if (!matchedPreventiveService?._id) return []
 
     return medicationServices.filter((service) => {
-      if (service.type !== 'Product') return false
-      if (service.category !== 'Medication') return false
-      if (service.administrationRoute !== 'preventive') return false
+      if (!isProductMedicationService(service)) return false
+      if (String(service.administrationRoute || '').toLowerCase() !== 'preventive') return false
 
-      const associatedServiceId =
-        typeof service.associatedServiceId === 'string'
-          ? service.associatedServiceId
-          : service.associatedServiceId?._id
+      const associatedServiceId = getAssociatedServiceIdValue(service)
 
       return associatedServiceId === matchedPreventiveService._id
     })
+  }
+
+  const getAssociatedInjectionMedications = (preventiveServiceName: string): ProductService[] => {
+    const shouldDebug = DEBUG_PREVENTIVE_INJECTION_MAPPING && typeof window !== 'undefined'
+    const normalizedServiceName = normalizeServiceToken(preventiveServiceName)
+    const matchedPreventiveServices = preventiveCareServices.filter((service) =>
+      normalizeServiceToken(service.name) === normalizedServiceName ||
+      normalizeServiceToken(service.name).includes(normalizedServiceName) ||
+      normalizedServiceName.includes(normalizeServiceToken(service.name)),
+    )
+    const preventiveServiceIds = new Set(matchedPreventiveServices.map((service) => String(service._id)))
+    const careType = getInjectionCareType(preventiveServiceName)
+
+    const candidateInjections = medicationServices.filter((service) => {
+      if (!isProductMedicationService(service)) return false
+      return String(service.administrationRoute || '').toLowerCase() === 'injection'
+    })
+
+    const evaluatedCandidates = candidateInjections.map((service) => {
+      const pricingType = String(service.injectionPricingType || '').toLowerCase()
+      const isMlPerKg = pricingType === 'mlperkg'
+      const associatedServiceId = getAssociatedServiceIdValue(service)
+      const directMatch = associatedServiceId ? preventiveServiceIds.has(String(associatedServiceId)) : false
+      const linkedService = associatedServiceId
+        ? [...preventiveCareServices, ...medicationServices].find((item) => String(item._id) === String(associatedServiceId))
+        : null
+      const linkedCareTypeMatch = linkedService && careType
+        ? getInjectionCareType(linkedService.name) === careType
+        : false
+      const nameCareTypeMatch = careType ? getInjectionCareType(service.name) === careType : false
+      const matches = isMlPerKg && (directMatch || linkedCareTypeMatch || nameCareTypeMatch)
+
+      return {
+        service,
+        associatedServiceId,
+        pricingType,
+        isMlPerKg,
+        directMatch,
+        linkedServiceName: linkedService?.name || null,
+        linkedCareTypeMatch,
+        nameCareTypeMatch,
+        matches,
+      }
+    })
+
+    const matchedInjections = evaluatedCandidates
+      .filter((candidate) => candidate.matches)
+      .map((candidate) => candidate.service)
+
+    if (shouldDebug && preventiveServiceName) {
+      console.groupCollapsed(`[PreventiveInjectionDebug] ${preventiveServiceName}`)
+      console.log('Context', {
+        normalizedServiceName,
+        careType,
+        preventiveServiceIds: Array.from(preventiveServiceIds),
+        matchedPreventiveServices: matchedPreventiveServices.map((service) => ({ _id: service._id, name: service.name })),
+        medicationServiceCount: medicationServices.length,
+        candidateInjectionCount: candidateInjections.length,
+      })
+      console.table(evaluatedCandidates.map((candidate) => ({
+        id: candidate.service._id,
+        name: candidate.service.name,
+        associatedServiceId: candidate.associatedServiceId,
+        injectionPricingType: candidate.pricingType || '(empty)',
+        isMlPerKg: candidate.isMlPerKg,
+        directMatch: candidate.directMatch,
+        linkedServiceName: candidate.linkedServiceName,
+        linkedCareTypeMatch: candidate.linkedCareTypeMatch,
+        nameCareTypeMatch: candidate.nameCareTypeMatch,
+        matches: candidate.matches,
+      })))
+      console.log('Matched injections', matchedInjections.map((service) => ({ _id: service._id, name: service.name })))
+      console.groupEnd()
+    }
+
+    return matchedInjections
   }
 
   const deriveSinglePillQuantity = (service: ProductService): number | null => {
@@ -999,6 +1137,27 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     }
     if (prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items) {
       setPreventiveCareServices(prevCareServicesRes.data.items)
+    }
+    if (DEBUG_PREVENTIVE_INJECTION_MAPPING && typeof window !== 'undefined') {
+      console.log('[PreventiveInjectionDebug] Loaded service catalogs', {
+        medicationServicesLoaded: medServicesRes.status === 'SUCCESS' ? (medServicesRes.data?.items?.length || 0) : 0,
+        preventiveServicesLoaded: prevCareServicesRes.status === 'SUCCESS' ? (prevCareServicesRes.data?.items?.length || 0) : 0,
+        medicationInjectionSamples:
+          medServicesRes.status === 'SUCCESS'
+            ? (medServicesRes.data?.items || [])
+                .filter((service) => String(service.administrationRoute || '').toLowerCase() === 'injection')
+                .slice(0, 10)
+                .map((service) => ({
+                  _id: service._id,
+                  name: service.name,
+                  associatedServiceId: getAssociatedServiceIdValue(service),
+                  type: service.type,
+                  category: service.category,
+                  administrationRoute: service.administrationRoute,
+                  injectionPricingType: service.injectionPricingType,
+                }))
+            : [],
+      })
     }
     if (deliveryServicesRes.status === 'SUCCESS' && deliveryServicesRes.data?.items) {
       setPregnancyDeliveryServices(deliveryServicesRes.data.items)
@@ -3694,6 +3853,12 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                     autoQuantity = 1
                                   } else if (administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical') {
                                     autoQuantity = 1
+                                  } else if (String(selectedService.administrationRoute || '').toLowerCase() === 'injection' && String(selectedService.injectionPricingType || '').toLowerCase() === 'mlperkg') {
+                                    const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
+                                    const injCalc = calculateInjectionDosage(selectedService, bodyWeightVal)
+                                    if (injCalc) {
+                                      autoDosage = `${injCalc.dosageMl} mL`
+                                    }
                                   }
                                   const isSelectedTopical = administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical'
                                   return {
@@ -3717,10 +3882,19 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
                             options={[
                               { value: '', label: 'Select a medication' },
-                              ...medicationServices.map((service) => ({
-                                value: service.name,
-                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
-                              })),
+                              ...medicationServices
+                                .filter((service) => {
+                                  // Exclude mlPerKg injections from Medications; these are shown under Preventive Care instead
+                                  if (
+                                    String(service.administrationRoute || '').toLowerCase() === 'injection' &&
+                                    String(service.injectionPricingType || '').toLowerCase() === 'mlperkg'
+                                  ) return false
+                                  return true
+                                })
+                                .map((service) => ({
+                                  value: service.name,
+                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                                })),
                             ]}
                           />
                           {!isTopical && <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
@@ -3812,6 +3986,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
                     {preventiveCare.map((care, i) => {
                       const associatedPreventiveMeds = getAssociatedPreventiveMedications(care.product)
+                      const associatedInjectionMeds = getAssociatedInjectionMedications(care.product)
                       return (
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
@@ -3841,6 +4016,33 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               ]}
                             />
                           </div>
+
+                          {associatedInjectionMeds.length > 0 && (
+                            <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
+                              <p className="text-[11px] font-semibold text-[#476B6B]">Associated Injection</p>
+                              {associatedInjectionMeds.map((inj, injIndex) => {
+                                const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
+                                const effectiveCareType = care.careType || getInjectionCareType(care.product)
+                                const injectionCalc = calculateInjectionDosage(inj, bodyWeightVal, effectiveCareType)
+                                const fallbackDosage = !isNaN(bodyWeightVal) && bodyWeightVal > 0 && inj.dosePerKg != null
+                                  ? `${parseFloat((inj.dosePerKg * bodyWeightVal).toFixed(2))} ${inj.doseUnit || 'mL'}`
+                                  : null
+                                return (
+                                  <div key={`${inj._id}-${injIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
+                                    <p className="text-xs font-semibold text-[#4F4F4F]">{inj.name}</p>
+                                    <div className="mt-1.5">
+                                      <p className="text-[10px] text-gray-400 mb-0.5">Dosage</p>
+                                      <p className="text-xs font-medium text-[#4F4F4F]">
+                                        {injectionCalc
+                                          ? `${injectionCalc.dosageMl} mL`
+                                          : (fallbackDosage || '—')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
 
                           <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
                             <p className="text-[11px] font-semibold text-[#476B6B]">Associated Preventive Medication</p>
@@ -3892,10 +4094,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               <p className="text-[11px] text-gray-500">No preventive medication linked to this preventive care service.</p>
                             )}
                           </div>
-                          
-                          <input 
-                            type="text" 
-                            placeholder="Notes (optional)" 
+
+                          <input
+                            type="text"
+                            placeholder="Notes (optional)"
                             value={care.notes} 
                             onChange={(e) => setPreventiveCare((prev) => prev.map((c, j) => j === i ? { ...c, notes: e.target.value } : c))} 
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" 

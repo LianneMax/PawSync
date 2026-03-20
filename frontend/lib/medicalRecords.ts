@@ -410,6 +410,8 @@ export interface ProductService {
   preventiveDurationUnit?: 'months' | 'years';
   pricingType?: 'singlePill' | 'pack';
   piecesPerPack?: number;
+  injectionPricingType?: 'singleDose' | 'mlPerKg';
+  doseConcentration?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -428,14 +430,26 @@ export const getDiagnosticTestServices = async (token?: string): Promise<Product
  * Fetch medication services from the product-services catalog
  */
 export const getMedicationServices = async (token?: string): Promise<ProductServicesResponse> => {
-  return authenticatedFetch(`/product-services?type=Product&category=Medication`, { method: 'GET' }, token);
+  const res = await authenticatedFetch(`/product-services`, { method: 'GET' }, token) as ProductServicesResponse;
+  if (res.status !== 'SUCCESS' || !res.data?.items) return res;
+  const items = res.data.items.filter((item) =>
+    String(item.type || '').toLowerCase() === 'product' &&
+    String(item.category || '').toLowerCase() === 'medication',
+  );
+  return { ...res, data: { items } };
 };
 
 /**
  * Fetch preventive care services from the product-services catalog
  */
 export const getPreventiveCareServices = async (token?: string): Promise<ProductServicesResponse> => {
-  return authenticatedFetch(`/product-services?type=Service&category=Preventive Care`, { method: 'GET' }, token);
+  const res = await authenticatedFetch(`/product-services`, { method: 'GET' }, token) as ProductServicesResponse;
+  if (res.status !== 'SUCCESS' || !res.data?.items) return res;
+  const items = res.data.items.filter((item) =>
+    String(item.type || '').toLowerCase() === 'service' &&
+    String(item.category || '').toLowerCase() === 'preventive care',
+  );
+  return { ...res, data: { items } };
 };
 
 /**
