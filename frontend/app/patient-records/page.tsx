@@ -92,6 +92,7 @@ interface PatientPet {
   clinicName: string
   clinicBranchId: string
   clinicBranchName: string
+  isConfined?: boolean
 }
 
 // ==================== HELPERS ====================
@@ -263,6 +264,21 @@ export default function PatientRecordsPage() {
             })
           }
         }
+        // Mark confined pets
+        try {
+          const confRes = await authenticatedFetch('/confinement?status=admitted', { method: 'GET' }, token)
+          if (confRes?.status === 'SUCCESS') {
+            const confPetIds = new Set<string>(
+              (confRes.data?.records || []).map((r: any) => r.petId?._id || r.petId)
+            )
+            for (const [id, pet] of petMap) {
+              if (confPetIds.has(id)) petMap.set(id, { ...pet, isConfined: true })
+            }
+          }
+        } catch {
+          // Non-critical; proceed without confinement markers
+        }
+
         setPatients(Array.from(petMap.values()))
       }
     } catch (err) {
@@ -513,18 +529,25 @@ export default function PatientRecordsPage() {
                   <button
                     key={pet._id}
                     onClick={() => handleSelectPatient(pet)}
-                    className="bg-white rounded-2xl p-5 shadow-sm text-left hover:shadow-md hover:ring-1 hover:ring-[#7FA5A3]/30 transition-all"
+                    className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40' : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'}`}
                   >
                     <div className="flex items-center gap-3 mb-3">
                       {pet.photo ? (
                         <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
-                          <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${pet.isConfined ? 'bg-blue-100' : 'bg-[#7FA5A3]/15'}`}>
+                          <PawPrint className={`w-6 h-6 ${pet.isConfined ? 'text-blue-500' : 'text-[#5A7C7A]'}`} />
                         </div>
                       )}
-                      <div>
-                        <p className="font-semibold text-[#4F4F4F]">{pet.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-[#4F4F4F]">{pet.name}</p>
+                          {pet.isConfined && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide shrink-0">
+                              Confined
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 capitalize">{pet.species} &middot; {pet.breed}</p>
                       </div>
                     </div>
