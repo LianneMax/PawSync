@@ -654,6 +654,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     t === 'abdominal-surgery' || t === 'orthopedic-surgery' ||
     t === 'dental-scaling' || t === 'laser-therapy'
   )
+  const patientTiterSpecies: TiterSpecies = pet?.species === 'feline' ? 'feline' : 'canine'
 
   // Load pet-level vet notes on mount
   useEffect(() => {
@@ -1363,11 +1364,14 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const buildImmunityTestingPayload = () => {
     if (!isVaccinationAppt && !hasTiterTestingService) return null
 
-    const normalizedRows = titerRows.map((row) => {
-      const computed = computeTiterStatusAction(row.score)
+    const lockedSpecies = patientTiterSpecies
+    const scoreByDisease = new Map(titerRows.map((row) => [row.disease, row.score]))
+    const normalizedRows = buildTiterRows(lockedSpecies).map((row) => {
+      const score = scoreByDisease.has(row.disease) ? (scoreByDisease.get(row.disease) ?? null) : null
+      const computed = computeTiterStatusAction(score)
       return {
         disease: row.disease,
-        score: row.score,
+        score,
         status: computed.status,
         action: computed.action,
       }
@@ -1376,7 +1380,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     const protectedCount = normalizedRows.filter((row) => row.status === 'Protected').length
     const vaccinateFor = normalizedRows.filter((row) => row.action === 'Vaccinate').map((row) => row.disease)
     const titerDate = new Date().toISOString().split('T')[0]
-    const speciesLabel = titerSpecies === 'canine' ? 'Canine' : 'Feline'
+    const speciesLabel = lockedSpecies === 'canine' ? 'Canine' : 'Feline'
     const planLine = ignoreTiterVaccinate
       ? `Ignore titer; vaccinate anyway. Reason: ${ignoreTiterReason || 'No reason provided.'}`
       : vaccinateFor.length > 0
@@ -1393,14 +1397,14 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
 
     return {
       enabled: titerEnabled,
-      species: titerSpecies,
+      species: lockedSpecies,
       kitName: titerKitName || 'VCheck',
       testDate: titerDate,
       rows: normalizedRows,
       protectedCount,
       summary,
       markdown,
-      tag: `#titer-${titerSpecies}-${titerDate}`,
+      tag: `#titer-${lockedSpecies}-${titerDate}`,
       linkedAppointmentId: appointmentId || null,
       followUpAppointmentId: null,
       followUpDate: null,
@@ -2579,19 +2583,12 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[11px] text-gray-500 mb-1">Species</label>
-                          <DropdownField
-                            value={titerSpecies}
-                            onValueChange={(value) => {
-                              const species = value as TiterSpecies
-                              setTiterSpecies(species)
-                              setTiterRows(buildTiterRows(species))
-                            }}
-                            placeholder="Species"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white"
-                            options={[
-                              { value: 'canine', label: 'Canine' },
-                              { value: 'feline', label: 'Feline' },
-                            ]}
+                          <input
+                            type="text"
+                            value={patientTiterSpecies === 'canine' ? 'Canine' : 'Feline'}
+                            readOnly
+                            disabled
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 cursor-not-allowed"
                           />
                         </div>
                         <div>
