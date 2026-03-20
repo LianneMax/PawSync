@@ -16,6 +16,20 @@ import {
   BadgeCheck,
   PawPrint,
   CheckCheck,
+  Building2,
+  FileText,
+  CreditCard,
+  QrCode,
+  Heart,
+  Clock,
+  AlertTriangle,
+  Stethoscope,
+  User,
+  UserCheck,
+  UserX,
+  UserMinus,
+  UserRoundCog,
+  Repeat2,
 } from 'lucide-react'
 import {
   Sheet,
@@ -49,80 +63,79 @@ interface DashboardLayoutProps {
 }
 
 function getNotificationIcon(type: NotificationType) {
+  const IconBubble = ({
+    icon: Icon,
+    bg,
+    fg,
+  }: {
+    icon: React.ComponentType<{ className?: string }>
+    bg: string
+    fg: string
+  }) => (
+    <div className={`w-10 h-10 rounded-full ${bg} flex items-center justify-center shrink-0`}>
+      <Icon className={`w-5 h-5 ${fg}`} />
+    </div>
+  )
+
   switch (type) {
-    case 'vaccine_due':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#FEF9C3] flex items-center justify-center shrink-0">
-          <Syringe className="w-5 h-5 text-[#CA8A04]" />
-        </div>
-      )
-    case 'appointment_completed':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-          <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
-        </div>
-      )
-    case 'appointment_cancelled':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0">
-          <CalendarX className="w-5 h-5 text-[#DC2626]" />
-        </div>
-      )
-    case 'appointment_reminder':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#EDE9FE] flex items-center justify-center shrink-0">
-          <CalendarClock className="w-5 h-5 text-[#7C3AED]" />
-        </div>
-      )
-    case 'appointment_rescheduled':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#E0F2FE] flex items-center justify-center shrink-0">
-          <CalendarArrowUp className="w-5 h-5 text-[#0369A1]" />
-        </div>
-      )
-    case 'bill_due':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
-          <Receipt className="w-5 h-5 text-[#D97706]" />
-        </div>
-      )
-    case 'bill_paid':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-          <BadgeCheck className="w-5 h-5 text-[#16A34A]" />
-        </div>
-      )
-    case 'pet_lost':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0">
-          <PawPrint className="w-5 h-5 text-[#DC2626]" />
-        </div>
-      )
-    case 'pet_found':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-          <PawPrint className="w-5 h-5 text-[#16A34A]" />
-        </div>
-      )
-    case 'confinement_release_request':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#FEF3C7] flex items-center justify-center shrink-0">
-          <PawPrint className="w-5 h-5 text-[#B45309]" />
-        </div>
-      )
-    case 'confinement_release_confirmed':
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-          <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
-        </div>
-      )
     case 'appointment_scheduled':
+      return <IconBubble icon={CalendarCheck} bg="bg-[#DBEAFE]" fg="text-[#1D4ED8]" />
+    case 'appointment_cancelled':
+      return <IconBubble icon={CalendarX} bg="bg-[#FEE2E2]" fg="text-[#DC2626]" />
+    case 'appointment_completed':
+      return <IconBubble icon={CheckCircle2} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
+    case 'appointment_reminder':
+      return <IconBubble icon={CalendarClock} bg="bg-[#EDE9FE]" fg="text-[#7C3AED]" />
+    case 'appointment_rescheduled':
+      return <IconBubble icon={CalendarArrowUp} bg="bg-[#E0F2FE]" fg="text-[#0369A1]" />
+    case 'appointment_reassigned':
+      return <IconBubble icon={Repeat2} bg="bg-[#F1F5F9]" fg="text-[#334155]" />
+    case 'bill_due':
+      return <IconBubble icon={Receipt} bg="bg-[#FEF3C7]" fg="text-[#D97706]" />
+    case 'bill_paid':
+      return <IconBubble icon={BadgeCheck} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
+    case 'vaccine_due':
+      return <IconBubble icon={Syringe} bg="bg-[#FEF9C3]" fg="text-[#CA8A04]" />
+    case 'pet_lost':
+      return <IconBubble icon={PawPrint} bg="bg-[#FEE2E2]" fg="text-[#DC2626]" />
+    case 'pet_found':
+      return <IconBubble icon={CheckCheck} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
+    case 'clinic_new_appointment_booked':
+      return <IconBubble icon={Building2} bg="bg-[#E0F2FE]" fg="text-[#0369A1]" />
+    case 'clinic_appointment_cancelled':
+      return <IconBubble icon={CalendarX} bg="bg-[#FFE4E6]" fg="text-[#E11D48]" />
+    case 'clinic_appointment_rescheduled':
+      return <IconBubble icon={CalendarArrowUp} bg="bg-[#ECFEFF]" fg="text-[#0E7490]" />
+    case 'clinic_vet_application_submitted':
+      return <IconBubble icon={FileText} bg="bg-[#F1F5F9]" fg="text-[#334155]" />
+    case 'clinic_pet_tag_requested':
+      return <IconBubble icon={PawPrint} bg="bg-[#FFF7ED]" fg="text-[#C2410C]" />
+    case 'clinic_invoice_paid':
+      return <IconBubble icon={CreditCard} bg="bg-[#DCFCE7]" fg="text-[#15803D]" />
+    case 'confinement_release_request':
+      return <IconBubble icon={Clock} bg="bg-[#FEF3C7]" fg="text-[#B45309]" />
+    case 'confinement_release_confirmed':
+      return <IconBubble icon={CheckCircle2} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
+    case 'pregnancy_confirmed':
+      return <IconBubble icon={Heart} bg="bg-[#FCE7F3]" fg="text-[#BE185D]" />
+    case 'pregnancy_due_soon':
+      return <IconBubble icon={Clock} bg="bg-[#FFF7ED]" fg="text-[#EA580C]" />
+    case 'pregnancy_overdue':
+      return <IconBubble icon={AlertTriangle} bg="bg-[#FEE2E2]" fg="text-[#B91C1C]" />
+    case 'clinic_qr_payment_submitted':
+      return <IconBubble icon={QrCode} bg="bg-[#ECFEFF]" fg="text-[#0F766E]" />
+    case 'vet_resignation_submitted':
+      return <IconBubble icon={User} bg="bg-[#FEF3C7]" fg="text-[#B45309]" />
+    case 'vet_resignation_approved':
+      return <IconBubble icon={UserCheck} bg="bg-[#DCFCE7]" fg="text-[#15803D]" />
+    case 'vet_resignation_rejected':
+      return <IconBubble icon={UserX} bg="bg-[#FEE2E2]" fg="text-[#DC2626]" />
+    case 'vet_resigned':
+      return <IconBubble icon={UserMinus} bg="bg-[#F1F5F9]" fg="text-[#475569]" />
+    case 'clinic_vet_resignation_review':
+      return <IconBubble icon={UserRoundCog} bg="bg-[#E0E7FF]" fg="text-[#4338CA]" />
     default:
-      return (
-        <div className="w-10 h-10 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0">
-          <CalendarCheck className="w-5 h-5 text-[#5A7C7A]" />
-        </div>
-      )
+      return <IconBubble icon={BellRing} bg="bg-[#E2E8F0]" fg="text-[#475569]" />
   }
 }
 

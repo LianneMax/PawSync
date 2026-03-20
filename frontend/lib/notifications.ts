@@ -18,7 +18,17 @@ export type NotificationType =
   | 'clinic_pet_tag_requested'
   | 'clinic_invoice_paid'
   | 'confinement_release_request'
-  | 'confinement_release_confirmed';
+  | 'confinement_release_confirmed'
+  | 'pregnancy_confirmed'
+  | 'pregnancy_due_soon'
+  | 'pregnancy_overdue'
+  | 'clinic_qr_payment_submitted'
+  | 'vet_resignation_submitted'
+  | 'vet_resignation_approved'
+  | 'vet_resignation_rejected'
+  | 'vet_resigned'
+  | 'clinic_vet_resignation_review'
+  | 'appointment_reassigned';
 
 export interface Notification {
   _id: string;
