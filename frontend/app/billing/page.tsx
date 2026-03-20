@@ -1274,6 +1274,30 @@ function UploadQRModal({ onClose }: { onClose: () => void }) {
 
 // ==================== VIEW BILLING MODAL (read-only) ====================
 
+const VIEW_BILLING_CATEGORY_ORDER = ['Medication', 'Diagnostic Tests', 'Preventive Care', 'Surgeries', 'Pregnancy Delivery', 'Vaccines', 'Others']
+
+function groupBillingItemsByCategory(
+  items: ApiBillingItem[],
+  categoryMap: Map<string, string>,
+): { category: string; items: ApiBillingItem[] }[] {
+  const map = new Map<string, ApiBillingItem[]>()
+  for (const item of items) {
+    const cat = item.vaccineTypeId
+      ? 'Vaccines'
+      : (item.productServiceId ? (categoryMap.get(item.productServiceId) ?? 'Others') : 'Others')
+    if (!map.has(cat)) map.set(cat, [])
+    map.get(cat)!.push(item)
+  }
+  const result: { category: string; items: ApiBillingItem[] }[] = []
+  for (const cat of VIEW_BILLING_CATEGORY_ORDER) {
+    if (map.has(cat)) result.push({ category: cat, items: map.get(cat)! })
+  }
+  for (const [cat, catItems] of map) {
+    if (!VIEW_BILLING_CATEGORY_ORDER.includes(cat)) result.push({ category: cat, items: catItems })
+  }
+  return result
+}
+
 function ViewBillingModal({
   billing: initialBilling,
   onClose,
@@ -1284,6 +1308,26 @@ function ViewBillingModal({
   const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Cash', card: 'Card', qr: 'QR' }
   const { token } = useAuthStore()
   const [billing, setBilling] = useState<ApiBilling>(initialBilling)
+  const [categoryMap, setCategoryMap] = useState<Map<string, string>>(new Map())
+
+  // Fetch catalog to resolve item categories
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const [psRes, vtRes] = await Promise.all([
+          fetch(`${API_BASE}/product-services`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/vaccine-types`).then((r) => r.json()),
+        ])
+        const map = new Map<string, string>()
+        for (const p of psRes?.data?.items ?? []) map.set(p._id, p.category)
+        for (const v of vtRes?.data?.vaccineTypes ?? []) map.set(v._id, 'Vaccines')
+        setCategoryMap(map)
+      } catch {
+        // non-fatal — items will fall under 'Others'
+      }
+    }
+    run()
+  }, [initialBilling._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refresh prices from the current catalog whenever this modal opens for an unpaid bill
   useEffect(() => {
@@ -1294,6 +1338,7 @@ function ViewBillingModal({
   }, [initialBilling._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const modalStatus = mapAdminStatus(billing)
+  const groupedItems = groupBillingItemsByCategory(billing.items, categoryMap)
 
   return (
     <div
@@ -1355,31 +1400,34 @@ function ViewBillingModal({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">Qty</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Unit Price</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {billing.items.map((item) => (
-                  <tr key={item._id}>
-                    <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'Service' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        {item.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center text-[#4F4F4F]">{item.quantity ?? 1}</td>
-                    <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱{item.unitPrice.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-right font-medium text-[#4F4F4F]">₱{((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</td>
-                  </tr>
-                ))}
-                {billing.items.length === 0 && (
+                {billing.items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">No items yet</td>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400">No items yet</td>
                   </tr>
+                ) : (
+                  groupedItems.map(({ category, items: catItems }) => (
+                    <React.Fragment key={category}>
+                      <tr>
+                        <td colSpan={4} className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
+                        </td>
+                      </tr>
+                      {catItems.map((item) => (
+                        <tr key={item._id}>
+                          <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
+                          <td className="px-4 py-3 text-sm text-center text-[#4F4F4F]">{item.quantity ?? 1}</td>
+                          <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱{item.unitPrice.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-[#4F4F4F]">₱{((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))
                 )}
               </tbody>
             </table>
