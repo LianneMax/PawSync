@@ -434,7 +434,7 @@ const deriveInjectionDosageDisplay = (service: ProductService | undefined, weigh
   const dosageFactor = service.dosePerKg ?? dosageFromAmount
   if (dosageFactor == null || isNaN(dosageFactor)) return null
 
-  const computedDosage = parseFloat((weightKg * (dosageFactor + 0.1 * Math.floor(weightKg / 2))).toFixed(2))
+  const computedDosage = parseFloat((dosageFactor + (Math.floor(weightKg / 2) * 0.1)).toFixed(2))
   return `${computedDosage} ${service.doseUnit || dosageUnitFromAmount || 'mL'}`
 }
 
@@ -4056,15 +4056,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 { value: 'pack', label: `Bottle${med.piecesPerPack ? ` (${med.piecesPerPack} pcs)` : ''}` },
                               ]}
                             />
-                          )}
-                          {isInjectionMedication && DEBUG_PREVENTIVE_INJECTION_MAPPING && (
-                            <div className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-800 leading-relaxed">
-                              <span className="font-semibold">Injection debug:</span>{' '}
-                              id={medService?._id || '(none)'} · route={String(medService?.administrationRoute || '(empty)')} · method={String(medService?.administrationMethod || '(empty)')} ·
-                              {' '}injectionPricingType={String(medService?.injectionPricingType || '(empty)')} · dosePerKg={medService?.dosePerKg ?? '(empty)'} ·
-                              {' '}dosageAmount={String(medService?.dosageAmount || '(empty)')} · doseUnit={String(medService?.doseUnit || '(empty)')} ·
-                              {' '}weightKg={isNaN(bodyWeightVal) ? '(invalid)' : bodyWeightVal} · computed={injectionDosageDisplay || '(empty)'} · savedDosage={med.dosage || '(empty)'}
-                            </div>
                           )}
                           {!isTopical && !isInjectionMedication && <DropdownField
                             value={med.status}
