@@ -876,6 +876,261 @@ function CreateBillingModal({
   )
 }
 
+// ==================== VIEW QR MODAL ====================
+
+interface PaymentQRItem {
+  _id: string
+  label: string
+  imageData: string
+  createdAt: string
+}
+
+function ViewQRsModal({ onClose }: { onClose: () => void }) {
+  const [qrItems, setQrItems] = useState<PaymentQRItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [editImageData, setEditImageData] = useState<string | null>(null)
+  const [editPreview, setEditPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const fetchQRs = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/payment-qr`, { headers: authHeaders() })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        setQrItems(data.data.items || [])
+      }
+    } catch {
+      setError('Failed to load QR codes.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchQRs() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startEdit = (item: PaymentQRItem) => {
+    setEditingId(item._id)
+    setEditLabel(item.label)
+    setEditImageData(null)
+    setEditPreview(item.imageData)
+    setError('')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditLabel('')
+    setEditImageData(null)
+    setEditPreview(null)
+    setError('')
+  }
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setEditImageData(result)
+      setEditPreview(result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editLabel.trim()) { setError('Label is required.'); return }
+    setSaving(true)
+    setError('')
+    try {
+      const body: Record<string, string> = { label: editLabel.trim() }
+      if (editImageData) body.imageData = editImageData
+      const res = await fetch(`${API_BASE}/payment-qr/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        await fetchQRs()
+        cancelEdit()
+      } else {
+        setError(data.message || 'Failed to update QR code.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this QR code?')) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`${API_BASE}/payment-qr/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        setQrItems((prev) => prev.filter((q) => q._id !== id))
+        if (editingId === id) cancelEdit()
+      } else {
+        setError(data.message || 'Failed to delete QR code.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 relative animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors z-10"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="text-center pt-8 pb-4 px-8">
+          <div className="w-12 h-12 bg-[#EAF1F1] rounded-full flex items-center justify-center mx-auto mb-3">
+            <QrCode className="w-6 h-6 text-[#3D5E5C]" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Current Payment QR Codes</h2>
+          <p className="text-sm text-gray-500">Manage your uploaded payment QR codes</p>
+        </div>
+
+        {error && (
+          <div className="mx-8 mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-500 text-xs">{error}</p>
+          </div>
+        )}
+
+        <div className="overflow-y-auto flex-1 px-8 pb-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm gap-2">
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Loading QR codes…
+            </div>
+          ) : qrItems.length === 0 ? (
+            <div className="text-center py-12">
+              <QrCode className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm text-gray-400">No QR codes uploaded yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {qrItems.map((item) => (
+                <div key={item._id} className="border border-gray-100 rounded-xl overflow-hidden">
+                  {editingId === item._id ? (
+                    /* ---- Edit mode ---- */
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                        <input
+                          type="text"
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                          placeholder="e.g. GCash, Maya"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">QR Image</label>
+                        <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#7FA5A3] hover:bg-gray-50 transition-all p-4">
+                          {editPreview ? (
+                            <img src={editPreview} alt="QR Preview" className="max-h-36 object-contain rounded-lg" />
+                          ) : (
+                            <>
+                              <Upload className="w-6 h-6 text-gray-300 mb-1" />
+                              <span className="text-xs text-gray-400">Click to replace image</span>
+                            </>
+                          )}
+                          <input type="file" accept="image/*" onChange={handleEditFileChange} className="hidden" />
+                        </label>
+                        {editPreview && (
+                          <button
+                            onClick={() => { setEditImageData(null); setEditPreview(null) }}
+                            className="mt-1 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                          >
+                            Remove image
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => handleSaveEdit(item._id)}
+                          disabled={saving}
+                          className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-60 text-white font-semibold py-2 rounded-lg transition-colors text-sm"
+                        >
+                          {saving ? 'Saving…' : 'Save Changes'}
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-lg transition-colors text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ---- View mode ---- */
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="w-20 h-20 shrink-0 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
+                        <img src={item.imageData} alt={item.label} className="w-full h-full object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#4F4F4F] text-sm truncate">{item.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Added {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => startEdit(item)}
+                          className="p-2 text-gray-400 hover:text-[#3D5E5C] hover:bg-[#f0f7f7] rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item._id)}
+                          disabled={deletingId === item._id}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== UPLOAD QR MODAL ====================
 
 function UploadQRModal({ onClose }: { onClose: () => void }) {
@@ -1359,6 +1614,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'pending_payment' | 'paid'>('all')
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const [showQRModal, setShowQRModal] = useState(false)
+  const [showViewQRModal, setShowViewQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
   const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
 
@@ -1439,16 +1695,26 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-[#4F4F4F]">Billing and Invoicing</h1>
-        <button
-          onClick={() => setShowQRModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white text-sm font-medium rounded-xl shadow-sm transition-colors"
-        >
-          <QrCode className="w-4 h-4" />
-          Upload QR
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowViewQRModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#3D5E5C] text-[#3D5E5C] hover:bg-[#f0f7f7] text-sm font-medium rounded-xl shadow-sm transition-colors"
+          >
+            <QrCode className="w-4 h-4" />
+            View Current QR&apos;s
+          </button>
+          <button
+            onClick={() => setShowQRModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white text-sm font-medium rounded-xl shadow-sm transition-colors"
+          >
+            <QrCode className="w-4 h-4" />
+            Upload QR
+          </button>
+        </div>
       </div>
 
       {showQRModal && <UploadQRModal onClose={() => setShowQRModal(false)} />}
+      {showViewQRModal && <ViewQRsModal onClose={() => setShowViewQRModal(false)} />}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">

@@ -57,6 +57,50 @@ export const createPaymentQR = async (req: Request, res: Response) => {
 };
 
 /**
+ * PATCH /api/payment-qr/:id
+ * Clinic admin / branch admin only — update a QR code's label and/or image.
+ */
+export const updatePaymentQR = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const item = await PaymentQR.findById(req.params.id);
+    if (!item || !item.isActive) {
+      return res.status(404).json({ status: 'ERROR', message: 'QR code not found' });
+    }
+
+    const { label, imageData } = req.body;
+
+    if (label !== undefined) {
+      if (!label.trim()) {
+        return res.status(400).json({ status: 'ERROR', message: 'Label cannot be empty' });
+      }
+      item.label = label.trim();
+    }
+
+    if (imageData !== undefined) {
+      if (!imageData.startsWith('data:image/')) {
+        return res.status(400).json({ status: 'ERROR', message: 'Invalid image format' });
+      }
+      item.imageData = imageData;
+    }
+
+    await item.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'QR code updated successfully',
+      data: { item },
+    });
+  } catch (error) {
+    console.error('Update payment QR error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'Failed to update QR code' });
+  }
+};
+
+/**
  * DELETE /api/payment-qr/:id
  * Clinic admin / branch admin only — soft delete a QR code.
  */
