@@ -111,6 +111,10 @@ function resolveDoseVolumeMlSnapshot(
   return null;
 }
 
+function formatISODate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 /**
  * Refresh status for a list of vaccination docs and save if changed.
  * Used on GET so expired/overdue records reflect current date.
@@ -183,15 +187,67 @@ export const createVaccination = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Vaccine type not found' });
     }
 
-    // Determine the next sequential dose number for this pet + vaccine type
-    const priorRecords = await Vaccination.find({ petId, vaccineTypeId })
-      .select('doseNumber')
-      .sort({ doseNumber: -1, dateAdministered: -1 })
-      .limit(1)
+    // BR-VAX-03: date cannot be in the future
+    const adminDate = dateAdministered ? new Date(dateAdministered) : new Date();
+    if (adminDate > new Date()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Date administered cannot be in the future' });
+    }
+
+    // Determine the latest prior dose for this pet + vaccine type.
+    // For series vaccines, this is also used to enforce the 2-6 week timing window.
+    const latestPriorRecord = await Vaccination.findOne({ petId, vaccineTypeId })
+      .select('doseNumber dateAdministered nextDueDate')
+      .sort({ dateAdministered: -1, createdAt: -1, doseNumber: -1 })
       .lean();
 
-    const maxPriorDose = priorRecords[0]?.doseNumber || 0;
-    const doseNumber = maxPriorDose + 1;
+    let doseNumber = (latestPriorRecord?.doseNumber || 0) + 1;
+    let seriesRestarted = false;
+
+    if (
+      vaccineType.isSeries &&
+      latestPriorRecord?.dateAdministered &&
+      (latestPriorRecord.doseNumber || 0) < (vaccineType.totalSeries || 3)
+    ) {
+      const priorDoseDate = new Date(latestPriorRecord.dateAdministered);
+
+      const minBySeriesWindow = addDays(priorDoseDate, 14);
+      const maxBySeriesWindow = addDays(priorDoseDate, 42);
+
+      let minAllowedDate = minBySeriesWindow;
+      let maxAllowedDate = maxBySeriesWindow;
+
+      if (latestPriorRecord.nextDueDate) {
+        const priorNextDueDate = new Date(latestPriorRecord.nextDueDate);
+        const dueWindowStart = addDays(priorNextDueDate, -14);
+        const dueWindowEnd = addDays(priorNextDueDate, 14);
+
+        if (dueWindowStart > minAllowedDate) {
+          minAllowedDate = dueWindowStart;
+        }
+        if (dueWindowEnd < maxAllowedDate) {
+          maxAllowedDate = dueWindowEnd;
+        }
+      }
+
+      if (minAllowedDate > maxAllowedDate) {
+        minAllowedDate = minBySeriesWindow;
+        maxAllowedDate = maxBySeriesWindow;
+      }
+
+      if (adminDate < minAllowedDate) {
+        return res.status(400).json({
+          status: 'ERROR',
+          message: `Too early for next series dose. Earliest allowed date is ${formatISODate(minAllowedDate)}.`,
+        });
+      }
+
+      if (adminDate > maxAllowedDate) {
+        doseNumber = 1;
+        seriesRestarted = true;
+      } else {
+        doseNumber = (latestPriorRecord.doseNumber || 0) + 1;
+      }
+    }
 
     if (requestedDoseNumber && requestedDoseNumber !== doseNumber) {
       console.warn(
@@ -218,12 +274,6 @@ export const createVaccination = async (req: Request, res: Response) => {
           message: `Pet exceeds maximum age for this vaccine (${ageWeeks} weeks old). Maximum age allowed: ${maxWeeks} weeks (${vaccineType.maxAgeMonths} months).`,
         });
       }
-    }
-
-    // BR-VAX-03: date cannot be in the future
-    const adminDate = dateAdministered ? new Date(dateAdministered) : new Date();
-    if (adminDate > new Date()) {
-      return res.status(400).json({ status: 'ERROR', message: 'Date administered cannot be in the future' });
     }
 
     const expiryDate = addDays(adminDate, vaccineType.validityDays);
@@ -402,6 +452,7 @@ export const createVaccination = async (req: Request, res: Response) => {
       message: 'Vaccination recorded successfully',
       data: {
         vaccination: populated,
+        ...(seriesRestarted ? { seriesRestarted: true } : {}),
         ...(boosterAppointmentId ? { boosterAppointmentId, boosterDate: nextDueDate } : {}),
       },
     });
