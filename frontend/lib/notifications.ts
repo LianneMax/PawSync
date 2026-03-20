@@ -37,6 +37,8 @@ export interface Notification {
   title: string;
   message: string;
   read: boolean;
+  isRead?: boolean;
+  category?: string;
   metadata?: Record<string, any>;
   createdAt: string;
 }

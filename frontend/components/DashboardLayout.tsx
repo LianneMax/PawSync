@@ -30,6 +30,7 @@ import {
   UserMinus,
   UserRoundCog,
   Repeat2,
+  ChevronDown,
 } from 'lucide-react'
 import {
   Sheet,
@@ -37,6 +38,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   getMyNotifications,
   markNotificationRead,
@@ -60,6 +68,82 @@ interface DashboardLayoutProps {
   children: ReactNode
   notificationCount?: number
   userType?: UserType
+}
+
+type NotificationCategory =
+  | 'Appointments'
+  | 'Pet Tag Requests'
+  | 'System Updates'
+  | 'Messages'
+  | 'Reminders'
+  | 'Others'
+
+type CategoryFilter = 'All' | NotificationCategory
+type ReadFilter = 'All' | 'Read' | 'Unread'
+
+const CATEGORY_OPTIONS: CategoryFilter[] = [
+  'All',
+  'Appointments',
+  'Pet Tag Requests',
+  'System Updates',
+  'Messages',
+  'Reminders',
+  'Others',
+]
+
+const READ_FILTER_OPTIONS: ReadFilter[] = ['All', 'Read', 'Unread']
+
+function inferNotificationCategory(notification: Notification): NotificationCategory {
+  const existing = (notification.category || '').trim().toLowerCase()
+
+  if (existing === 'appointments') return 'Appointments'
+  if (existing === 'pet tag requests') return 'Pet Tag Requests'
+  if (existing === 'system updates') return 'System Updates'
+  if (existing === 'messages') return 'Messages'
+  if (existing === 'reminders') return 'Reminders'
+  if (existing === 'others') return 'Others'
+
+  switch (notification.type) {
+    case 'appointment_scheduled':
+    case 'appointment_cancelled':
+    case 'appointment_completed':
+    case 'appointment_rescheduled':
+    case 'clinic_new_appointment_booked':
+    case 'clinic_appointment_cancelled':
+    case 'clinic_appointment_rescheduled':
+    case 'appointment_reassigned':
+      return 'Appointments'
+    case 'clinic_pet_tag_requested':
+      return 'Pet Tag Requests'
+    case 'appointment_reminder':
+    case 'vaccine_due':
+    case 'bill_due':
+    case 'pregnancy_due_soon':
+    case 'pregnancy_overdue':
+      return 'Reminders'
+    case 'confinement_release_request':
+    case 'confinement_release_confirmed':
+      return 'Messages'
+    case 'clinic_vet_application_submitted':
+    case 'clinic_invoice_paid':
+    case 'bill_paid':
+    case 'pregnancy_confirmed':
+    case 'clinic_qr_payment_submitted':
+    case 'vet_resignation_submitted':
+    case 'vet_resignation_approved':
+    case 'vet_resignation_rejected':
+    case 'vet_resigned':
+    case 'clinic_vet_resignation_review':
+      return 'System Updates'
+    default:
+      return 'Others'
+  }
+}
+
+function isNotificationRead(notification: Notification): boolean {
+  if (typeof notification.read === 'boolean') return notification.read
+  if (typeof notification.isRead === 'boolean') return notification.isRead
+  return false
 }
 
 function getNotificationIcon(type: NotificationType) {
@@ -171,6 +255,8 @@ export default function DashboardLayout({
   const [isNavExpanded, setIsNavExpanded] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('All')
+  const [selectedReadFilter, setSelectedReadFilter] = useState<ReadFilter>('All')
 
   // Sync avatar from DB on mount so navbar always shows the saved photo
   useEffect(() => {
@@ -226,6 +312,18 @@ export default function DashboardLayout({
   }, [notificationsOpen, fetchNotifications])
 
   const unreadCount = notifications.filter((n) => !n.read).length
+
+  const filteredNotifications = notifications
+    .filter((notification) => {
+      if (selectedCategory === 'All') return true
+      return inferNotificationCategory(notification) === selectedCategory
+    })
+    .filter((notification) => {
+      const read = isNotificationRead(notification)
+      if (selectedReadFilter === 'All') return true
+      if (selectedReadFilter === 'Read') return read
+      return !read
+    })
 
   const markAsRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
@@ -313,17 +411,55 @@ export default function DashboardLayout({
                 </button>
               )}
             </div>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full sm:w-[190px] h-10 px-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between text-sm text-[#4F4F4F]">
+                    <span>{selectedCategory === 'All' ? 'All Categories' : selectedCategory}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg">
+                  <DropdownMenuRadioGroup value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as CategoryFilter)}>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <DropdownMenuRadioItem key={option} value={option}>
+                        {option === 'All' ? 'All Categories' : option}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full sm:w-[130px] h-10 px-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between text-sm text-[#4F4F4F]">
+                    <span>{selectedReadFilter}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-lg">
+                  <DropdownMenuRadioGroup value={selectedReadFilter} onValueChange={(value) => setSelectedReadFilter(value as ReadFilter)}>
+                    {READ_FILTER_OPTIONS.map((option) => (
+                      <DropdownMenuRadioItem key={option} value={option}>
+                        {option}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {notifications.length === 0 && (
+            {filteredNotifications.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-8">No notifications yet.</p>
             )}
-            {notifications.map((notification) => (
+            {filteredNotifications.map((notification) => (
               <div
                 key={notification._id}
                 onClick={() => markAsRead(notification._id)}
                 className={`rounded-xl border-l-4 p-4 cursor-pointer transition-all ${
-                  notification.read
+                  isNotificationRead(notification)
                     ? 'bg-[#EFEFEF] border-l-[#EFEFEF] shadow-none hover:shadow-sm'
                     : 'bg-[#DEEDED] border-l-[#73A3A7] shadow-md hover:shadow-lg'
                 }`}
