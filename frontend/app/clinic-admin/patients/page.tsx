@@ -409,7 +409,6 @@ interface ScanModalProps {
 }
 
 function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: ScanModalProps) {
-  const token = useAuthStore((state) => state.token)
   const qrContainerRef = useRef<HTMLDivElement | null>(null)
   const qrScannerRef = useRef<Html5Qrcode | null>(null)
   const nfcTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -443,10 +442,8 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
     setIsLookingUpPet(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-
+      const response = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`)
+      
       if (response.ok) {
         const data = await response.json()
         if (data.status === 'SUCCESS' && data.data?.pet?._id) {
@@ -462,7 +459,7 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
     } finally {
       setIsLookingUpPet(false)
     }
-  }, [onScanComplete, token])
+  }, [onScanComplete])
 
   // Handle NFC scanning
   const startNfcScan = useCallback(() => {

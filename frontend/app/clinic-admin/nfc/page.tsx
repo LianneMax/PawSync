@@ -294,11 +294,11 @@ export default function ClinicNfcManagementPage() {
         const statuses = await Promise.all(
           data.data.pets.map(async (pet: Pet) => {
             try {
-              const statusData = await authenticatedFetch(
-                `/nfc/pet/${pet._id}/status`,
-                { method: 'GET' },
-                token || ''
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+              const statusRes = await fetch(
+                `${apiUrl}/nfc/pet/${pet._id}/status`
               )
+              const statusData = await statusRes.json()
               return statusData.data
             } catch {
               return { petId: pet._id, hasNFCTag: false, nfcTagId: null }
