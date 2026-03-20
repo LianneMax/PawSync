@@ -75,6 +75,27 @@ function addMinutes(time: string, minutes: number): string {
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
 }
 
+function getVetBookingCutoffDate(
+  resignation?: { status?: string; noticeStart?: Date | null; endDate?: Date | null } | null
+): Date | null {
+  if (resignation?.status !== 'approved') return null;
+
+  const cutoff = resignation.noticeStart
+    ? new Date(resignation.noticeStart)
+    : resignation.endDate
+      ? new Date(resignation.endDate)
+      : null;
+
+  if (!cutoff) return null;
+
+  if (resignation.noticeStart) {
+    cutoff.setDate(cutoff.getDate() + 7);
+  }
+
+  cutoff.setHours(23, 59, 59, 999);
+  return cutoff;
+}
+
 /**
  * Create a new appointment
  */
@@ -193,16 +214,13 @@ export const createAppointment = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'ERROR', message: 'Selected veterinarian is not available' });
       }
 
-      const vetResignation = selectedVet.resignation;
-      if (vetResignation?.status === 'approved' && vetResignation.endDate) {
+      const bookingCutoff = getVetBookingCutoffDate(selectedVet.resignation as any);
+      if (bookingCutoff) {
         const appointmentDateForVet = new Date(date);
-        const vetEndDate = new Date(vetResignation.endDate);
-        vetEndDate.setHours(23, 59, 59, 999);
-
-        if (appointmentDateForVet > vetEndDate) {
+        if (appointmentDateForVet > bookingCutoff) {
           return res.status(400).json({
             status: 'ERROR',
-            message: `Vet unavailable after ${vetResignation.endDate.toLocaleDateString('en-US')}`
+            message: `Vet unavailable after ${bookingCutoff.toLocaleDateString('en-US')}`
           });
         }
       }
@@ -389,15 +407,14 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     }
 
     const selectedVet = await User.findById(vetId as string).select('resignation');
-    if (selectedVet?.resignation?.status === 'approved' && selectedVet.resignation.endDate) {
+    const bookingCutoff = getVetBookingCutoffDate(selectedVet?.resignation as any);
+    if (bookingCutoff) {
       const requestedDate = new Date(date as string);
-      const vetEndDate = new Date(selectedVet.resignation.endDate);
-      vetEndDate.setHours(23, 59, 59, 999);
-      if (requestedDate > vetEndDate) {
+      if (requestedDate > bookingCutoff) {
         return res.status(400).json({
           status: 'ERROR',
-          message: `Vet unavailable after ${selectedVet.resignation.endDate.toLocaleDateString('en-US')}`,
-          data: { unavailableAfter: selectedVet.resignation.endDate }
+          message: `Vet unavailable after ${bookingCutoff.toLocaleDateString('en-US')}`,
+          data: { unavailableAfter: bookingCutoff }
         });
       }
     }
@@ -1077,12 +1094,14 @@ export const getVetsForBranch = async (req: Request, res: Response) => {
       .filter((a) => a.vetId && (a.vetId as any).userType === 'veterinarian')
       .map((a) => {
         const vet = a.vetId as any;
-        const unavailableAfter = vet?.resignation?.status === 'approved' ? vet?.resignation?.endDate || null : null;
+        const unavailableAfter = getVetBookingCutoffDate(vet?.resignation || null);
         return {
           _id: vet._id,
           firstName: vet.firstName,
           lastName: vet.lastName,
           email: vet.email,
+          resignationStatus: vet?.resignation?.status || null,
+          resignationEndDate: vet?.resignation?.endDate || null,
           unavailableAfter,
         };
       });
@@ -1226,14 +1245,13 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'ERROR', message: 'Selected veterinarian is not available' });
       }
 
-      if (selectedVet.resignation?.status === 'approved' && selectedVet.resignation.endDate) {
+      const bookingCutoff = getVetBookingCutoffDate(selectedVet.resignation as any);
+      if (bookingCutoff) {
         const appointmentDateForVet = new Date(date);
-        const vetEndDate = new Date(selectedVet.resignation.endDate);
-        vetEndDate.setHours(23, 59, 59, 999);
-        if (appointmentDateForVet > vetEndDate) {
+        if (appointmentDateForVet > bookingCutoff) {
           return res.status(400).json({
             status: 'ERROR',
-            message: `Vet unavailable after ${selectedVet.resignation.endDate.toLocaleDateString('en-US')}`
+            message: `Vet unavailable after ${bookingCutoff.toLocaleDateString('en-US')}`
           });
         }
       }
@@ -1774,12 +1792,14 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
       .filter((a) => a.vetId && (a.vetId as any).userType === 'veterinarian')
       .map((a) => {
         const vet = a.vetId as any;
-        const unavailableAfter = vet?.resignation?.status === 'approved' ? vet?.resignation?.endDate || null : null;
+        const unavailableAfter = getVetBookingCutoffDate(vet?.resignation || null);
         return {
           _id: vet._id,
           firstName: vet.firstName,
           lastName: vet.lastName,
           email: vet.email,
+          resignationStatus: vet?.resignation?.status || null,
+          resignationEndDate: vet?.resignation?.endDate || null,
           unavailableAfter,
         };
       });

@@ -2183,6 +2183,14 @@ function ClinicScheduleModal({
   const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
   const selectedPet = ownerPets.find((pet) => pet._id === selectedPetId) || null
+  const selectedVet = branchVets.find((vet) => vet._id === selectedVetId) || null
+  const selectedVetUnavailableAfter = selectedVet?.unavailableAfter ? new Date(selectedVet.unavailableAfter) : null
+  const selectedDateObj = selectedDate ? new Date(selectedDate) : null
+  const isSelectedDateBeyondVetEnd = !!(
+    selectedVetUnavailableAfter &&
+    selectedDateObj &&
+    selectedDateObj > new Date(new Date(selectedVetUnavailableAfter).setHours(23, 59, 59, 999))
+  )
 
   const formatYmd = (date: Date) => {
     const year = date.getFullYear()
@@ -2452,6 +2460,9 @@ function ClinicScheduleModal({
     if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
+    if (!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter) {
+      return toast.error(`Vet unavailable after ${selectedVetUnavailableAfter.toLocaleDateString('en-US')}`)
+    }
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
     if (!selectedSlot) return toast.error('Please select a time slot')
@@ -2707,11 +2718,24 @@ function ClinicScheduleModal({
                   label="Chosen Veterinarian"
                   value={selectedVetId}
                   placeholder="Select vet"
-                  options={branchVets.map((v) => ({ value: v._id, label: `Dr. ${v.firstName} ${v.lastName}` }))}
+                  options={branchVets.map((v) => ({
+                    value: v._id,
+                    label: v.unavailableAfter
+                      ? `Dr. ${v.firstName} ${v.lastName} (Resigning • Unavailable after ${new Date(v.unavailableAfter).toLocaleDateString('en-US')})`
+                      : v.resignationStatus === 'pending'
+                        ? `Dr. ${v.firstName} ${v.lastName} (Resignation pending)`
+                        : `Dr. ${v.firstName} ${v.lastName}`
+                  }))}
                   onSelect={setSelectedVetId}
                 />
               )}
             </div>
+
+            {!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                Vet unavailable after {selectedVetUnavailableAfter.toLocaleDateString('en-US')}. Choose another veterinarian or earlier date.
+              </div>
+            )}
 
             {/* Type of Appointment */}
             <div>

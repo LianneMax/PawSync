@@ -21,6 +21,8 @@ export interface BranchVet {
   firstName: string;
   lastName: string;
   email: string;
+  resignationStatus?: 'pending' | 'approved' | 'rejected' | 'withdrawn' | null;
+  resignationEndDate?: string | null;
   unavailableAfter?: string | null;
 }
 
