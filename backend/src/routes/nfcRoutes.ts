@@ -16,7 +16,7 @@ import {
   cancelTagRequest,
   getTagRequest
 } from '../controllers/petTagRequestController';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 import { nfcAuthMiddleware } from '../middleware/nfcAuth';
 import { NfcCommand } from '../models/NfcCommand';
 import Pet from '../models/Pet';
@@ -47,16 +47,16 @@ router.get('/status', (_req: Request, res: Response) => {
 
 // Clinic endpoints for writing NFC tags to pets
 // GET /api/nfc/pet/:petId/for-writing - Get pet data for NFC writing
-router.get('/pet/:petId/for-writing', getPetForNFCWriting);
+router.get('/pet/:petId/for-writing', authMiddleware, vetOrClinicAdminOnly, getPetForNFCWriting);
 
 // GET /api/nfc/pet/:petId/status - Check if pet has NFC tag
-router.get('/pet/:petId/status', checkNFCTagStatus);
+router.get('/pet/:petId/status', authMiddleware, vetOrClinicAdminOnly, checkNFCTagStatus);
 
 // GET /api/nfc/pet/:petId/instructions - Get NFC writing instructions
-router.get('/pet/:petId/instructions', getNFCWritingInstructions);
+router.get('/pet/:petId/instructions', authMiddleware, vetOrClinicAdminOnly, getNFCWritingInstructions);
 
 // GET /api/nfc/by-tag-id/:nfcTagId - Get pet by NFC tag ID (clinic scanning)
-router.get('/by-tag-id/:nfcTagId', getPetByNfcTagId);
+router.get('/by-tag-id/:nfcTagId', authMiddleware, vetOrClinicAdminOnly, getPetByNfcTagId);
 
 // POST /api/nfc/pet/:petId/write - Start writing NFC tag (waits for tag placement)
 router.post('/pet/:petId/write', authMiddleware, startNFCTagWriting);
@@ -76,7 +76,7 @@ router.get('/clinic/pending-requests', authMiddleware, getPendingTagRequests);
 router.get('/clinic/all-requests', authMiddleware, getAllTagRequests);
 
 // GET /api/nfc/requests/:requestId - Get single tag request details
-router.get('/requests/:requestId', getTagRequest);
+router.get('/requests/:requestId', authMiddleware, getTagRequest);
 
 // PUT /api/nfc/requests/:requestId/fulfill - Mark request as fulfilled
 router.put('/requests/:requestId/fulfill', authMiddleware, markTagRequestFulfilled);
