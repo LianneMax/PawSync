@@ -820,7 +820,7 @@ export const getTransferOwnerEmailSuggestions = async (req: Request, res: Respon
 export const getPublicPetProfile = async (req: Request, res: Response) => {
   try {
     const pet = await Pet.findById(req.params.id)
-      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost isAlive status deceasedAt lostReportedByStranger lostContactName lostMessage scanLocations ownerId sterilization microchipNumber')
+      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost isAlive status deceasedAt lostReportedByStranger lostContactName lostMessage scanLocations ownerId sterilization microchipNumber nfcTagId')
       .populate('ownerId', 'firstName lastName contactNumber photo');
 
     if (!pet) {
@@ -871,6 +871,7 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           lostReportedByStranger: pet.lostReportedByStranger,
           lostContactName: pet.lostContactName,
           lostMessage: pet.lostMessage,
+          nfcTagId: pet.nfcTagId,
           scanLocations: pet.scanLocations ?? [],
         },
         owner: pet.ownerId,

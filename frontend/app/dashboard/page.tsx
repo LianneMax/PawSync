@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getMyPets, togglePetLost, markPetDeceased, removePet, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
 import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
 import { getProfile } from '@/lib/users'
+import { hasNFCTag } from '@/lib/petNfc'
 import {
   Calendar,
   PawPrint,
@@ -71,6 +72,9 @@ interface Pet {
   bloodType: string
   allergies: string[]
   nfcTagId: string
+  nfc_tag_id?: string | null
+  tag_uid?: string | null
+  nfc_id?: string | null
   previousOwners: { id: string; name: string; until: string }[]
   vet: { name: string; photo: string | null; verified: boolean } | null
 }
@@ -149,12 +153,6 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
       ? { name: `Dr. ${apiPet.assignedVetId.firstName} ${apiPet.assignedVetId.lastName}`, photo: apiPet.assignedVetId.photo ?? null, verified: true }
       : null,
   }
-}
-
-function hasRegisteredNfcTag(pet: Pick<Pet, 'nfcTagId'> | null | undefined): boolean {
-  if (!pet) return false
-  const tagId = pet.nfcTagId?.trim()
-  return Boolean(tagId && tagId !== '-')
 }
 
 interface DashboardAppointment {
@@ -288,7 +286,7 @@ function PetDetailModal({
   onNavigateToMedicalRecords: () => void
 }) {
   const router = useRouter()
-  const canUseLostPetFeature = hasRegisteredNfcTag(pet)
+  const canUseLostPetFeature = hasNFCTag(pet)
   const lostPetLockedMessage = 'Purchase a pet tag first to unlock this feature.'
   const isDeceased = Boolean(pet?.status === 'deceased' || !pet?.isAlive)
 
@@ -602,10 +600,22 @@ function ReportLostPetModal({
     fetchOwnerContact()
   }, [open, token, selectedPet?.id])
 
-  if (!pet && (!pets || pets.length === 0)) return null
-
   const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
-  const selectablePets = displayPets.filter((p) => p.isAlive && p.status !== 'deceased')
+  const selectablePets = displayPets.filter((p) => p.isAlive && p.status !== 'deceased' && hasNFCTag(p))
+  const hasSelectablePets = selectablePets.length > 0
+
+  useEffect(() => {
+    if (!hasSelectablePets) {
+      setSelectedPet(null)
+      return
+    }
+
+    if (!selectedPet || !hasNFCTag(selectedPet) || !selectedPet.isAlive || selectedPet.status === 'deceased') {
+      setSelectedPet(selectablePets[0])
+    }
+  }, [hasSelectablePets, selectablePets, selectedPet])
+
+  if (displayPets.length === 0) return null
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -642,23 +652,24 @@ function ReportLostPetModal({
             </div>
           )}
 
-          {selectablePets.length > 1 && (
+          {displayPets.length > 1 && (
             <div>
               <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left"
+                    disabled={!hasSelectablePets}
+                    className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-left disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
-                    {selectedPet ? `${selectedPet.name} - ${selectedPet.breed}` : 'Select Pet'}
+                    {selectedPet ? `${selectedPet.name} - ${selectedPet.breed}` : hasSelectablePets ? 'Select Pet' : 'No NFC-tagged pets available'}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl max-h-56 overflow-y-auto">
                   <DropdownMenuRadioGroup
                     value={selectedPet?.id || ''}
                     onValueChange={(value) => {
-                      const selected = displayPets.find((p) => p.id === value)
+                      const selected = selectablePets.find((p) => p.id === value)
                       if (selected) setSelectedPet(selected)
                     }}
                   >
@@ -670,6 +681,9 @@ function ReportLostPetModal({
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {!hasSelectablePets && (
+                <p className="text-xs text-gray-500 mt-1.5">Only pets with NFC tags can be marked as lost.</p>
+              )}
             </div>
           )}
           <div className="space-y-1.5">
@@ -726,11 +740,12 @@ function ReportLostPetModal({
             Cancel
           </button>
           <button
+            disabled={!selectedPet || !hasNFCTag(selectedPet)}
             className="flex-1 px-4 py-2 bg-[#900B09] text-white rounded-xl text-sm font-semibold hover:bg-[#7A0907] transition-colors flex items-center justify-center gap-2"
             onClick={async () => {
               try {
                 const token = useAuthStore.getState().token
-                if (token && selectedPet) {
+                if (token && selectedPet && hasNFCTag(selectedPet)) {
                   await togglePetLost(selectedPet.id, true, token, {
                     lostContactName: contactName || undefined,
                     lostContactNumber: contactNumber || undefined,
@@ -1303,7 +1318,7 @@ export default function DashboardPage() {
 
   const handleQuickAction = (href: string) => {
     if (href === '#') {
-      const firstPetWithTag = pets.find((pet) => hasRegisteredNfcTag(pet) && pet.isAlive && pet.status !== 'deceased')
+      const firstPetWithTag = pets.find((pet) => hasNFCTag(pet) && pet.isAlive && pet.status !== 'deceased')
       if (!firstPetWithTag) return
       if (pets.length > 0) {
         setReportLostPet(firstPetWithTag)
@@ -1437,7 +1452,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action) => {
               const isLostPetAction = action.href === '#'
-              const canUseAction = isLostPetAction ? pets.some((pet) => hasRegisteredNfcTag(pet) && pet.isAlive && pet.status !== 'deceased') : true
+              const canUseAction = isLostPetAction ? pets.some((pet) => hasNFCTag(pet) && pet.isAlive && pet.status !== 'deceased') : true
               const actionTooltip = !canUseAction && isLostPetAction
                 ? 'Purchase a pet tag first to unlock this feature.'
                 : undefined

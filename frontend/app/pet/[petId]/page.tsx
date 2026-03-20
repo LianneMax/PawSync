@@ -7,6 +7,7 @@ import { AlertCircle, Phone, MessageCircle, User, CheckCircle2, Nfc, Loader, X, 
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import { hasNFCTag } from '@/lib/petNfc'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +57,10 @@ interface PetData {
   lostContactName: string | null
   lostMessage: string | null
   scanLocations: ScanLocation[]
+  nfcTagId?: string | null
+  nfc_tag_id?: string | null
+  tag_uid?: string | null
+  nfc_id?: string | null
 }
 
 interface OwnerData {
@@ -485,20 +490,22 @@ export default function PetProfilePage() {
         {/* Name + Report Missing */}
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-[#4F4F4F]">{pet.name}</h1>
-          <button
-            onClick={() => {
-              if (isOwner) {
-                openOwnerLostModal()
-                return
-              }
-              setShowStrangerMissingConfirmModal(true)
-            }}
-            disabled={isReporting || pet.isLost}
-            className="bg-[#8B2E2E] text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 hover:bg-[#7A2828] transition-colors disabled:opacity-60"
-          >
-            <AlertCircle className="w-4 h-4" />
-            {pet.isLost ? 'Reported Missing' : 'Report Missing'}
-          </button>
+          {hasNFCTag(pet) && (
+            <button
+              onClick={() => {
+                if (isOwner) {
+                  openOwnerLostModal()
+                  return
+                }
+                setShowStrangerMissingConfirmModal(true)
+              }}
+              disabled={isReporting || pet.isLost}
+              className="bg-[#8B2E2E] text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 hover:bg-[#7A2828] transition-colors disabled:opacity-60"
+            >
+              <AlertCircle className="w-4 h-4" />
+              {pet.isLost ? 'Reported Missing' : 'Report Missing'}
+            </button>
+          )}
         </div>
 
         {/* Lost pet info card — shown when lost */}
