@@ -82,10 +82,20 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
     const diagCatalog = allProducts.filter((p: any) => p.category === 'Diagnostic Tests');
     const careCatalog = allProducts.filter((p: any) => p.category === 'Preventive Care');
 
+    // Fetch pet species for species-aware titer lookup
+    const pet = await Pet.findById((record as any).petId).select('species').lean();
+    const petSpecies: string = (pet as any)?.species || '';
+    const petWeightKg = parseFloat(String((record as any).vitals?.weight?.value ?? '')) || 0;
+
+    // Exclusions for preventive care associated products the vet opted out of
+    const preventiveExclusionSet = new Set<string>(
+      ((record as any).preventiveAssociatedExclusions ?? []).map((id: string) => id.toString()),
+    );
+
     const newItems: any[] = [];
 
     // Medications — quantity comes from medication.quantity (default 1)
-    // Exception: single-dose injections are always billed as quantity 1 regardless of med.quantity
+    // Exception: single-dose injections are billed as qty 1; mlPerKg injections use dosage volume
     for (const med of (record as any).medications ?? []) {
       if (!med.name) continue;
       const match =
@@ -98,13 +108,27 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
         match &&
         match.administrationRoute === 'injection' &&
         (match as any).injectionPricingType === 'singleDose';
+      const isMlPerKgInjection =
+        match &&
+        match.administrationRoute === 'injection' &&
+        (match as any).injectionPricingType === 'mlPerKg';
+
+      let quantity = med.quantity ?? 1;
+      if (isSingleDoseInjection) {
+        quantity = 1;
+      } else if (isMlPerKgInjection && med.dosage) {
+        // Parse dosage string like "5.0 mL" → 5.0 and use mL as quantity (price is per mL)
+        const mlMatch = String(med.dosage).match(/([\d.]+)\s*ml/i);
+        quantity = mlMatch ? parseFloat(mlMatch[1]) : 1;
+      }
+
       newItems.push({
         productServiceId: match ? match._id : null,
         vaccineTypeId: null,
         name: match ? match.name : med.name,
         type: 'Product',
         unitPrice: match ? match.price : 0,
-        quantity: isSingleDoseInjection ? 1 : (med.quantity ?? 1),
+        quantity,
       });
     }
 
@@ -122,7 +146,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
       });
     }
 
-    // Preventive Care — quantity 1
+    // Preventive Care — service itself (qty 1) + associated medications and injections
     for (const care of (record as any).preventiveCare ?? []) {
       if (!care.product) continue;
       const match = matchByName(care.product, careCatalog);
@@ -134,6 +158,57 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
         unitPrice: match ? match.price : 0,
         quantity: 1,
       });
+
+      if (!match) continue;
+      const careServiceId = match._id.toString();
+
+      // Associated preventive medications (route=preventive, linked via associatedServiceId)
+      const assocMeds = allProducts.filter(
+        (p: any) =>
+          p.administrationRoute === 'preventive' &&
+          p.associatedServiceId?.toString() === careServiceId,
+      );
+      for (const assocMed of assocMeds) {
+        if (preventiveExclusionSet.has(assocMed._id.toString())) continue;
+        newItems.push({
+          productServiceId: assocMed._id,
+          vaccineTypeId: null,
+          name: assocMed.name,
+          type: 'Product',
+          unitPrice: assocMed.price,
+          quantity: assocMed.pricingType === 'pack' ? 1 : 1,
+        });
+      }
+
+      // Associated injections (route=injection, linked via associatedServiceId)
+      const assocInjs = allProducts.filter(
+        (p: any) =>
+          p.administrationRoute === 'injection' &&
+          p.associatedServiceId?.toString() === careServiceId,
+      );
+      for (const assocInj of assocInjs) {
+        if (preventiveExclusionSet.has(assocInj._id.toString())) continue;
+        let injQty = 1;
+        if ((assocInj as any).injectionPricingType === 'mlPerKg' && petWeightKg > 0) {
+          // Compute mL dose: use doseConcentration (mg/mL) + dosePerKg (mg/kg), or fallback to dosePerKg as mL/kg
+          const doseConcentration: number = (assocInj as any).doseConcentration ?? 0;
+          const dosePerKg: number = (assocInj as any).dosePerKg ?? 0;
+          if (doseConcentration > 0 && dosePerKg > 0) {
+            injQty = parseFloat(((dosePerKg * petWeightKg) / doseConcentration).toFixed(2));
+          } else if (dosePerKg > 0) {
+            injQty = parseFloat((dosePerKg * petWeightKg).toFixed(2));
+          }
+          if (injQty <= 0) injQty = 1;
+        }
+        newItems.push({
+          productServiceId: assocInj._id,
+          vaccineTypeId: null,
+          name: assocInj.name,
+          type: 'Product',
+          unitPrice: assocInj.price,
+          quantity: injQty,
+        });
+      }
     }
 
     // Vaccinations — pull price from VaccineType.pricePerDose
@@ -253,12 +328,18 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
       }
     }
 
-    // Titer testing fallback — when titer is performed during a vaccination appointment
-    // (appointment type 'vaccination' is in SKIP_APPT_TYPES so not caught above).
+    // Titer testing — when titer is performed, add the species-appropriate titer service.
     // Detected by the "Immunity Testing" marker appended to the plan field.
     const hasTiterItem = newItems.some((item) => item.name.toLowerCase().includes('titer'));
     if (!hasTiterItem && typeof (record as any).plan === 'string' && (record as any).plan.includes('Immunity Testing')) {
-      const titerMatch = allProducts.find((p: any) => normalizeName(p.name).includes('titer'));
+      // Try species-specific first (e.g. "Canine Titer Testing" / "Feline Titer Testing")
+      const speciesHint = petSpecies.toLowerCase().startsWith('f') ? 'feline' : 'canine';
+      const titerMatch =
+        allProducts.find(
+          (p: any) =>
+            normalizeName(p.name).includes('titer') &&
+            normalizeName(p.name).includes(speciesHint),
+        ) || allProducts.find((p: any) => normalizeName(p.name).includes('titer'));
       if (titerMatch) {
         newItems.push({
           productServiceId: titerMatch._id,
@@ -910,7 +991,8 @@ export const updateRecord = async (req: Request, res: Response) => {
     const {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
-      medications, diagnosticTests, preventiveCare, confinementAction, confinementDays, confinementRecordId,
+      medications, diagnosticTests, preventiveCare, preventiveAssociatedExclusions,
+      confinementAction, confinementDays, confinementRecordId,
       referral, discharge, scheduledSurgery,
       surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource
     } = req.body;
@@ -932,6 +1014,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (medications !== undefined) record.medications = medications;
     if (diagnosticTests !== undefined) record.diagnosticTests = diagnosticTests;
     if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
+    if (preventiveAssociatedExclusions !== undefined) (record as any).preventiveAssociatedExclusions = preventiveAssociatedExclusions;
     if (confinementAction !== undefined) record.confinementAction = confinementAction;
     if (confinementDays !== undefined) record.confinementDays = confinementDays;
     if (confinementRecordId !== undefined) (record as any).confinementRecordId = confinementRecordId || null;

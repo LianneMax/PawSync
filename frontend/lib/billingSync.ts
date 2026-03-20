@@ -13,6 +13,9 @@ interface CatalogEntry {
   price: number
   administrationRoute?: string
   injectionPricingType?: 'singleDose' | 'mlPerKg'
+  associatedServiceId?: string | null
+  doseConcentration?: number | null
+  dosePerKg?: number | null
   catalogKind: 'product-service' | 'vaccine'
 }
 
@@ -66,6 +69,9 @@ export async function syncBillingFromRecord({
   titerEnabled,
   deliveryServiceName,
   appointmentTypes,
+  petSpecies,
+  petWeightKg,
+  preventiveExclusions,
 }: {
   billingId: string
   petId: string
@@ -78,6 +84,9 @@ export async function syncBillingFromRecord({
   titerEnabled?: boolean
   deliveryServiceName?: string
   appointmentTypes?: string[]
+  petSpecies?: string
+  petWeightKg?: number
+  preventiveExclusions?: string[]
 }): Promise<void> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -103,6 +112,9 @@ export async function syncBillingFromRecord({
       price: p.price,
       administrationRoute: p.administrationRoute,
       injectionPricingType: p.injectionPricingType,
+      associatedServiceId: p.associatedServiceId ? String(p.associatedServiceId) : null,
+      doseConcentration: p.doseConcentration ?? null,
+      dosePerKg: p.dosePerKg ?? null,
       catalogKind: 'product-service' as const,
     }))
 
@@ -143,7 +155,7 @@ export async function syncBillingFromRecord({
   const billingItems: any[] = []
 
   // Medications
-  // Single-dose injections are always billed as quantity 1; all others use med.quantity (default 1)
+  // Single-dose injections are billed as qty 1; mlPerKg injections use dosage volume; others use med.quantity
   const medCatalog = allCatalog.filter((c) => c.category === 'Medication')
   for (const med of medications) {
     if (!med.name) continue
@@ -157,12 +169,25 @@ export async function syncBillingFromRecord({
       match &&
       match.administrationRoute === 'injection' &&
       match.injectionPricingType === 'singleDose'
+    const isMlPerKgInjection =
+      match &&
+      match.administrationRoute === 'injection' &&
+      match.injectionPricingType === 'mlPerKg'
+
+    let quantity: number = (med as any).quantity ?? 1
+    if (isSingleDoseInjection) {
+      quantity = 1
+    } else if (isMlPerKgInjection && (med as any).dosage) {
+      const mlMatch = String((med as any).dosage).match(/([\d.]+)\s*ml/i)
+      quantity = mlMatch ? parseFloat(mlMatch[1]) : 1
+    }
+
     billingItems.push({
       ...(match ? { productServiceId: match.id } : {}),
       name: match ? match.name : med.name,
       type: 'Product',
       unitPrice: match ? match.price : 0,
-      quantity: isSingleDoseInjection ? 1 : ((med as any).quantity ?? 1),
+      quantity,
     })
   }
 
@@ -179,8 +204,9 @@ export async function syncBillingFromRecord({
     })
   }
 
-  // Preventive Care
+  // Preventive Care — service itself + associated medications and injections
   const careCatalog = allCatalog.filter((c) => c.category === 'Preventive Care')
+  const exclusionSet = new Set<string>(preventiveExclusions ?? [])
   for (const care of preventiveCare) {
     if (!care.product) continue
     const match = matchByName(care.product, careCatalog)
@@ -190,6 +216,56 @@ export async function syncBillingFromRecord({
       type: 'Service',
       unitPrice: match ? match.price : 0,
     })
+
+    if (!match) continue
+    const careServiceId = match.id
+
+    // Associated preventive medications (route=preventive, linked via associatedServiceId)
+    const assocMeds = productServices.filter(
+      (p: any) =>
+        String(p.administrationRoute || '').toLowerCase() === 'preventive' &&
+        String(p.associatedServiceId || '') === careServiceId,
+    )
+    console.log(`[BillingSync] Preventive care "${care.product}" (id=${careServiceId}): found ${assocMeds.length} assoc med(s), exclusions:`, [...exclusionSet])
+    for (const assocMed of assocMeds) {
+      if (exclusionSet.has(assocMed.id)) continue
+      billingItems.push({
+        productServiceId: assocMed.id,
+        name: assocMed.name,
+        type: 'Product',
+        unitPrice: assocMed.price,
+        quantity: 1,
+      })
+    }
+
+    // Associated injections (route=injection, linked via associatedServiceId)
+    const assocInjs = productServices.filter(
+      (p: any) =>
+        String(p.administrationRoute || '').toLowerCase() === 'injection' &&
+        String(p.associatedServiceId || '') === careServiceId,
+    )
+    console.log(`[BillingSync] Preventive care "${care.product}" (id=${careServiceId}): found ${assocInjs.length} assoc injection(s)`)
+    for (const assocInj of assocInjs) {
+      if (exclusionSet.has(assocInj.id)) continue
+      let injQty = 1
+      if (assocInj.injectionPricingType === 'mlPerKg' && petWeightKg && petWeightKg > 0) {
+        const doseConcentration: number = (assocInj as any).doseConcentration ?? 0
+        const dosePerKg: number = (assocInj as any).dosePerKg ?? 0
+        if (doseConcentration > 0 && dosePerKg > 0) {
+          injQty = parseFloat(((dosePerKg * petWeightKg) / doseConcentration).toFixed(2))
+        } else if (dosePerKg > 0) {
+          injQty = parseFloat((dosePerKg * petWeightKg).toFixed(2))
+        }
+        if (injQty <= 0) injQty = 1
+      }
+      billingItems.push({
+        productServiceId: assocInj.id,
+        name: assocInj.name,
+        type: 'Product',
+        unitPrice: assocInj.price,
+        quantity: injQty,
+      })
+    }
   }
 
   // Vaccines administered on this visit
@@ -208,11 +284,17 @@ export async function syncBillingFromRecord({
     })
   }
 
-  // Titer Testing — add the matching service from the catalog when titer was performed
+  // Titer Testing — add the species-appropriate titer service from the catalog
   if (titerEnabled) {
     const hasTiterItem = billingItems.some((i: any) => (i.name || '').toLowerCase().includes('titer'))
     if (!hasTiterItem) {
-      const titerMatch = allCatalog.find((c) => normalizeName(c.name).includes('titer'))
+      const speciesHint = (petSpecies || '').toLowerCase().startsWith('f') ? 'feline' : 'canine'
+      const titerMatch =
+        allCatalog.find(
+          (c) =>
+            normalizeName(c.name).includes('titer') &&
+            normalizeName(c.name).includes(speciesHint),
+        ) || allCatalog.find((c) => normalizeName(c.name).includes('titer'))
       billingItems.push({
         ...(titerMatch ? { productServiceId: titerMatch.id } : {}),
         name: titerMatch ? titerMatch.name : 'Titer Testing',

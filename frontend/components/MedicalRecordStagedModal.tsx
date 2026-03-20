@@ -770,6 +770,8 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [preventiveInjectionDosageOverrides, setPreventiveInjectionDosageOverrides] = useState<Record<string, string>>({})
   const [preventiveMedicationDurationOverrides, setPreventiveMedicationDurationOverrides] = useState<Record<string, string>>({})
   const [preventiveMedicationIntervalOverrides, setPreventiveMedicationIntervalOverrides] = useState<Record<string, string>>({})
+  // Tracks productServiceIds of associated preventive medications/injections the vet has opted out of
+  const [preventiveAssociatedExclusions, setPreventiveAssociatedExclusions] = useState<Set<string>>(new Set())
 
   const isPreventiveCareAppt = appointmentTypes.some((apptType) => {
     const normalizedType = normalizeServiceToken(apptType)
@@ -1055,7 +1057,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         setPreventiveCare(normalizedCare)
       }
       setSharedWithOwner(r.sharedWithOwner || false)
-      
+      if (r.preventiveAssociatedExclusions?.length) {
+        setPreventiveAssociatedExclusions(new Set(r.preventiveAssociatedExclusions))
+      }
+
       // Store billing id and record creation date for auto-sync
       if (r.billingId) {
         const bid = typeof r.billingId === 'object' ? (r.billingId as any)._id ?? String(r.billingId) : String(r.billingId)
@@ -1481,6 +1486,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         medications,
         diagnosticTests: diagnosticTestsToSend,
         preventiveCare,
+        preventiveAssociatedExclusions: [...preventiveAssociatedExclusions],
         sharedWithOwner,
         confinementAction,
         confinementDays,
@@ -1499,7 +1505,22 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         } : {}),
       }, token)
       if (billingId && recordCreatedAt) {
-        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })), titerEnabled: titerEnabled && !skipTiterSuggested, deliveryServiceName: pregnancyDelivery ? (pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || '') : undefined, appointmentTypes }).catch(() => {})
+        syncBillingFromRecord({
+          billingId,
+          petId,
+          medications,
+          diagnosticTests: diagnosticTestsToSend,
+          preventiveCare,
+          recordCreatedAt,
+          token,
+          recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })),
+          titerEnabled: titerEnabled && !skipTiterSuggested,
+          deliveryServiceName: pregnancyDelivery ? (pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || '') : undefined,
+          appointmentTypes,
+          petSpecies: pet?.species,
+          petWeightKg: parseFloat(String(vitals?.weight?.value ?? '')) || undefined,
+          preventiveExclusions: [...preventiveAssociatedExclusions],
+        }).catch((e) => console.error('[BillingSync] Frontend billing sync error:', e))
       }
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
@@ -2689,10 +2710,12 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
                             options={[
                               { value: '', label: 'Select a diagnostic test service' },
-                              ...diagnosticTestServices.map((service) => ({
-                                value: service.name,
-                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
-                              })),
+                              ...diagnosticTestServices
+                                .filter((service) => !titerEnabled || !isTiterTestingService(service.name))
+                                .map((service) => ({
+                                  value: service.name,
+                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                                })),
                             ]}
                           />
                         </div>
@@ -4202,10 +4225,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             />
                           </div>
 
-                          {associatedInjectionMeds.length > 0 && (
+                          {associatedInjectionMeds.filter((inj) => !preventiveAssociatedExclusions.has(inj._id!)).length > 0 && (
                             <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
                               <p className="text-[11px] font-semibold text-[#476B6B]">Associated Injection</p>
-                              {associatedInjectionMeds.map((inj, injIndex) => {
+                              {associatedInjectionMeds.filter((inj) => !preventiveAssociatedExclusions.has(inj._id!)).map((inj, injIndex) => {
                                 const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
                                 const inferredCareType = care.careType || getInjectionCareType(care.product)
                                 const effectiveCareType: 'flea' | 'deworming' | 'heartworm' | null =
@@ -4224,7 +4247,16 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                   : (fallbackDosage || '')
                                 return (
                                   <div key={`${inj._id}-${injIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
-                                    <p className="text-xs font-semibold text-[#4F4F4F]">{inj.name}</p>
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-[#4F4F4F]">{inj.name}</p>
+                                      <button
+                                        onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, inj._id!]))}
+                                        className="text-[#900B09] hover:text-red-600"
+                                        title="Remove from billing"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                     <div className="mt-1.5">
                                       <p className="text-[10px] text-gray-400 mb-0.5">Dosage</p>
                                       <input
@@ -4249,10 +4281,19 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
 
                           <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
                             <p className="text-[11px] font-semibold text-[#476B6B]">Associated Preventive Medication</p>
-                            {associatedPreventiveMeds.length > 0 ? (
-                              associatedPreventiveMeds.map((med, medIndex) => (
+                            {associatedPreventiveMeds.filter((med) => !preventiveAssociatedExclusions.has(med._id!)).length > 0 ? (
+                              associatedPreventiveMeds.filter((med) => !preventiveAssociatedExclusions.has(med._id!)).map((med, medIndex) => (
                                 <div key={`${med._id}-${medIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
-                                  <p className="text-xs font-semibold text-[#4F4F4F]">{med.name}</p>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <p className="text-xs font-semibold text-[#4F4F4F]">{med.name}</p>
+                                    <button
+                                      onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, med._id!]))}
+                                      className="text-[#900B09] hover:text-red-600"
+                                      title="Remove from billing"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                   {(() => {
                                     const medKey = `${i}-${med._id}`
                                     return (
@@ -4324,7 +4365,11 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 </div>
                               ))
                             ) : (
-                              <p className="text-[11px] text-gray-500">No preventive medication linked to this preventive care service.</p>
+                              <p className="text-[11px] text-gray-500">
+                                {associatedPreventiveMeds.length > 0
+                                  ? 'All associated medications have been removed from billing.'
+                                  : 'No preventive medication linked to this preventive care service.'}
+                              </p>
                             )}
                           </div>
 

@@ -141,6 +141,7 @@ export interface IMedicalRecord extends Document {
   pregnancyLoss?: IPregnancyLoss | null;
   surgeryRecord?: ISurgeryRecord | null;
   billingId: mongoose.Types.ObjectId | null;
+  preventiveAssociatedExclusions: string[];
   followUps: IFollowUp[];
   createdAt: Date;
   updatedAt: Date;
@@ -474,6 +475,10 @@ const MedicalRecordSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Billing',
       default: null,
+    },
+    preventiveAssociatedExclusions: {
+      type: [String],
+      default: [],
     },
     followUps: {
       type: [FollowUpSchema],

@@ -4,10 +4,24 @@ import User from '../models/User';
 import Clinic from '../models/Clinic';
 import MedicalRecord from '../models/MedicalRecord';
 import ConfinementRecord from '../models/ConfinementRecord';
+import Appointment from '../models/Appointment';
 import { sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { syncBillingFromRecord } from './medicalRecordController';
+
+function formatAppointmentTypesForServiceLabel(types: string[] = []): string {
+  if (!Array.isArray(types) || types.length === 0) return '';
+
+  return types
+    .map((type) =>
+      type
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' '),
+    )
+    .join(', ');
+}
 
 // Populate fields shared across all views
 const POPULATE_BILLING = [
@@ -84,9 +98,20 @@ export const createBilling = async (req: Request, res: Response) => {
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
     const totalAmountDue = Math.max(0, subtotal - discount);
 
-    // Auto-generate serviceLabel from item names if not provided
-    const resolvedLabel = serviceLabel ||
+    // Auto-generate serviceLabel from item names; fall back to appointment types when needed.
+    let resolvedLabel = serviceLabel ||
       (items.length > 0 ? items.map((i: any) => i.name).join(', ') : '');
+    let resolvedServiceDate = serviceDate || new Date();
+
+    if ((!resolvedLabel || !serviceDate) && appointmentId) {
+      const appt = await Appointment.findById(appointmentId).select('types date').lean();
+      if (!resolvedLabel && appt?.types?.length) {
+        resolvedLabel = formatAppointmentTypesForServiceLabel(appt.types);
+      }
+      if (!serviceDate && appt?.date) {
+        resolvedServiceDate = appt.date;
+      }
+    }
 
     const billing = await Billing.create({
       ownerId,
@@ -103,7 +128,7 @@ export const createBilling = async (req: Request, res: Response) => {
       discount,
       totalAmountDue,
       serviceLabel: resolvedLabel,
-      serviceDate: serviceDate || new Date(),
+      serviceDate: resolvedServiceDate,
     });
 
     // Link billing back to the medical record so the page knows one already exists,

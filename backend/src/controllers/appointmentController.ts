@@ -17,6 +17,19 @@ import { getClinicForAdmin } from './clinicController';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function formatAppointmentTypesForServiceLabel(types: string[] = []): string {
+  if (!Array.isArray(types) || types.length === 0) return '';
+
+  return types
+    .map((type) =>
+      type
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' '),
+    )
+    .join(', ');
+}
+
 /**
  * Generate 30-minute time slots between two "HH:MM" time strings
  */
@@ -756,6 +769,9 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     // only for appointments that have an assigned vet.
     let medicalRecordId: string | undefined;
     if (status === 'in_progress' && appointment.vetId) {
+      const resolvedServiceLabel = formatAppointmentTypesForServiceLabel(appointment.types || []);
+      const resolvedServiceDate = appointment.date ? new Date(appointment.date) : new Date();
+
       const existingRecord = await MedicalRecord.findOne({ appointmentId: appointment._id });
       if (!existingRecord) {
         // Mark any previous current records for this pet as historical
@@ -809,8 +825,8 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
             subtotal: 0,
             discount: 0,
             totalAmountDue: 0,
-            serviceLabel: '',
-            serviceDate: new Date(),
+            serviceLabel: resolvedServiceLabel,
+            serviceDate: resolvedServiceDate,
           });
           await MedicalRecord.findByIdAndUpdate(record._id, { billingId: billing._id });
         }
@@ -836,8 +852,8 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
             subtotal: 0,
             discount: 0,
             totalAmountDue: 0,
-            serviceLabel: '',
-            serviceDate: new Date(),
+            serviceLabel: resolvedServiceLabel,
+            serviceDate: resolvedServiceDate,
           });
           await MedicalRecord.findByIdAndUpdate(existingRecord._id, { billingId: billing._id });
         }

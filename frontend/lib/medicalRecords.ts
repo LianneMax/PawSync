@@ -351,6 +351,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   medications: Omit<Medication, '_id'>[];
   diagnosticTests: Omit<DiagnosticTest, '_id'>[];
   preventiveCare: Omit<PreventiveCare, '_id'>[];
+  preventiveAssociatedExclusions: string[];
   sharedWithOwner: boolean;
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
