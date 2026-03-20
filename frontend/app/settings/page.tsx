@@ -8,6 +8,7 @@ import { authenticatedFetch } from '@/lib/auth'
 import { Eye, EyeOff, Lock, Mail, Phone, User, X, ChevronDown } from 'lucide-react'
 import AvatarUpload from '@/components/avatar-upload'
 import { PhoneInput } from '@/components/ui/phone-input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useRef } from 'react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -373,6 +374,11 @@ export default function SettingsPage() {
   const [photoSaving, setPhotoSaving] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [showForgotModal, setShowForgotModal] = useState(false)
+  const [resignationModalOpen, setResignationModalOpen] = useState(false)
+  const [backupVets, setBackupVets] = useState<Array<{ _id: string; firstName: string; lastName: string; email: string }>>([])
+  const [selectedBackupVetId, setSelectedBackupVetId] = useState('')
+  const [resignationSubmitting, setResignationSubmitting] = useState(false)
+  const [resignationInfo, setResignationInfo] = useState<any>(null)
 
   // Accordion open state
   const [profileOpen, setProfileOpen] = useState(true)
@@ -399,6 +405,9 @@ export default function SettingsPage() {
   // Errors
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({})
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
+  const isVet = authUser?.userType === 'veterinarian'
+  const resignationStatus = resignationInfo?.status || null
+  const settingsLockedByResignation = isVet && (resignationStatus === 'pending' || resignationStatus === 'approved')
 
   useEffect(() => {
     if (!token) return
@@ -413,6 +422,7 @@ export default function SettingsPage() {
           setContactNumber(u.contactNumber || '')
           const fetchedPhoto = u.photo || null
           setCurrentPhoto(fetchedPhoto)
+          setResignationInfo(u.resignation || null)
           if (authUser) {
             setUser({ ...authUser, avatar: fetchedPhoto || undefined })
           }
@@ -457,6 +467,10 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (settingsLockedByResignation) {
+      toast.error('Settings are locked while resignation is pending clinic approval')
+      return
+    }
     const errors: Record<string, string> = {}
     if (!firstName.trim()) errors.firstName = 'First name is required'
     if (!lastName.trim()) errors.lastName = 'Last name is required'
@@ -493,6 +507,10 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (settingsLockedByResignation) {
+      toast.error('Password changes are disabled while resignation is pending clinic approval')
+      return
+    }
     const errors: Record<string, string> = {}
     if (!currentPassword) errors.currentPassword = 'Current password is required'
     if (!newPassword) errors.newPassword = 'New password is required'
@@ -527,6 +545,50 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
     }
   }
 
+  const openResignationModal = async () => {
+    if (!token) return
+    try {
+      const res = await authenticatedFetch('/resignations/backup-vets', { method: 'GET' }, token)
+      if (res.status === 'SUCCESS') {
+        setBackupVets(res.data?.vets || [])
+        setSelectedBackupVetId('')
+        setResignationModalOpen(true)
+      } else {
+        toast.error(res.message || 'Failed to load backup veterinarians')
+      }
+    } catch {
+      toast.error('Failed to load backup veterinarians')
+    }
+  }
+
+  const submitResignation = async () => {
+    if (!token) return
+    if (!selectedBackupVetId) {
+      toast.error('Please choose a backup veterinarian')
+      return
+    }
+
+    setResignationSubmitting(true)
+    try {
+      const res = await authenticatedFetch('/resignations/submit', {
+        method: 'POST',
+        body: JSON.stringify({ backupVetId: selectedBackupVetId }),
+      }, token)
+
+      if (res.status === 'SUCCESS') {
+        toast.success('Resignation submitted. Pending clinic approval.')
+        setResignationInfo(res.data?.resignation || { status: 'pending' })
+        setResignationModalOpen(false)
+      } else {
+        toast.error(res.message || 'Failed to submit resignation')
+      }
+    } catch {
+      toast.error('Failed to submit resignation')
+    } finally {
+      setResignationSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -542,6 +604,12 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
       <div className="p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-[#4F4F4F] mb-1">Account Settings</h1>
         <p className="text-sm text-gray-400 mb-8">Manage your personal information and security settings</p>
+
+        {settingsLockedByResignation && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Pending clinic approval. Settings updates are disabled while your resignation request is being processed.
+          </div>
+        )}
 
         <div className="space-y-4">
 
@@ -587,6 +655,47 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
               </div>
             </div>
           </div>
+
+          {isVet && (
+            <div className="bg-white rounded-2xl shadow-sm p-8">
+              <h2 className="text-base font-semibold text-[#4F4F4F] mb-2">Veterinarian Resignation</h2>
+              <p className="text-sm text-gray-500 mb-4">Requires 7-day notice, clinic approval, and completion of existing appointments.</p>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                    resignationStatus === 'approved'
+                      ? 'bg-blue-100 text-blue-700'
+                      : resignationStatus === 'pending'
+                        ? 'bg-amber-100 text-amber-700'
+                        : resignationStatus === 'rejected'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {resignationStatus === 'approved'
+                      ? 'Approved (Notice Active)'
+                      : resignationStatus === 'pending'
+                        ? 'Pending Clinic Approval'
+                        : resignationStatus === 'rejected'
+                          ? 'Resignation Rejected'
+                          : 'No Active Request'}
+                  </span>
+                  {resignationInfo?.endDate && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Notice period ends on {new Date(resignationInfo.endDate).toLocaleDateString('en-US')}.
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={openResignationModal}
+                  disabled={settingsLockedByResignation}
+                  className="px-4 py-2 bg-[#7FA5A3] hover:bg-[#476B6B] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Resign
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Personal Information (accordion) ─────────────────── */}
           <AccordionSection
@@ -652,7 +761,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
               <div className="flex justify-end mt-6 pt-5 border-t border-gray-100">
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || settingsLockedByResignation}
                   className="px-6 py-2.5 bg-[#7FA5A3] hover:bg-[#476B6B] text-white font-medium rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
@@ -747,7 +856,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                 </button>
                 <button
                   type="submit"
-                  disabled={passwordLoading}
+                  disabled={passwordLoading || settingsLockedByResignation}
                   className="px-6 py-2.5 bg-[#7FA5A3] hover:bg-[#476B6B] text-white font-medium rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {passwordLoading ? 'Updating...' : 'Update Password'}
@@ -758,6 +867,47 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 
         </div>
       </div>
+
+      <Dialog open={resignationModalOpen} onOpenChange={setResignationModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Confirm Resignation?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Requires 7-day notice + clinic approval. Complete existing appointments.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Choose assignee (backup vet)</label>
+            <select
+              value={selectedBackupVetId}
+              onChange={(e) => setSelectedBackupVetId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:border-[#7FA5A3] focus:outline-none"
+            >
+              <option value="">Select backup veterinarian</option>
+              {backupVets.map((vet) => (
+                <option key={vet._id} value={vet._id}>{`Dr. ${vet.firstName} ${vet.lastName}`}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 mt-2">
+            <button
+              type="button"
+              onClick={() => setResignationModalOpen(false)}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submitResignation}
+              disabled={resignationSubmitting || !selectedBackupVetId}
+              className="flex-1 rounded-xl bg-[#476B6B] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#3a5a5a] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {resignationSubmitting ? 'Submitting...' : 'Submit Resignation'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {showForgotModal && (
         <ForgotPasswordModal

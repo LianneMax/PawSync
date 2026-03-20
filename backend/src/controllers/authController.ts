@@ -229,6 +229,14 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    if (user.userType === 'inactive') {
+      return res.status(403).json({
+        status: 'ERROR',
+        code: 'ACCOUNT_DEACTIVATED',
+        message: 'This account has been deactivated after resignation approval.'
+      });
+    }
+
     // Check if account is locked
     if (user.isLocked()) {
       const remainingMs = (user.lockUntil as Date).getTime() - Date.now();

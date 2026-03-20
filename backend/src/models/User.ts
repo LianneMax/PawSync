@@ -9,7 +9,17 @@ export interface IUser extends Document {
   contactNumber: string;
   contactNumberNormalized?: string | null;
   photo?: string;
-  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
+  userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
+  resignation?: {
+    status: 'none' | 'pending' | 'approved' | 'rejected' | 'completed';
+    submittedAt: Date | null;
+    noticeStart: Date | null;
+    endDate: Date | null;
+    backupVetId: mongoose.Types.ObjectId | null;
+    clinicId: mongoose.Types.ObjectId | null;
+    clinicBranchId: mongoose.Types.ObjectId | null;
+    rejectionReason: string | null;
+  };
   clinicId: mongoose.Types.ObjectId | null;
   clinicBranchId: mongoose.Types.ObjectId | null;
   isMainBranch: boolean;
@@ -67,8 +77,46 @@ const UserSchema = new Schema(
     },
     userType: {
       type: String,
-      enum: ['pet-owner', 'veterinarian', 'clinic-admin'],
+      enum: ['pet-owner', 'veterinarian', 'clinic-admin', 'inactive'],
       required: [true, 'Please specify user type']
+    },
+    resignation: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected', 'completed'],
+        default: 'none'
+      },
+      submittedAt: {
+        type: Date,
+        default: null
+      },
+      noticeStart: {
+        type: Date,
+        default: null
+      },
+      endDate: {
+        type: Date,
+        default: null
+      },
+      backupVetId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      },
+      clinicId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Clinic',
+        default: null
+      },
+      clinicBranchId: {
+        type: Schema.Types.ObjectId,
+        ref: 'ClinicBranch',
+        default: null
+      },
+      rejectionReason: {
+        type: String,
+        default: null
+      }
     },
     clinicId: {
       type: Schema.Types.ObjectId,

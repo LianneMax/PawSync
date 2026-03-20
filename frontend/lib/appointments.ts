@@ -18,7 +18,7 @@ export interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'confirmed' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'rescheduled' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
   isWalkIn: boolean;
   isEmergency: boolean;
@@ -37,6 +37,7 @@ export interface AssignedVet {
   firstName: string;
   lastName: string;
   email: string;
+  unavailableAfter?: string | null;
 }
 
 /**

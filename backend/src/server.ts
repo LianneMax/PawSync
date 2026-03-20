@@ -23,6 +23,7 @@ import paymentQRRoutes from './routes/paymentQRRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import petNotesRoutes from './routes/petNotesRoutes';
 import vetReportRoutes from './routes/vetReportRoutes';
+import resignationRoutes from './routes/resignationRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { startScheduler } from './utils/scheduler';
@@ -106,6 +107,9 @@ app.use('/api/pet-notes', petNotesRoutes);
 
 // Vet report routes
 app.use('/api/vet-reports', vetReportRoutes);
+
+// Resignation routes
+app.use('/api/resignations', resignationRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);

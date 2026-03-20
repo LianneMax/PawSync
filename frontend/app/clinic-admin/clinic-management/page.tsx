@@ -574,9 +574,6 @@ export default function ClinicManagementPage() {
                           <div className="flex items-center gap-2">
                             {vet.role !== 'ADMIN' && (
                               <>
-                                <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
                                 <button
                                   onClick={() => { setSelectedVet(vet); setRemoveVetOpen(true) }}
                                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

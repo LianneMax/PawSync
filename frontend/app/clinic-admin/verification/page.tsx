@@ -49,6 +49,18 @@ interface VerificationRequest {
   createdAt: string
 }
 
+interface ResignationRequest {
+  _id: string
+  vetId: VetUser
+  backupVetId: VetUser | null
+  clinicBranchId: { _id: string; name: string } | null
+  status: 'pending' | 'approved' | 'rejected' | 'completed'
+  submittedAt: string
+  noticeStart: string | null
+  endDate: string | null
+  rejectionReason: string | null
+}
+
 // ==================== STATUS BADGE ====================
 
 function VerificationStatusBadge({ status }: { status: VerificationRequest['status'] }) {
@@ -74,8 +86,9 @@ function VerificationStatusBadge({ status }: { status: VerificationRequest['stat
 export default function VerificationPage() {
   const { token } = useAuthStore()
   const [requests, setRequests] = useState<VerificationRequest[]>([])
+  const [resignations, setResignations] = useState<ResignationRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'rejected'>('pending')
+  const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'rejected' | 'resignations'>('pending')
   const [verifyChecked, setVerifyChecked] = useState<Record<string, boolean>>({})
 
   // Modal states
@@ -93,9 +106,15 @@ export default function VerificationPage() {
     if (!token) return
     setLoading(true)
     try {
-      const res = await authenticatedFetch('/verifications/clinic', {}, token)
-      if (res.status === 'SUCCESS') {
-        setRequests(res.data.verifications)
+      const [verificationRes, resignationRes] = await Promise.all([
+        authenticatedFetch('/verifications/clinic', {}, token),
+        authenticatedFetch('/resignations/clinic', {}, token),
+      ])
+      if (verificationRes.status === 'SUCCESS') {
+        setRequests(verificationRes.data.verifications)
+      }
+      if (resignationRes.status === 'SUCCESS') {
+        setResignations(resignationRes.data.resignations || [])
       }
     } catch (err) {
       console.error('Failed to fetch verifications:', err)
@@ -111,6 +130,7 @@ export default function VerificationPage() {
   const pendingCount = requests.filter(r => r.status === 'pending').length
   const verifiedCount = requests.filter(r => r.status === 'verified').length
   const rejectedCount = requests.filter(r => r.status === 'rejected').length
+  const resignationPendingCount = resignations.filter(r => r.status === 'pending').length
 
   const filtered = requests.filter(r => r.status === activeTab)
 
@@ -171,10 +191,44 @@ export default function VerificationPage() {
     }
   }
 
+  const handleApproveResignation = async (id: string) => {
+    if (!token) return
+    setActionLoading(true)
+    try {
+      const res = await authenticatedFetch(`/resignations/${id}/approve`, { method: 'PUT' }, token)
+      if (res.status === 'SUCCESS') {
+        await fetchVerifications()
+      }
+    } catch (err) {
+      console.error('Approve resignation error:', err)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRejectResignation = async (id: string) => {
+    if (!token) return
+    setActionLoading(true)
+    try {
+      const res = await authenticatedFetch(`/resignations/${id}/reject`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason: 'Resignation denied.' })
+      }, token)
+      if (res.status === 'SUCCESS') {
+        await fetchVerifications()
+      }
+    } catch (err) {
+      console.error('Reject resignation error:', err)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const tabs = [
     { key: 'pending' as const, label: 'Pending', count: pendingCount },
     { key: 'verified' as const, label: 'Verified', count: verifiedCount },
     { key: 'rejected' as const, label: 'Rejected', count: rejectedCount },
+    { key: 'resignations' as const, label: 'Resignations', count: resignationPendingCount },
   ]
 
   return (
@@ -215,6 +269,55 @@ export default function VerificationPage() {
               <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-gray-500">Loading verification requests...</p>
             </div>
+          ) : activeTab === 'resignations' ? (
+            resignations.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+                <CheckCircle2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No resignation requests</p>
+              </div>
+            ) : (
+              resignations.map((item) => (
+                <div key={item._id} className="bg-white rounded-2xl shadow-sm p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-[#4F4F4F]">Dr. {item.vetId?.firstName} {item.vetId?.lastName}</h3>
+                      <p className="text-sm text-gray-500">{item.vetId?.email}</p>
+                      <p className="text-xs text-gray-500 mt-2">Submitted: {formatDate(item.submittedAt)}</p>
+                      {item.endDate && (
+                        <p className="text-xs text-gray-500">Notice ends: {formatDate(item.endDate)}</p>
+                      )}
+                      {item.backupVetId && (
+                        <p className="text-xs text-gray-600 mt-1">Backup vet: Dr. {item.backupVetId.firstName} {item.backupVetId.lastName}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {item.status === 'pending' ? (
+                        <>
+                          <button
+                            onClick={() => handleRejectResignation(item._id)}
+                            disabled={actionLoading}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            onClick={() => handleApproveResignation(item._id)}
+                            disabled={actionLoading}
+                            className="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-xl hover:bg-green-600 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 uppercase">
+                          {item.status}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
               <CheckCircle2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />

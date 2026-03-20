@@ -28,6 +28,7 @@ export const getProfile = async (req: Request, res: Response) => {
           email: user.email,
           userType: user.userType,
           isVerified: user.isVerified,
+          resignation: user.resignation || null,
           contactNumber: user.contactNumber || null,
           photo: user.photo || null,
           createdAt: user.createdAt
@@ -53,6 +54,13 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(404).json({ status: 'ERROR', message: 'User not found' });
+    }
+
+    if (user.userType === 'veterinarian' && (user.resignation?.status === 'pending' || user.resignation?.status === 'approved')) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'Settings are locked while resignation is pending clinic approval.'
+      });
     }
 
     const { firstName, lastName, email, contactNumber, photo } = req.body;
@@ -127,6 +135,13 @@ export const changePassword = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(404).json({ status: 'ERROR', message: 'User not found' });
+    }
+
+    if (user.userType === 'veterinarian' && (user.resignation?.status === 'pending' || user.resignation?.status === 'approved')) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'Password update is disabled while resignation is pending clinic approval.'
+      });
     }
 
     const isMatch = await user.comparePassword(currentPassword);

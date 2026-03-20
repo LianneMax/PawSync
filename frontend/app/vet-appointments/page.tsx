@@ -40,6 +40,7 @@ import {
 
 const statusColors: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500', dot: 'bg-green-500' },
+  rescheduled: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500', dot: 'bg-green-500' },
   pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500', dot: 'bg-amber-500' },
   in_clinic: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500', dot: 'bg-blue-500' },
   in_progress: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500', dot: 'bg-indigo-500' },
@@ -231,7 +232,7 @@ export default function VetAppointmentsPage() {
 
   // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
-    if (a.status !== 'confirmed' && a.status !== 'in_clinic' && a.status !== 'in_progress') return false
+    if (a.status !== 'confirmed' && a.status !== 'rescheduled' && a.status !== 'in_clinic' && a.status !== 'in_progress') return false
     const apptDate = dateOnly(a.date)
     return apptDate === calendarDate
   })
@@ -281,7 +282,7 @@ export default function VetAppointmentsPage() {
   const todayAppts = appointments.filter((a) => {
     return dateOnly(a.date) === today
   })
-  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress').length
+  const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed' || a.status === 'rescheduled' || a.status === 'in_clinic' || a.status === 'in_progress').length
   const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length
 
   const handleCheckIn = async (appt: Appointment) => {
@@ -417,7 +418,7 @@ export default function VetAppointmentsPage() {
   // Set of dates (YYYY-MM-DD) that have upcoming appointments — for the dot indicator
   const datesWithAppointments = new Set(
     appointments
-      .filter((a) => a.status === 'confirmed' || a.status === 'in_progress' || a.status === 'pending')
+      .filter((a) => a.status === 'confirmed' || a.status === 'rescheduled' || a.status === 'in_progress' || a.status === 'pending')
       .map((a) => {
         const d = new Date(a.date)
         const year = d.getFullYear()
@@ -633,7 +634,7 @@ export default function VetAppointmentsPage() {
 
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 mt-2.5">
-                                      {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
+                                      {(appt.status === 'confirmed' || appt.status === 'rescheduled' || appt.status === 'in_clinic') && (
                                         <button
                                           onClick={() => handleCheckIn(appt)}
                                           disabled={checkingIn === appt._id}

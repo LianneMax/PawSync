@@ -8,7 +8,7 @@ declare global {
       user?: {
         userId: string;
         email: string;
-        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
+        userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
         clinicId?: string;
         clinicBranchId?: string;
         isMainBranch?: boolean;

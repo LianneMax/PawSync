@@ -22,7 +22,13 @@ export type NotificationType =
   | 'pregnancy_confirmed'
   | 'pregnancy_due_soon'
   | 'pregnancy_overdue'
-  | 'clinic_qr_payment_submitted';
+  | 'clinic_qr_payment_submitted'
+  | 'vet_resignation_submitted'
+  | 'vet_resignation_approved'
+  | 'vet_resignation_rejected'
+  | 'vet_resigned'
+  | 'clinic_vet_resignation_review'
+  | 'appointment_reassigned';
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
@@ -62,6 +68,12 @@ const NotificationSchema = new Schema<INotification>(
         'pregnancy_due_soon',
         'pregnancy_overdue',
         'clinic_qr_payment_submitted',
+        'vet_resignation_submitted',
+        'vet_resignation_approved',
+        'vet_resignation_rejected',
+        'vet_resigned',
+        'clinic_vet_resignation_review',
+        'appointment_reassigned',
       ],
       required: true,
     },

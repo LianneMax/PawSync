@@ -73,6 +73,17 @@ export const createAppointment = async (req: Request, res: Response) => {
 
     const { petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes } = req.body;
 
+    if (req.user.userType === 'veterinarian') {
+      const actingVet = await User.findById(req.user.userId).select('resignation');
+      const resignationStatus = actingVet?.resignation?.status;
+      if (resignationStatus === 'pending' || resignationStatus === 'approved') {
+        return res.status(403).json({
+          status: 'ERROR',
+          message: 'Pending clinic approval. You cannot submit new appointments during resignation processing.'
+        });
+      }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────────
     // Branch authorization validation
     // ─────────────────────────────────────────────────────────────────────────────────
@@ -149,6 +160,27 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for this appointment type' });
     }
 
+    if (hasOtherServices && vetId) {
+      const selectedVet = await User.findById(vetId).select('resignation userType');
+      if (!selectedVet || selectedVet.userType !== 'veterinarian') {
+        return res.status(400).json({ status: 'ERROR', message: 'Selected veterinarian is not available' });
+      }
+
+      const vetResignation = selectedVet.resignation;
+      if (vetResignation?.status === 'approved' && vetResignation.endDate) {
+        const appointmentDateForVet = new Date(date);
+        const vetEndDate = new Date(vetResignation.endDate);
+        vetEndDate.setHours(23, 59, 59, 999);
+
+        if (appointmentDateForVet > vetEndDate) {
+          return res.status(400).json({
+            status: 'ERROR',
+            message: `Vet unavailable after ${vetResignation.endDate.toLocaleDateString('en-US')}`
+          });
+        }
+      }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────────
     // Pet-specific conflict validation
     // ─────────────────────────────────────────────────────────────────────────────────
@@ -197,7 +229,7 @@ export const createAppointment = async (req: Request, res: Response) => {
     let existingQuery: any = {
       date: new Date(date),
       startTime,
-      status: { $in: ['pending', 'confirmed'] }
+      status: { $in: ['pending', 'confirmed', 'rescheduled'] }
     };
     
     if (hasGrooming && !hasOtherServices) {
@@ -329,6 +361,20 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'vetId and date are required' });
     }
 
+    const selectedVet = await User.findById(vetId as string).select('resignation');
+    if (selectedVet?.resignation?.status === 'approved' && selectedVet.resignation.endDate) {
+      const requestedDate = new Date(date as string);
+      const vetEndDate = new Date(selectedVet.resignation.endDate);
+      vetEndDate.setHours(23, 59, 59, 999);
+      if (requestedDate > vetEndDate) {
+        return res.status(400).json({
+          status: 'ERROR',
+          message: `Vet unavailable after ${selectedVet.resignation.endDate.toLocaleDateString('en-US')}`,
+          data: { unavailableAfter: selectedVet.resignation.endDate }
+        });
+      }
+    }
+
     // Determine the day-of-week for the requested date (parse locally to avoid timezone issues)
     const [yr, mo, dy] = (date as string).split('-').map(Number);
     const dayName = DAY_NAMES[new Date(yr, mo - 1, dy).getDay()];
@@ -382,7 +428,7 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     const booked = await Appointment.find({
       vetId: vetId as string,
       date: { $gte: dayStart, $lte: dayEnd },
-      status: { $in: ['pending', 'confirmed', 'in_progress'] }
+      status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] }
     }).select('startTime endTime status ownerId');
 
     const allSlots = generateTimeSlots(slotStart, slotEnd, slotBreakStart, slotBreakEnd);
@@ -451,7 +497,7 @@ export const getGroomingSlots = async (req: Request, res: Response) => {
       clinicBranchId: branchId as string,
       date: { $gte: dayStart, $lte: dayEnd },
       types: { $in: ['basic-grooming', 'full-grooming'] },
-      status: { $in: ['pending', 'confirmed', 'in_progress'] }
+      status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] }
     }).select('startTime endTime status ownerId');
 
     const allSlots = generateTimeSlots(slotStart, slotEnd);
@@ -496,7 +542,7 @@ export const getMyAppointments = async (req: Request, res: Response) => {
     if (filter === 'upcoming') {
       // Upcoming: date is today or later AND status is pending or confirmed
       query.date = { $gte: today };
-      query.status = { $in: ['pending', 'confirmed', 'in_clinic', 'in_progress'] };
+      query.status = { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'] };
     } else if (filter === 'previous') {
       // Previous: date is before today OR status is completed/cancelled
       query.$or = [
@@ -531,7 +577,14 @@ export const getVetAppointments = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const appointments = await Appointment.find({ vetId: req.user.userId })
+    const vet = await User.findById(req.user.userId).select('resignation');
+    const vetQuery: any = { vetId: req.user.userId };
+    if (vet?.resignation?.status === 'approved' && vet.resignation.endDate) {
+      vetQuery.date = { $lte: vet.resignation.endDate };
+      vetQuery.status = { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed', 'cancelled'] };
+    }
+
+    const appointments = await Appointment.find(vetQuery)
       .populate('petId', 'name species breed photo sex dateOfBirth color sterilization nfcTagId microchipNumber allergies')
       .populate('ownerId', 'firstName lastName email')
       .populate('clinicId', 'name')
@@ -570,6 +623,16 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
     if (!isOwner && !isVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to cancel this appointment' });
+    }
+
+    if (isVet) {
+      const vet = await User.findById(req.user.userId).select('resignation');
+      if (vet?.resignation?.status === 'approved') {
+        return res.status(403).json({
+          status: 'ERROR',
+          message: 'During notice period, vets must complete existing appointments and cannot cancel them.'
+        });
+      }
     }
 
     if (appointment.status === 'cancelled' || appointment.status === 'completed') {
@@ -672,6 +735,7 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     const { status } = req.body;
     const validTransitions: Record<string, string[]> = {
       'pending': ['confirmed', 'cancelled'],
+      'rescheduled': ['confirmed', 'in_clinic', 'in_progress', 'cancelled'],
       'confirmed': ['in_clinic', 'in_progress', 'cancelled'],
       'in_clinic': ['in_progress', 'cancelled'],
       'in_progress': ['completed', 'cancelled']
@@ -854,7 +918,7 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
       _id: { $ne: appointment._id },
       date: new Date(date),
       startTime,
-      status: { $in: ['pending', 'confirmed'] }
+      status: { $in: ['pending', 'confirmed', 'rescheduled'] }
     };
 
     if (isGroomingOnly) {
@@ -959,17 +1023,19 @@ export const getVetsForBranch = async (req: Request, res: Response) => {
       clinicBranchId: branchId as string,
       isActive: true,
       petId: null,
-    }).populate('vetId', 'firstName lastName email');
+    }).populate('vetId', 'firstName lastName email userType resignation');
 
     const vets = activeAssignments
-      .filter((a) => a.vetId)
+      .filter((a) => a.vetId && (a.vetId as any).userType === 'veterinarian')
       .map((a) => {
         const vet = a.vetId as any;
+        const unavailableAfter = vet?.resignation?.status === 'approved' ? vet?.resignation?.endDate || null : null;
         return {
           _id: vet._id,
           firstName: vet.firstName,
           lastName: vet.lastName,
           email: vet.email,
+          unavailableAfter,
         };
       });
 
@@ -1099,6 +1165,24 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     if (hasClinicMedical && !vetId) {
       return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for medical appointments' });
     }
+    if (hasClinicMedical && vetId) {
+      const selectedVet = await User.findById(vetId).select('userType resignation');
+      if (!selectedVet || selectedVet.userType !== 'veterinarian') {
+        return res.status(400).json({ status: 'ERROR', message: 'Selected veterinarian is not available' });
+      }
+
+      if (selectedVet.resignation?.status === 'approved' && selectedVet.resignation.endDate) {
+        const appointmentDateForVet = new Date(date);
+        const vetEndDate = new Date(selectedVet.resignation.endDate);
+        vetEndDate.setHours(23, 59, 59, 999);
+        if (appointmentDateForVet > vetEndDate) {
+          return res.status(400).json({
+            status: 'ERROR',
+            message: `Vet unavailable after ${selectedVet.resignation.endDate.toLocaleDateString('en-US')}`
+          });
+        }
+      }
+    }
     // For grooming-only appointments, clear vetId to null
     if (hasClinicGrooming && !hasClinicMedical) {
       vetId = null;
@@ -1112,7 +1196,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
           vetId,
           date: new Date(date),
           startTime,
-          status: { $in: ['pending', 'confirmed'] }
+          status: { $in: ['pending', 'confirmed', 'rescheduled'] }
         });
 
         if (existing) {
@@ -1157,7 +1241,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
         vetId,
         date: { $gte: emergencyDayStart, $lte: emergencyDayEnd },
         startTime: { $gte: startTime },
-        status: { $in: ['pending', 'confirmed', 'in_progress'] }
+        status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] }
       }).sort({ startTime: 1 });
 
       // pushTo: the earliest time that is occupied by the chain reaction.
@@ -1210,7 +1294,7 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
             const bookedOnDay = await Appointment.find({
               vetId,
               date: { $gte: candidateDayStart, $lte: candidateDayEnd },
-              status: { $in: ['pending', 'confirmed', 'in_progress'] },
+              status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] },
               _id: { $ne: appt._id }
             }).select('startTime');
 
@@ -1385,7 +1469,7 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
 
     const now = new Date();
     if (filter === 'upcoming') {
-      query.status = { $in: ['pending', 'confirmed', 'in_clinic', 'in_progress'] };
+      query.status = { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'] };
       if (!date) {
         query.date = { $gte: new Date(now.toISOString().split('T')[0]) };
       }
@@ -1442,7 +1526,7 @@ export const getNextAppointment = async (req: Request, res: Response) => {
     const appointment = await Appointment.findOne({
       petId: petId,
       date: { $gte: now },
-      status: { $in: ['pending', 'confirmed'] }
+      status: { $in: ['pending', 'confirmed', 'rescheduled'] }
     })
       .populate('clinicBranchId', 'name address')
       .populate('vetId', 'firstName lastName')
@@ -1629,17 +1713,19 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
       clinicBranchId: branchId,
       isActive: true,
       petId: null,
-    }).populate('vetId', 'firstName lastName email');
+    }).populate('vetId', 'firstName lastName email userType resignation');
 
     const vets = activeAssignments
-      .filter((a) => a.vetId)
+      .filter((a) => a.vetId && (a.vetId as any).userType === 'veterinarian')
       .map((a) => {
         const vet = a.vetId as any;
+        const unavailableAfter = vet?.resignation?.status === 'approved' ? vet?.resignation?.endDate || null : null;
         return {
           _id: vet._id,
           firstName: vet.firstName,
           lastName: vet.lastName,
           email: vet.email,
+          unavailableAfter,
         };
       });
 

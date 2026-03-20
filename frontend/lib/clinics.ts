@@ -21,6 +21,7 @@ export interface BranchVet {
   firstName: string;
   lastName: string;
   email: string;
+  unavailableAfter?: string | null;
 }
 
 /**

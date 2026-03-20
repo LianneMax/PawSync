@@ -740,7 +740,7 @@ function MyAppointmentsPageContent() {
                        getDisplayStatus(appt) === 'completed' ? 'Completed' :
                        (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
                     </span>
-                    {(appt.status === 'pending' || appt.status === 'confirmed') && getDisplayStatus(appt) !== 'cancelled' && activeTab === 'upcoming' && (
+                    {(appt.status === 'pending' || appt.status === 'confirmed' || appt.status === 'rescheduled') && getDisplayStatus(appt) !== 'cancelled' && activeTab === 'upcoming' && (
                       <button
                         onClick={() => handleCancel(appt._id)}
                         className="text-xs text-red-500 hover:text-red-700 font-medium"
@@ -911,6 +911,10 @@ function ScheduleModal({
   const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
   const selectedPet = pets.find((pet) => pet._id === selectedPetId) || null
+  const selectedVet = branchVets.find((vet) => vet._id === selectedVetId) || null
+  const selectedVetUnavailableAfter = selectedVet?.unavailableAfter ? new Date(selectedVet.unavailableAfter) : null
+  const selectedDateObj = selectedDate ? new Date(selectedDate) : null
+  const isSelectedDateBeyondVetEnd = !!(selectedVetUnavailableAfter && selectedDateObj && selectedDateObj > new Date(new Date(selectedVetUnavailableAfter).setHours(23, 59, 59, 999)))
 
   // Load pets + clinics/branches when modal opens
   useEffect(() => {
@@ -1129,7 +1133,7 @@ function ScheduleModal({
 
       // Filter to only appointments for this pet with pending/confirmed status
       const petAppointments = res.data.appointments.filter(
-        (apt: any) => apt.petId._id === selectedPetId && (apt.status === 'pending' || apt.status === 'confirmed')
+        (apt: any) => apt.petId._id === selectedPetId && (apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'rescheduled')
       )
 
       // Check if booking grooming appointment
@@ -1177,6 +1181,9 @@ function ScheduleModal({
     if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
+    if (!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter) {
+      return toast.error(`Vet unavailable after ${selectedVetUnavailableAfter.toLocaleDateString('en-US')}`)
+    }
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
     if (!selectedSlot) return toast.error('Please select a time slot')
@@ -1356,11 +1363,22 @@ function ScheduleModal({
                   label="Chosen Veterinarian"
                   value={selectedVetId}
                   placeholder="Menu Label"
-                  options={branchVets.map((v) => ({ value: v._id, label: `Dr. ${v.firstName} ${v.lastName}` }))}
+                  options={branchVets.map((v) => ({
+                    value: v._id,
+                    label: v.unavailableAfter
+                      ? `Dr. ${v.firstName} ${v.lastName} (Unavailable after ${new Date(v.unavailableAfter).toLocaleDateString('en-US')})`
+                      : `Dr. ${v.firstName} ${v.lastName}`
+                  }))}
                   onSelect={setSelectedVetId}
                 />
               )}
             </div>
+
+            {!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                Vet unavailable after {selectedVetUnavailableAfter.toLocaleDateString('en-US')}. Choose another veterinarian or earlier date.
+              </div>
+            )}
 
             {/* Row 3: Type of Appointment */}
             <div>

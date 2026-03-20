@@ -4,6 +4,9 @@ import Appointment from '../models/Appointment';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
 import Pet from '../models/Pet';
+import Resignation from '../models/Resignation';
+import AuditTrail from '../models/AuditTrail';
+import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import {
   sendAppointmentReminder,
   sendAppointmentMissed,
@@ -296,7 +299,7 @@ export function startScheduler() {
 
       const tomorrowAppointments = await Appointment.find({
         date: { $gte: tomorrowStart, $lte: tomorrowEnd },
-        status: { $in: ['pending', 'confirmed'] },
+        status: { $in: ['pending', 'confirmed', 'rescheduled'] },
       })
         .populate('ownerId', 'firstName email')
         .populate('petId', 'name')
@@ -353,7 +356,7 @@ export function startScheduler() {
       todayStart.setUTCHours(0, 0, 0, 0);
 
       const activeAppointments = await Appointment.find({
-        status: { $in: ['confirmed', 'in_progress'] },
+        status: { $in: ['confirmed', 'rescheduled', 'in_progress'] },
         date: { $lte: todayStart },
       })
         .populate('ownerId', 'firstName lastName email')
@@ -420,6 +423,94 @@ export function startScheduler() {
       }
     } catch (err) {
       console.error('[Scheduler] Auto-update appointments error:', err);
+    }
+  });
+
+  // Run every hour to deactivate vets whose notice period has ended
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const now = new Date();
+      const approvedResignations = await Resignation.find({
+        status: 'approved',
+        endDate: { $lte: now },
+      })
+        .populate('vetId', 'firstName lastName')
+        .populate('backupVetId', 'firstName lastName')
+        .populate('clinicBranchId', 'name');
+
+      for (const resignation of approvedResignations) {
+        await User.findByIdAndUpdate(resignation.vetId, {
+          $set: {
+            userType: 'inactive',
+            'resignation.status': 'completed',
+          },
+        });
+
+        resignation.status = 'completed';
+        await resignation.save();
+
+        const vet = resignation.vetId as any;
+        const branch = resignation.clinicBranchId as any;
+        const vetName = `Dr. ${vet?.firstName || ''} ${vet?.lastName || ''}`.trim();
+
+        await alertClinicAdmins({
+          clinicId: resignation.clinicId,
+          clinicBranchId: resignation.clinicBranchId,
+          notificationType: 'vet_resigned',
+          notificationTitle: 'Veterinarian Resigned',
+          notificationMessage: `${vetName} has been deactivated after completing notice period.`,
+          metadata: { resignationId: resignation._id, vetId: resignation.vetId },
+          emailSubject: 'PawSync – Veterinarian Resigned',
+          emailHeadline: 'Veterinarian Resigned',
+          emailIntro: `${vetName} has officially resigned.`,
+          emailDetails: {
+            Veterinarian: vetName,
+            Branch: branch?.name || 'Clinic Branch',
+            Status: 'Deactivated',
+          },
+        });
+
+        await createNotification(
+          resignation.vetId.toString(),
+          'vet_resigned',
+          'Resignation Completed',
+          'Your account has been deactivated after the notice period ended.',
+          { resignationId: resignation._id }
+        );
+
+        await createNotification(
+          resignation.backupVetId.toString(),
+          'vet_resigned',
+          'Veterinarian Resigned',
+          `${vetName} has officially resigned.`,
+          { resignationId: resignation._id, vetId: resignation.vetId }
+        );
+
+        const ownerIds = await Appointment.distinct('ownerId', { vetId: resignation.vetId });
+        for (const ownerId of ownerIds) {
+          await createNotification(
+            ownerId.toString(),
+            'vet_resigned',
+            'Veterinarian Resigned',
+            `${vetName} has resigned from the clinic. Future appointments have been handled by the clinic team.`,
+            { resignationId: resignation._id, vetId: resignation.vetId }
+          );
+        }
+
+        await AuditTrail.create({
+          action: 'vet_deactivated_after_resignation',
+          actorUserId: null,
+          targetUserId: resignation.vetId,
+          clinicId: resignation.clinicId,
+          clinicBranchId: resignation.clinicBranchId,
+          metadata: {
+            resignationId: resignation._id,
+            endDate: resignation.endDate,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('[Scheduler] Resignation deactivation error:', err);
     }
   });
 

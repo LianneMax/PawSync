@@ -11,7 +11,7 @@ export interface IAppointment extends Document {
   date: Date;
   startTime: string; // e.g. "07:00"
   endTime: string;   // e.g. "07:30"
-  status: 'pending' | 'confirmed' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'rescheduled' | 'in_clinic' | 'in_progress' | 'cancelled' | 'completed';
   notes: string | null;
   isWalkIn: boolean;
   isEmergency: boolean;
@@ -78,7 +78,7 @@ const AppointmentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'in_clinic', 'in_progress', 'cancelled', 'completed'],
+      enum: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'cancelled', 'completed'],
       default: 'pending'
     },
     notes: {
@@ -107,7 +107,7 @@ const AppointmentSchema = new Schema(
 // Prevent double-booking: same vet, same date, same time slot (emergency appointments bypass this)
 AppointmentSchema.index(
   { vetId: 1, date: 1, startTime: 1 },
-  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'in_progress'] }, isEmergency: false } }
+  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] }, isEmergency: false } }
 );
 
 export default mongoose.model<IAppointment>('Appointment', AppointmentSchema);
