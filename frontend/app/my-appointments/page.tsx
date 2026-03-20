@@ -888,6 +888,7 @@ function ScheduleModal({
   const [selectedVetId, setSelectedVetId] = useState('')
   const [mode, setMode] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [chiefComplaint, setChiefComplaint] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date()
     const year = today.getFullYear()
@@ -1194,6 +1195,7 @@ function ScheduleModal({
       setSelectedVetId('')
       setMode('')
       setSelectedTypes([])
+      setChiefComplaint('')
       setSelectedSlot(null)
       setSlots([])
       setIsClosedDay(false)
@@ -1291,6 +1293,7 @@ function ScheduleModal({
     }
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+    if (!chiefComplaint.trim()) return toast.error('Chief Complaint is required')
     if (!selectedSlot) return toast.error('Please select a time slot')
 
     setSubmitting(true)
@@ -1314,6 +1317,7 @@ function ScheduleModal({
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
+        notes: chiefComplaint.trim(),
       }, token || undefined)
 
       if (res.status === 'SUCCESS') {
@@ -1526,6 +1530,17 @@ function ScheduleModal({
                   }))}
                 />
               )}
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint <span className="text-red-500">*</span></p>
+              <textarea
+                value={chiefComplaint}
+                onChange={(e) => setChiefComplaint(e.target.value)}
+                placeholder="Describe your pet's main concern or symptoms"
+                rows={3}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] resize-none"
+              />
             </div>
 
           </div>
