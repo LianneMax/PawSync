@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPet extends Document {
   ownerId: mongoose.Types.ObjectId;
+  status: 'alive' | 'lost' | 'deceased';
   name: string;
   species: 'canine' | 'feline';
   breed: string;
@@ -23,6 +24,9 @@ export interface IPet extends Document {
   lastDeliveryDate: Date | null;
   assignedVetId: mongoose.Types.ObjectId | null;
   isLost: boolean;
+  isAlive: boolean;
+  deceasedAt: Date | null;
+  deceasedBy: mongoose.Types.ObjectId | null;
   lostContactName: string | null;
   lostContactNumber: string | null;
   lostMessage: string | null;
@@ -34,6 +38,11 @@ export interface IPet extends Document {
   lastScannedLng: number | null;
   lastScannedAt: Date | null;
   scanLocations: { lat: number; lng: number; scannedAt: Date }[];
+  previousOwners: {
+    id: mongoose.Types.ObjectId;
+    name: string;
+    until: Date;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +53,12 @@ const PetSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Pet must belong to an owner'],
+      index: true
+    },
+    status: {
+      type: String,
+      enum: ['alive', 'lost', 'deceased'],
+      default: 'alive',
       index: true
     },
     name: {
@@ -145,6 +160,20 @@ const PetSchema = new Schema(
       type: Boolean,
       default: false
     },
+    isAlive: {
+      type: Boolean,
+      default: true,
+      index: true
+    },
+    deceasedAt: {
+      type: Date,
+      default: null
+    },
+    deceasedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
     lostReportedByStranger: {
       type: Boolean,
       default: false
@@ -191,6 +220,14 @@ const PetSchema = new Schema(
         lat: { type: Number, required: true },
         lng: { type: Number, required: true },
         scannedAt: { type: Date, default: Date.now }
+      }],
+      default: []
+    },
+    previousOwners: {
+      type: [{
+        id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        name: { type: String, required: true },
+        until: { type: Date, required: true }
       }],
       default: []
     }

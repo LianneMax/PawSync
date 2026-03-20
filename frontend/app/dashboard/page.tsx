@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, togglePetLost, removePet, transferPet, type Pet as APIPet } from '@/lib/pets'
+import { getMyPets, togglePetLost, markPetDeceased, removePet, transferPet, type Pet as APIPet } from '@/lib/pets'
 import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
 import { getProfile } from '@/lib/users'
 import {
@@ -22,6 +22,7 @@ import {
   Filter,
   ChevronRight,
   Trash2,
+  Skull,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -44,6 +45,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 // --- Types ---
 interface Pet {
   id: string
+  status: 'alive' | 'lost' | 'deceased'
+  isAlive: boolean
+  deceasedAt: string | null
   name: string
   species: string
   breed: string
@@ -65,6 +69,7 @@ interface Pet {
   bloodType: string
   allergies: string[]
   nfcTagId: string
+  previousOwners: { id: string; name: string; until: string }[]
   vet: { name: string; photo: string | null; verified: boolean } | null
 }
 
@@ -84,6 +89,11 @@ function calculateAge(dateOfBirth: string): string {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
+}
+
+function formatLongDate(dateStr?: string | null): string {
+  if (!dateStr) return 'Unknown date'
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 function formatSterilizationStatus(status: string, sex: string): string {
@@ -108,6 +118,9 @@ function formatSterilizationStatus(status: string, sex: string): string {
 function apiPetToDashboardPet(apiPet: APIPet): Pet {
   return {
     id: apiPet._id,
+    status: apiPet.status,
+    isAlive: apiPet.isAlive,
+    deceasedAt: apiPet.deceasedAt,
     name: apiPet.name,
     species: apiPet.species.charAt(0).toUpperCase() + apiPet.species.slice(1),
     breed: apiPet.breed,
@@ -129,6 +142,7 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     bloodType: apiPet.bloodType || '-',
     allergies: apiPet.allergies,
     nfcTagId: apiPet.nfcTagId || '-',
+    previousOwners: apiPet.previousOwners || [],
     vet: apiPet.assignedVetId
       ? { name: `Dr. ${apiPet.assignedVetId.firstName} ${apiPet.assignedVetId.lastName}`, photo: apiPet.assignedVetId.photo ?? null, verified: true }
       : null,
@@ -274,6 +288,7 @@ function PetDetailModal({
   const router = useRouter()
   const canUseLostPetFeature = hasRegisteredNfcTag(pet)
   const lostPetLockedMessage = 'Purchase a pet tag first to unlock this feature.'
+  const isDeceased = Boolean(pet?.status === 'deceased' || !pet?.isAlive)
 
   if (!pet) return null
 
@@ -304,6 +319,21 @@ function PetDetailModal({
               >
                 {pet.name}
               </h2>
+              {isDeceased && (
+                <div className="mb-4 flex justify-center">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-xs font-semibold">
+                    <Skull className="w-3.5 h-3.5" />
+                    Deceased {formatLongDate(pet.deceasedAt)}
+                  </span>
+                </div>
+              )}
+              {pet.previousOwners.length > 0 && (
+                <div className="mb-4 flex justify-center">
+                  <span className="inline-flex items-center rounded-full bg-[#F1F0ED] text-[#4F4F4F] px-3 py-1 text-xs font-medium">
+                    Past Owner: {pet.previousOwners[pet.previousOwners.length - 1].name}
+                  </span>
+                </div>
+              )}
               {/* Breed / Sex / Age pills */}
               <div className={`bg-[#F1F0ED] rounded-[10px] p-2 grid gap-2 mb-6 ${pet.secondaryBreed ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 <div className={`bg-[#476B6B] text-white rounded-[10px] py-2 px-3 ${pet.secondaryBreed ? 'col-span-2' : ''}`}>
@@ -422,12 +452,15 @@ function PetDetailModal({
 
             {/* Action Buttons */}
             <button
-              className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
-              onClick={() => { onClose(); router.push(`/my-appointments?petId=${pet.id}`) }}
+              disabled={isDeceased}
+              className={`w-full border rounded-xl p-4 text-left transition-colors flex items-center justify-between ${
+                isDeceased ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
+              }`}
+              onClick={() => { if (!isDeceased) { onClose(); router.push(`/my-appointments?petId=${pet.id}`) } }}
             >
               <div>
                 <p className="font-semibold text-[#4F4F4F] text-sm">Book Appointment</p>
-                <p className="text-xs text-gray-400">Schedule a Vet Visit for {pet.name}</p>
+                <p className="text-xs text-gray-400">{isDeceased ? `Pet deceased on ${formatLongDate(pet.deceasedAt)}` : `Schedule a Vet Visit for ${pet.name}`}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
@@ -451,7 +484,7 @@ function PetDetailModal({
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
-            {pet.isLost ? (
+            {!isDeceased && pet.isLost ? (
               <button
                 className="w-full border border-[#679D82] rounded-xl p-4 text-left hover:bg-green-50 transition-colors flex items-center justify-between"
                 onClick={() => onMarkFound(pet)}
@@ -462,7 +495,7 @@ function PetDetailModal({
                 </div>
                 <ChevronRight className="w-4 h-4 text-[#679D82]" />
               </button>
-            ) : (
+            ) : !isDeceased ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="block">
@@ -490,17 +523,24 @@ function PetDetailModal({
                   </TooltipContent>
                 )}
               </Tooltip>
-            )}
-            <button
-              className="w-full border border-red-200 rounded-xl p-4 text-left hover:bg-red-50 transition-colors flex items-center justify-between"
-              onClick={() => onRemovePet(pet)}
-            >
-              <div>
-                <p className="font-semibold text-[#900B09] text-sm">Remove {pet.name}</p>
-                <p className="text-xs text-gray-400">Transfer ownership or remove from profile</p>
+            ) : (
+              <div className="w-full border border-gray-100 rounded-xl p-4 bg-gray-50 opacity-80">
+                <p className="font-semibold text-gray-500 text-sm">Lost toggle unavailable</p>
+                <p className="text-xs text-gray-400">Pet deceased on {formatLongDate(pet.deceasedAt)}</p>
               </div>
-              <Trash2 className="w-4 h-4 text-[#900B09]" />
-            </button>
+            )}
+            {!isDeceased && (
+              <button
+                className="w-full border border-red-200 rounded-xl p-4 text-left hover:bg-red-50 transition-colors flex items-center justify-between"
+                onClick={() => onRemovePet(pet)}
+              >
+                <div>
+                  <p className="font-semibold text-[#900B09] text-sm">Remove {pet.name}</p>
+                  <p className="text-xs text-gray-400">Transfer ownership or mark as deceased</p>
+                </div>
+                <Trash2 className="w-4 h-4 text-[#900B09]" />
+              </button>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -563,6 +603,7 @@ function ReportLostPetModal({
   if (!pet && (!pets || pets.length === 0)) return null
 
   const displayPets = pets && pets.length > 0 ? pets : (pet ? [pet] : [])
+  const selectablePets = displayPets.filter((p) => p.isAlive && p.status !== 'deceased')
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -599,7 +640,7 @@ function ReportLostPetModal({
             </div>
           )}
 
-          {displayPets.length > 1 && (
+          {selectablePets.length > 1 && (
             <div>
               <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Select Pet</label>
               <DropdownMenu>
@@ -619,7 +660,7 @@ function ReportLostPetModal({
                       if (selected) setSelectedPet(selected)
                     }}
                   >
-                    {displayPets.map((p) => (
+                    {selectablePets.map((p) => (
                       <DropdownMenuRadioItem key={p.id} value={p.id}>
                         {p.name} - {p.breed}
                       </DropdownMenuRadioItem>
@@ -754,10 +795,16 @@ function RemovePetModal({
   if (!pet) return null
 
   const isTransfer = reason === 'transfer'
+  const isPassedAway = reason === 'passed-away'
 
   const handleConfirm = async () => {
     if (!reason) {
       setError('Please select a reason')
+      return
+    }
+
+    if (isTransfer && !newOwnerEmail.trim()) {
+      setError('Please enter the new owner email or phone number')
       return
     }
 
@@ -769,8 +816,14 @@ function RemovePetModal({
       if (!token) return
 
       if (isTransfer) {
-        // Email is optional for transfer - if provided, use it; otherwise backend handles it
-        const response = await transferPet(pet.id, newOwnerEmail.trim() || '', token)
+        const recipient = newOwnerEmail.trim()
+        const response = await transferPet(
+          pet.id,
+          recipient.includes('@')
+            ? { newOwnerEmail: recipient || undefined }
+            : { newOwnerPhone: recipient || undefined },
+          token
+        )
         if (response.status === 'ERROR') {
           setError(response.message || 'Transfer failed')
           setLoading(false)
@@ -779,6 +832,17 @@ function RemovePetModal({
         toast('Pet Transferred', {
           description: response.message || `${pet.name} has been transferred successfully.`,
           icon: <PawPrint className="w-4 h-4 text-[#7FA5A3]" />,
+        })
+      } else if (isPassedAway) {
+        const response = await markPetDeceased(pet.id, token)
+        if (response.status === 'ERROR') {
+          setError(response.message || 'Unable to mark pet as deceased')
+          setLoading(false)
+          return
+        }
+        toast('Pet Marked as Deceased', {
+          description: `${pet.name} is now read-only and remains in dashboard history.`,
+          icon: <Skull className="w-4 h-4 text-amber-700" />,
         })
       } else {
         const reasonLabel = REMOVAL_REASONS.find((r) => r.value === reason)?.label || reason
@@ -825,8 +889,8 @@ function RemovePetModal({
           </p>
           <p className="text-xs text-[#4F4F4F] leading-relaxed">
             Removing a pet will permanently delete their profile, medical records,
-            and all associated data from your account. If you are transferring
-            ownership, the pet&apos;s profile will be moved to the new owner.
+            and associated data from your account. Selecting “Pet passed away” marks
+            the profile as deceased instead of deleting records.
           </p>
         </div>
 
@@ -867,11 +931,11 @@ function RemovePetModal({
         {isTransfer && (
           <div className="mb-4">
             <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
-              New Owner&apos;s Email (Optional)
+              New Owner Email or Phone
             </label>
             <input
-              type="email"
-              placeholder="Enter the pet-owner's email address (leave blank if unknown)"
+              type="text"
+              placeholder="Enter the pet-owner email or phone"
               value={newOwnerEmail}
               onChange={(e) => {
                 setNewOwnerEmail(e.target.value)
@@ -880,13 +944,13 @@ function RemovePetModal({
               className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
             />
             <p className="text-xs text-gray-400 mt-1">
-              If provided, the recipient must have a PawSync pet-owner account. Leave blank to handle transfer separately.
+              Recipient must have an existing PawSync pet-owner account.
             </p>
           </div>
         )}
 
         {/* Details (optional for non-transfer) */}
-        {!isTransfer && reason && (
+        {!isTransfer && !isPassedAway && reason && (
           <div className="mb-4">
             <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
               Additional Details (Optional)
@@ -924,6 +988,11 @@ function RemovePetModal({
             <>
               <PawPrint className="w-4 h-4" />
               Transfer {pet.name}
+            </>
+          ) : isPassedAway ? (
+            <>
+              <Skull className="w-4 h-4" />
+              Mark {pet.name} as Deceased
             </>
           ) : (
             <>
@@ -1122,7 +1191,7 @@ export default function DashboardPage() {
 
   const handleQuickAction = (href: string) => {
     if (href === '#') {
-      const firstPetWithTag = pets.find((pet) => hasRegisteredNfcTag(pet))
+      const firstPetWithTag = pets.find((pet) => hasRegisteredNfcTag(pet) && pet.isAlive && pet.status !== 'deceased')
       if (!firstPetWithTag) return
       if (pets.length > 0) {
         setReportLostPet(firstPetWithTag)
@@ -1173,15 +1242,27 @@ export default function DashboardPage() {
               <div
                 key={pet.id}
                 className={`bg-white rounded-2xl p-5 w-78.5 h-51.5 shrink-0 cursor-pointer hover:shadow-md transition-shadow relative flex flex-col overflow-visible ${
-                  pet.isLost
+                  pet.status === 'deceased'
+                    ? 'border-2 border-amber-400'
+                    : pet.isLost
                     ? 'border-2 border-[#900B09]'
                     : 'border border-gray-200'
                 }`}
                 onClick={() => handlePetClick(pet)}
               >
-                {pet.isLost && (
+                {pet.status === 'deceased' ? (
+                  <div className="absolute -top-3 right-4 bg-amber-500 text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10 flex items-center gap-1">
+                    <Skull className="w-3 h-3" />
+                    Deceased
+                  </div>
+                ) : pet.isLost ? (
                   <div className="absolute -top-3 right-4 bg-[#900B09] text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
                     Marked as LOST
+                  </div>
+                ) : null}
+                {pet.previousOwners.length > 0 && (
+                  <div className="absolute -top-3 left-4 bg-[#F1F0ED] text-[#4F4F4F] text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
+                    Past Owner: {pet.previousOwners[pet.previousOwners.length - 1].name}
                   </div>
                 )}
                 <div className="flex items-center gap-3">
@@ -1244,7 +1325,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action) => {
               const isLostPetAction = action.href === '#'
-              const canUseAction = isLostPetAction ? pets.some((pet) => hasRegisteredNfcTag(pet)) : true
+              const canUseAction = isLostPetAction ? pets.some((pet) => hasRegisteredNfcTag(pet) && pet.isAlive && pet.status !== 'deceased') : true
               const actionTooltip = !canUseAction && isLostPetAction
                 ? 'Purchase a pet tag first to unlock this feature.'
                 : undefined

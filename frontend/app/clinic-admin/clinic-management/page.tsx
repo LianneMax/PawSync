@@ -694,7 +694,7 @@ export default function ClinicManagementPage() {
               {/* Add New Branch Card */}
               <div
                 onClick={() => { resetAddForm(); setAddBranchOpen(true) }}
-                className="bg-white rounded-2xl p-6 shadow-sm border-2 border-dashed border-gray-200 flex flex-col items-center justify-center min-h-[300px] cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2]/50 transition-colors"
+                className="bg-white rounded-2xl p-6 shadow-sm border-2 border-dashed border-gray-200 flex flex-col items-center justify-center min-h-75 cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2]/50 transition-colors"
               >
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                   <Plus className="w-6 h-6 text-gray-400" />

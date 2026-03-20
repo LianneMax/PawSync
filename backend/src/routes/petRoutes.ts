@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement, updatePetPregnancyStatus, scanPetAlert, reportPetFound } from '../controllers/petController';
+import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement, updatePetPregnancyStatus, scanPetAlert, reportPetFound, markPetDeceased } from '../controllers/petController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -75,6 +75,12 @@ router.patch('/:id/pregnancy-status', authMiddleware, updatePetPregnancyStatus);
  * Transfer pet ownership to another pet-owner
  */
 router.post('/:id/transfer', authMiddleware, transferPet);
+
+/**
+ * POST /api/pets/:id/mark-deceased
+ * Mark a pet as deceased (owner or authorized vet)
+ */
+router.post('/:id/mark-deceased', authMiddleware, markPetDeceased);
 
 /**
  * DELETE /api/pets/:id

@@ -1451,6 +1451,9 @@ function ViewRecordModal({
   const vet = record?.vetId
   const clinic = record?.clinicId
   const branch = record?.clinicBranchId
+  const currentOwnerName = `${pet?.ownerId?.firstName || ''} ${pet?.ownerId?.lastName || ''}`.trim()
+  const ownerName = (record?.ownerAtTime?.name || currentOwnerName || 'Unknown Owner').trim()
+  const ownerLabel = record?.ownerAtTime?.name ? 'Owner at Time' : 'Current Owner'
 
   const handlePrint = () => {
     if (!record) return
@@ -1560,7 +1563,8 @@ function ViewRecordModal({
           <div class="section-header">Visit Information</div>
           <div class="section-body">
             <div style="margin-bottom:10px"><div class="info-label">Date of Examination</div><div class="info-val" style="font-weight:600">${visitDate}</div></div>
-            <div style="margin-bottom:10px"><div class="info-label">Attending Veterinarian</div><div class="info-val" style="font-weight:600">${vetName}</div>${vet?.email ? `<div class="sub">${vet.email}</div>` : ''}</div>
+            <div style="margin-bottom:10px"><div class="info-label">${ownerLabel}</div><div class="info-val" style="font-weight:600">${ownerName}</div></div>
+            <div style="margin-bottom:10px"><div class="info-label">Attending Veterinarian</div><div class="info-val" style="font-weight:600">${vetName}</div></div>
             <div><div class="info-label">Clinic / Branch</div><div class="info-val">${clinicName||'—'}</div></div>
           </div>
         </div>
@@ -1889,11 +1893,14 @@ function ViewRecordModal({
                       <p className="text-sm font-medium text-[#4F4F4F]">{formatFullDate(record.createdAt)}</p>
                     </div>
                     <div>
+                      <p className="text-[10px] text-gray-400 uppercase">{ownerLabel}</p>
+                      <p className="text-sm text-[#4F4F4F]">{ownerName}</p>
+                    </div>
+                    <div>
                       <p className="text-[10px] text-gray-400 uppercase">Attending Veterinarian</p>
                       <p className="text-sm font-medium text-[#4F4F4F]">
                         Dr. {vet?.firstName} {vet?.lastName}
                       </p>
-                      {vet?.email && <p className="text-xs text-gray-400">{vet.email}</p>}
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400 uppercase">Clinic / Branch</p>

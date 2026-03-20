@@ -450,6 +450,72 @@ export async function sendPetFoundConfirmation(params: {
   }
 }
 
+// ─── Pet Deceased Notice ─────────────────────────────────────────────────────
+
+export async function sendPetDeceasedNotice(params: {
+  recipientEmail: string;
+  recipientName: string;
+  petName: string;
+  deceasedAt?: Date | string | null;
+  markedBy: string;
+}) {
+  const markedOn = params.deceasedAt ? formatDate(params.deceasedAt) : 'a recent date';
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.recipientEmail,
+      subject: `PawSync – ${params.petName} Marked as Deceased`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">With Sympathy</h2>
+          <p>Hi ${params.recipientName},</p>
+          <p><strong>${params.petName}</strong> has been marked as deceased by <strong>${params.markedBy}</strong> on <strong>${markedOn}</strong>.</p>
+          <p>We know this is an incredibly difficult time. ${params.petName}'s medical history will remain preserved in read-only format as a lasting record of the care received.</p>
+          <p>Our thoughts are with you during this loss.</p>
+          <p style="margin-top: 20px;">With care,<br/>PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendPetDeceasedNotice error:', err);
+  }
+}
+
+// ─── Pet Ownership Transferred Notice ───────────────────────────────────────
+
+export async function sendPetOwnershipTransferredNotice(params: {
+  recipientEmail: string;
+  recipientName: string;
+  petName: string;
+  oldOwnerName: string;
+  newOwnerName: string;
+  transferDate: Date | string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.recipientEmail,
+      subject: `PawSync – ${params.petName} Ownership Transferred`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Pet Ownership Updated</h2>
+          <p>Hi ${params.recipientName},</p>
+          <p>The ownership for <strong>${params.petName}</strong> has been transferred.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Previous Owner:</strong> ${params.oldOwnerName}</p>
+            <p style="margin: 4px 0;"><strong>New Owner:</strong> ${params.newOwnerName}</p>
+            <p style="margin: 4px 0;"><strong>Transfer Date:</strong> ${formatDate(params.transferDate)}</p>
+            <p style="margin: 4px 0;">Full medical history and appointments were moved to the new owner.</p>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendPetOwnershipTransferredNotice error:', err);
+  }
+}
+
 // ─── Vet Branch Invitation ────────────────────────────────────────────────────
 
 export async function sendVetInvitation(params: {

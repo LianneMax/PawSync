@@ -130,7 +130,7 @@ export const searchPetOwners = async (query: string, token?: string): Promise<{ 
 /**
  * Get pets for a specific owner (clinic admin)
  */
-export const getPetsForOwner = async (ownerId: string, token?: string): Promise<{ status: string; data?: { pets: { _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean }[] } }> => {
+export const getPetsForOwner = async (ownerId: string, token?: string): Promise<{ status: string; data?: { pets: { _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean; isAlive: boolean; status: 'alive' | 'lost' | 'deceased'; deceasedAt?: string | null }[] } }> => {
   return authenticatedFetch(`/appointments/clinic/owner-pets?ownerId=${ownerId}`, { method: 'GET' }, token);
 };
 

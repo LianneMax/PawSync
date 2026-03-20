@@ -199,6 +199,7 @@ function Dropdown({
   options,
   onSelect,
   disabledOptions = [],
+  disabledReasonByValue = {},
 }: {
   label: string
   value: string
@@ -206,6 +207,7 @@ function Dropdown({
   options: { value: string; label: string }[]
   onSelect: (val: string) => void
   disabledOptions?: string[]
+  disabledReasonByValue?: Record<string, string>
 }) {
   const selected = options.find((o) => o.value === value)
 
@@ -244,7 +246,7 @@ function Dropdown({
               >
                 <div className="flex w-full items-center justify-between">
                   <span>{opt.label}</span>
-                  {isDisabled && <span className="text-xs text-gray-400">(Lost Pet)</span>}
+                  {isDisabled && <span className="text-xs text-gray-400">({disabledReasonByValue[opt.value] || 'Unavailable'})</span>}
                 </div>
               </DropdownMenuItem>
             )
@@ -615,7 +617,7 @@ function MyAppointmentsPageContent() {
             </div>
 
             {dateFilter === 'custom' && customDateOpen && (
-              <div className="absolute right-0 mt-2 w-full md:w-[520px] bg-white border border-gray-200 rounded-2xl shadow-lg p-4 z-20">
+              <div className="absolute right-0 mt-2 w-full md:w-130 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 z-20">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-1">Start Date</p>
@@ -998,7 +1000,7 @@ function ScheduleModal({
   useEffect(() => {
     if (open && initialPetId && pets.length > 0) {
       const initialPet = pets.find((pet) => pet._id === initialPetId)
-      if (initialPet && !initialPet.isLost) {
+      if (initialPet && !initialPet.isLost && initialPet.isAlive && initialPet.status !== 'deceased') {
         setSelectedPetId(initialPetId)
       } else {
         setSelectedPetId('')
@@ -1178,6 +1180,7 @@ function ScheduleModal({
 
   const handleSubmit = async () => {
     if (!selectedPetId) return toast.error('Please select a pet')
+    if (selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased')) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
     if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
@@ -1293,6 +1296,13 @@ function ScheduleModal({
         <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
+            {selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased') && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800 font-medium">⚠️ This pet is marked as deceased</p>
+                <p className="text-xs text-amber-700 mt-1">Appointments cannot be scheduled for deceased pets.</p>
+              </div>
+            )}
+
             {/* Lost Pet Warning */}
             {selectedPet?.isLost && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -1308,7 +1318,15 @@ function ScheduleModal({
                 value={selectedPetId}
                 placeholder="Menu Label"
                 options={pets.map((p) => ({ value: p._id, label: p.name }))}
-                disabledOptions={pets.filter(p => p.isLost).map(p => p._id)}
+                disabledOptions={pets.filter(p => p.isLost || !p.isAlive || p.status === 'deceased').map(p => p._id)}
+                disabledReasonByValue={Object.fromEntries(
+                  pets
+                    .filter((p) => p.isLost || !p.isAlive || p.status === 'deceased')
+                    .map((p) => [
+                      p._id,
+                      !p.isAlive || p.status === 'deceased' ? 'Deceased Pet' : 'Lost Pet',
+                    ])
+                )}
                 onSelect={setSelectedPetId}
               />
               <Dropdown
@@ -1516,7 +1534,7 @@ function ScheduleModal({
         <div className="flex items-center justify-center gap-4 px-8 pb-8 shrink-0">
           <button
             onClick={handleSubmit}
-            disabled={submitting || Boolean(selectedPet?.isLost)}
+            disabled={submitting || Boolean(selectedPet?.isLost) || Boolean(selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased'))}
             className="px-8 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
           >
             {submitting ? 'Booking...' : 'Set an appointment'}

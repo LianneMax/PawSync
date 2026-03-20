@@ -120,6 +120,11 @@ export interface MedicalRecord {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   petId: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ownerId?: any;
+  petIsAlive?: boolean;
+  ownerAtTime?: { name: string; id: string | null };
+  vetAtTime?: { name: string; id: string | null };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vetId: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicId: any;

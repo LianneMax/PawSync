@@ -85,6 +85,16 @@ export interface IFollowUp {
 
 export interface IMedicalRecord extends Document {
   petId: mongoose.Types.ObjectId;
+  ownerId: mongoose.Types.ObjectId;
+  petIsAlive: boolean;
+  ownerAtTime: {
+    name: string;
+    id: mongoose.Types.ObjectId | null;
+  };
+  vetAtTime: {
+    name: string;
+    id: mongoose.Types.ObjectId | null;
+  };
   vetId: mongoose.Types.ObjectId;
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
@@ -302,6 +312,39 @@ const MedicalRecordSchema = new Schema(
       ref: 'Pet',
       required: [true, 'Pet is required'],
       index: true
+    },
+    ownerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true
+    },
+    petIsAlive: {
+      type: Boolean,
+      default: true,
+      index: true
+    },
+    ownerAtTime: {
+      name: {
+        type: String,
+        default: ''
+      },
+      id: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      }
+    },
+    vetAtTime: {
+      name: {
+        type: String,
+        default: ''
+      },
+      id: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      }
     },
     vetId: {
       type: Schema.Types.ObjectId,

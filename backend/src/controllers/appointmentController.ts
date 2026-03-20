@@ -131,6 +131,13 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'You can only book appointments for your own pets' });
     }
 
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Cannot schedule an appointment for ${pet.name} because the pet is marked as deceased.`
+      });
+    }
+
     // Check if pet is marked as lost
     if (pet.isLost) {
       return res.status(403).json({ 
@@ -745,9 +752,6 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: `Cannot change status from ${appointment.status} to ${status}` });
     }
 
-    appointment.status = status;
-    await appointment.save();
-
     // When checking in (confirmed → in_progress), auto-create a draft medical record
     // only for appointments that have an assigned vet.
     let medicalRecordId: string | undefined;
@@ -759,8 +763,26 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
           { petId: appointment.petId, isCurrent: true },
           { $set: { isCurrent: false } }
         );
+
+        const [owner, vet] = await Promise.all([
+          User.findById(appointment.ownerId).select('firstName lastName'),
+          User.findById(appointment.vetId).select('firstName lastName'),
+        ]);
+        const ownerName = `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim() || 'Unknown Owner';
+        const vetName = `${vet?.firstName || ''} ${vet?.lastName || ''}`.trim() || 'Unknown Vet';
+
         const record = await MedicalRecord.create({
           petId: appointment.petId,
+          ownerId: appointment.ownerId,
+          petIsAlive: true,
+          ownerAtTime: {
+            name: ownerName,
+            id: owner?._id ?? null,
+          },
+          vetAtTime: {
+            name: vetName,
+            id: vet?._id ?? null,
+          },
           vetId: appointment.vetId,
           clinicId: appointment.clinicId,
           clinicBranchId: appointment.clinicBranchId,
@@ -821,6 +843,9 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
         }
       }
     }
+
+    appointment.status = status;
+    await appointment.save();
 
     // Auto-create a pending vaccination draft when appointment is completed
     let vaccinationId: string | undefined;
@@ -1103,7 +1128,7 @@ export const getPetsForOwner = async (req: Request, res: Response) => {
     }
 
     const pets = await Pet.find({ ownerId: ownerId as string })
-      .select('name species breed photo isLost')
+      .select('name species breed photo isLost isAlive status deceasedAt')
       .sort({ name: 1 });
 
     return res.status(200).json({
@@ -1138,6 +1163,13 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     }
     if (pet.ownerId.toString() !== ownerId) {
       return res.status(400).json({ status: 'ERROR', message: 'Pet does not belong to the selected owner' });
+    }
+
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Cannot schedule an appointment for ${pet.name} because the pet is marked as deceased.`
+      });
     }
 
     if (pet.isLost) {

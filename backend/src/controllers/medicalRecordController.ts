@@ -349,6 +349,18 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Pet deceased on ${pet.deceasedAt ? new Date(pet.deceasedAt).toLocaleDateString('en-US') : 'an earlier date'}. Records are read-only.`
+      });
+    }
+
+    const owner = await User.findById(pet.ownerId).select('firstName lastName');
+    const attendingUser = await User.findById(vetId).select('firstName lastName');
+    const ownerName = `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim() || 'Unknown Owner';
+    const vetName = `${attendingUser?.firstName || ''} ${attendingUser?.lastName || ''}`.trim() || 'Unknown Vet';
+
     // BR-MR-01: Mark any existing current records for this pet as historical
     await MedicalRecord.updateMany(
       { petId, isCurrent: true },
@@ -364,6 +376,16 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
 
     const record = await MedicalRecord.create({
       petId,
+      ownerId: pet.ownerId,
+      petIsAlive: true,
+      ownerAtTime: {
+        name: ownerName,
+        id: owner?._id ?? null,
+      },
+      vetAtTime: {
+        name: vetName,
+        id: attendingUser?._id ?? null,
+      },
       vetId,
       clinicId,
       clinicBranchId: clinicBranchId || null,
@@ -634,7 +656,11 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     const record = await MedicalRecord.findById(req.params.id)
-      .populate('petId', 'name species breed sex dateOfBirth weight photo color sterilization nfcTagId microchipNumber allergies ownerId pregnancyStatus')
+      .populate({
+        path: 'petId',
+        select: 'name species breed sex dateOfBirth weight photo color sterilization nfcTagId microchipNumber allergies ownerId pregnancyStatus',
+        populate: { path: 'ownerId', select: 'firstName lastName' }
+      })
       .populate('vetId', 'firstName lastName email')
       .populate('clinicId', 'name address phone email')
       .populate('clinicBranchId', 'name address phone')
@@ -711,11 +737,62 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const record = await MedicalRecord.findOne({ appointmentId: req.params.appointmentId })
+    let record = await MedicalRecord.findOne({ appointmentId: req.params.appointmentId })
       .populate('petId', 'name species breed sex dateOfBirth weight photo')
       .populate('vetId', 'firstName lastName email')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address');
+
+    if (!record) {
+      const appointment = await Appointment.findById(req.params.appointmentId)
+        .select('ownerId petId vetId clinicId clinicBranchId status medicalRecordId');
+
+      if (appointment && appointment.vetId && appointment.status === 'in_progress') {
+        const [owner, vet] = await Promise.all([
+          User.findById(appointment.ownerId).select('firstName lastName'),
+          User.findById(appointment.vetId).select('firstName lastName'),
+        ]);
+
+        const ownerName = `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim() || 'Unknown Owner';
+        const vetName = `${vet?.firstName || ''} ${vet?.lastName || ''}`.trim() || 'Unknown Vet';
+
+        await MedicalRecord.updateMany(
+          { petId: appointment.petId, isCurrent: true },
+          { $set: { isCurrent: false } }
+        );
+
+        const created = await MedicalRecord.create({
+          petId: appointment.petId,
+          ownerId: appointment.ownerId,
+          petIsAlive: true,
+          ownerAtTime: {
+            name: ownerName,
+            id: owner?._id ?? null,
+          },
+          vetAtTime: {
+            name: vetName,
+            id: vet?._id ?? null,
+          },
+          vetId: appointment.vetId,
+          clinicId: appointment.clinicId,
+          clinicBranchId: appointment.clinicBranchId,
+          appointmentId: appointment._id,
+          stage: 'pre_procedure',
+          isCurrent: true,
+        });
+
+        if (!appointment.medicalRecordId) {
+          appointment.medicalRecordId = created._id as any;
+          await appointment.save();
+        }
+
+        record = await MedicalRecord.findById(created._id)
+          .populate('petId', 'name species breed sex dateOfBirth weight photo')
+          .populate('vetId', 'firstName lastName email')
+          .populate('clinicId', 'name')
+          .populate('clinicBranchId', 'name address');
+      }
+    }
 
     if (!record) {
       return res.status(404).json({ status: 'SUCCESS', message: 'No medical record for this appointment', data: { record: null } });
@@ -815,6 +892,14 @@ export const updateRecord = async (req: Request, res: Response) => {
     const record = await MedicalRecord.findById(req.params.id);
     if (!record) {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
+    }
+
+    const pet = await Pet.findById(record.petId).select('isAlive status deceasedAt');
+    if (pet && (!pet.isAlive || pet.status === 'deceased')) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Pet deceased on ${pet.deceasedAt ? new Date(pet.deceasedAt).toLocaleDateString('en-US') : 'an earlier date'}. Records are read-only.`
+      });
     }
 
     const isAdmin = isClinicAdminUser(req);

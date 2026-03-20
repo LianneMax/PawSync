@@ -621,7 +621,7 @@ export default function ClinicNfcManagementPage() {
               {pendingRequests.map((request) => (
                 <div
                   key={request._id}
-                  className="bg-gradient-to-r from-blue-50 to-blue-25 rounded-lg border border-blue-200 p-4 hover:shadow-md transition-shadow"
+                  className="bg-linear-to-r from-blue-50 to-blue-25 rounded-lg border border-blue-200 p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-4">
                     {request.petId.photo && (
@@ -746,7 +746,7 @@ export default function ClinicNfcManagementPage() {
 
                       return (
                         <div key={step} className="flex items-center gap-3 text-sm">
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                             isCompleted ? 'bg-[#4CAF50]' :
                             isCurrent ? 'bg-[#7FA5A3] animate-pulse' :
                             'bg-gray-200'

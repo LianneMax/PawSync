@@ -5,9 +5,11 @@ import User from '../models/User';
 import AssignedVet from '../models/AssignedVet';
 import MedicalRecord from '../models/MedicalRecord';
 import Vaccination from '../models/Vaccination';
+import Appointment from '../models/Appointment';
+import OwnershipTransfer from '../models/OwnershipTransfer';
 import ConfinementRecord from '../models/ConfinementRecord';
 import QRCode from 'qrcode';
-import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation } from '../services/emailService';
+import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation, sendPetDeceasedNotice, sendPetOwnershipTransferredNotice } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 
 /** Decode JWT from Authorization header without failing if absent/invalid */
@@ -70,6 +72,13 @@ const normalizeNfcTagId = (value?: string | null): string => {
   const lower = trimmed.toLowerCase();
   if (['null', 'undefined', 'n/a', 'na', '-'].includes(lower)) return '';
   return trimmed.toUpperCase();
+};
+
+const getUserDisplayName = (user: any): string => {
+  const firstName = (user?.firstName || '').trim();
+  const lastName = (user?.lastName || '').trim();
+  const fullName = `${firstName} ${lastName}`.trim();
+  return fullName || 'Unknown User';
 };
 
 const getDayRange = (rawDate: string | Date) => {
@@ -298,6 +307,13 @@ export const updatePet = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to update this pet' });
     }
 
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Pet deceased on ${pet.deceasedAt ? new Date(pet.deceasedAt).toLocaleDateString('en-US') : 'an earlier date'}. Profile is read-only.`
+      });
+    }
+
     const wasLost = pet.isLost;
 
     if (req.body.nfcTagId !== undefined) {
@@ -336,6 +352,7 @@ export const updatePet = async (req: Request, res: Response) => {
 
     // Clear lost metadata when owner marks the pet as found again
     if (wasLost && !pet.isLost) {
+      pet.status = 'alive';
       pet.lostReportedByStranger = false;
       pet.lostContactName = null;
       pet.lostContactNumber = null;
@@ -344,6 +361,10 @@ export const updatePet = async (req: Request, res: Response) => {
       pet.lastScannedLat = null;
       pet.lastScannedLng = null;
       pet.lastScannedAt = null;
+    }
+
+    if (!wasLost && pet.isLost) {
+      pet.status = 'lost';
     }
 
     await pet.save();
@@ -409,6 +430,119 @@ export const updatePet = async (req: Request, res: Response) => {
 };
 
 /**
+ * Mark a pet as deceased (owner or authorized vet)
+ */
+export const markPetDeceased = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const pet = await Pet.findById(req.params.id);
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const activeAssignment = await AssignedVet.exists({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+      isAuthorizedVet = !!(activeAssignment || hasRecords);
+    }
+
+    if (!isOwner && !isAuthorizedVet) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to mark this pet as deceased' });
+    }
+
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(200).json({ status: 'SUCCESS', message: 'Pet is already marked as deceased', data: { pet } });
+    }
+
+    const marker = await User.findById(req.user.userId).select('firstName lastName email');
+    const owner = await User.findById(pet.ownerId).select('firstName lastName email');
+
+    pet.isAlive = false;
+    pet.status = 'deceased';
+    pet.deceasedAt = new Date();
+    pet.deceasedBy = req.user.userId as any;
+    pet.isLost = false;
+    pet.lostReportedByStranger = false;
+    pet.lostContactName = null;
+    pet.lostContactNumber = null;
+    pet.lostMessage = null;
+    await pet.save();
+
+    const records = await MedicalRecord.find({ petId: pet._id }).select('ownerAtTime vetAtTime vetId');
+    for (const record of records) {
+      const setPayload: any = { petIsAlive: false };
+
+      if (!record.ownerAtTime?.name) {
+        setPayload.ownerAtTime = {
+          name: owner ? getUserDisplayName(owner) : 'Unknown Owner',
+          id: owner?._id ?? null,
+        };
+      }
+
+      if (!record.vetAtTime?.name) {
+        const recordVet = record.vetId ? await User.findById(record.vetId).select('firstName lastName') : null;
+        setPayload.vetAtTime = {
+          name: recordVet ? getUserDisplayName(recordVet) : 'Unknown Vet',
+          id: recordVet?._id ?? null,
+        };
+      }
+
+      await MedicalRecord.updateOne({ _id: record._id }, { $set: setPayload });
+    }
+
+    await createNotification(
+      pet.ownerId,
+      'pet_found',
+      'Pet Marked as Deceased',
+      `${pet.name} was marked as deceased. Medical records are now read-only.`,
+      { petId: pet._id, deceasedAt: pet.deceasedAt }
+    );
+
+    if (owner?.email) {
+      sendPetDeceasedNotice({
+        recipientEmail: owner.email,
+        recipientName: getUserDisplayName(owner),
+        petName: pet.name,
+        deceasedAt: pet.deceasedAt,
+        markedBy: marker ? getUserDisplayName(marker) : 'System'
+      });
+    }
+
+    const assignedVetLinks = await AssignedVet.find({ petId: pet._id, isActive: true }).select('vetId').lean();
+    const assignedVetIds = Array.from(new Set(assignedVetLinks.map((v: any) => String(v.vetId)).filter(Boolean)));
+    if (assignedVetIds.length) {
+      const vets = await User.find({ _id: { $in: assignedVetIds } }).select('firstName lastName email');
+      for (const vet of vets) {
+        if (vet.email) {
+          sendPetDeceasedNotice({
+            recipientEmail: vet.email,
+            recipientName: getUserDisplayName(vet),
+            petName: pet.name,
+            deceasedAt: pet.deceasedAt,
+            markedBy: marker ? getUserDisplayName(marker) : 'System'
+          });
+        }
+      }
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: `${pet.name} has been marked as deceased. Records are now read-only.`,
+      data: { pet }
+    });
+  } catch (error) {
+    console.error('Mark pet deceased error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while marking the pet as deceased' });
+  }
+};
+
+/**
  * Delete a pet (with optional removal reason)
  */
 export const deletePet = async (req: Request, res: Response) => {
@@ -455,10 +589,10 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { newOwnerEmail } = req.body;
+    const { newOwnerEmail, newOwnerPhone } = req.body;
 
-    if (!newOwnerEmail) {
-      return res.status(400).json({ status: 'ERROR', message: 'Please provide the new owner\'s email' });
+    if (!newOwnerEmail && !newOwnerPhone) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide the new owner\'s email or phone number' });
     }
 
     const pet = await Pet.findById(req.params.id);
@@ -467,12 +601,29 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    if (pet.ownerId.toString() !== req.user.userId) {
+    const isOwner = pet.ownerId.toString() === req.user.userId;
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const activeAssignment = await AssignedVet.exists({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+      isAuthorizedVet = !!(activeAssignment || hasRecords);
+    }
+
+    if (!isOwner && !isAuthorizedVet) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to transfer this pet' });
     }
 
-    // Find the new owner
-    const newOwner = await User.findOne({ email: newOwnerEmail.toLowerCase() });
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot transfer deceased pets.' });
+    }
+
+    const normalizedPhone = (newOwnerPhone || '').replace(/\D/g, '');
+    const ownerLookup: any[] = [];
+    if (newOwnerEmail) ownerLookup.push({ email: newOwnerEmail.toLowerCase() });
+    if (normalizedPhone) ownerLookup.push({ contactNumberNormalized: normalizedPhone });
+
+    const newOwner = await User.findOne({ $or: ownerLookup });
 
     if (!newOwner) {
       return res.status(404).json({ status: 'ERROR', message: 'No account found with that email address' });
@@ -486,12 +637,94 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'The recipient must have a pet-owner account' });
     }
 
-    // Transfer ownership
+    const oldOwnerId = pet.ownerId;
+    const oldOwner = await User.findById(oldOwnerId).select('firstName lastName email');
+    const oldOwnerName = oldOwner ? getUserDisplayName(oldOwner) : 'Unknown Owner';
+    const transferDate = new Date();
+
+    // Transfer ownership and persist owner chain history
+    pet.previousOwners.push({
+      id: oldOwnerId as any,
+      name: oldOwnerName,
+      until: transferDate,
+    } as any);
     pet.ownerId = newOwner._id as any;
+    pet.status = pet.isLost ? 'lost' : 'alive';
     await pet.save();
+
+    // Re-parent pet data
+    await Promise.all([
+      MedicalRecord.updateMany({ petId: pet._id }, { $set: { ownerId: newOwner._id } }),
+      Appointment.updateMany({ petId: pet._id }, { $set: { ownerId: newOwner._id } }),
+    ]);
+
+    // Persist transfer audit
+    await OwnershipTransfer.create({
+      petId: pet._id,
+      oldOwnerId: oldOwner?._id ?? oldOwnerId,
+      newOwnerId: newOwner._id,
+      transferDate,
+      recordsTransferred: true,
+      transferredBy: req.user.userId,
+    });
+
+    // Preserve historical ownership snapshot for records missing ownerAtTime/vetAtTime
+    const records = await MedicalRecord.find({ petId: pet._id }).select('ownerAtTime vetAtTime vetId');
+    for (const record of records) {
+      const patch: any = {};
+      if (!record.ownerAtTime?.name) {
+        patch.ownerAtTime = {
+          name: oldOwnerName,
+          id: oldOwner?._id ?? null,
+        };
+      }
+      if (!record.vetAtTime?.name) {
+        const recordVet = record.vetId ? await User.findById(record.vetId).select('firstName lastName') : null;
+        patch.vetAtTime = {
+          name: recordVet ? getUserDisplayName(recordVet) : 'Unknown Vet',
+          id: recordVet?._id ?? null,
+        };
+      }
+      if (Object.keys(patch).length > 0) {
+        await MedicalRecord.updateOne({ _id: record._id }, { $set: patch });
+      }
+    }
 
     // Remove existing vet assignments (don't carry over to new owner)
     await AssignedVet.deleteMany({ petId: pet._id });
+
+    const actingUser = await User.findById(req.user.userId).select('firstName lastName');
+    const newOwnerName = getUserDisplayName(newOwner);
+
+    if (oldOwner?.email) {
+      sendPetOwnershipTransferredNotice({
+        recipientEmail: oldOwner.email,
+        recipientName: oldOwnerName,
+        petName: pet.name,
+        oldOwnerName,
+        newOwnerName,
+        transferDate,
+      });
+    }
+
+    if (newOwner.email) {
+      sendPetOwnershipTransferredNotice({
+        recipientEmail: newOwner.email,
+        recipientName: newOwnerName,
+        petName: pet.name,
+        oldOwnerName,
+        newOwnerName,
+        transferDate,
+      });
+    }
+
+    await createNotification(
+      newOwner._id,
+      'pet_found',
+      'Pet Ownership Transferred',
+      `${pet.name} was transferred to you by ${actingUser ? getUserDisplayName(actingUser) : 'a verified user'}. Full history has been moved.`,
+      { petId: pet._id, oldOwnerId: oldOwner?._id, transferDate }
+    );
 
     console.log(`[Pet Transferred] Pet "${pet.name}" (${pet._id}) transferred from user ${req.user.userId} to user ${newOwner._id}`);
 
@@ -511,7 +744,7 @@ export const transferPet = async (req: Request, res: Response) => {
 export const getPublicPetProfile = async (req: Request, res: Response) => {
   try {
     const pet = await Pet.findById(req.params.id)
-      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost lostReportedByStranger lostContactName lostMessage scanLocations ownerId sterilization microchipNumber')
+      .select('name species breed secondaryBreed sex dateOfBirth weight photo allergies isLost isAlive status deceasedAt lostReportedByStranger lostContactName lostMessage scanLocations ownerId sterilization microchipNumber')
       .populate('ownerId', 'firstName lastName contactNumber photo');
 
     if (!pet) {
@@ -556,6 +789,9 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           photo: pet.photo,
           allergies: pet.allergies,
           isLost: pet.isLost,
+          isAlive: (pet as any).isAlive,
+          status: (pet as any).status,
+          deceasedAt: (pet as any).deceasedAt,
           lostReportedByStranger: pet.lostReportedByStranger,
           lostContactName: pet.lostContactName,
           lostMessage: pet.lostMessage,
@@ -603,6 +839,10 @@ export const reportPetMissing = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(400).json({ status: 'ERROR', message: 'This pet is marked as deceased and cannot be reported as missing.' });
+    }
+
     if (pet.isLost) {
       return res.status(200).json({ status: 'SUCCESS', message: 'This pet is already reported as missing' });
     }
@@ -611,6 +851,7 @@ export const reportPetMissing = async (req: Request, res: Response) => {
     const isOwner = decoded?.userId === pet.ownerId.toString();
 
     pet.isLost = true;
+    pet.status = 'lost';
     pet.lostReportedByStranger = !isOwner;
 
     // Capture stranger's geolocation as the first scan entry
@@ -707,6 +948,10 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
     const pet = await Pet.findById(req.params.id);
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(400).json({ status: 'ERROR', message: 'This pet is marked as deceased.' });
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;

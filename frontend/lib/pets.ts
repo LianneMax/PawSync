@@ -3,6 +3,7 @@ import { authenticatedFetch } from './auth';
 export interface Pet {
   _id: string;
   ownerId: string;
+  status: 'alive' | 'lost' | 'deceased';
   name: string;
   species: 'canine' | 'feline';
   breed: string;
@@ -22,6 +23,9 @@ export interface Pet {
   pregnancyStatus: 'pregnant' | 'not_pregnant';
   assignedVetId: { _id: string; firstName: string; lastName: string; photo: string | null; clinicId?: string } | null;
   isLost: boolean;
+  isAlive: boolean;
+  deceasedAt: string | null;
+  deceasedBy: string | null;
   lostReportedByStranger: boolean;
   lostContactName: string | null;
   lostContactNumber: string | null;
@@ -33,6 +37,7 @@ export interface Pet {
   lastScannedLng: number | null;
   lastScannedAt: string | null;
   scanLocations: { lat: number; lng: number; scannedAt: string }[];
+  previousOwners: { id: string; name: string; until: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -131,10 +136,20 @@ export const requestPetTag = async (petId: string, clinicBranchId: string, picku
 /**
  * Transfer pet ownership to another pet-owner
  */
-export const transferPet = async (id: string, newOwnerEmail: string, token?: string): Promise<{ status: string; message: string }> => {
+export const transferPet = async (
+  id: string,
+  payload: { newOwnerEmail?: string; newOwnerPhone?: string },
+  token?: string
+): Promise<{ status: string; message: string }> => {
   return authenticatedFetch(`/pets/${id}/transfer`, {
     method: 'POST',
-    body: JSON.stringify({ newOwnerEmail })
+    body: JSON.stringify(payload)
+  }, token);
+};
+
+export const markPetDeceased = async (id: string, token?: string): Promise<PetResponse> => {
+  return authenticatedFetch(`/pets/${id}/mark-deceased`, {
+    method: 'POST'
   }, token);
 };
 
