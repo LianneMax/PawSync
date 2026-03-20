@@ -3999,10 +3999,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                           {isInjectionMedication && (
                             <input
                               type="text"
-                              value={injectionDosageDisplay || med.dosage || 'Missing dosage config'}
-                              readOnly
-                              placeholder="Calculated dosage"
-                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600"
+                              value={med.dosage || injectionDosageDisplay || ''}
+                              onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))}
+                              placeholder={injectionDosageDisplay || 'Calculated dosage'}
+                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                             />
                           )}
                           {!isTopical && !isInjectionMedication && <DropdownField
