@@ -743,6 +743,8 @@ export default function ClinicAdminAppointmentsPage() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
   const [scheduleType, setScheduleType] = useState<'medical' | 'grooming'>('medical')
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  // Unfiltered appointment list for NFC check-in (independent of current scheduleType tab)
+  const allAppointmentsRef = useRef<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
@@ -998,6 +1000,9 @@ export default function ClinicAdminAppointmentsPage() {
       // Calendar view is only available for upcoming; activeTab is the source of truth for the filter
       const res = await getClinicAppointments({ filter: activeTab }, token || undefined)
       if (res.status === 'SUCCESS' && res.data) {
+        // Store the full unfiltered list for NFC check-in (which must work across all service types)
+        allAppointmentsRef.current = res.data.appointments
+
         // Filter appointments based on schedule type
         // Mixed appointments (grooming + medical) appear in both tabs
         const filtered = res.data.appointments.filter((a: Appointment) => {
@@ -1256,14 +1261,18 @@ export default function ClinicAdminAppointmentsPage() {
     }
   }
 
-  const checkInByNfcTagId = useCallback(async (nfcTagId: string) => {
+  const checkInByNfcTagId = useCallback(async (rawTagId: string) => {
+    const nfcTagId = rawTagId.trim().toUpperCase()
+    console.log('[NFC] Scan received, tag:', nfcTagId)
     setIsCheckingInFromScan(true)
     setScanError('')
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      console.log('[NFC] Resolving pet...')
       const petResponse = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`)
-      
+
       if (!petResponse.ok) {
+        console.warn('[NFC] Pet not found for tag:', nfcTagId)
         setScanError('Pet not found. This NFC tag may not be registered.')
         setIsCheckingInFromScan(false)
         setNfcScanningActive(false)
@@ -1279,15 +1288,23 @@ export default function ClinicAdminAppointmentsPage() {
       }
 
       const petId = petData.data.pet._id
-      // Find appointments for this pet that are active today
-      const selectedDate = new Date().toISOString().split('T')[0]
-      const appointmentForPet = appointments.find(
-        appt => appt.petId?._id?.toString() === petId.toString() &&
-                (appt.status === 'confirmed' || appt.status === 'pending' || appt.status === 'in_clinic') &&
-                new Date(appt.date).toISOString().split('T')[0] === selectedDate
+      console.log('[NFC] Pet resolved:', petId)
+
+      // Search across ALL appointments (not just the currently displayed schedule type)
+      // so that grooming appointments are found when on the medical tab and vice versa.
+      const todayYmd = new Date().toISOString().split('T')[0]
+      const appointmentForPet = allAppointmentsRef.current.find(
+        appt => {
+          const apptPetId = appt.petId?._id?.toString() ?? appt.petId?.toString()
+          const apptDate = getAppointmentDateYmd(appt.date)
+          return apptPetId === petId.toString() &&
+            (appt.status === 'confirmed' || appt.status === 'pending' || appt.status === 'in_clinic') &&
+            apptDate === todayYmd
+        }
       )
 
       if (!appointmentForPet) {
+        console.warn('[NFC] No active appointment found for pet', petId, 'on', todayYmd)
         setScanError('No active appointment found for this pet today.')
         setIsCheckingInFromScan(false)
         setNfcScanningActive(false)
@@ -1301,16 +1318,47 @@ export default function ClinicAdminAppointmentsPage() {
         return
       }
 
-      // Check in the appointment
-      const checkInRes = await clinicCheckInAppointment(appointmentForPet._id, token || undefined)
-      if (checkInRes.status === 'SUCCESS') {
-        // Auto-create billing for grooming appointments (no vet approval needed)
-        const isGroomingOnly = appointmentForPet.types?.some((t: string) => GROOMING_TYPES.includes(t)) &&
-          !appointmentForPet.types?.some((t: string) => !GROOMING_TYPES.includes(t))
-        if (isGroomingOnly) {
+      const isGroomingAppointment = appointmentForPet.types?.some((t: string) => GROOMING_TYPES.includes(t)) &&
+        !appointmentForPet.types?.some((t: string) => !GROOMING_TYPES.includes(t))
+
+      let checkInSuccess = false
+      let checkInMessage: string | undefined
+
+      if (isGroomingAppointment) {
+        // Grooming check-in: pending → confirmed → in_progress
+        if (appointmentForPet.status === 'pending') {
+          const confirmRes = await updateAppointmentStatus(appointmentForPet._id, 'confirmed', token || undefined)
+          if (confirmRes.status !== 'SUCCESS') {
+            setScanError(confirmRes.message || 'Failed to confirm appointment before check-in.')
+            setIsCheckingInFromScan(false)
+            setNfcScanningActive(false)
+            return
+          }
+        }
+        const res = await updateAppointmentStatus(appointmentForPet._id, 'in_progress', token || undefined)
+        checkInSuccess = res.status === 'SUCCESS'
+        checkInMessage = res.message
+        if (checkInSuccess) {
           await createGroomingBilling(appointmentForPet)
         }
+      } else {
+        // Medical / clinic service check-in: confirmed → in_clinic
+        // If still pending, confirm first (pending → in_clinic is not a valid backend transition)
+        if (appointmentForPet.status === 'pending') {
+          const confirmRes = await updateAppointmentStatus(appointmentForPet._id, 'confirmed', token || undefined)
+          if (confirmRes.status !== 'SUCCESS') {
+            setScanError(confirmRes.message || 'Failed to confirm appointment before check-in.')
+            setIsCheckingInFromScan(false)
+            setNfcScanningActive(false)
+            return
+          }
+        }
+        const res = await clinicCheckInAppointment(appointmentForPet._id, token || undefined)
+        checkInSuccess = res.status === 'SUCCESS'
+        checkInMessage = res.message
+      }
 
+      if (checkInSuccess) {
         const petName = petData.data.pet.name || 'Pet'
         toast(
           <div className="flex gap-2">
@@ -1331,27 +1379,28 @@ export default function ClinicAdminAppointmentsPage() {
         // Auto-restart scanning
         setTimeout(() => startNfcScan(), 1000)
       } else {
-        setScanError(checkInRes.message || 'Failed to check in patient.')
+        setScanError(checkInMessage || 'Failed to check in patient.')
         setIsCheckingInFromScan(false)
         setNfcScanningActive(false)
       }
     } catch (error) {
-      console.error('Error checking in by NFC tag:', error)
+      console.error('[NFC] Error checking in by NFC tag:', error)
       setScanError('Failed to check in patient. Please try again.')
       setIsCheckingInFromScan(false)
       setNfcScanningActive(false)
     }
-  }, [appointments, token, loadAppointments])
+  }, [token, loadAppointments])
 
   const startNfcScan = useCallback(() => {
     setScanError('')
     stopNfcScanning()
 
-    // Try backend NFC scan via WebSocket
+    // Connect to backend NFC WebSocket for card scan events
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
       const backendHost = apiUrl.replace(/\/api$/, '')
       const wsUrl = backendHost.replace(/^http/, 'ws') + '/ws/nfc'
+      console.log('[NFC] Connecting to WebSocket:', wsUrl)
       const ws = new WebSocket(wsUrl)
       nfcWsRef.current = ws
 
@@ -1362,10 +1411,16 @@ export default function ClinicAdminAppointmentsPage() {
         setNfcScanningActive(false)
       }, 30000)
 
+      ws.onopen = () => {
+        console.log('[NFC] WebSocket connected, waiting for card...')
+      }
+
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
+          console.log('[NFC] WebSocket message:', msg.type)
           if (msg.type === 'card' && msg.data?.uid) {
+            console.log('[NFC] Card detected, uid:', msg.data.uid)
             if (nfcTimeoutRef.current) clearTimeout(nfcTimeoutRef.current)
             checkInByNfcTagId(msg.data.uid)
           }

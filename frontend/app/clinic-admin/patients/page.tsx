@@ -400,12 +400,31 @@ function FilesTab() {
 
 // ==================== SCAN MODAL ====================
 
+interface NfcPetData {
+  _id: string
+  name: string
+  species: string
+  breed: string
+  sex: string
+  dateOfBirth: string
+  weight: number
+  photo: string | null
+  microchipNumber: string | null
+  owner: {
+    _id: string
+    firstName: string
+    lastName: string
+    email: string
+    mobileNumber?: string
+  }
+}
+
 interface ScanModalProps {
   open: boolean
   onClose: () => void
   scanMode: ScanMode
   scanStatus: ScanStatus
-  onScanComplete: (petId: string) => void
+  onScanComplete: (petId: string, petData?: NfcPetData) => void
 }
 
 function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: ScanModalProps) {
@@ -438,23 +457,27 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
   }
 
   // Look up pet by NFC tag ID via API
-  const lookupPetByNfcId = useCallback(async (nfcTagId: string) => {
+  const lookupPetByNfcId = useCallback(async (rawTagId: string) => {
+    const nfcTagId = rawTagId.trim().toUpperCase()
+    console.log('[NFC] Resolving pet for tag:', nfcTagId)
     setIsLookingUpPet(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
       const response = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`)
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.status === 'SUCCESS' && data.data?.pet?._id) {
-          onScanComplete(data.data.pet._id)
+          console.log('[NFC] Pet resolved:', data.data.pet._id)
+          onScanComplete(data.data.pet._id, data.data.pet as NfcPetData)
           return
         }
       }
-      
+
+      console.warn('[NFC] Pet not found for tag:', nfcTagId)
       setScanError('Pet not found. This NFC tag may not be registered in the system.')
     } catch (error) {
-      console.error('Error looking up pet by NFC tag:', error)
+      console.error('[NFC] Error looking up pet by NFC tag:', error)
       setScanError('Failed to look up pet. Please try again.')
     } finally {
       setIsLookingUpPet(false)
@@ -1008,7 +1031,8 @@ export default function PatientManagementPage() {
   }
 
   // Handle NFC scan completion
-  const handleNfcScanComplete = (petId: string) => {
+  const handleNfcScanComplete = (petId: string, petData?: NfcPetData) => {
+    // First try to find the pet in the already-loaded patients list
     const pet = patients.find(p => p._id === petId || p.microchipNumber === petId)
     if (pet) {
       setSelectedPatient(pet)
@@ -1016,14 +1040,47 @@ export default function PatientManagementPage() {
       setScanMode(null)
       setScanStatus('idle')
       toast.success(`Found ${pet.name}!`)
-    } else {
-      setScanStatus('error')
-      toast.error('Pet not found. Please check the tag and try again.')
+      return
     }
+
+    // Pet not in the loaded list — construct a ClinicPatient from the NFC API data
+    // (happens when the pet hasn't visited this clinic before, or the list hasn't refreshed)
+    if (petData) {
+      const constructed: ClinicPatient = {
+        _id: petData._id,
+        name: petData.name,
+        species: petData.species as 'canine' | 'feline',
+        breed: petData.breed,
+        sex: petData.sex as 'male' | 'female',
+        dateOfBirth: petData.dateOfBirth,
+        weight: petData.weight,
+        photo: petData.photo,
+        microchipNumber: petData.microchipNumber,
+        bloodType: null,
+        owner: {
+          _id: petData.owner._id,
+          firstName: petData.owner.firstName,
+          lastName: petData.owner.lastName,
+          contactNumber: petData.owner.mobileNumber || '',
+          email: petData.owner.email,
+        },
+        recordCount: 0,
+        lastVisit: '',
+      }
+      setSelectedPatient(constructed)
+      setScanModalOpen(false)
+      setScanMode(null)
+      setScanStatus('idle')
+      toast.success(`Found ${constructed.name}!`)
+      return
+    }
+
+    setScanStatus('error')
+    toast.error('Pet not found in this clinic. Please check the tag and try again.')
   }
 
   // Handle QR scan completion
-  const handleQrScanComplete = (petId: string) => {
+  const handleQrScanComplete = (petId: string, _petData?: NfcPetData) => {
     const pet = patients.find(p => p._id === petId || p.microchipNumber === petId)
     if (pet) {
       setSelectedPatient(pet)

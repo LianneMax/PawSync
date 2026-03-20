@@ -316,17 +316,22 @@ export const getNFCWritingInstructions = async (req: Request, res: Response) => 
 export const getPetByNfcTagId = async (req: Request, res: Response) => {
   try {
     const { nfcTagId } = req.params;
+    const normalizedTagId = normalizeNfcTagId(nfcTagId);
 
-    if (!nfcTagId) {
+    console.log(`[NFC] Tag scanned: ${nfcTagId} → normalized: ${normalizedTagId}`);
+
+    if (!normalizedTagId) {
       return res.status(400).json({ status: 'ERROR', message: 'NFC Tag ID is required' });
     }
 
-    const pet = await Pet.findOne({ nfcTagId }).populate('ownerId', 'firstName lastName email mobileNumber');
+    const pet = await Pet.findOne({ nfcTagId: normalizedTagId }).populate('ownerId', 'firstName lastName email mobileNumber');
 
     if (!pet) {
+      console.log(`[NFC] No pet found for tag: ${normalizedTagId}`);
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found with this NFC tag' });
     }
 
+    console.log(`[NFC] Pet found: ${pet._id} (${pet.name})`);
     return res.status(200).json({
       status: 'SUCCESS',
       data: {
