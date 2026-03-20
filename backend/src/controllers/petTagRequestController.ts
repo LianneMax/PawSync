@@ -313,10 +313,6 @@ export const cancelTagRequest = async (req: Request, res: Response) => {
  */
 export const getTagRequest = async (req: Request, res: Response) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
-    }
-
     const { requestId } = req.params;
 
     if (!requestId) {
@@ -331,13 +327,6 @@ export const getTagRequest = async (req: Request, res: Response) => {
 
     if (!tagRequest) {
       return res.status(404).json({ status: 'ERROR', message: 'Tag request not found' });
-    }
-
-    const isOwner = tagRequest.ownerId.toString() === req.user.userId;
-    const isClinicStaff = req.user.userType === 'clinic-admin' || req.user.userType === 'veterinarian';
-
-    if (!isOwner && !isClinicStaff) {
-      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this request' });
     }
 
     return res.status(200).json({
