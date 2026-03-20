@@ -1241,6 +1241,13 @@ export const updateRecord = async (req: Request, res: Response) => {
     }
 
 
+    // Guard: some older records may be missing ownerId due to a data-integrity gap.
+    // Re-derive it from the pet so Mongoose required-field validation doesn't block the save.
+    if (!record.ownerId) {
+      const petForOwner = await Pet.findById(record.petId).select('ownerId').lean();
+      if ((petForOwner as any)?.ownerId) record.ownerId = (petForOwner as any).ownerId;
+    }
+
     await record.save();
 
     if ((record as any).confinementRecordId) {
