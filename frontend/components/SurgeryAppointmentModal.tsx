@@ -119,6 +119,7 @@ export default function SurgeryAppointmentModal({
   vetId,
 }: SurgeryAppointmentModalProps) {
   const token = useAuthStore((s) => s.token)
+  const currentYear = new Date().getFullYear()
   const [surgeryServices, setSurgeryServices] = useState<ProductService[]>([])
   const [selectedServices, setSelectedServices] = useState<string[]>([])
   const [date, setDate] = useState('')
@@ -127,6 +128,9 @@ export default function SurgeryAppointmentModal({
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [selectedSlot, setSelectedSlot] = useState<{ startTime: string; endTime: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isAutoSelectingDate, setIsAutoSelectingDate] = useState(false)
+  const [noAvailableDatesMessage, setNoAvailableDatesMessage] = useState('')
+  const [hasAutoSelectedDate, setHasAutoSelectedDate] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [vets, setVets] = useState<AssignedVet[]>([])
   const [branches, setBranches] = useState<ClinicBranch[]>([])
@@ -135,6 +139,13 @@ export default function SurgeryAppointmentModal({
   const [surgeryAccordionOpen, setSurgeryAccordionOpen] = useState(true)
   const [createdAppointmentId, setCreatedAppointmentId] = useState('')
   const [showMedicalRecordModal, setShowMedicalRecordModal] = useState(false)
+
+  const formatYmd = (value: Date) => {
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
 
   // Load surgery services on mount
   useEffect(() => {
@@ -169,6 +180,69 @@ export default function SurgeryAppointmentModal({
     }
     fetchSlots()
   }, [date, selectedVetId, selectedBranchId, token])
+
+  useEffect(() => {
+    if (!open) return
+    setHasAutoSelectedDate(false)
+    setNoAvailableDatesMessage('')
+  }, [open, selectedVetId, selectedBranchId])
+
+  useEffect(() => {
+    if (!open || !token || !selectedVetId || !selectedBranchId || hasAutoSelectedDate) return
+
+    let cancelled = false
+    const findEarliestAvailableDate = async () => {
+      setIsAutoSelectingDate(true)
+      setNoAvailableDatesMessage('')
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+
+      try {
+        for (let offset = 0; offset < 60; offset += 1) {
+          const candidate = new Date(start)
+          candidate.setDate(start.getDate() + offset)
+          const candidateYmd = formatYmd(candidate)
+
+          const res = await getAvailableSlots(selectedVetId, candidateYmd, token as string, selectedBranchId || undefined)
+          if (cancelled || res.status !== 'SUCCESS' || !res.data) continue
+          if (res.data.isClosed) continue
+
+          const todayYmd = formatYmd(new Date())
+          const hasBookableSlot = (res.data.slots || []).some((slot: TimeSlot) => {
+            if (slot.status !== 'available') return false
+            if (candidateYmd !== todayYmd) return true
+            const now = new Date()
+            const [slotHour, slotMinute] = slot.startTime.split(':').map(Number)
+            const slotMinutes = slotHour * 60 + slotMinute
+            const nowMinutes = now.getHours() * 60 + now.getMinutes()
+            return slotMinutes > nowMinutes
+          })
+
+          if (!hasBookableSlot) continue
+
+          setDate(candidateYmd)
+          setSelectedSlot(null)
+          setNoAvailableDatesMessage('')
+          setHasAutoSelectedDate(true)
+          return
+        }
+
+        setDate('')
+        setSelectedSlot(null)
+        setTimeSlots([])
+        setNoAvailableDatesMessage('No available appointment dates at the moment.')
+        setHasAutoSelectedDate(true)
+      } finally {
+        if (!cancelled) setIsAutoSelectingDate(false)
+      }
+    }
+
+    findEarliestAvailableDate()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, token, selectedVetId, selectedBranchId, hasAutoSelectedDate])
 
   // Load clinic branches when modal opens
   useEffect(() => {
@@ -444,20 +518,36 @@ export default function SurgeryAppointmentModal({
               </div>
 
               {/* Date */}
-              <DatePicker
-                value={date}
-                onChange={(value) => {
-                  setDate(value)
-                  setSelectedSlot(null)
-                }}
-                placeholder="Select a date"
-                allowFutureDates={true}
-                minDate={minDate}
-              />
             </div>
 
             {/* Right side: Time slots */}
             <div className="w-80 flex flex-col">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
+                <DatePicker
+                  value={date}
+                  onChange={(value) => {
+                    setDate(value)
+                    setSelectedSlot(null)
+                    setNoAvailableDatesMessage('')
+                    setHasAutoSelectedDate(true)
+                  }}
+                  placeholder="Select a date"
+                  allowFutureDates={true}
+                  minDate={minDate}
+                  fromYear={currentYear}
+                  toYear={currentYear + 20}
+                />
+              </div>
+
+              {isAutoSelectingDate && (
+                <p className="text-xs text-[#5A7C7A] text-center mb-3">Finding the earliest available appointment date...</p>
+              )}
+
+              {noAvailableDatesMessage && (
+                <p className="text-xs text-[#900B09] text-center mb-3">{noAvailableDatesMessage}</p>
+              )}
+
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-[#5A7C7A]" />
                 <h3 className="text-sm font-semibold text-[#2C3E2D]">Available Times</h3>

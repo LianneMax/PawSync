@@ -875,6 +875,7 @@ function ScheduleModal({
   initialPetId?: string
 }) {
   const { token } = useAuthStore()
+  const currentYear = new Date().getFullYear()
 
   // Form state
   const [pets, setPets] = useState<Pet[]>([])
@@ -898,6 +899,9 @@ function ScheduleModal({
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [isClosedDay, setIsClosedDay] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [isAutoSelectingDate, setIsAutoSelectingDate] = useState(false)
+  const [noAvailableDatesMessage, setNoAvailableDatesMessage] = useState('')
+  const [hasAutoSelectedDate, setHasAutoSelectedDate] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const groomingTypeValues = new Set([
@@ -917,6 +921,36 @@ function ScheduleModal({
   const selectedVetUnavailableAfter = selectedVet?.unavailableAfter ? new Date(selectedVet.unavailableAfter) : null
   const selectedDateObj = selectedDate ? new Date(selectedDate) : null
   const isSelectedDateBeyondVetEnd = !!(selectedVetUnavailableAfter && selectedDateObj && selectedDateObj > new Date(new Date(selectedVetUnavailableAfter).setHours(23, 59, 59, 999)))
+
+  const formatYmd = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const canUseSlot = (dateYmd: string, slot: TimeSlot) => {
+    if (slot.status !== 'available') return false
+    const todayYmd = formatYmd(new Date())
+    if (dateYmd !== todayYmd) return true
+
+    const now = new Date()
+    const [slotHour, slotMin] = slot.startTime.split(':').map(Number)
+    const slotMinutes = slotHour * 60 + slotMin
+    const nowMinutes = now.getHours() * 60 + now.getMinutes()
+    return slotMinutes > nowMinutes
+  }
+
+  const fetchSlotsForDate = async (dateYmd: string) => {
+    if (isGroomingOnly) {
+      return authenticatedFetch(
+        `/appointments/grooming-slots?branchId=${selectedBranchId}&date=${dateYmd}`,
+        { method: 'GET' },
+        token || undefined
+      )
+    }
+    return getAvailableSlots(selectedVetId, dateYmd, token || undefined, selectedBranchId || undefined)
+  }
 
   // Load pets + clinics/branches when modal opens
   useEffect(() => {
@@ -1071,6 +1105,69 @@ function ScheduleModal({
     load()
   }, [selectedVetId, selectedDate, selectedBranchId, token, isGroomingOnly])
 
+  useEffect(() => {
+    if (!open) return
+    setHasAutoSelectedDate(false)
+    setNoAvailableDatesMessage('')
+  }, [open, selectedBranchId, selectedVetId, isGroomingOnly, mode, selectedTypes.join('|')])
+
+  useEffect(() => {
+    const shouldFindDate = open
+      && !hasAutoSelectedDate
+      && !!mode
+      && selectedTypes.length > 0
+      && !!selectedBranchId
+      && (isGroomingOnly || !!selectedVetId)
+
+    if (!shouldFindDate) return
+
+    let cancelled = false
+    const findEarliestAvailableDate = async () => {
+      setIsAutoSelectingDate(true)
+      setNoAvailableDatesMessage('')
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+
+      try {
+        for (let offset = 0; offset < 60; offset += 1) {
+          const candidateDate = new Date(start)
+          candidateDate.setDate(start.getDate() + offset)
+          const candidateYmd = formatYmd(candidateDate)
+
+          const res = await fetchSlotsForDate(candidateYmd)
+          if (cancelled || res.status !== 'SUCCESS' || !res.data) continue
+
+          if (res.data.isClosed) continue
+
+          const dateSlots: TimeSlot[] = res.data.slots || []
+          const hasBookableSlot = dateSlots.some((slot) => canUseSlot(candidateYmd, slot))
+          if (!hasBookableSlot) continue
+
+          setSelectedDate(candidateYmd)
+          setSelectedSlot(null)
+          setNoAvailableDatesMessage('')
+          setHasAutoSelectedDate(true)
+          return
+        }
+
+        setSelectedDate('')
+        setSelectedSlot(null)
+        setSlots([])
+        setIsClosedDay(false)
+        setNoAvailableDatesMessage('No available appointment dates at the moment.')
+        setHasAutoSelectedDate(true)
+      } finally {
+        if (!cancelled) setIsAutoSelectingDate(false)
+      }
+    }
+
+    findEarliestAvailableDate()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, hasAutoSelectedDate, mode, selectedTypes, selectedBranchId, selectedVetId, isGroomingOnly, token])
+
   // Reset types when mode changes
   useEffect(() => {
     if (mode === 'online') {
@@ -1090,6 +1187,8 @@ function ScheduleModal({
   // Reset form on close
   useEffect(() => {
     if (!open) {
+      const today = new Date()
+      setSelectedDate(formatYmd(today))
       setSelectedPetId('')
       setSelectedBranchId('')
       setSelectedVetId('')
@@ -1099,6 +1198,9 @@ function ScheduleModal({
       setSlots([])
       setIsClosedDay(false)
       setBranchVets([])
+      setIsAutoSelectingDate(false)
+      setNoAvailableDatesMessage('')
+      setHasAutoSelectedDate(false)
     }
   }, [open])
 
@@ -1426,22 +1528,39 @@ function ScheduleModal({
               )}
             </div>
 
-            {/* Date Picker */}
-            <div>
-              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
-              <DatePicker
-                value={selectedDate}
-                onChange={(date) => { setSelectedDate(date); setSelectedSlot(null) }}
-                placeholder="Select a date"
-                allowFutureDates={true}
-                minDate={new Date(new Date().setHours(0, 0, 0, 0))}
-              />
-            </div>
           </div>
 
           {/* Right: Time Table */}
           <div className="w-65 shrink-0">
-            <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col">
+            <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
+                <DatePicker
+                  value={selectedDate}
+                  onChange={(date) => {
+                    setSelectedDate(date)
+                    setSelectedSlot(null)
+                    setNoAvailableDatesMessage('')
+                    setHasAutoSelectedDate(true)
+                  }}
+                  placeholder="Select a date"
+                  allowFutureDates={true}
+                  minDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                  fromYear={currentYear}
+                  toYear={currentYear + 20}
+                />
+              </div>
+
+              {isAutoSelectingDate && (
+                <p className="text-xs text-[#5A7C7A] text-center">Finding the earliest available appointment date...</p>
+              )}
+
+              {noAvailableDatesMessage && (
+                <p className="text-xs text-[#900B09] text-center">{noAvailableDatesMessage}</p>
+              )}
+
+              <div className="border-t border-gray-200" />
+
               {!selectedBranchId ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">Select a clinic branch to view available slots</p>

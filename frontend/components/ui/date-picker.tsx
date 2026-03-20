@@ -17,11 +17,13 @@ interface DatePickerProps {
   allowFutureDates?: boolean;
   minDate?: Date; // Minimum allowed date
   maxDate?: Date; // Maximum allowed date
+  fromYear?: number;
+  toYear?: number;
   disabled?: boolean;
   compact?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate, maxDate, disabled = false, compact = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error, className, allowFutureDates = false, minDate, maxDate, fromYear, toYear, disabled = false, compact = false }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [textValue, setTextValue] = React.useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -164,7 +166,15 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={date} onSelect={handleSelect} disabled={disabledMatcher} autoFocus />
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={handleSelect}
+              disabled={disabledMatcher}
+              fromYear={fromYear}
+              toYear={toYear}
+              autoFocus
+            />
           </PopoverContent>
         </Popover>
 
