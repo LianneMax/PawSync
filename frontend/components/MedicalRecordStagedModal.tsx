@@ -3905,6 +3905,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                   const isTablet = administrationMethod === 'tablets'
                                   const isCapsule = administrationMethod === 'capsules'
                                   const isSyrup = administrationMethod === 'syrup'
+                                  const isOralSyrup = administrationRoute === 'oral' && isSyrup
                                   const isSelectedInjection = administrationRoute === 'injection' || administrationMethod === 'injection' || !!selectedService.injectionPricingType
                                   const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
                                   let autoDosage = selectedService.dosageAmount || m.dosage
@@ -3949,6 +3950,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                         }
                                       }
                                     }
+                                  } else if (isOralSyrup && selectedService.dosePerKg != null && !isNaN(bodyWeight) && bodyWeight > 0) {
+                                    const syrupDose = selectedService.dosePerKg * bodyWeight
+                                    autoDosage = `${parseFloat(syrupDose.toFixed(2))} ${selectedService.doseUnit || 'mL'}`
+                                    autoQuantity = 1
                                   } else if (isSyrup) {
                                     autoQuantity = 1
                                   } else if (administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical') {
