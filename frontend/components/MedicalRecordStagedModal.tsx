@@ -767,6 +767,9 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [testsOpen, setTestsOpen] = useState(true)
   const [preventiveOpen, setPreventiveOpen] = useState(true)
   const [preventiveMedicationDispensing, setPreventiveMedicationDispensing] = useState<Record<string, 'singlePill' | 'pack' | ''>>({})
+  const [preventiveInjectionDosageOverrides, setPreventiveInjectionDosageOverrides] = useState<Record<string, string>>({})
+  const [preventiveMedicationDurationOverrides, setPreventiveMedicationDurationOverrides] = useState<Record<string, string>>({})
+  const [preventiveMedicationIntervalOverrides, setPreventiveMedicationIntervalOverrides] = useState<Record<string, string>>({})
 
   const isPreventiveCareAppt = appointmentTypes.some((apptType) => {
     const normalizedType = normalizeServiceToken(apptType)
@@ -4118,7 +4121,57 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-gray-500">Preventive Care {i + 1}</span>
-                            <button onClick={() => setPreventiveCare((prev) => prev.filter((_, j) => j !== i))} className="text-[#900B09] hover:text-red-600">
+                            <button onClick={() => {
+                              setPreventiveCare((prev) => prev.filter((_, j) => j !== i))
+                              setPreventiveMedicationDispensing((prev) => {
+                                const next: Record<string, 'singlePill' | 'pack' | ''> = {}
+                                Object.entries(prev).forEach(([key, value]) => {
+                                  const keyMatch = key.match(/^(\d+)-(.*)$/)
+                                  if (!keyMatch) return
+                                  const keyIndex = parseInt(keyMatch[1], 10)
+                                  const suffix = keyMatch[2]
+                                  if (keyIndex < i) next[key] = value
+                                  else if (keyIndex > i) next[`${keyIndex - 1}-${suffix}`] = value
+                                })
+                                return next
+                              })
+                              setPreventiveInjectionDosageOverrides((prev) => {
+                                const next: Record<string, string> = {}
+                                Object.entries(prev).forEach(([key, value]) => {
+                                  const keyMatch = key.match(/^(\d+)-(.*)$/)
+                                  if (!keyMatch) return
+                                  const keyIndex = parseInt(keyMatch[1], 10)
+                                  const suffix = keyMatch[2]
+                                  if (keyIndex < i) next[key] = value
+                                  else if (keyIndex > i) next[`${keyIndex - 1}-${suffix}`] = value
+                                })
+                                return next
+                              })
+                              setPreventiveMedicationDurationOverrides((prev) => {
+                                const next: Record<string, string> = {}
+                                Object.entries(prev).forEach(([key, value]) => {
+                                  const keyMatch = key.match(/^(\d+)-(.*)$/)
+                                  if (!keyMatch) return
+                                  const keyIndex = parseInt(keyMatch[1], 10)
+                                  const suffix = keyMatch[2]
+                                  if (keyIndex < i) next[key] = value
+                                  else if (keyIndex > i) next[`${keyIndex - 1}-${suffix}`] = value
+                                })
+                                return next
+                              })
+                              setPreventiveMedicationIntervalOverrides((prev) => {
+                                const next: Record<string, string> = {}
+                                Object.entries(prev).forEach(([key, value]) => {
+                                  const keyMatch = key.match(/^(\d+)-(.*)$/)
+                                  if (!keyMatch) return
+                                  const keyIndex = parseInt(keyMatch[1], 10)
+                                  const suffix = keyMatch[2]
+                                  if (keyIndex < i) next[key] = value
+                                  else if (keyIndex > i) next[`${keyIndex - 1}-${suffix}`] = value
+                                })
+                                return next
+                              })
+                            }} className="text-[#900B09] hover:text-red-600">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -4160,16 +4213,28 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                 const fallbackDosage = !isNaN(bodyWeightVal) && bodyWeightVal > 0 && inj.dosePerKg != null
                                   ? `${parseFloat((inj.dosePerKg * bodyWeightVal).toFixed(2))} ${inj.doseUnit || 'mL'}`
                                   : null
+                                const dosageKey = `${i}-${inj._id}`
+                                const computedDosage = injectionCalc
+                                  ? `${injectionCalc.dosageMl} mL`
+                                  : (fallbackDosage || '')
                                 return (
                                   <div key={`${inj._id}-${injIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
                                     <p className="text-xs font-semibold text-[#4F4F4F]">{inj.name}</p>
                                     <div className="mt-1.5">
                                       <p className="text-[10px] text-gray-400 mb-0.5">Dosage</p>
-                                      <p className="text-xs font-medium text-[#4F4F4F]">
-                                        {injectionCalc
-                                          ? `${injectionCalc.dosageMl} mL`
-                                          : (fallbackDosage || '—')}
-                                      </p>
+                                      <input
+                                        type="text"
+                                        value={preventiveInjectionDosageOverrides[dosageKey] ?? computedDosage}
+                                        onChange={(e) => {
+                                          const nextValue = e.target.value
+                                          setPreventiveInjectionDosageOverrides((prev) => ({
+                                            ...prev,
+                                            [dosageKey]: nextValue,
+                                          }))
+                                        }}
+                                        placeholder={computedDosage || '—'}
+                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                      />
                                     </div>
                                   </div>
                                 )
@@ -4183,15 +4248,18 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               associatedPreventiveMeds.map((med, medIndex) => (
                                 <div key={`${med._id}-${medIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
                                   <p className="text-xs font-semibold text-[#4F4F4F]">{med.name}</p>
+                                  {(() => {
+                                    const medKey = `${i}-${med._id}`
+                                    return (
+                                  <>
                                   <div className="mt-1.5">
                                     <p className="text-[10px] text-gray-400 mb-1">Dispensing</p>
                                     <DropdownField
-                                      value={preventiveMedicationDispensing[`${i}-${med._id}`] || med.pricingType || ''}
+                                      value={preventiveMedicationDispensing[medKey] || med.pricingType || ''}
                                       onValueChange={(value) => {
-                                        const key = `${i}-${med._id}`
                                         setPreventiveMedicationDispensing((prev) => ({
                                           ...prev,
-                                          [key]: value as 'singlePill' | 'pack' | '',
+                                          [medKey]: value as 'singlePill' | 'pack' | '',
                                         }))
                                       }}
                                       placeholder="Dispensing"
@@ -4210,17 +4278,44 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-gray-400">Duration</p>
-                                      <p className="text-xs text-gray-600">
-                                        {med.preventiveDuration
-                                          ? `${med.preventiveDuration} ${med.preventiveDurationUnit || 'months'}`
-                                          : '—'}
-                                      </p>
+                                      <input
+                                        type="text"
+                                        value={preventiveMedicationDurationOverrides[medKey] ?? (med.preventiveDuration != null ? String(med.preventiveDuration) : '')}
+                                        onChange={(e) => {
+                                          const nextValue = e.target.value
+                                          setPreventiveMedicationDurationOverrides((prev) => ({
+                                            ...prev,
+                                            [medKey]: nextValue,
+                                          }))
+                                        }}
+                                        placeholder={med.preventiveDuration != null ? `${med.preventiveDuration}` : '—'}
+                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                      />
+                                      {med.preventiveDurationUnit && (
+                                        <p className="text-[10px] text-gray-400 mt-0.5">{med.preventiveDurationUnit}</p>
+                                      )}
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-gray-400">Interval Days</p>
-                                      <p className="text-xs text-gray-600">{med.intervalDays ? `${med.intervalDays} days` : '—'}</p>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={preventiveMedicationIntervalOverrides[medKey] ?? (med.intervalDays != null ? String(med.intervalDays) : '')}
+                                        onChange={(e) => {
+                                          const nextValue = e.target.value
+                                          setPreventiveMedicationIntervalOverrides((prev) => ({
+                                            ...prev,
+                                            [medKey]: nextValue,
+                                          }))
+                                        }}
+                                        placeholder={med.intervalDays != null ? String(med.intervalDays) : '—'}
+                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                      />
                                     </div>
                                   </div>
+                                  </>
+                                    )
+                                  })()}
                                 </div>
                               ))
                             ) : (
