@@ -4022,7 +4022,13 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               <p className="text-[11px] font-semibold text-[#476B6B]">Associated Injection</p>
                               {associatedInjectionMeds.map((inj, injIndex) => {
                                 const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
-                                const effectiveCareType = care.careType || getInjectionCareType(care.product)
+                                const inferredCareType = care.careType || getInjectionCareType(care.product)
+                                const effectiveCareType: 'flea' | 'deworming' | 'heartworm' | null =
+                                  inferredCareType === 'tick'
+                                    ? 'flea'
+                                    : inferredCareType === 'other'
+                                      ? null
+                                      : inferredCareType
                                 const injectionCalc = calculateInjectionDosage(inj, bodyWeightVal, effectiveCareType)
                                 const fallbackDosage = !isNaN(bodyWeightVal) && bodyWeightVal > 0 && inj.dosePerKg != null
                                   ? `${parseFloat((inj.dosePerKg * bodyWeightVal).toFixed(2))} ${inj.doseUnit || 'mL'}`
