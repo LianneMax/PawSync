@@ -1260,19 +1260,14 @@ export default function ClinicAdminAppointmentsPage() {
     setIsCheckingInFromScan(true)
     setScanError('')
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const petResponse = await fetch(`${apiUrl}/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`)
-      
-      if (!petResponse.ok) {
-        setScanError('Pet not found. This NFC tag may not be registered.')
-        setIsCheckingInFromScan(false)
-        setNfcScanningActive(false)
-        return
-      }
+      const petData = await authenticatedFetch(
+        `/nfc/by-tag-id/${encodeURIComponent(nfcTagId)}`,
+        { method: 'GET' },
+        token || undefined
+      )
 
-      const petData = await petResponse.json()
-      if (!petData.data?.pet?._id) {
-        setScanError('Unable to identify pet from NFC tag.')
+      if (petData.status !== 'SUCCESS' || !petData.data?.pet?._id) {
+        setScanError('Pet not found. This NFC tag may not be registered.')
         setIsCheckingInFromScan(false)
         setNfcScanningActive(false)
         return
