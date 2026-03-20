@@ -631,3 +631,75 @@ export async function sendClinicAdminAlertEmail(params: {
     console.error('[Email] sendClinicAdminAlertEmail error:', err);
   }
 }
+
+// ─── Confinement Release Emails ──────────────────────────────────────────────
+
+export async function sendConfinementReleaseRequestToVet(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  ownerName: string;
+  petName: string;
+  petId: string;
+  reason?: string;
+}) {
+  const petUrl = `${FRONTEND_URL}/pet/${params.petId}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `PawSync – Confinement Release Requested for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Confinement Release Request</h2>
+          <p>Hi Dr. ${params.vetFirstName},</p>
+          <p><strong>${params.ownerName}</strong> requested confinement release for <strong>${params.petName}</strong>.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Pet:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0;"><strong>Requested By:</strong> ${params.ownerName}</p>
+            ${params.reason ? `<p style="margin: 4px 0;"><strong>Owner Note:</strong> ${params.reason}</p>` : ''}
+          </div>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${petUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Review Pet Record</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendConfinementReleaseRequestToVet error:', err);
+  }
+}
+
+export async function sendConfinementReleaseConfirmedToOwner(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  petId: string;
+  vetName: string;
+}) {
+  const petUrl = `${FRONTEND_URL}/my-pets/${params.petId}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – ${params.petName} Has Been Released from Confinement`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Confinement Release Confirmed</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p><strong>${params.petName}</strong> has been released from confinement by Dr. ${params.vetName}.</p>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Pet:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0;"><strong>Status:</strong> Discharged</p>
+          </div>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${petUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Open Pet Profile</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendConfinementReleaseConfirmedToOwner error:', err);
+  }
+}

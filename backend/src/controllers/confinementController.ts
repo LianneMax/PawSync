@@ -4,6 +4,10 @@ import User from '../models/User';
 import Pet from '../models/Pet';
 import MedicalRecord from '../models/MedicalRecord';
 import { createNotification } from '../services/notificationService';
+import {
+  sendConfinementReleaseRequestToVet,
+  sendConfinementReleaseConfirmedToOwner,
+} from '../services/emailService';
 
 /**
  * GET /api/confinement
@@ -212,6 +216,25 @@ export const requestConfinementRelease = async (req: Request, res: Response) => 
       }
     );
 
+    Promise.all([
+      User.findById(record.vetId).select('firstName email'),
+      User.findById(req.user.userId).select('firstName lastName'),
+    ]).then(async ([vet, owner]) => {
+      if (vet?.email) {
+        const ownerName = [owner?.firstName, owner?.lastName].filter(Boolean).join(' ').trim() || 'Pet Owner';
+        sendConfinementReleaseRequestToVet({
+          vetEmail: vet.email,
+          vetFirstName: vet.firstName,
+          ownerName,
+          petName: pet.name,
+          petId: pet._id.toString(),
+          reason: req.body?.reason,
+        });
+      }
+    }).catch((err) => {
+      console.error('[Confinement] release request email error:', err);
+    });
+
     return res.status(200).json({
       status: 'SUCCESS',
       message: 'Release request sent to the handling veterinarian',
@@ -270,6 +293,24 @@ export const confirmConfinementRelease = async (req: Request, res: Response) => 
           confirmedByVetId: req.user.userId,
         }
       );
+
+      Promise.all([
+        User.findById((record as any).releaseRequestedByOwnerId).select('firstName email'),
+        User.findById(req.user.userId).select('firstName lastName'),
+      ]).then(async ([owner, vet]) => {
+        if (owner?.email) {
+          const vetName = [vet?.firstName, vet?.lastName].filter(Boolean).join(' ').trim() || 'Veterinarian';
+          sendConfinementReleaseConfirmedToOwner({
+            ownerEmail: owner.email,
+            ownerFirstName: owner.firstName,
+            petName: pet?.name || 'Your pet',
+            petId: pet?._id?.toString() || record.petId.toString(),
+            vetName,
+          });
+        }
+      }).catch((err) => {
+        console.error('[Confinement] release confirmation email error:', err);
+      });
     }
 
     return res.status(200).json({
