@@ -65,8 +65,16 @@ export default function VetOnboardingPage() {
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const userData = useAuthStore((state) => state.user)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+
+  useEffect(() => {
+    if (!userData) return
+
+    setFirstName((prev) => (prev.trim() ? prev : userData.firstName || ''))
+    setLastName((prev) => (prev.trim() ? prev : userData.lastName || ''))
+  }, [userData])
 
   // Fetch real clinics from API
   useEffect(() => {
@@ -263,8 +271,6 @@ export default function VetOnboardingPage() {
       setSubmitting(false)
     }
   }
-
-  const userData = useAuthStore((state) => state.user)
 
   // Slide classes
   const getSlideClass = () => {
