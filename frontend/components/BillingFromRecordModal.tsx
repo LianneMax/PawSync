@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { X, PawPrint, Stethoscope, Hash, Plus, Search, Loader2, CheckCircle } from 'lucide-react'
 import { type MedicalRecord } from '@/lib/medicalRecords'
 import { authenticatedFetch } from '@/lib/auth'
@@ -85,6 +85,22 @@ function groupByCategoryOrdered(entries: CatalogEntry[]) {
     map.get(e.category)!.push(e)
   }
   const result: { category: string; items: CatalogEntry[] }[] = []
+  for (const cat of CATEGORY_ORDER) {
+    if (map.has(cat)) result.push({ category: cat, items: map.get(cat)! })
+  }
+  for (const [cat, items] of map) {
+    if (!CATEGORY_ORDER.includes(cat)) result.push({ category: cat, items })
+  }
+  return result
+}
+
+function groupLineItemsByCategoryOrdered(lineItems: BillingLineItem[]) {
+  const map = new Map<string, BillingLineItem[]>()
+  for (const item of lineItems) {
+    if (!map.has(item.category)) map.set(item.category, [])
+    map.get(item.category)!.push(item)
+  }
+  const result: { category: string; items: BillingLineItem[] }[] = []
   for (const cat of CATEGORY_ORDER) {
     if (map.has(cat)) result.push({ category: cat, items: map.get(cat)! })
   }
@@ -536,9 +552,6 @@ export default function BillingFromRecordModal({
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">
                         Product / Service
                       </th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">
-                        Category
-                      </th>
                       <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500">
                         Qty
                       </th>
@@ -559,7 +572,7 @@ export default function BillingFromRecordModal({
                     {items.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={isReadOnly ? 5 : 6}
+                          colSpan={isReadOnly ? 4 : 5}
                           className="text-center py-8 text-gray-400 text-xs"
                         >
                           No services matched from this record.{' '}
@@ -567,63 +580,74 @@ export default function BillingFromRecordModal({
                         </td>
                       </tr>
                     ) : (
-                      items.map((item) => (
-                        <tr
-                          key={item.tempId}
-                          className="border-t border-gray-50 hover:bg-gray-50/50"
-                        >
-                          <td className="px-4 py-3 font-medium text-[#4F4F4F]">
-                            {item.name}
-                            {item.catalogId === null && (
-                              <span className="ml-1.5 text-[10px] text-amber-500 font-normal bg-amber-50 px-1.5 py-0.5 rounded">
-                                no price match
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-gray-400 text-xs capitalize">
-                            {item.category}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {isReadOnly ? (
-                              <span className="text-sm text-[#4F4F4F]">{item.quantity}</span>
-                            ) : (
-                              <input
-                                type="number"
-                                min={1}
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateQuantity(item.tempId, parseInt(e.target.value) || 1)
-                                }
-                                className="w-14 text-center text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#476B6B]"
-                              />
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right text-[#4F4F4F]">
-                            {item.catalogId === null ? (
-                              <span className="text-amber-500 text-xs">₱ 0.00</span>
-                            ) : (
-                              formatCurrency(item.price)
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium text-[#4F4F4F]">
-                            {item.catalogId === null ? (
-                              <span className="text-amber-500 text-xs">₱ 0.00</span>
-                            ) : (
-                              formatCurrency(item.price * item.quantity)
-                            )}
-                          </td>
-                          {!isReadOnly && (
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => removeItem(item.tempId)}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Remove"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                      groupLineItemsByCategoryOrdered(items).map(({ category, items: catItems }) => (
+                        <React.Fragment key={category}>
+                          <tr>
+                            <td
+                              colSpan={isReadOnly ? 4 : 5}
+                              className="px-4 py-1.5 bg-gray-50 border-t border-gray-100"
+                            >
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                                {category}
+                              </p>
                             </td>
-                          )}
-                        </tr>
+                          </tr>
+                          {catItems.map((item) => (
+                            <tr
+                              key={item.tempId}
+                              className="border-t border-gray-50 hover:bg-gray-50/50"
+                            >
+                              <td className="px-4 py-3 font-medium text-[#4F4F4F]">
+                                {item.name}
+                                {item.catalogId === null && (
+                                  <span className="ml-1.5 text-[10px] text-amber-500 font-normal bg-amber-50 px-1.5 py-0.5 rounded">
+                                    no price match
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {isReadOnly ? (
+                                  <span className="text-sm text-[#4F4F4F]">{item.quantity}</span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      updateQuantity(item.tempId, parseInt(e.target.value) || 1)
+                                    }
+                                    className="w-14 text-center text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#476B6B]"
+                                  />
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right text-[#4F4F4F]">
+                                {item.catalogId === null ? (
+                                  <span className="text-amber-500 text-xs">₱ 0.00</span>
+                                ) : (
+                                  formatCurrency(item.price)
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium text-[#4F4F4F]">
+                                {item.catalogId === null ? (
+                                  <span className="text-amber-500 text-xs">₱ 0.00</span>
+                                ) : (
+                                  formatCurrency(item.price * item.quantity)
+                                )}
+                              </td>
+                              {!isReadOnly && (
+                                <td className="px-4 py-3 text-right">
+                                  <button
+                                    onClick={() => removeItem(item.tempId)}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Remove"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       ))
                     )}
                   </tbody>
