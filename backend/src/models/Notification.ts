@@ -21,7 +21,8 @@ export type NotificationType =
   | 'confinement_release_confirmed'
   | 'pregnancy_confirmed'
   | 'pregnancy_due_soon'
-  | 'pregnancy_overdue';
+  | 'pregnancy_overdue'
+  | 'clinic_qr_payment_submitted';
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
@@ -60,6 +61,7 @@ const NotificationSchema = new Schema<INotification>(
         'pregnancy_confirmed',
         'pregnancy_due_soon',
         'pregnancy_overdue',
+        'clinic_qr_payment_submitted',
       ],
       required: true,
     },

@@ -553,6 +553,146 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
 };
 
 /**
+ * POST /api/billings/:id/submit-qr-proof
+ * Pet owner — submit a QR payment screenshot for clinic review.
+ * Body: { screenshot: string (data URL) }
+ */
+export const submitQrPaymentProof = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const billing = await Billing.findById(req.params.id);
+    if (!billing) {
+      return res.status(404).json({ status: 'ERROR', message: 'Billing record not found' });
+    }
+
+    if (billing.ownerId.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
+    }
+
+    if (billing.status !== 'pending_payment') {
+      return res.status(400).json({ status: 'ERROR', message: 'This billing is not awaiting payment' });
+    }
+
+    const { screenshot } = req.body;
+    if (!screenshot) {
+      return res.status(400).json({ status: 'ERROR', message: 'Payment screenshot is required' });
+    }
+    if (!screenshot.startsWith('data:image/')) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid image format' });
+    }
+
+    billing.qrPaymentProof = screenshot;
+    billing.qrPaymentSubmittedAt = new Date();
+    billing.pendingQrApproval = true;
+    await billing.save();
+
+    const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
+
+    if (populated?.clinicId?._id && populated?.petId?.name && populated?.ownerId) {
+      const submittedDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      await alertClinicAdmins({
+        clinicId: populated.clinicId._id,
+        clinicBranchId: populated.clinicBranchId?._id || null,
+        notificationType: 'clinic_qr_payment_submitted',
+        notificationTitle: 'QR Payment Proof Submitted',
+        notificationMessage: `${populated.ownerId.firstName} ${populated.ownerId.lastName} submitted a QR payment screenshot for ${populated.petId.name}. Please review and approve.`,
+        metadata: { billingId: billing._id },
+        emailSubject: `PawSync – QR Payment Submitted (${populated.petId.name})`,
+        emailHeadline: 'QR Payment Proof Submitted',
+        emailIntro: 'A pet owner has submitted a QR payment screenshot for your review.',
+        emailDetails: {
+          Pet: populated.petId.name,
+          Owner: `${populated.ownerId.firstName} ${populated.ownerId.lastName}`,
+          'Amount Due': `₱${populated.totalAmountDue.toFixed(2)}`,
+          'Submitted On': submittedDate,
+          Branch: populated.clinicBranchId?.name || 'Clinic Branch',
+        },
+      });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Payment proof submitted successfully. Awaiting clinic approval.',
+      data: { billing: populated },
+    });
+  } catch (error) {
+    console.error('Submit QR payment proof error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while submitting payment proof' });
+  }
+};
+
+/**
+ * POST /api/billings/:id/approve-qr-payment
+ * Clinic admin — approve a pet owner's QR payment and mark billing as paid.
+ */
+export const approveQrPayment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const billing = await Billing.findById(req.params.id);
+    if (!billing) {
+      return res.status(404).json({ status: 'ERROR', message: 'Billing record not found' });
+    }
+
+    if (!billing.pendingQrApproval) {
+      return res.status(400).json({ status: 'ERROR', message: 'No pending QR payment to approve' });
+    }
+
+    if (billing.status === 'paid') {
+      return res.status(400).json({ status: 'ERROR', message: 'Billing is already marked as paid' });
+    }
+
+    billing.status = 'paid';
+    billing.paidAt = new Date();
+    billing.paymentMethod = 'qr';
+    (billing as any).amountPaid = billing.totalAmountDue;
+    billing.pendingQrApproval = false;
+    await billing.save();
+
+    const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
+
+    if (populated?.ownerId?.email && populated.petId?.name && populated.vetId) {
+      sendBillingPaidReceipt({
+        ownerEmail: populated.ownerId.email,
+        ownerFirstName: populated.ownerId.firstName,
+        petName: populated.petId.name,
+        vetName: `${populated.vetId.firstName} ${populated.vetId.lastName}`,
+        items: populated.items,
+        subtotal: populated.subtotal,
+        discount: populated.discount,
+        totalAmountDue: populated.totalAmountDue,
+        serviceDate: populated.serviceDate,
+        paidAt: populated.paidAt,
+      });
+    }
+
+    if (populated?.ownerId?._id && populated.petId?.name) {
+      await createNotification(
+        populated.ownerId._id.toString(),
+        'bill_paid',
+        'QR Payment Approved',
+        `Your QR payment of ₱${populated.totalAmountDue.toFixed(2)} for ${populated.petId.name} has been approved. Thank you!`,
+        { billingId: billing._id }
+      );
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'QR payment approved and billing marked as paid',
+      data: { billing: populated },
+    });
+  } catch (error) {
+    console.error('Approve QR payment error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while approving the payment' });
+  }
+};
+
+/**
  * DELETE /api/billings
  * Clinic admin / branch admin — bulk delete billing records by IDs.
  * Body: { ids: string[] }

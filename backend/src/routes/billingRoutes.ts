@@ -9,6 +9,8 @@ import {
   getBillingById,
   updateBilling,
   markBillingAsPaid,
+  submitQrPaymentProof,
+  approveQrPayment,
   deleteBillings,
 } from '../controllers/billingController';
 import {
@@ -51,6 +53,14 @@ router.patch('/:id', authMiddleware, vetOrClinicAdminOnly, updateBilling);
 // Clinic admin — mark billing as paid
 // PATCH /api/billings/:id/pay
 router.patch('/:id/pay', authMiddleware, clinicAdminOnly, markBillingAsPaid);
+
+// Pet owner — submit QR payment screenshot
+// POST /api/billings/:id/submit-qr-proof
+router.post('/:id/submit-qr-proof', authMiddleware, submitQrPaymentProof);
+
+// Clinic admin — approve QR payment and mark as paid
+// POST /api/billings/:id/approve-qr-payment
+router.post('/:id/approve-qr-payment', authMiddleware, clinicAdminOnly, approveQrPayment);
 
 // Clinic admin — get single billing
 // GET /api/billings/:id
