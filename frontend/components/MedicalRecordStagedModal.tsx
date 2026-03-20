@@ -358,13 +358,26 @@ const getInjectionCareType = (name: string): 'flea' | 'deworming' | 'heartworm' 
   return null
 }
 
+function normalizeServiceToken(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+}
+
+const isInjectionService = (service: ProductService | undefined | null): boolean => {
+  if (!service) return false
+  const route = normalizeServiceToken(String(service.administrationRoute || ''))
+  const method = normalizeServiceToken(String(service.administrationMethod || ''))
+  return route.includes('injection') || method.includes('injection')
+}
+
 // Calculate injection dosage (mL) and adjusted price for mlPerKg injections
 const calculateInjectionDosage = (
   service: { name: string; price: number; injectionPricingType?: string },
   weightKg: number,
   careTypeOverride?: 'flea' | 'deworming' | 'heartworm' | null,
 ): { dosageMl: number; price: number } | null => {
-  if (String(service.injectionPricingType || '').toLowerCase() !== 'mlperkg') return null
+  if (normalizeServiceToken(String(service.injectionPricingType || '')) !== 'mlperkg') return null
   if (isNaN(weightKg) || weightKg <= 0) return null
 
   const type = careTypeOverride !== undefined ? careTypeOverride : getInjectionCareType(service.name)
@@ -394,10 +407,44 @@ const calculateInjectionDosage = (
   return null
 }
 
-const normalizeServiceToken = (value: string): string =>
-  String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
+const formatInjectionPricingTypeLabel = (injectionPricingType?: string | null): string => {
+  const normalized = normalizeServiceToken(String(injectionPricingType || ''))
+  if (normalized === 'mlperkg') return 'mL per Kg'
+  if (normalized === 'singledose') return 'Single Dose'
+  return 'Not configured'
+}
+
+const deriveInjectionDosageDisplay = (service: ProductService | undefined, weightKg: number): string | null => {
+  if (!service) return null
+
+  const pricingType = normalizeServiceToken(String(service.injectionPricingType || ''))
+
+  // singleDosage: fixed dose — no weight multiplication
+  if (pricingType === 'singledose') {
+    return service.dosageAmount || null
+  }
+
+  // mlPerKg: weight-based calculation requires a valid weight
+  if (isNaN(weightKg) || weightKg <= 0) return null
+
+  const dosageFromAmount = (() => {
+    if (!service.dosageAmount) return null
+    const matched = String(service.dosageAmount).match(/\d+(?:\.\d+)?/)
+    return matched ? parseFloat(matched[0]) : null
+  })()
+
+  const dosageUnitFromAmount = (() => {
+    if (!service.dosageAmount) return null
+    const matched = String(service.dosageAmount).match(/\b(mg|ml|mcg|g)\b/i)
+    return matched ? matched[1] : null
+  })()
+
+  const dosageFactor = service.dosePerKg ?? dosageFromAmount
+  if (dosageFactor == null || isNaN(dosageFactor)) return null
+
+  const computedDosage = parseFloat((weightKg * dosageFactor).toFixed(2))
+  return `${computedDosage} ${service.doseUnit || dosageUnitFromAmount || 'mL'}`
+}
 
 const isProductMedicationService = (service: ProductService): boolean => {
   const normalizedType = String(service.type || '').toLowerCase()
@@ -412,6 +459,31 @@ const getAssociatedServiceIdValue = (service: ProductService): string | null => 
   if (typeof nestedId === 'string') return nestedId
   if (nestedId != null) return String(nestedId)
   return null
+}
+
+const resolveMedicationServiceForEntry = (
+  medicationServices: ProductService[],
+  medication: Omit<Medication, '_id'>,
+): ProductService | undefined => {
+  const normalizedName = normalizeServiceToken(medication.name)
+  if (!normalizedName) return undefined
+
+  const candidates = medicationServices.filter(
+    (service) => normalizeServiceToken(service.name) === normalizedName,
+  )
+  if (candidates.length === 0) return undefined
+
+  const normalizedRoute = normalizeServiceToken(String(medication.route || ''))
+  if (normalizedRoute) {
+    const routeMatched = candidates.find((service) => {
+      const routeToken = normalizeServiceToken(String(service.administrationRoute || ''))
+      const methodToken = normalizeServiceToken(String(service.administrationMethod || ''))
+      return routeToken === normalizedRoute || methodToken === normalizedRoute
+    })
+    if (routeMatched) return routeMatched
+  }
+
+  return candidates[0]
 }
 
 const DEBUG_PREVENTIVE_INJECTION_MAPPING =
@@ -575,6 +647,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [carryoverMeds, setCarryoverMeds] = useState<{ med: Omit<Medication, '_id'>; action: 'continue' | 'stop' }[]>([])
   const [carryoverApplied, setCarryoverApplied] = useState(false)
   const [capsuleWarnings, setCapsuleWarnings] = useState<Record<number, string>>({})
+  const [selectedMedicationServiceIds, setSelectedMedicationServiceIds] = useState<Record<number, string>>({})
   const [prevContextOpen, setPrevContextOpen] = useState(true)
 
   // Whether this appointment includes vaccination/booster
@@ -3785,27 +3858,59 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-500">Medication {i + 1}</span>
-                          <button onClick={() => { setMedications((prev) => prev.filter((_, j) => j !== i)); setCapsuleWarnings((prev) => { const next: Record<number, string> = {}; Object.entries(prev).forEach(([k, v]) => { const ki = parseInt(k); if (ki < i) next[ki] = v; else if (ki > i) next[ki - 1] = v; }); return next }) }} className="text-[#900B09] hover:text-red-600">
+                          <button onClick={() => {
+                            setMedications((prev) => prev.filter((_, j) => j !== i))
+                            setCapsuleWarnings((prev) => {
+                              const next: Record<number, string> = {}
+                              Object.entries(prev).forEach(([k, v]) => {
+                                const ki = parseInt(k)
+                                if (ki < i) next[ki] = v
+                                else if (ki > i) next[ki - 1] = v
+                              })
+                              return next
+                            })
+                            setSelectedMedicationServiceIds((prev) => {
+                              const next: Record<number, string> = {}
+                              Object.entries(prev).forEach(([k, v]) => {
+                                const ki = parseInt(k)
+                                if (ki < i) next[ki] = v
+                                else if (ki > i) next[ki - 1] = v
+                              })
+                              return next
+                            })
+                          }} className="text-[#900B09] hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                         {(() => {
-                          const medService = medicationServices.find((s) => s.name === med.name)
+                          const selectedServiceId = selectedMedicationServiceIds[i] || ''
+                          const medService =
+                            (selectedServiceId
+                              ? medicationServices.find((s) => String(s._id) === String(selectedServiceId))
+                              : undefined) ||
+                            resolveMedicationServiceForEntry(medicationServices, med)
                           const isTopical = medService?.administrationRoute?.toLowerCase() === 'topical' || medService?.administrationMethod?.toLowerCase() === 'topical'
+                          const isInjectionMedication = isInjectionService(medService) || normalizeServiceToken(String(med.route || '')) === 'injection' || !!medService?.injectionPricingType
+                          const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
+                          const injectionDosageDisplay = deriveInjectionDosageDisplay(medService, bodyWeightVal)
+                          const injectionPricingTypeLabel = formatInjectionPricingTypeLabel(medService?.injectionPricingType)
                           return (
                         <div className="grid grid-cols-2 gap-2">
                           <DropdownField
-                            value={med.name}
-                            onValueChange={(selectedName) => {
-                              const selectedService = medicationServices.find((s) => s.name === selectedName)
+                            value={selectedServiceId || medService?._id || ''}
+                            onValueChange={(selectedServiceId) => {
+                              const selectedService = medicationServices.find((s) => String(s._id) === String(selectedServiceId))
+                              setSelectedMedicationServiceIds((prev) => ({ ...prev, [i]: selectedServiceId }))
                               setMedications((prev) => prev.map((m, j) => {
                                 if (j !== i) return m
                                 // Auto-populate from service data when a medication is selected
                                 if (selectedService) {
                                   const administrationMethod = selectedService.administrationMethod?.toLowerCase() ?? ''
+                                  const administrationRoute = selectedService.administrationRoute?.toLowerCase() ?? ''
                                   const isTablet = administrationMethod === 'tablets'
                                   const isCapsule = administrationMethod === 'capsules'
                                   const isSyrup = administrationMethod === 'syrup'
+                                  const isSelectedInjection = administrationRoute === 'injection' || administrationMethod === 'injection' || !!selectedService.injectionPricingType
                                   const bodyWeight = parseFloat(String(vitals?.weight?.value ?? ''))
                                   let autoDosage = selectedService.dosageAmount || m.dosage
                                   let autoQuantity: number | null = null
@@ -3853,29 +3958,33 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                                     autoQuantity = 1
                                   } else if (administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical') {
                                     autoQuantity = 1
-                                  } else if (String(selectedService.administrationRoute || '').toLowerCase() === 'injection' && String(selectedService.injectionPricingType || '').toLowerCase() === 'mlperkg') {
-                                    const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
-                                    const injCalc = calculateInjectionDosage(selectedService, bodyWeightVal)
-                                    if (injCalc) {
-                                      autoDosage = `${injCalc.dosageMl} mL`
-                                    }
+                                  } else if (isInjectionService(selectedService) || selectedService.injectionPricingType) {
+                                    const computedInjectionDosage = deriveInjectionDosageDisplay(selectedService, bodyWeight)
+                                    if (computedInjectionDosage) autoDosage = computedInjectionDosage
+                                    else if (selectedService.dosageAmount) autoDosage = selectedService.dosageAmount
                                   }
                                   const isSelectedTopical = administrationMethod === 'topical' || selectedService.administrationRoute?.toLowerCase() === 'topical'
                                   return {
                                     ...m,
-                                    name: selectedName,
+                                    name: selectedService.name,
                                     dosage: autoDosage,
                                     route: (selectedService.administrationRoute as Medication['route']) || m.route,
-                                    frequency: isSelectedTopical
+                                    frequency: isSelectedInjection
+                                      ? ''
+                                      : isSelectedTopical
                                       ? (selectedService.frequencyNotes || m.frequency)
                                       : (selectedService.frequencyLabel || selectedService.frequency?.toString() || m.frequency),
-                                    duration: selectedService.durationLabel || selectedService.duration?.toString() || m.duration,
-                                    quantity: selectedService.pricingType === 'pack' ? 1 : autoQuantity,
-                                    pricingType: selectedService.pricingType || '',
+                                    duration: isSelectedInjection
+                                      ? ''
+                                      : (selectedService.durationLabel || selectedService.duration?.toString() || m.duration),
+                                    quantity: isSelectedInjection
+                                      ? null
+                                      : (selectedService.pricingType === 'pack' ? 1 : autoQuantity),
+                                    pricingType: isSelectedInjection ? '' : (selectedService.pricingType || ''),
                                     piecesPerPack: selectedService.piecesPerPack ?? null,
                                   }
                                 }
-                                return { ...m, name: selectedName }
+                                return m
                               }))
                             }}
                             placeholder="Select a medication"
@@ -3884,21 +3993,27 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               { value: '', label: 'Select a medication' },
                               ...medicationServices
                                 .filter((service) => {
-                                  // Exclude mlPerKg injections from Medications; these are shown under Preventive Care instead
-                                  if (
-                                    String(service.administrationRoute || '').toLowerCase() === 'injection' &&
-                                    String(service.injectionPricingType || '').toLowerCase() === 'mlperkg'
-                                  ) return false
+                                  // Keep injections with associated preventive service in Preventive Care; allow unassociated injections here
+                                  if (String(service.administrationRoute || '').toLowerCase() === 'injection' && getAssociatedServiceIdValue(service)) return false
                                   return true
                                 })
                                 .map((service) => ({
-                                  value: service.name,
+                                  value: service._id,
                                   label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
                                 })),
                             ]}
                           />
-                          {!isTopical && <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
-                          {!isTopical && <DropdownField
+                          {!isTopical && !isInjectionMedication && <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
+                          {isInjectionMedication && (
+                            <input
+                              type="text"
+                              value={injectionDosageDisplay || med.dosage || 'Missing dosage config'}
+                              readOnly
+                              placeholder="Calculated dosage"
+                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600"
+                            />
+                          )}
+                          {!isTopical && !isInjectionMedication && <DropdownField
                             value={med.route}
                             onValueChange={() => {}}
                             disabled
@@ -3911,36 +4026,55 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                               { value: 'other', label: 'Other' },
                             ]}
                           />}
-                          <input type="text" placeholder={isTopical ? 'Application instructions (e.g. apply twice daily)' : 'Frequency (e.g. twice daily)'} value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className={`border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]${isTopical ? ' col-span-2' : ''}`} />
-                          <input type="text" placeholder="Duration (e.g. 7 days)" value={med.duration} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <input type="number" placeholder="Qty" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
-                          <DropdownField
-                            value={med.pricingType || ''}
-                            onValueChange={(value) => setMedications((prev) => prev.map((m, j) => {
-                              if (j !== i) return m
-                              const nextPricingType = value as Medication['pricingType']
-                              const selectedService = medicationServices.find((service) => service.name === m.name)
-                              const recomputedSinglePillQty = selectedService ? deriveSinglePillQuantity(selectedService) : null
-                              return {
-                                ...m,
-                                pricingType: nextPricingType,
-                                quantity:
-                                  nextPricingType === 'pack'
-                                    ? 1
-                                    : nextPricingType === 'singlePill'
-                                      ? (recomputedSinglePillQty ?? m.quantity)
-                                      : m.quantity,
-                              }
-                            }))}
-                            placeholder="Dispensing"
-                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                            options={[
-                              { value: '', label: 'Dispensing' },
-                              { value: 'singlePill', label: 'Individual Pill Packages' },
-                              { value: 'pack', label: `Bottle${med.piecesPerPack ? ` (${med.piecesPerPack} pcs)` : ''}` },
-                            ]}
-                          />
-                          {!isTopical && <DropdownField
+                          {!isInjectionMedication && <input type="text" placeholder={isTopical ? 'Application instructions (e.g. apply twice daily)' : 'Frequency (e.g. twice daily)'} value={med.frequency} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, frequency: e.target.value } : m))} className={`border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]${isTopical ? ' col-span-2' : ''}`} />}
+                          {!isInjectionMedication && <input type="text" placeholder="Duration (e.g. 7 days)" value={med.duration} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, duration: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
+                          {!isInjectionMedication && <input type="number" placeholder="Qty" min="1" value={med.quantity ?? ''} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, quantity: e.target.value ? parseInt(e.target.value) : null } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
+                          {isInjectionMedication ? (
+                            <input
+                              type="text"
+                              value={injectionPricingTypeLabel}
+                              readOnly
+                              placeholder="Injection Pricing Type"
+                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600"
+                            />
+                          ) : (
+                            <DropdownField
+                              value={med.pricingType || ''}
+                              onValueChange={(value) => setMedications((prev) => prev.map((m, j) => {
+                                if (j !== i) return m
+                                const nextPricingType = value as Medication['pricingType']
+                                const selectedService = medicationServices.find((service) => service.name === m.name)
+                                const recomputedSinglePillQty = selectedService ? deriveSinglePillQuantity(selectedService) : null
+                                return {
+                                  ...m,
+                                  pricingType: nextPricingType,
+                                  quantity:
+                                    nextPricingType === 'pack'
+                                      ? 1
+                                      : nextPricingType === 'singlePill'
+                                        ? (recomputedSinglePillQty ?? m.quantity)
+                                        : m.quantity,
+                                }
+                              }))}
+                              placeholder="Dispensing"
+                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                              options={[
+                                { value: '', label: 'Dispensing' },
+                                { value: 'singlePill', label: 'Individual Pill Packages' },
+                                { value: 'pack', label: `Bottle${med.piecesPerPack ? ` (${med.piecesPerPack} pcs)` : ''}` },
+                              ]}
+                            />
+                          )}
+                          {isInjectionMedication && DEBUG_PREVENTIVE_INJECTION_MAPPING && (
+                            <div className="col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-800 leading-relaxed">
+                              <span className="font-semibold">Injection debug:</span>{' '}
+                              id={medService?._id || '(none)'} · route={String(medService?.administrationRoute || '(empty)')} · method={String(medService?.administrationMethod || '(empty)')} ·
+                              {' '}injectionPricingType={String(medService?.injectionPricingType || '(empty)')} · dosePerKg={medService?.dosePerKg ?? '(empty)'} ·
+                              {' '}dosageAmount={String(medService?.dosageAmount || '(empty)')} · doseUnit={String(medService?.doseUnit || '(empty)')} ·
+                              {' '}weightKg={isNaN(bodyWeightVal) ? '(invalid)' : bodyWeightVal} · computed={injectionDosageDisplay || '(empty)'} · savedDosage={med.dosage || '(empty)'}
+                            </div>
+                          )}
+                          {!isTopical && !isInjectionMedication && <DropdownField
                             value={med.status}
                             onValueChange={(value) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, status: value as Medication['status'] } : m))}
                             placeholder="Status"
@@ -3960,7 +4094,17 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             <span>{capsuleWarnings[i]}</span>
                           </div>
                         )}
-                        <input type="text" placeholder="Notes (optional)" value={med.notes} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, notes: e.target.value } : m))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                        {!(() => {
+                          const selectedServiceId = selectedMedicationServiceIds[i] || ''
+                          const medService =
+                            (selectedServiceId
+                              ? medicationServices.find((s) => String(s._id) === String(selectedServiceId))
+                              : undefined) ||
+                            resolveMedicationServiceForEntry(medicationServices, med)
+                          return isInjectionService(medService) || normalizeServiceToken(String(med.route || '')) === 'injection' || !!medService?.injectionPricingType
+                        })() && (
+                          <input type="text" placeholder="Notes (optional)" value={med.notes} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, notes: e.target.value } : m))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
+                        )}
                       </div>
                     ))}
                     <button onClick={() => setMedications((prev) => [...prev, emptyMedication()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
