@@ -487,15 +487,7 @@ export const markPetDeceased = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    let isAuthorizedVet = false;
-
-    if (req.user.userType === 'veterinarian') {
-      const activeAssignment = await AssignedVet.exists({ vetId: req.user.userId, petId: pet._id, isActive: true });
-      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
-      isAuthorizedVet = !!(activeAssignment || hasRecords);
-    }
-
-    if (!isOwner && !isAuthorizedVet) {
+    if (!isOwner) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to mark this pet as deceased' });
     }
 
@@ -510,6 +502,10 @@ export const markPetDeceased = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'ERROR', message: 'Date of death cannot be in the future' });
       }
       resolvedDeceasedAt = parsed;
+    }
+
+    if (pet.isLost || pet.status === 'lost') {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot mark a lost pet as deceased. Mark the pet as found first.' });
     }
 
     if (!pet.isAlive || pet.status === 'deceased') {
@@ -685,16 +681,12 @@ export const transferPet = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    let isAuthorizedVet = false;
-
-    if (req.user.userType === 'veterinarian') {
-      const activeAssignment = await AssignedVet.exists({ vetId: req.user.userId, petId: pet._id, isActive: true });
-      const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
-      isAuthorizedVet = !!(activeAssignment || hasRecords);
+    if (!isOwner) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to transfer this pet' });
     }
 
-    if (!isOwner && !isAuthorizedVet) {
-      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to transfer this pet' });
+    if (pet.isLost || pet.status === 'lost') {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot transfer a pet marked as lost. Mark the pet as found first.' });
     }
 
     if (!pet.isAlive || pet.status === 'deceased') {
@@ -767,9 +759,6 @@ export const transferPet = async (req: Request, res: Response) => {
         await MedicalRecord.updateOne({ _id: record._id }, { $set: patch });
       }
     }
-
-    // Remove existing vet assignments (don't carry over to new owner)
-    await AssignedVet.deleteMany({ petId: pet._id });
 
     const actingUser = await User.findById(req.user.userId).select('firstName lastName');
     const newOwnerName = getUserDisplayName(newOwner);
@@ -1099,6 +1088,10 @@ export const updatePetConfinement = async (req: Request, res: Response) => {
     const { isConfined } = req.body;
     if (typeof isConfined !== 'boolean') {
       return res.status(400).json({ status: 'ERROR', message: 'isConfined must be a boolean' });
+    }
+
+    if (!isConfined && (pet.isLost || pet.status === 'lost')) {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot release confinement while pet is marked as lost' });
     }
 
     pet.isConfined = isConfined;

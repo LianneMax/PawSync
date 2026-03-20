@@ -186,6 +186,10 @@ export const requestConfinementRelease = async (req: Request, res: Response) => 
       return res.status(403).json({ status: 'ERROR', message: 'Only the pet owner can request release' });
     }
 
+    if (pet.isLost || pet.status === 'lost') {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot request confinement release while pet is marked as lost' });
+    }
+
     const record = await ConfinementRecord.findOne({
       petId: pet._id,
       status: 'admitted',
@@ -275,6 +279,10 @@ export const confirmConfinementRelease = async (req: Request, res: Response) => 
 
     const pet = await Pet.findById(record.petId);
     if (pet) {
+      if (pet.isLost || pet.status === 'lost') {
+        return res.status(400).json({ status: 'ERROR', message: 'Cannot release confinement while pet is marked as lost' });
+      }
+
       pet.isConfined = false;
       pet.confinedSince = null;
       (pet as any).currentConfinementRecordId = null;

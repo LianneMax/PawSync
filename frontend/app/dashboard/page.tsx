@@ -883,6 +883,15 @@ function RemovePetModal({
       return
     }
 
+    if ((isTransfer || isPassedAway) && pet.isLost) {
+      setError(
+        isTransfer
+          ? 'Cannot transfer a pet marked as lost. Mark the pet as found first.'
+          : 'Cannot mark a lost pet as deceased. Mark the pet as found first.'
+      )
+      return
+    }
+
     if (isPassedAway && !deceasedDate) {
       setError('Please select the date of death')
       return
