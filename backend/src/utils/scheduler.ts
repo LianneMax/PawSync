@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
+import Notification from '../models/Notification';
 import User from '../models/User';
 import ClinicBranch from '../models/ClinicBranch';
 import Pet from '../models/Pet';
@@ -10,6 +11,7 @@ import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import {
   sendAppointmentReminder,
   sendAppointmentMissed,
+  sendAppointmentCancelled,
   sendVaccinationDueReminder,
   sendVaccinationDueReminderVet,
 } from '../services/emailService';
@@ -350,32 +352,78 @@ export function startScheduler() {
   cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
+      const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
       // Only consider appointments for today or earlier
       const todayStart = new Date(now);
       todayStart.setUTCHours(0, 0, 0, 0);
 
       const activeAppointments = await Appointment.find({
-        status: { $in: ['confirmed', 'rescheduled', 'in_progress'] },
+        status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'] },
         date: { $lte: todayStart },
       })
         .populate('ownerId', 'firstName lastName email')
-        .populate('petId', 'name')
+        .populate('petId', 'name isLost status')
+        .populate('vetId', 'firstName lastName')
+        .populate('clinicBranchId', 'name');
+
+      const upcomingAppointments = await Appointment.find({
+        status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic'] },
+        date: { $gte: todayStart },
+      })
+        .populate('ownerId', 'firstName lastName email')
+        .populate('petId', 'name isLost status')
         .populate('vetId', 'firstName lastName')
         .populate('clinicBranchId', 'name');
 
       const toCancel: typeof activeAppointments = [];
+      const lostPetToCancel: typeof activeAppointments = [];
 
       for (const appt of activeAppointments) {
         const dateStr = appt.date.toISOString().split('T')[0];
+        const apptStart = new Date(`${dateStr}T${appt.startTime}`);
+        const pet = appt.petId as any;
+
+        if (pet?.isLost || pet?.status === 'lost') {
+          if (apptStart <= now) {
+            lostPetToCancel.push(appt);
+          }
+          continue;
+        }
 
         if (appt.status === 'confirmed') {
           // Auto-cancel if vet hasn't checked in within 15 minutes of start time
-          const apptStart = new Date(`${dateStr}T${appt.startTime}`);
           const cancelThreshold = new Date(apptStart.getTime() + 15 * 60 * 1000);
           if (cancelThreshold < now) {
             toCancel.push(appt);
           }
+        }
+      }
+
+      for (const appt of upcomingAppointments) {
+        const pet = appt.petId as any;
+        const owner = appt.ownerId as any;
+        if (!owner?._id || !(pet?.isLost || pet?.status === 'lost')) continue;
+
+        const dateStr = appt.date.toISOString().split('T')[0];
+        const apptStart = new Date(`${dateStr}T${appt.startTime}`);
+        if (apptStart <= now || apptStart > next24Hours) continue;
+
+        const reminderExists = await Notification.exists({
+          userId: owner._id,
+          type: 'appointment_reminder',
+          'metadata.appointmentId': appt._id,
+          'metadata.reason': 'pet_lost_upcoming',
+        });
+
+        if (!reminderExists) {
+          await createNotification(
+            owner._id.toString(),
+            'appointment_reminder',
+            'Upcoming Appointment While Pet Is Lost',
+            `${pet?.name ?? 'Your pet'} is marked as lost and still has an upcoming appointment at ${appt.startTime}. Please mark your pet as found before the appointment time to avoid automatic cancellation.`,
+            { appointmentId: appt._id, petId: pet?._id, reason: 'pet_lost_upcoming' }
+          );
         }
       }
 
@@ -417,6 +465,43 @@ export function startScheduler() {
               date: appt.date,
               startTime: appt.startTime,
               types: appt.types,
+            }).catch(() => {});
+          }
+        }
+      }
+
+      if (lostPetToCancel.length > 0) {
+        await Appointment.updateMany(
+          { _id: { $in: lostPetToCancel.map(a => a._id) } },
+          { $set: { status: 'cancelled' } }
+        );
+        console.log(`[Scheduler] Auto-cancelled ${lostPetToCancel.length} appointment(s) because pet is marked lost at appointment time`);
+
+        for (const appt of lostPetToCancel) {
+          const owner = appt.ownerId as any;
+          const pet = appt.petId as any;
+          const vet = appt.vetId as any;
+          const dateStr = appt.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const petName = pet?.name ?? 'your pet';
+
+          if (owner?._id) {
+            await createNotification(
+              owner._id.toString(),
+              'appointment_cancelled',
+              'Appointment Auto-cancelled (Pet Marked Lost)',
+              `${petName}'s appointment on ${dateStr} at ${appt.startTime} was automatically cancelled because the pet is still marked as lost.`,
+              { appointmentId: appt._id, petId: pet?._id, reason: 'pet_lost_at_appointment_time' }
+            ).catch(() => {});
+          }
+
+          if (owner?.email && vet) {
+            await sendAppointmentCancelled({
+              ownerEmail: owner.email,
+              ownerFirstName: owner.firstName,
+              petName,
+              vetName: `${vet.firstName} ${vet.lastName}`,
+              date: appt.date,
+              startTime: appt.startTime,
             }).catch(() => {});
           }
         }
