@@ -417,14 +417,6 @@ const formatInjectionPricingTypeLabel = (injectionPricingType?: string | null): 
 const deriveInjectionDosageDisplay = (service: ProductService | undefined, weightKg: number): string | null => {
   if (!service) return null
 
-  const pricingType = normalizeServiceToken(String(service.injectionPricingType || ''))
-
-  // singleDosage: fixed dose — no weight multiplication
-  if (pricingType === 'singledose') {
-    return service.dosageAmount || null
-  }
-
-  // mlPerKg: weight-based calculation requires a valid weight
   if (isNaN(weightKg) || weightKg <= 0) return null
 
   const dosageFromAmount = (() => {
@@ -442,7 +434,7 @@ const deriveInjectionDosageDisplay = (service: ProductService | undefined, weigh
   const dosageFactor = service.dosePerKg ?? dosageFromAmount
   if (dosageFactor == null || isNaN(dosageFactor)) return null
 
-  const computedDosage = parseFloat((weightKg * dosageFactor).toFixed(2))
+  const computedDosage = parseFloat((weightKg * (dosageFactor + 0.1 * Math.floor(weightKg / 2))).toFixed(2))
   return `${computedDosage} ${service.doseUnit || dosageUnitFromAmount || 'mL'}`
 }
 
