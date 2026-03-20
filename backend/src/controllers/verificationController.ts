@@ -7,6 +7,7 @@ import ClinicBranch from '../models/ClinicBranch';
 import User from '../models/User';
 import { getClinicForAdmin } from './clinicController';
 import { updateBranchStatus } from '../services/branchStatusService';
+import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 
 /**
  * Submit a PRC verification request (vet submits during onboarding)
@@ -66,6 +67,38 @@ export const submitVerification = async (req: Request, res: Response) => {
       clinicId: clinicId || null,
       branchId: branchId || null
     });
+
+    const vet = await User.findById(req.user.userId).select('firstName lastName email');
+    const branch = branchId ? await ClinicBranch.findById(branchId).select('name') : null;
+    const clinic = clinicId ? await Clinic.findById(clinicId).select('name') : null;
+
+    if (clinicId) {
+      await alertClinicAdmins({
+        clinicId,
+        clinicBranchId: branchId || null,
+        notificationType: 'clinic_vet_application_submitted',
+        notificationTitle: 'New Vet Application Submitted',
+        notificationMessage: `Dr. ${firstName} ${lastName} submitted a PRC verification request${branch ? ` for ${branch.name}` : ''}.`,
+        metadata: {
+          verificationId: verification._id,
+          vetId: req.user.userId,
+          clinicId,
+          branchId: branchId || null,
+          prcLicenseNumber,
+        },
+        emailSubject: 'PawSync – New Vet Application Submitted',
+        emailHeadline: 'New Vet Application Submitted',
+        emailIntro: 'A veterinarian submitted a new verification/application request for your clinic.',
+        emailDetails: {
+          Vet: `Dr. ${firstName} ${lastName}`,
+          Email: vet?.email || '',
+          'PRC License': prcLicenseNumber,
+          Clinic: clinic?.name || 'Clinic',
+          Branch: branch?.name || 'Not specified',
+          Profession: profession || 'Veterinarian',
+        },
+      });
+    }
 
     return res.status(201).json({
       status: 'SUCCESS',

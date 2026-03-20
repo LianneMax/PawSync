@@ -12,6 +12,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import Billing from '../models/Billing';
 import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { getClinicForAdmin } from './clinicController';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -231,7 +232,7 @@ export const createAppointment = async (req: Request, res: Response) => {
 
     // Fetch related data for email + notification (fire-and-forget)
     Promise.all([
-      User.findById(req.user.userId).select('firstName email'),
+      User.findById(req.user.userId).select('firstName lastName email'),
       User.findById(vetId).select('firstName lastName'),
       ClinicBranch.findById(clinicBranchId).select('name'),
     ]).then(async ([owner, vet, branch]) => {
@@ -260,6 +261,34 @@ export const createAppointment = async (req: Request, res: Response) => {
           startTime: appointment.startTime,
           types: appointment.types,
           mode: appointment.mode,
+        });
+      }
+
+      if (req.user?.userType === 'pet-owner') {
+        const ownerFullName = [owner?.firstName, owner?.lastName].filter(Boolean).join(' ').trim() || 'Pet Owner';
+        await alertClinicAdmins({
+          clinicId: appointment.clinicId,
+          clinicBranchId: appointment.clinicBranchId,
+          notificationType: 'clinic_new_appointment_booked',
+          notificationTitle: 'New Appointment Booked by Pet Owner',
+          notificationMessage: `${ownerFullName} booked an appointment for ${pet.name} on ${dateStr} at ${appointment.startTime} (${appointment.types.join(', ')}).`,
+          metadata: {
+            appointmentId: appointment._id,
+            petId: pet._id,
+            ownerId: owner?._id,
+            branchId: appointment.clinicBranchId,
+          },
+          emailSubject: `PawSync – New Appointment Booked (${pet.name})`,
+          emailHeadline: 'New Appointment Booked by Pet Owner',
+          emailIntro: `${ownerFullName} scheduled an appointment that may need clinic coordination.`,
+          emailDetails: {
+            Pet: pet.name,
+            Owner: ownerFullName,
+            Date: dateStr,
+            Time: appointment.startTime,
+            'Service Type': appointment.types.join(', '),
+            Branch: clinicName,
+          },
         });
       }
     }).catch((err) => {
@@ -555,7 +584,8 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       User.findById(appointment.ownerId).select('firstName email'),
       User.findById(appointment.vetId).select('firstName lastName'),
       Pet.findById(appointment.petId).select('name'),
-    ]).then(async ([owner, vet, pet]) => {
+      ClinicBranch.findById(appointment.clinicBranchId).select('name'),
+    ]).then(async ([owner, vet, pet, branch]) => {
       const dateStr = appointment.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       const petName = (pet as any)?.name ?? 'your pet';
 
@@ -575,6 +605,33 @@ export const cancelAppointment = async (req: Request, res: Response) => {
           vetName: `${vet.firstName} ${vet.lastName}`,
           date: appointment.date,
           startTime: appointment.startTime,
+        });
+      }
+
+      if (isOwner) {
+        await alertClinicAdmins({
+          clinicId: appointment.clinicId,
+          clinicBranchId: appointment.clinicBranchId,
+          notificationType: 'clinic_appointment_cancelled',
+          notificationTitle: 'Appointment Cancelled by Pet Owner',
+          notificationMessage: `${owner?.firstName || 'A pet owner'} cancelled an appointment for ${petName} on ${dateStr} at ${appointment.startTime}.`,
+          metadata: {
+            appointmentId: appointment._id,
+            petId: appointment.petId,
+            ownerId: appointment.ownerId,
+            branchId: appointment.clinicBranchId,
+          },
+          emailSubject: `PawSync – Appointment Cancelled (${petName})`,
+          emailHeadline: 'Appointment Cancelled by Pet Owner',
+          emailIntro: `A pet owner cancelled an existing appointment.`,
+          emailDetails: {
+            Pet: petName,
+            Owner: owner?.firstName || 'Pet Owner',
+            Date: dateStr,
+            Time: appointment.startTime,
+            Branch: (branch as any)?.name || 'Clinic Branch',
+            Services: appointment.types.join(', '),
+          },
         });
       }
     }).catch((err) => {
@@ -782,6 +839,10 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Date, start time, and end time are required' });
     }
 
+    const oldDate = appointment.date;
+    const oldStartTime = appointment.startTime;
+    const oldEndTime = appointment.endTime;
+
     // Check if the new slot is available.
     // Grooming-only appointments may not have a vet assignment, so conflict by branch + grooming types.
     const groomingTypes = ['basic-grooming', 'full-grooming'];
@@ -815,9 +876,13 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
     await appointment.save();
 
     // Notify owner of reschedule
-    Pet.findById(appointment.petId).select('name').then(async (pet) => {
+    Promise.all([
+      Pet.findById(appointment.petId).select('name'),
+      ClinicBranch.findById(appointment.clinicBranchId).select('name'),
+    ]).then(async ([pet, branch]) => {
       const petName = (pet as any)?.name ?? 'your pet';
       const dateStr = new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const oldDateStr = oldDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       await createNotification(
         appointment.ownerId.toString(),
         'appointment_rescheduled',
@@ -825,6 +890,36 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
         `Your appointment for ${petName} has been rescheduled to ${dateStr} at ${startTime}.`,
         { appointmentId: appointment._id }
       );
+
+      await alertClinicAdmins({
+        clinicId: appointment.clinicId,
+        clinicBranchId: appointment.clinicBranchId,
+        notificationType: 'clinic_appointment_rescheduled',
+        notificationTitle: 'Appointment Rescheduled',
+        notificationMessage: `${petName}'s appointment moved from ${oldDateStr} ${oldStartTime}-${oldEndTime} to ${dateStr} ${startTime}-${endTime}.`,
+        metadata: {
+          appointmentId: appointment._id,
+          petId: appointment.petId,
+          ownerId: appointment.ownerId,
+          oldDate,
+          oldStartTime,
+          oldEndTime,
+          newDate: appointment.date,
+          newStartTime: appointment.startTime,
+          newEndTime: appointment.endTime,
+          branchId: appointment.clinicBranchId,
+        },
+        emailSubject: `PawSync – Appointment Rescheduled (${petName})`,
+        emailHeadline: 'Appointment Rescheduled',
+        emailIntro: `An appointment schedule has been updated.`,
+        emailDetails: {
+          Pet: petName,
+          Branch: (branch as any)?.name || 'Clinic Branch',
+          'Old Schedule': `${oldDateStr}, ${oldStartTime}-${oldEndTime}`,
+          'New Schedule': `${dateStr}, ${startTime}-${endTime}`,
+          Services: appointment.types.join(', '),
+        },
+      });
     }).catch((err) => console.error('[Notification] Reschedule notification error:', err));
 
     return res.status(200).json({

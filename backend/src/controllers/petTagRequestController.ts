@@ -3,7 +3,9 @@ import Pet from '../models/Pet';
 import User from '../models/User';
 import PetTagRequest from '../models/PetTagRequest';
 import Clinic from '../models/Clinic';
+import ClinicBranch from '../models/ClinicBranch';
 import Appointment from '../models/Appointment';
+import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 
 /**
  * Request a new NFC pet tag (by pet owner)
@@ -102,7 +104,43 @@ export const requestPetTag = async (req: Request, res: Response) => {
       createData.clinicBranchId = finalClinicBranchId;
     }
 
-    const tagRequest = await PetTagRequest.create(createData);
+    const tagRequest = await PetTagRequest.create(createData as any) as any;
+
+    const owner = await User.findById(req.user.userId).select('firstName lastName email');
+    const branch = finalClinicBranchId
+      ? await ClinicBranch.findById(finalClinicBranchId).select('name')
+      : null;
+    const pickupDateLabel = finalPickupDate
+      ? new Date(finalPickupDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'Not set';
+    const ownerName = [owner?.firstName, owner?.lastName].filter(Boolean).join(' ').trim() || 'Pet Owner';
+
+    await alertClinicAdmins({
+      clinicId: clinic._id,
+      clinicBranchId: finalClinicBranchId || null,
+      notificationType: 'clinic_pet_tag_requested',
+      notificationTitle: 'New Pet Tag Request',
+      notificationMessage: `${ownerName} requested a pet tag for ${pet.name}${branch ? ` at ${branch.name}` : ''}.`,
+      metadata: {
+        requestId: tagRequest._id,
+        petId: pet._id,
+        ownerId: req.user.userId,
+        clinicId: clinic._id,
+        clinicBranchId: finalClinicBranchId || null,
+        pickupDate: finalPickupDate,
+        reason: reason || '',
+      },
+      emailSubject: `PawSync – New Pet Tag Request (${pet.name})`,
+      emailHeadline: 'New Pet Tag Request Submitted',
+      emailIntro: 'A pet owner submitted a new NFC pet tag request.',
+      emailDetails: {
+        Pet: pet.name,
+        Owner: ownerName,
+        Branch: branch?.name || 'Not specified',
+        'Pickup Date': pickupDateLabel,
+        Reason: reason || 'Not provided',
+      },
+    });
 
     console.log(`[NFC Request] Successfully created tag request ${(tagRequest as any)._id} for pet ${petId}`);
 

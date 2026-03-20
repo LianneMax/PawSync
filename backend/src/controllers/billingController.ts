@@ -6,6 +6,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import ConfinementRecord from '../models/ConfinementRecord';
 import { sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { syncBillingFromRecord } from './medicalRecordController';
 
 // Populate fields shared across all views
@@ -503,6 +504,41 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
         `Your payment of ₱${populated.totalAmountDue.toFixed(2)} for ${populated.petId.name} has been received. Thank you!`,
         { billingId: billing._id }
       );
+    }
+
+    if (populated?.clinicId?._id && populated?.petId?.name && populated?.ownerId) {
+      const paidDate = populated.paidAt
+        ? new Date(populated.paidAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      await alertClinicAdmins({
+        clinicId: populated.clinicId._id,
+        clinicBranchId: populated.clinicBranchId?._id || null,
+        notificationType: 'clinic_invoice_paid',
+        notificationTitle: 'Invoice Paid by Pet Owner',
+        notificationMessage: `${populated.ownerId.firstName} ${populated.ownerId.lastName} paid ₱${populated.totalAmountDue.toFixed(2)} for ${populated.petId.name}.`,
+        metadata: {
+          billingId: populated._id,
+          ownerId: populated.ownerId._id,
+          petId: populated.petId._id,
+          clinicId: populated.clinicId._id,
+          clinicBranchId: populated.clinicBranchId?._id || null,
+          amountPaid: populated.totalAmountDue,
+          paidAt: populated.paidAt,
+          paymentMethod: (populated as any).paymentMethod,
+        },
+        emailSubject: `PawSync – Invoice Paid (${populated.petId.name})`,
+        emailHeadline: 'Pet Owner Payment Received',
+        emailIntro: 'A pet owner payment has been recorded for a clinic invoice.',
+        emailDetails: {
+          Pet: populated.petId.name,
+          Owner: `${populated.ownerId.firstName} ${populated.ownerId.lastName}`,
+          'Amount Paid': `₱${populated.totalAmountDue.toFixed(2)}`,
+          'Paid On': paidDate,
+          Branch: populated.clinicBranchId?.name || 'Clinic Branch',
+          'Payment Method': (populated as any).paymentMethod || 'Not specified',
+        },
+      });
     }
 
     return res.status(200).json({

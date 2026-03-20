@@ -11,6 +11,12 @@ export type NotificationType =
   | 'vaccine_due'
   | 'pet_lost'
   | 'pet_found'
+  | 'clinic_new_appointment_booked'
+  | 'clinic_appointment_cancelled'
+  | 'clinic_appointment_rescheduled'
+  | 'clinic_vet_application_submitted'
+  | 'clinic_pet_tag_requested'
+  | 'clinic_invoice_paid'
   | 'confinement_release_request'
   | 'confinement_release_confirmed'
   | 'pregnancy_confirmed'
@@ -43,6 +49,12 @@ const NotificationSchema = new Schema<INotification>(
         'vaccine_due',
         'pet_lost',
         'pet_found',
+        'clinic_new_appointment_booked',
+        'clinic_appointment_cancelled',
+        'clinic_appointment_rescheduled',
+        'clinic_vet_application_submitted',
+        'clinic_pet_tag_requested',
+        'clinic_invoice_paid',
         'confinement_release_request',
         'confinement_release_confirmed',
         'pregnancy_confirmed',

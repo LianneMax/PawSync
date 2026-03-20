@@ -587,3 +587,47 @@ export async function sendBillingPaidReceipt(params: {
     console.error('[Email] sendBillingPaidReceipt error:', err);
   }
 }
+
+// ─── Generic Clinic Admin Alert ───────────────────────────────────────────────
+
+export async function sendClinicAdminAlertEmail(params: {
+  adminEmail: string;
+  adminFirstName: string;
+  subject: string;
+  headline: string;
+  intro: string;
+  details?: Record<string, string | number | null | undefined>;
+}) {
+  try {
+    const detailRows = Object.entries(params.details || {})
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([label, value]) => `
+        <tr>
+          <td style="padding: 6px 0; color: #6b7280; font-weight: 600; width: 40%;">${label}</td>
+          <td style="padding: 6px 0; color: #111827;">${value}</td>
+        </tr>
+      `)
+      .join('');
+
+    await getResend().emails.send({
+      from: FROM,
+      to: params.adminEmail,
+      subject: params.subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A; margin: 0 0 12px;">${params.headline}</h2>
+          <p style="margin: 0 0 10px;">Hi ${params.adminFirstName},</p>
+          <p style="margin: 0 0 16px; color: #374151;">${params.intro}</p>
+          ${detailRows ? `
+            <div style="background: #f3f4f6; padding: 14px; border-radius: 12px; border: 1px solid #e5e7eb;">
+              <table style="width: 100%; border-collapse: collapse;">${detailRows}</table>
+            </div>
+          ` : ''}
+          <p style="color: #9ca3af; font-size: 12px; margin-top: 16px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendClinicAdminAlertEmail error:', err);
+  }
+}
