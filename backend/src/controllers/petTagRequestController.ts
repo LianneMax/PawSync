@@ -46,15 +46,15 @@ export const requestPetTag = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Cannot request an NFC tag for a pet marked as deceased' });
     }
 
-    // Check if there's already a pending request for this pet
+    // Block duplicate requests when one is still pending or was already approved/fulfilled
     const existingRequest = await PetTagRequest.findOne({
       petId: petId,
-      status: 'pending'
+      status: { $in: ['pending', 'approved', 'fulfilled'] }
     });
 
     if (existingRequest) {
-      console.log(`[NFC Request] Pending request already exists for pet ${petId}`);
-      return res.status(400).json({ status: 'ERROR', message: 'There is already a pending tag request for this pet' });
+      console.log(`[NFC Request] Existing active/completed request already exists for pet ${petId}`);
+      return res.status(400).json({ status: 'ERROR', message: 'A pet tag request already exists for this pet' });
     }
 
     // Get the first clinic for now (or we could make this multi-clinic)

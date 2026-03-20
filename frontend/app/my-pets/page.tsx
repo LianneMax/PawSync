@@ -328,6 +328,11 @@ export default function MyPetsPage() {
         ) : filteredPets.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPets.map((pet) => (
+              (() => {
+                const hasPendingRequest = pet.tag_request_status === 'pending' || pet.tag_request_status === 'approved'
+                const isRequestDisabled = !pet.isAlive || pet.status === 'deceased' || hasPendingRequest
+
+                return (
               <div
                 key={pet._id}
                 className={`bg-white rounded-2xl p-6 relative transition-all duration-300 ease-out hover:scale-103 hover:shadow-md ${
@@ -427,14 +432,19 @@ export default function MyPetsPage() {
                   {!pet.nfcTagId ? (
                     <button
                       onClick={() => {
+                        if (isRequestDisabled) return
                         setSelectedPetId(pet._id)
                         setShowConfirmation(true)
                       }}
-                      disabled={!pet.isAlive || pet.status === 'deceased'}
+                      disabled={isRequestDisabled}
                       className="text-sm font-semibold py-2.5 rounded-xl border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Nfc className="w-3.5 h-3.5" />
-                      {!pet.isAlive || pet.status === 'deceased' ? 'Tag Request Disabled' : 'Request Pet Tag'}
+                      {!pet.isAlive || pet.status === 'deceased'
+                        ? 'Tag Request Disabled'
+                        : hasPendingRequest
+                          ? 'Request Sent'
+                          : 'Request Pet Tag'}
                     </button>
                   ) : (
                     <button
@@ -468,6 +478,8 @@ export default function MyPetsPage() {
                   </button>
                 )}
               </div>
+                )
+              })()
             ))}
 
             {/* Add New Pet Card */}
@@ -605,6 +617,7 @@ export default function MyPetsPage() {
                       toast.success('Pet Tag Request Submitted', {
                         description: `Your request has been submitted. Pickup at ${selectedBranch?.name} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
                       });
+                      await fetchPets()
                       setShowConfirmation(false);
                       setSelectedClinic('');
                       setSelectedPickupDate('');

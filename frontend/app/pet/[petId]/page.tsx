@@ -61,6 +61,7 @@ interface PetData {
   nfc_tag_id?: string | null
   tag_uid?: string | null
   nfc_id?: string | null
+  tag_request_status?: 'pending' | 'approved' | null
 }
 
 interface OwnerData {
@@ -412,6 +413,14 @@ export default function PetProfilePage() {
       return
     }
 
+    const hasPendingRequest = pet.tag_request_status === 'pending' || pet.tag_request_status === 'approved'
+    if (hasPendingRequest) {
+      toast.info('Request already sent', {
+        description: 'A pet tag request already exists for this pet.'
+      })
+      return
+    }
+
     setIsSubmittingNfcRequest(true)
     try {
       const data = await authenticatedFetch(
@@ -428,6 +437,7 @@ export default function PetProfilePage() {
         toast.success('NFC Tag Request Submitted', {
           description: 'Your clinic will process your request and write the tag soon.'
         })
+        setPet((prev) => prev ? { ...prev, tag_request_status: 'pending' } : prev)
         setShowNfcRequestModal(false)
         setNfcReason('')
       } else {
@@ -465,6 +475,7 @@ export default function PetProfilePage() {
   }
 
   const isOwner = !!userId && !!owner && userId === owner._id
+  const hasPendingRequest = pet.tag_request_status === 'pending' || pet.tag_request_status === 'approved'
 
   return (
     <div className="min-h-screen bg-white pb-28">
@@ -553,11 +564,15 @@ export default function PetProfilePage() {
         {/* Request NFC Tag (only for pet-owners) */}
         {token && userType === 'pet-owner' && (
           <button
-            onClick={() => setShowNfcRequestModal(true)}
-            className="w-full bg-[#7FA5A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#6b9391] transition-colors"
+            onClick={() => {
+              if (hasPendingRequest) return
+              setShowNfcRequestModal(true)
+            }}
+            disabled={hasPendingRequest}
+            className="w-full bg-[#7FA5A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#6b9391] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Nfc className="w-5 h-5" />
-            Request NFC Tag
+            {hasPendingRequest ? 'Request Sent' : 'Request Pet Tag'}
           </button>
         )}
 
@@ -888,14 +903,16 @@ export default function PetProfilePage() {
               </button>
               <button
                 onClick={handleSubmitNfcRequest}
-                disabled={isSubmittingNfcRequest}
+                disabled={isSubmittingNfcRequest || hasPendingRequest}
                 className="flex-1 py-2.5 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6b9391] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSubmittingNfcRequest ? (
                   <>
                     <Loader className="w-4 h-4 animate-spin" />
-                    Submitting...
+                    Sending...
                   </>
+                ) : hasPendingRequest ? (
+                  'Request Sent'
                 ) : (
                   'Submit Request'
                 )}

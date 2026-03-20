@@ -8,6 +8,7 @@ import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
 import OwnershipTransfer from '../models/OwnershipTransfer';
 import ConfinementRecord from '../models/ConfinementRecord';
+import PetTagRequest from '../models/PetTagRequest';
 import QRCode from 'qrcode';
 import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation, sendPetDeceasedNotice, sendPetOwnershipTransferredNotice } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
@@ -91,6 +92,14 @@ const getDayRange = (rawDate: string | Date) => {
 };
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const ACTIVE_TAG_REQUEST_STATUSES = ['pending', 'approved', 'fulfilled'];
+const normalizeTagRequestStatus = (status?: string | null): 'pending' | 'approved' | null => {
+  if (!status) return null;
+  if (status === 'pending') return 'pending';
+  if (status === 'approved' || status === 'fulfilled') return 'approved';
+  return null;
+};
 
 /**
  * Create a new pet
@@ -234,9 +243,41 @@ export const getMyPets = async (req: Request, res: Response) => {
       await migrateSterilizationIfNeeded(pet);
     }
 
+    const petIds = pets.map((pet) => pet._id);
+    const latestActiveTagRequests = await PetTagRequest.aggregate([
+      {
+        $match: {
+          petId: { $in: petIds },
+          status: { $in: ACTIVE_TAG_REQUEST_STATUSES },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$petId',
+          status: { $first: '$status' },
+        },
+      },
+    ]);
+
+    const tagStatusByPetId = new Map(
+      latestActiveTagRequests.map((request: any) => [
+        request._id.toString(),
+        normalizeTagRequestStatus(request.status),
+      ])
+    );
+
+    const petsWithTagRequestStatus = pets.map((pet) => {
+      const petObject = pet.toObject();
+      return {
+        ...petObject,
+        tag_request_status: tagStatusByPetId.get(pet._id.toString()) ?? null,
+      };
+    });
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { pets }
+      data: { pets: petsWithTagRequestStatus }
     });
   } catch (error) {
     console.error('Get pets error:', error);
@@ -827,6 +868,16 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
+    const latestTagRequest = await PetTagRequest.findOne({
+      petId: pet._id,
+      status: { $in: ACTIVE_TAG_REQUEST_STATUSES },
+    })
+      .sort({ createdAt: -1 })
+      .select('status')
+      .lean();
+
+    const tagRequestStatus = normalizeTagRequestStatus((latestTagRequest as any)?.status);
+
     // Get latest medical record for vitals
     const latestRecord = await MedicalRecord.findOne({ petId: pet._id })
       .sort({ createdAt: -1 })
@@ -872,6 +923,7 @@ export const getPublicPetProfile = async (req: Request, res: Response) => {
           lostContactName: pet.lostContactName,
           lostMessage: pet.lostMessage,
           nfcTagId: pet.nfcTagId,
+          tag_request_status: tagRequestStatus,
           scanLocations: pet.scanLocations ?? [],
         },
         owner: pet.ownerId,

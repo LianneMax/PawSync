@@ -14,6 +14,7 @@ export interface Pet {
   sterilization: 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown';
   microchipNumber: string | null;
   nfcTagId: string | null;
+  tag_request_status?: 'pending' | 'approved' | null;
   qrCode: string | null;
   photo: string | null;
   color: string | null;
