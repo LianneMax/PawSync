@@ -28,6 +28,9 @@ export interface IBilling extends Document {
   paymentMethod: 'cash' | 'card' | 'qr' | null;
   serviceLabel: string;
   serviceDate: Date;
+  qrPaymentProof: string | null;
+  qrPaymentSubmittedAt: Date | null;
+  pendingQrApproval: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -161,6 +164,19 @@ const BillingSchema = new Schema(
     serviceDate: {
       type: Date,
       default: Date.now,
+    },
+    qrPaymentProof: {
+      type: String,
+      default: null,
+    },
+    qrPaymentSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+    pendingQrApproval: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

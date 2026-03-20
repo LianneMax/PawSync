@@ -65,6 +65,9 @@ interface ApiBilling {
   paidAt?: string
   amountPaid?: number
   paymentMethod?: 'cash' | 'card' | 'qr'
+  qrPaymentProof?: string | null
+  qrPaymentSubmittedAt?: string | null
+  pendingQrApproval?: boolean
 }
 
 interface ProductServiceOption {
@@ -133,19 +136,21 @@ function PetOwnerBilling() {
   const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
   const [payingBilling, setPayingBilling] = useState<ApiBilling | null>(null)
 
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/billings/my-invoices`, { headers: authHeaders() })
-        const data = await res.json()
-        if (data.status === 'SUCCESS') setBillings(data.data.billings || [])
-      } catch (e) {
-        console.error('Failed to fetch invoices:', e)
-      } finally {
-        setLoading(false)
-      }
-    })()
+  const fetchBillings = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/billings/my-invoices`, { headers: authHeaders() })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') setBillings(data.data.billings || [])
+    } catch (e) {
+      console.error('Failed to fetch invoices:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchBillings()
+  }, [fetchBillings])
 
   const filtered = billings.filter((b) => {
     const q = searchQuery.toLowerCase()
@@ -215,7 +220,12 @@ function PetOwnerBilling() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        {b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed' && (
+                        {b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed' && b.pendingQrApproval && (
+                          <span className="inline-flex items-center px-3 py-1.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-lg">
+                            Awaiting Approval
+                          </span>
+                        )}
+                        {b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed' && !b.pendingQrApproval && (
                           <button
                             onClick={() => setPayingBilling(b)}
                             className="inline-flex items-center px-3 py-1.5 bg-[#3D5A58] hover:bg-[#2e4341] text-white text-xs font-medium rounded-lg transition-colors"
@@ -257,6 +267,7 @@ function PetOwnerBilling() {
         <PayNowModal
           billing={payingBilling}
           onClose={() => setPayingBilling(null)}
+          onSubmitted={() => { setPayingBilling(null); fetchBillings() }}
         />
       )}
     </div>
@@ -1436,41 +1447,260 @@ function ViewBillingModal({
 function PayNowModal({
   billing,
   onClose,
+  onSubmitted,
 }: {
   billing: ApiBilling
   onClose: () => void
+  onSubmitted: () => void
 }) {
+  const [step, setStep] = useState<'choose' | 'upload' | 'success'>('choose')
+  const [qrItems, setQrItems] = useState<PaymentQRItem[]>([])
+  const [loadingQRs, setLoadingQRs] = useState(true)
+  const [selectedQR, setSelectedQR] = useState<PaymentQRItem | null>(null)
+  const [screenshot, setScreenshot] = useState<string | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/payment-qr`, { headers: authHeaders() })
+        const data = await res.json()
+        if (data.status === 'SUCCESS') setQrItems(data.data.items || [])
+      } catch {
+        setError('Failed to load payment options.')
+      } finally {
+        setLoadingQRs(false)
+      }
+    })()
+  }, [])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setScreenshot(result)
+      setScreenshotPreview(result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSubmit = async () => {
+    if (!screenshot) { setError('Please upload a screenshot of your payment.'); return }
+    setError('')
+    setSubmitting(true)
+    try {
+      const res = await fetch(`${API_BASE}/billings/${billing._id}/submit-qr-proof`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ screenshot }),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        setStep('success')
+      } else {
+        setError(data.message || 'Failed to submit payment proof.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => { if (e.target === e.currentTarget && step !== 'success' && !submitting) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Pay Now</h2>
-          <p className="text-sm text-gray-400">
-            {billing.petId?.name} &mdash; {formatCurrency(billing.totalAmountDue)}
-          </p>
-        </div>
-
-        {/* Payment form will be added here */}
-        <p className="text-center text-sm text-gray-400 py-8">Payment options coming soon.</p>
-
-        <div className="flex justify-end mt-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 relative">
+        {step !== 'success' && (
           <button
             onClick={onClose}
-            className="px-8 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm"
+            disabled={submitting}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
           >
-            Close
+            <X className="w-4 h-4" />
           </button>
-        </div>
+        )}
+
+        {/* ── Step: choose QR ── */}
+        {step === 'choose' && (
+          <div className="p-8">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-[#EAF1F1] rounded-full flex items-center justify-center mx-auto mb-3">
+                <QrCode className="w-6 h-6 text-[#3D5E5C]" />
+              </div>
+              <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Pay via QR</h2>
+              <p className="text-sm text-gray-400">
+                {billing.petId?.name} &mdash; {formatCurrency(billing.totalAmountDue)}
+              </p>
+            </div>
+
+            {loadingQRs ? (
+              <div className="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Loading payment options…
+              </div>
+            ) : qrItems.length === 0 ? (
+              <div className="text-center py-8">
+                <QrCode className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm text-gray-400">No QR payment options available from the clinic at this time.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 mb-6 max-h-72 overflow-y-auto pr-1">
+                {qrItems.map((item) => (
+                  <button
+                    key={item._id}
+                    onClick={() => setSelectedQR(item)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                      selectedQR?._id === item._id
+                        ? 'border-[#476B6B] bg-[#f0f7f7]'
+                        : 'border-gray-200 hover:border-[#7FA5A3] hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="w-14 h-14 shrink-0 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
+                      <img src={item.imageData} alt={item.label} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[#4F4F4F] text-sm">{item.label}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Scan to pay</p>
+                    </div>
+                    {selectedQR?._id === item._id && (
+                      <div className="w-5 h-5 rounded-full bg-[#476B6B] flex items-center justify-center shrink-0">
+                        <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { if (selectedQR) setStep('upload') }}
+                disabled={!selectedQR || qrItems.length === 0}
+                className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+              >
+                Continue
+              </button>
+              <button
+                onClick={onClose}
+                className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step: upload proof ── */}
+        {step === 'upload' && selectedQR && (
+          <div className="p-8">
+            <button
+              onClick={() => { setStep('choose'); setError('') }}
+              className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-5 transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Back
+            </button>
+
+            <div className="text-center mb-5">
+              <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Scan &amp; Upload Proof</h2>
+              <p className="text-sm text-gray-400">Scan the QR below, then upload your payment screenshot</p>
+            </div>
+
+            {/* Show selected QR large */}
+            <div className="flex flex-col items-center mb-6">
+              <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">{selectedQR.label}</p>
+              <div className="w-48 h-48 bg-gray-50 rounded-2xl border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+                <img src={selectedQR.imageData} alt={selectedQR.label} className="w-full h-full object-contain p-2" />
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Amount to pay: <span className="font-semibold text-[#4F4F4F]">{formatCurrency(billing.totalAmountDue)}</span></p>
+            </div>
+
+            {/* Screenshot upload */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">
+                Upload Payment Screenshot <span className="text-red-500">*</span>
+              </label>
+              <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#7FA5A3] hover:bg-gray-50 transition-all p-4">
+                {screenshotPreview ? (
+                  <img src={screenshotPreview} alt="Payment proof" className="max-h-36 object-contain rounded-lg" />
+                ) : (
+                  <>
+                    <Upload className="w-7 h-7 text-gray-300 mb-2" />
+                    <span className="text-sm text-gray-400">Click to upload screenshot</span>
+                    <span className="text-xs text-gray-300 mt-1">PNG, JPG, WEBP</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              </label>
+              {screenshotPreview && (
+                <button
+                  onClick={() => { setScreenshot(null); setScreenshotPreview(null) }}
+                  className="mt-1 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+
+            {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !screenshot}
+                className="flex-1 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+              >
+                {submitting ? 'Submitting…' : 'Submit Payment'}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={submitting}
+                className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step: success ── */}
+        {step === 'success' && (
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">Payment Submitted!</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Your payment screenshot has been sent to the clinic for review. You'll be notified once it's approved.
+            </p>
+            <button
+              onClick={onSubmitted}
+              className="w-full bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+            >
+              Done
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1491,6 +1721,22 @@ function MarkAsPaidModal({
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'qr'>('cash')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [qrItems, setQrItems] = useState<PaymentQRItem[]>([])
+  const [loadingQRs, setLoadingQRs] = useState(false)
+  const [selectedQR, setSelectedQR] = useState<PaymentQRItem | null>(null)
+
+  useEffect(() => {
+    if (paymentMethod !== 'qr') return
+    if (qrItems.length > 0) return
+    setLoadingQRs(true)
+    fetch(`${API_BASE}/payment-qr`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'SUCCESS') setQrItems(data.data.items || [])
+      })
+      .catch(() => {})
+      .finally(() => setLoadingQRs(false))
+  }, [paymentMethod]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
     const parsed = parseFloat(amountPaid)
@@ -1569,7 +1815,7 @@ function MarkAsPaidModal({
               {PAYMENT_METHODS.map(({ value, label }) => (
                 <button
                   key={value}
-                  onClick={() => setPaymentMethod(value)}
+                  onClick={() => { setPaymentMethod(value); setSelectedQR(null) }}
                   className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
                     paymentMethod === value
                       ? 'bg-[#476B6B] text-white border-[#476B6B]'
@@ -1581,6 +1827,44 @@ function MarkAsPaidModal({
               ))}
             </div>
           </div>
+
+          {/* QR options for the admin to reference */}
+          {paymentMethod === 'qr' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-2">Available QR Codes</label>
+              {loadingQRs ? (
+                <p className="text-xs text-gray-400">Loading QR options…</p>
+              ) : qrItems.length === 0 ? (
+                <p className="text-xs text-gray-400">No QR codes uploaded yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {qrItems.map((item) => (
+                    <button
+                      key={item._id}
+                      onClick={() => setSelectedQR(selectedQR?._id === item._id ? null : item)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                        selectedQR?._id === item._id
+                          ? 'border-[#476B6B] bg-[#f0f7f7]'
+                          : 'border-gray-100 hover:border-[#7FA5A3]'
+                      }`}
+                    >
+                      <div className="w-10 h-10 shrink-0 bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
+                        <img src={item.imageData} alt={item.label} className="w-full h-full object-contain" />
+                      </div>
+                      <span className="text-sm font-medium text-[#4F4F4F]">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedQR && (
+                <div className="mt-3 flex justify-center">
+                  <div className="w-36 h-36 bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden">
+                    <img src={selectedQR.imageData} alt={selectedQR.label} className="w-full h-full object-contain p-2" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {error && <p className="text-red-500 text-xs">{error}</p>}
         </div>
@@ -1605,6 +1889,115 @@ function MarkAsPaidModal({
   )
 }
 
+// ==================== APPROVE QR PAYMENT MODAL (Clinic Admin) ====================
+
+function ApproveQRPaymentModal({
+  billing,
+  onClose,
+  onApproved,
+}: {
+  billing: ApiBilling
+  onClose: () => void
+  onApproved: () => void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleApprove = async () => {
+    setError('')
+    setSubmitting(true)
+    try {
+      const res = await fetch(`${API_BASE}/billings/${billing._id}/approve-qr-payment`, {
+        method: 'POST',
+        headers: authHeaders(),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        onApproved()
+        onClose()
+      } else {
+        setError(data.message || 'Failed to approve payment.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 relative">
+        <button
+          onClick={onClose}
+          disabled={submitting}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="p-8">
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <QrCode className="w-6 h-6 text-orange-600" />
+            </div>
+            <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Review QR Payment</h2>
+            <p className="text-sm text-gray-400">
+              {billing.petId?.name} &mdash; {billing.ownerId?.firstName} {billing.ownerId?.lastName}
+            </p>
+            <p className="text-sm font-semibold text-[#476B6B] mt-1">{formatCurrency(billing.totalAmountDue)}</p>
+          </div>
+
+          {/* Payment proof screenshot */}
+          <div className="mb-6">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment Screenshot</p>
+            {billing.qrPaymentProof ? (
+              <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center min-h-40">
+                <img
+                  src={billing.qrPaymentProof}
+                  alt="Payment proof"
+                  className="max-h-72 max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center h-40 text-gray-400 text-sm">
+                No screenshot available
+              </div>
+            )}
+            {billing.qrPaymentSubmittedAt && (
+              <p className="text-xs text-gray-400 mt-1.5">
+                Submitted {formatDate(billing.qrPaymentSubmittedAt)}
+              </p>
+            )}
+          </div>
+
+          {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleApprove}
+              disabled={submitting}
+              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+            >
+              {submitting ? 'Approving…' : 'Approve Payment'}
+            </button>
+            <button
+              onClick={onClose}
+              disabled={submitting}
+              className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl transition-colors text-sm disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== CLINIC ADMIN VIEW ====================
 
 function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string; clinicBranchId?: string } | null }) {
@@ -1616,6 +2009,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [showQRModal, setShowQRModal] = useState(false)
   const [showViewQRModal, setShowViewQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
+  const [approvingQrBilling, setApprovingQrBilling] = useState<ApiBilling | null>(null)
   const [viewingBilling, setViewingBilling] = useState<ApiBilling | null>(null)
 
   const fetchBillings = useCallback(async () => {
@@ -1827,7 +2221,15 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        {canMarkPaid && (
+                        {canMarkPaid && b.pendingQrApproval && (
+                          <button
+                            onClick={() => setApprovingQrBilling(b)}
+                            className="inline-flex items-center px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Approve Payment
+                          </button>
+                        )}
+                        {canMarkPaid && !b.pendingQrApproval && (
                           <button
                             onClick={() => setMarkingPaidBilling(b)}
                             className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
@@ -1865,6 +2267,14 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           billing={markingPaidBilling}
           onClose={() => setMarkingPaidBilling(null)}
           onPaid={fetchBillings}
+        />
+      )}
+
+      {approvingQrBilling && (
+        <ApproveQRPaymentModal
+          billing={approvingQrBilling}
+          onClose={() => setApprovingQrBilling(null)}
+          onApproved={fetchBillings}
         />
       )}
 
