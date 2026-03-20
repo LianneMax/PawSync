@@ -176,7 +176,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
           name: assocMed.name,
           type: 'Product',
           unitPrice: assocMed.price,
-          quantity: assocMed.pricingType === 'pack' ? 1 : 1,
+          quantity: 1,
         });
       }
 

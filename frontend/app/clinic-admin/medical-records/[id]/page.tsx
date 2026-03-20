@@ -156,6 +156,9 @@ export default function ClinicAdminMedicalRecordViewPage() {
   const vet    = record.vetId    as any || {}
   const clinic = record.clinicId as any || {}
   const branch = record.clinicBranchId as any || {}
+  const currentOwnerName = `${pet?.ownerId?.firstName || ''} ${pet?.ownerId?.lastName || ''}`.trim()
+  const ownerName = (record.ownerAtTime?.name || currentOwnerName || 'Unknown Owner').trim()
+  const ownerLabel = record.ownerAtTime?.name ? 'Owner at Time' : 'Current Owner'
 
   const hasVitals = record.vitals && Object.values(record.vitals).some((e: any) => e.value !== '' && e.value !== null && e.value !== undefined)
   const hasMeds   = record.medications && record.medications.length > 0
@@ -165,7 +168,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-4xl mx-auto">
+      <div className="medical-record-print-page p-6 md:p-10 max-w-4xl mx-auto print:p-0 print:max-w-none print:mx-0">
 
         {/* Action bar */}
         <div className="flex items-center justify-between mb-6 print:hidden">
@@ -186,7 +189,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
         </div>
 
         {/* Report document */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden print:border-none print:rounded-none">
+        <div className="medical-record-print-document bg-white rounded-2xl border border-gray-200 overflow-hidden print:border-none print:rounded-none print:shadow-none print:overflow-visible print:w-[190mm] print:mx-auto">
 
           {/* Clinic header */}
           <div className="bg-[#5A7C7A] text-white px-8 py-6">
@@ -222,7 +225,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
           <div className="px-8 py-6 space-y-6">
 
             {/* Visit & vet info */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="flex items-start gap-3">
                 <Calendar className="w-4 h-4 text-[#5A7C7A] mt-0.5 shrink-0" />
                 <div>
@@ -238,7 +241,13 @@ export default function ClinicAdminMedicalRecordViewPage() {
                   <p className="text-sm font-medium text-[#4F4F4F]">
                     Dr. {vet.firstName || ''} {vet.lastName || ''}
                   </p>
-                  {vet.email && <p className="text-xs text-gray-500">{vet.email}</p>}
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <User className="w-4 h-4 text-[#5A7C7A] mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">{ownerLabel}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{ownerName}</p>
                 </div>
               </div>
             </div>
@@ -292,6 +301,10 @@ export default function ClinicAdminMedicalRecordViewPage() {
                 <div>
                   <p className="text-xs text-gray-500">Weight</p>
                   <p className="text-sm font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">{ownerLabel}</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{ownerName || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Sterilization</p>
@@ -705,6 +718,48 @@ export default function ClinicAdminMedicalRecordViewPage() {
           setBillingStatus('awaiting_approval')
         }}
       />
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+
+          html,
+          body {
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          body * {
+            visibility: hidden;
+          }
+
+          .medical-record-print-document,
+          .medical-record-print-document * {
+            visibility: visible;
+          }
+
+          .medical-record-print-page {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: none !important;
+          }
+
+          .medical-record-print-document {
+            position: relative;
+            left: 0;
+            top: 0;
+            width: 190mm !important;
+            margin: 0 auto !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
     </DashboardLayout>
   )
 }

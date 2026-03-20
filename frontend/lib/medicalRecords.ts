@@ -144,6 +144,7 @@ export interface MedicalRecord {
   medications: Medication[];
   diagnosticTests: DiagnosticTest[];
   preventiveCare: PreventiveCare[];
+  preventiveAssociatedExclusions?: string[];
   sharedWithOwner: boolean;
   isCurrent: boolean;
   confinementAction: 'none' | 'confined' | 'released';

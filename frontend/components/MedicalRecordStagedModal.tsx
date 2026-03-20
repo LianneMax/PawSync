@@ -762,7 +762,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
   const [diagnosticTests, setDiagnosticTests] = useState<(Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] })[]>([])
   const [preventiveCare, setPreventiveCare] = useState<Omit<PreventiveCare, '_id'>[]>([])
-  const [sharedWithOwner, setSharedWithOwner] = useState(false)
+  const [sharedWithOwner, setSharedWithOwner] = useState(true)
   const [images, setImages] = useState<{ data: string; contentType: string; description: string }[]>([])
 
   // Collapsible sections in step 3
@@ -1059,7 +1059,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         }))
         setPreventiveCare(normalizedCare)
       }
-      setSharedWithOwner(r.sharedWithOwner || false)
+      setSharedWithOwner(r.sharedWithOwner ?? true)
       if (r.preventiveAssociatedExclusions?.length) {
         setPreventiveAssociatedExclusions(new Set(r.preventiveAssociatedExclusions))
       }
