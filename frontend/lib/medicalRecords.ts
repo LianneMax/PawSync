@@ -165,7 +165,7 @@ export interface MedicalRecord {
     kitName: string;
     testDate: string;
     rows: { disease: string; score: number | null; status: string; action: string }[];
-    protectedCount: number;
+    positiveCount?: number;
     summary: string;
     markdown: string;
     tag: string;
@@ -173,8 +173,9 @@ export interface MedicalRecord {
     followUpAppointmentId: string | null;
     followUpDate: string | null;
     skipSuggested: boolean;
-    ignoreTiter: boolean;
-    ignoreReason: string;
+    antigenEnabled?: boolean;
+    antigenRows?: { disease: string; result: string }[];
+    antigenDate?: string;
   } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vaccinations?: any[];

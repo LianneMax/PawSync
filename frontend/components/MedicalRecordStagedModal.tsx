@@ -169,12 +169,22 @@ type TiterSpecies = 'canine' | 'feline'
 interface TiterRow {
   disease: string
   score: number | null
-  status: 'Protected' | 'Not Protected' | ''
+  status: 'Positive' | 'Negative' | ''
   action: 'None' | 'Vaccinate' | ''
+}
+
+interface AntigenRow {
+  disease: string
+  result: 'Positive' | 'Negative' | ''
 }
 
 const TITERS_BY_SPECIES: Record<TiterSpecies, string[]> = {
   canine: ['CPV', 'CDV', 'CAV-1'],
+  feline: ['FPV', 'FCV', 'FHV'],
+}
+
+const ANTIGEN_DISEASES_BY_SPECIES: Record<TiterSpecies, string[]> = {
+  canine: ['CPV', 'CAV', 'CDV'],
   feline: ['FPV', 'FCV', 'FHV'],
 }
 
@@ -187,15 +197,27 @@ const buildTiterRows = (species: TiterSpecies): TiterRow[] => {
   }))
 }
 
+const buildAntigenRows = (species: TiterSpecies): AntigenRow[] => {
+  return ANTIGEN_DISEASES_BY_SPECIES[species].map((disease) => ({
+    disease,
+    result: '',
+  }))
+}
+
 const computeTiterStatusAction = (score: number | null): Pick<TiterRow, 'status' | 'action'> => {
   if (score === null || Number.isNaN(score)) return { status: '', action: '' }
-  if (score >= 3) return { status: 'Protected', action: 'None' }
-  return { status: 'Not Protected', action: 'Vaccinate' }
+  if (score >= 3) return { status: 'Positive', action: 'None' }
+  return { status: 'Negative', action: 'Vaccinate' }
 }
 
 const isTiterTestingService = (value: string) => {
   const normalized = String(value || '').toLowerCase()
   return normalized.includes('titer testing') || normalized.includes('titer-test') || normalized.includes('titer')
+}
+
+const isAntigenTestService = (value: string) => {
+  const normalized = String(value || '').toLowerCase()
+  return normalized.includes('3-in-1') || normalized.includes('antigen test') || normalized.includes('antigen')
 }
 
 const emptyVaccine = (): VaccineFormItem => ({
@@ -646,7 +668,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   // Whether this appointment includes vaccination/booster
   const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination' || t === 'rabies-vaccination')
-const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingService(t))
+  const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingService(t))
 
   // Whether this appointment is a surgery appointment
   const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) =>
@@ -719,9 +741,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [titerRows, setTiterRows] = useState<TiterRow[]>(buildTiterRows('canine'))
   const [titerKitName, setTiterKitName] = useState('VCheck')
   const [skipTiterSuggested, setSkipTiterSuggested] = useState(false)
-  const [ignoreTiterVaccinate, setIgnoreTiterVaccinate] = useState(false)
-  const [ignoreTiterReason, setIgnoreTiterReason] = useState('')
   const [titerImages, setTiterImages] = useState<{ data: string; contentType: string; description: string }[]>([])
+  const [antigenEnabled, setAntigenEnabled] = useState(false)
+  const [antigenRows, setAntigenRows] = useState<AntigenRow[]>(buildAntigenRows('canine'))
+  const [vaccinationSkippedDue, setVaccinationSkippedDue] = useState<string[]>([])
   const [xray] = useState(false)
   const [ultrasound] = useState(false)
   const [availedProducts] = useState(false)
@@ -761,6 +784,18 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
   const [visitSummary, setVisitSummary] = useState('')
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
   const [diagnosticTests, setDiagnosticTests] = useState<(Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] })[]>([])
+
+  // Derived: which specialty panels to show in During Procedure (must be after diagnosticTests state)
+  const titerInCatalog = diagnosticTestServices.some((s) => isTiterTestingService(s.name))
+  const antigenInCatalog = diagnosticTestServices.some((s) => isAntigenTestService(s.name))
+  const showTiterSection =
+    hasTiterTestingService ||
+    (isVaccinationAppt && titerInCatalog) ||
+    diagnosticTests.some((t) => isTiterTestingService(t.name))
+  const showAntigenSection =
+    (isVaccinationAppt && antigenInCatalog) ||
+    diagnosticTests.some((t) => isAntigenTestService(t.name))
+
   const [preventiveCare, setPreventiveCare] = useState<Omit<PreventiveCare, '_id'>[]>([])
   const [sharedWithOwner, setSharedWithOwner] = useState(true)
   const [images, setImages] = useState<{ data: string; contentType: string; description: string }[]>([])
@@ -970,8 +1005,6 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         setTiterSpecies(savedSpecies)
         setTiterKitName(r.immunityTesting.kitName || 'VCheck')
         setSkipTiterSuggested(r.immunityTesting.skipSuggested === true)
-        setIgnoreTiterVaccinate(r.immunityTesting.ignoreTiter === true)
-        setIgnoreTiterReason(r.immunityTesting.ignoreReason || '')
         if (Array.isArray(r.immunityTesting.rows) && r.immunityTesting.rows.length > 0) {
           setTiterRows(r.immunityTesting.rows.map((row) => {
             const score = typeof row.score === 'number' ? row.score : null
@@ -985,6 +1018,21 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
           }))
         } else {
           setTiterRows(buildTiterRows(savedSpecies))
+        }
+        if (r.immunityTesting.antigenEnabled !== undefined) {
+          setAntigenEnabled(r.immunityTesting.antigenEnabled === true)
+        }
+        if (Array.isArray(r.immunityTesting.antigenRows) && r.immunityTesting.antigenRows.length > 0) {
+          setAntigenRows(r.immunityTesting.antigenRows.map((row) => ({
+            disease: row.disease,
+            result: (row.result || '') as AntigenRow['result'],
+          })))
+          const positives = r.immunityTesting.antigenRows
+            .filter((row) => row.result === 'Positive')
+            .map((row) => row.disease)
+          if (positives.length > 0 && r.immunityTesting.antigenEnabled === true) {
+            setVaccinationSkippedDue(positives)
+          }
         }
       } else {
         setTiterEnabled(appointmentTiterFirst || hasTiterTestingService)
@@ -1159,6 +1207,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       setTiterSpecies((prev) => {
         if (prev !== autoSpecies) {
           setTiterRows(buildTiterRows(autoSpecies))
+          setAntigenRows(buildAntigenRows(autoSpecies))
         }
         return autoSpecies
       })
@@ -1362,8 +1411,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
     return objective + (objective ? '\n\n' : '') + `Services availed: ${extras.join(', ')}`
   }
   const buildImmunityTestingPayload = () => {
-    if (!isVaccinationAppt && !hasTiterTestingService) return null
-
+    if (!showTiterSection && !showAntigenSection) return null
     const lockedSpecies = patientTiterSpecies
     const scoreByDisease = new Map(titerRows.map((row) => [row.disease, row.score]))
     const normalizedRows = buildTiterRows(lockedSpecies).map((row) => {
@@ -1377,16 +1425,14 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       }
     })
 
-    const protectedCount = normalizedRows.filter((row) => row.status === 'Protected').length
+    const positiveCount = normalizedRows.filter((row) => row.status === 'Positive').length
     const vaccinateFor = normalizedRows.filter((row) => row.action === 'Vaccinate').map((row) => row.disease)
     const titerDate = new Date().toISOString().split('T')[0]
     const speciesLabel = lockedSpecies === 'canine' ? 'Canine' : 'Feline'
-    const planLine = ignoreTiterVaccinate
-      ? `Ignore titer; vaccinate anyway. Reason: ${ignoreTiterReason || 'No reason provided.'}`
-      : vaccinateFor.length > 0
-        ? `Retest ${vaccinateFor.join(', ')} in 7 days.`
-        : 'Cleared to vaccinate.'
-    const summary = `# Protected: ${protectedCount}/3 | Vaccinate for: ${vaccinateFor.length > 0 ? vaccinateFor.join(', ') : 'None'}`
+    const planLine = vaccinateFor.length > 0
+      ? `Retest ${vaccinateFor.join(', ')} in 7 days.`
+      : 'Cleared to vaccinate.'
+    const summary = `# Positive: ${positiveCount}/3 | Vaccinate for: ${vaccinateFor.length > 0 ? vaccinateFor.join(', ') : 'None'}`
     const markdown = [
       `Titer: ${titerDate} (${speciesLabel} ${titerKitName || 'VCheck'})`,
       '| Disease | Score | Status | Action |',
@@ -1395,13 +1441,19 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       `Plan: ${planLine}`,
     ].join('\n')
 
+    const antigenDate = titerDate
+    const antigenNormalizedRows = buildAntigenRows(lockedSpecies).map((row) => {
+      const saved = antigenRows.find((r) => r.disease === row.disease)
+      return { disease: row.disease, result: saved?.result || ('' as AntigenRow['result']) }
+    })
+
     return {
       enabled: titerEnabled,
       species: lockedSpecies,
       kitName: titerKitName || 'VCheck',
       testDate: titerDate,
       rows: normalizedRows,
-      protectedCount,
+      positiveCount,
       summary,
       markdown,
       tag: `#titer-${lockedSpecies}-${titerDate}`,
@@ -1409,8 +1461,9 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       followUpAppointmentId: null,
       followUpDate: null,
       skipSuggested: skipTiterSuggested,
-      ignoreTiter: ignoreTiterVaccinate,
-      ignoreReason: ignoreTiterReason,
+      antigenEnabled,
+      antigenRows: antigenNormalizedRows,
+      antigenDate,
     }
   }
 
@@ -1708,13 +1761,18 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       return
     }
 
-    if (titerEnabled && !skipTiterSuggested && ignoreTiterVaccinate && !ignoreTiterReason.trim()) {
-      toast.error('Please provide a reason when ignoring titer results')
-      return
+    if (antigenEnabled) {
+      const unscoredAntigen = antigenRows.some((r) => r.result === '')
+      if (unscoredAntigen) {
+        toast.error('Please select a result for all 3-in-1 Antigen Test diseases before proceeding')
+        return
+      }
     }
 
-    const hasLowImmunity = titerEnabled && !skipTiterSuggested && !ignoreTiterVaccinate &&
-      (immunityPayload?.rows || []).some((row) => row.action === 'Vaccinate')
+    const positiveAntigenDiseases = antigenEnabled
+      ? antigenRows.filter((r) => r.result === 'Positive').map((r) => r.disease)
+      : []
+    const antigenSkipsVaccination = positiveAntigenDiseases.length > 0
     
     setSaving(true)
     try {
@@ -1745,7 +1803,8 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       await syncPregnancyStatus()
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
-      if (isVaccinationAppt && hasLowImmunity) {
+      if (isVaccinationAppt && antigenSkipsVaccination) {
+        setVaccinationSkippedDue(positiveAntigenDiseases)
         setStep(4)
       } else {
         setStep(3)
@@ -2165,17 +2224,24 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
               const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    s === step
-                      ? 'bg-[#476B6B] text-white'
-                      : s < step
-                      ? 'bg-[#7FA5A3]/20 text-[#476B6B]'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {s < step ? <CheckCircle className="w-3 h-3" /> : icons[s]}
-                    <span className="hidden sm:inline">{labels[s]}</span>
-                    <span className="sm:hidden">{s}</span>
-                  </div>
+                  {(() => {
+                    const isSkippedVaccStep = isVaccinationAppt && s === 3 && vaccinationSkippedDue.length > 0 && s < step
+                    return (
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        isSkippedVaccStep
+                          ? 'bg-red-100 text-red-700'
+                          : s === step
+                          ? 'bg-[#476B6B] text-white'
+                          : s < step
+                          ? 'bg-[#7FA5A3]/20 text-[#476B6B]'
+                          : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {isSkippedVaccStep ? <X className="w-3 h-3" /> : s < step ? <CheckCircle className="w-3 h-3" /> : icons[s]}
+                        <span className="hidden sm:inline">{isSkippedVaccStep ? 'Vaccination Skipped' : labels[s]}</span>
+                        <span className="sm:hidden">{s}</span>
+                      </div>
+                    )
+                  })()}
                   {idx < arr.length - 1 && (
                     <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
                   )}
@@ -2548,12 +2614,13 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                 </div>
               </div>
 
-              {(isVaccinationAppt || hasTiterTestingService) && (
+              {/* ── TITER TESTING ── */}
+              {showTiterSection && (
                 <div className="border border-[#7FA5A3]/30 rounded-2xl overflow-hidden bg-[#f0f7f7]">
                   <div className="px-4 py-3 border-b border-[#7FA5A3]/20 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-[#476B6B]">Immunity Testing</p>
-                      <p className="text-[11px] text-[#5A7C7A]">Document titer testing during procedure</p>
+                      <p className="text-sm font-semibold text-[#476B6B]">Titer Testing</p>
+                      <p className="text-[11px] text-[#5A7C7A]">Document titer immunity scores during procedure</p>
                     </div>
                     <label className="flex items-center gap-2 text-xs font-medium text-[#2C3E2D]">
                       <input
@@ -2562,7 +2629,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                         onChange={(e) => setTiterEnabled(e.target.checked)}
                         className="w-4 h-4 accent-[#476B6B]"
                       />
-                      Perform Titer Test First
+                      Perform Titer Test
                     </label>
                   </div>
 
@@ -2609,7 +2676,7 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             <thead className="bg-gray-50">
                               <tr>
                                 <th className="text-left px-2 py-1.5">Disease</th>
-                                <th className="text-left px-2 py-1.5">Score (0-6)</th>
+                                <th className="text-left px-2 py-1.5">Score (1–6)</th>
                                 <th className="text-left px-2 py-1.5">Status</th>
                                 <th className="text-left px-2 py-1.5">Action</th>
                               </tr>
@@ -2617,29 +2684,36 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             <tbody>
                               {titerRows.map((row, idx) => {
                                 const computed = computeTiterStatusAction(row.score)
-                return (
-                    <tr key={row.disease} className="border-t border-gray-100">
+                                return (
+                                  <tr key={row.disease} className="border-t border-gray-100">
                                     <td className="px-2 py-1.5 font-medium text-gray-700">{row.disease}</td>
                                     <td className="px-2 py-1.5">
-                                      <select
-                                        value={row.score ?? ''}
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={row.score === null ? '' : String(row.score)}
+                                        placeholder="1–6"
                                         onChange={(e) => {
-                                          const value = e.target.value === '' ? null : Number(e.target.value)
-                                          setTiterRows((prev) => prev.map((item, j) => {
-                                            if (j !== idx) return item
-                                            const next = computeTiterStatusAction(value)
-                                            return { ...item, score: value, status: next.status, action: next.action }
-                                          }))
+                                          const raw = e.target.value.trim()
+                                          if (raw === '') {
+                                            setTiterRows((prev) => prev.map((item, j) =>
+                                              j !== idx ? item : { ...item, score: null, status: '', action: '' }
+                                            ))
+                                            return
+                                          }
+                                          const num = parseInt(raw, 10)
+                                          if (isNaN(num) || num < 1 || num > 6 || String(num) !== raw) return
+                                          const next = computeTiterStatusAction(num)
+                                          setTiterRows((prev) => prev.map((item, j) =>
+                                            j !== idx ? item : { ...item, score: num, status: next.status, action: next.action }
+                                          ))
                                         }}
-                                        className="border border-gray-200 rounded px-2 py-1 bg-white"
-                                      >
-                                        <option value="">Select</option>
-                                        {[0, 1, 2, 3, 4, 5, 6].map((score) => (
-                                          <option key={score} value={score}>{score}</option>
-                                        ))}
-                                      </select>
+                                        className="w-16 border border-gray-200 rounded px-2 py-1 bg-white text-center focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                      />
                                     </td>
-                                    <td className="px-2 py-1.5 text-gray-700">{computed.status || '-'}</td>
+                                    <td className={`px-2 py-1.5 font-medium ${computed.status === 'Positive' ? 'text-green-600' : computed.status === 'Negative' ? 'text-red-600' : 'text-gray-400'}`}>
+                                      {computed.status || '-'}
+                                    </td>
                                     <td className="px-2 py-1.5 text-gray-700">{computed.action || '-'}</td>
                                   </tr>
                                 )
@@ -2663,8 +2737,8 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                           />
                         </label>
                         <p className="text-[11px] text-[#476B6B]">
-                          # Protected: {(titerRows || []).filter((r) => (r.score ?? -1) >= 3).length}/3 |
-                          {' '}Vaccinate for: {(titerRows || []).filter((r) => (r.score ?? 7) < 3 && r.score !== null).map((r) => r.disease).join(', ') || 'None'}
+                          # Positive: {(titerRows || []).filter((r) => (r.score ?? 0) >= 3).length}/3 |
+                          {' '}Vaccinate for: {(titerRows || []).filter((r) => r.score !== null && (r.score ?? 7) < 3).map((r) => r.disease).join(', ') || 'None'}
                         </p>
                       </div>
 
@@ -2684,25 +2758,85 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
 
-                      <label className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={ignoreTiterVaccinate}
-                          onChange={(e) => setIgnoreTiterVaccinate(e.target.checked)}
-                          className="w-4 h-4 accent-red-600"
-                        />
-                        Ignore titer; vaccinate anyway
-                      </label>
+              {/* ── 3-IN-1 ANTIGEN TEST KIT ── */}
+              {showAntigenSection && (
+                <div className="border border-[#7FA5A3]/30 rounded-2xl overflow-hidden bg-[#f0f7f7]">
+                  <div className="px-4 py-3 border-b border-[#7FA5A3]/20 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[#476B6B]">3-in-1 Antigen Test Kit</p>
+                      <p className="text-[11px] text-[#5A7C7A]">Record antigen test results — positive results will skip vaccination</p>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#2C3E2D]">
+                      <input
+                        type="checkbox"
+                        checked={antigenEnabled}
+                        onChange={(e) => setAntigenEnabled(e.target.checked)}
+                        className="w-4 h-4 accent-[#476B6B]"
+                      />
+                      Perform Antigen Test
+                    </label>
+                  </div>
 
-                      {ignoreTiterVaccinate && (
+                  {antigenEnabled && (
+                    <div className="px-4 py-3 space-y-3">
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-1">Species</label>
                         <input
                           type="text"
-                          value={ignoreTiterReason}
-                          onChange={(e) => setIgnoreTiterReason(e.target.value)}
-                          placeholder="Reason (required)"
-                          className="w-full border border-red-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-red-300"
+                          value={patientTiterSpecies === 'canine' ? 'Canine' : 'Feline'}
+                          readOnly
+                          disabled
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden bg-white">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="text-left px-2 py-1.5">Disease</th>
+                              <th className="text-left px-2 py-1.5">Result</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {antigenRows.map((row, idx) => (
+                              <tr key={row.disease} className="border-t border-gray-100">
+                                <td className="px-2 py-1.5 font-medium text-gray-700">{row.disease}</td>
+                                <td className="px-2 py-1.5">
+                                  <select
+                                    value={row.result}
+                                    onChange={(e) => {
+                                      const result = e.target.value as AntigenRow['result']
+                                      setAntigenRows((prev) => prev.map((item, j) =>
+                                        j !== idx ? item : { ...item, result }
+                                      ))
+                                    }}
+                                    className={`border rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${
+                                      row.result === 'Positive' ? 'border-red-300 text-red-700' :
+                                      row.result === 'Negative' ? 'border-green-300 text-green-700' :
+                                      'border-gray-200 text-gray-500'
+                                    }`}
+                                  >
+                                    <option value="">Select</option>
+                                    <option value="Positive">Positive</option>
+                                    <option value="Negative">Negative</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {antigenRows.some((r) => r.result === 'Positive') && (
+                        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                          Vaccination will be skipped due to positive result for: <strong>{antigenRows.filter((r) => r.result === 'Positive').map((r) => r.disease).join(', ')}</strong>
+                        </p>
                       )}
                     </div>
                   )}
@@ -2743,7 +2877,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                             options={[
                               { value: '', label: 'Select a diagnostic test service' },
                               ...diagnosticTestServices
-                                .filter((service) => !titerEnabled || !isTiterTestingService(service.name))
+                                .filter((service) =>
+                                  !(showTiterSection && isTiterTestingService(service.name)) &&
+                                  !(showAntigenSection && isAntigenTestService(service.name))
+                                )
                                 .map((service) => ({
                                   value: service.name,
                                   label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
@@ -3809,6 +3946,16 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
           {/* ── STEP 3 (regular) / STEP 4 (vaccination or surgery): POST-PROCEDURE ── */}
           {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
             <>
+              {/* Vaccination skipped notice */}
+              {isVaccinationAppt && vaccinationSkippedDue.length > 0 && (
+                <div className="border border-red-200 rounded-2xl px-4 py-3 bg-red-50 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-800">
+                    <span className="font-semibold">Vaccination was skipped</span> due to pet being positive for:{' '}
+                    <strong>{vaccinationSkippedDue.join(', ')}</strong>.
+                  </p>
+                </div>
+              )}
               {/* Visit Summary */}
               <div>
                 <div className="flex items-center justify-between mb-2">
