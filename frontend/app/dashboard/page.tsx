@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, togglePetLost, markPetDeceased, removePet, transferPet, type Pet as APIPet } from '@/lib/pets'
+import { getMyPets, togglePetLost, markPetDeceased, removePet, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
 import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
 import { getProfile } from '@/lib/users'
 import {
@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Trash2,
   Skull,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -777,13 +778,20 @@ function RemovePetModal({
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
   const [newOwnerEmail, setNewOwnerEmail] = useState('')
+  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([])
+  const [isTransferSearchOpen, setIsTransferSearchOpen] = useState(false)
+  const [isLoadingEmailSuggestions, setIsLoadingEmailSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const transferDebounceRef = useRef<NodeJS.Timeout>(null)
 
   const resetForm = () => {
     setReason('')
     setDetails('')
     setNewOwnerEmail('')
+    setEmailSuggestions([])
+    setIsTransferSearchOpen(false)
+    setIsLoadingEmailSuggestions(false)
     setError('')
   }
 
@@ -792,10 +800,44 @@ function RemovePetModal({
     onClose()
   }
 
-  if (!pet) return null
-
   const isTransfer = reason === 'transfer'
   const isPassedAway = reason === 'passed-away'
+
+  useEffect(() => {
+    if (!open || !isTransfer) {
+      setEmailSuggestions([])
+      setIsTransferSearchOpen(false)
+      setIsLoadingEmailSuggestions(false)
+      return
+    }
+
+    const query = newOwnerEmail.trim().toLowerCase()
+    if (query.length < 2) {
+      setEmailSuggestions([])
+      setIsLoadingEmailSuggestions(false)
+      return
+    }
+
+    if (transferDebounceRef.current) clearTimeout(transferDebounceRef.current)
+    transferDebounceRef.current = setTimeout(async () => {
+      try {
+        setIsLoadingEmailSuggestions(true)
+        const token = useAuthStore.getState().token
+        const response = await searchTransferOwnerEmails(query, token || undefined)
+        setEmailSuggestions(response.status === 'SUCCESS' ? (response.data?.emails || []) : [])
+      } catch {
+        setEmailSuggestions([])
+      } finally {
+        setIsLoadingEmailSuggestions(false)
+      }
+    }, 300)
+
+    return () => {
+      if (transferDebounceRef.current) clearTimeout(transferDebounceRef.current)
+    }
+  }, [open, isTransfer, newOwnerEmail])
+
+  if (!pet) return null
 
   const handleConfirm = async () => {
     if (!reason) {
@@ -804,7 +846,12 @@ function RemovePetModal({
     }
 
     if (isTransfer && !newOwnerEmail.trim()) {
-      setError('Please enter the new owner email or phone number')
+      setError('Please enter the new owner email')
+      return
+    }
+
+    if (isTransfer && !newOwnerEmail.includes('@')) {
+      setError('Please enter a valid email address')
       return
     }
 
@@ -819,9 +866,7 @@ function RemovePetModal({
         const recipient = newOwnerEmail.trim()
         const response = await transferPet(
           pet.id,
-          recipient.includes('@')
-            ? { newOwnerEmail: recipient || undefined }
-            : { newOwnerPhone: recipient || undefined },
+          { newOwnerEmail: recipient || undefined },
           token
         )
         if (response.status === 'ERROR') {
@@ -929,20 +974,53 @@ function RemovePetModal({
 
         {/* Transfer email input (optional) */}
         {isTransfer && (
-          <div className="mb-4">
-            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
-              New Owner Email or Phone
-            </label>
-            <input
-              type="text"
-              placeholder="Enter the pet-owner email or phone"
-              value={newOwnerEmail}
-              onChange={(e) => {
-                setNewOwnerEmail(e.target.value)
-                setError('')
-              }}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-            />
+          <div className="mb-4 relative">
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">New Owner Email</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="Search pet owner email..."
+                value={newOwnerEmail}
+                onChange={(e) => {
+                  setNewOwnerEmail(e.target.value)
+                  setIsTransferSearchOpen(true)
+                  setError('')
+                }}
+                onFocus={() => setIsTransferSearchOpen(true)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors"
+              />
+              {isLoadingEmailSuggestions && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+            {isTransferSearchOpen && emailSuggestions.length > 0 && (
+              <div className="absolute left-6 right-6 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto">
+                {emailSuggestions.map((email) => (
+                  <button
+                    key={email}
+                    type="button"
+                    onClick={() => {
+                      setNewOwnerEmail(email)
+                      setIsTransferSearchOpen(false)
+                      setError('')
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F8F6F2] transition-colors text-[#4F4F4F]"
+                  >
+                    <span className="text-[#4F4F4F]">{email}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {isTransferSearchOpen && newOwnerEmail.trim().length >= 2 && !isLoadingEmailSuggestions && emailSuggestions.length === 0 && (
+              <div className="absolute left-6 right-6 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 px-4 py-3 text-sm text-gray-400">
+                No pet owners found
+              </div>
+            )}
             <p className="text-xs text-gray-400 mt-1">
               Recipient must have an existing PawSync pet-owner account.
             </p>

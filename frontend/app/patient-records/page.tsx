@@ -1894,7 +1894,7 @@ function ViewRecordModal({
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400 uppercase">{ownerLabel}</p>
-                      <p className="text-sm text-[#4F4F4F]">{ownerName}</p>
+                      <p className="text-sm font-medium text-[#4F4F4F]">{ownerName}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400 uppercase">Attending Veterinarian</p>
@@ -1904,7 +1904,7 @@ function ViewRecordModal({
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400 uppercase">Clinic / Branch</p>
-                      <p className="text-sm text-[#4F4F4F]">
+                      <p className="text-sm font-medium text-[#4F4F4F]">
                         {clinic?.name || '—'}
                         {branch?.name ? ` — ${branch.name}` : ''}
                       </p>

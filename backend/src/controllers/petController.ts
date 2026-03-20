@@ -90,6 +90,8 @@ const getDayRange = (rawDate: string | Date) => {
   return { start, end };
 };
 
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Create a new pet
  */
@@ -589,10 +591,15 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { newOwnerEmail, newOwnerPhone } = req.body;
+    const { newOwnerEmail } = req.body;
 
-    if (!newOwnerEmail && !newOwnerPhone) {
-      return res.status(400).json({ status: 'ERROR', message: 'Please provide the new owner\'s email or phone number' });
+    if (!newOwnerEmail || typeof newOwnerEmail !== 'string') {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide the new owner\'s email address' });
+    }
+
+    const normalizedEmail = newOwnerEmail.trim().toLowerCase();
+    if (!normalizedEmail.includes('@')) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide a valid email address' });
     }
 
     const pet = await Pet.findById(req.params.id);
@@ -618,12 +625,7 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Cannot transfer deceased pets.' });
     }
 
-    const normalizedPhone = (newOwnerPhone || '').replace(/\D/g, '');
-    const ownerLookup: any[] = [];
-    if (newOwnerEmail) ownerLookup.push({ email: newOwnerEmail.toLowerCase() });
-    if (normalizedPhone) ownerLookup.push({ contactNumberNormalized: normalizedPhone });
-
-    const newOwner = await User.findOne({ $or: ownerLookup });
+    const newOwner = await User.findOne({ email: normalizedEmail });
 
     if (!newOwner) {
       return res.status(404).json({ status: 'ERROR', message: 'No account found with that email address' });
@@ -735,6 +737,45 @@ export const transferPet = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Transfer pet error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while transferring the pet' });
+  }
+};
+
+/**
+ * Search transfer recipient email suggestions (pet-owner accounts only)
+ */
+export const getTransferOwnerEmailSuggestions = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const q = String(req.query.q || '').trim().toLowerCase();
+    if (q.length < 2) {
+      return res.status(200).json({ status: 'SUCCESS', data: { emails: [] } });
+    }
+
+    const emailRegex = new RegExp(`^${escapeRegex(q)}`, 'i');
+    const owners = await User.find({
+      userType: 'pet-owner',
+      email: { $regex: emailRegex },
+      _id: { $ne: req.user.userId },
+    })
+      .select('email')
+      .sort({ email: 1 })
+      .limit(8)
+      .lean();
+
+    const emails = owners
+      .map((owner: any) => String(owner.email || '').trim().toLowerCase())
+      .filter(Boolean);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { emails },
+    });
+  } catch (error) {
+    console.error('Get transfer owner email suggestions error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching suggestions' });
   }
 };
 

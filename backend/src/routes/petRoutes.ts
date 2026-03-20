@@ -1,5 +1,5 @@
 import express from 'express';
-import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement, updatePetPregnancyStatus, scanPetAlert, reportPetFound, markPetDeceased } from '../controllers/petController';
+import { createPet, getMyPets, getPetById, updatePet, deletePet, transferPet, getPetByNfc, getPublicPetProfile, reportPetMissing, updatePetConfinement, updatePetPregnancyStatus, scanPetAlert, reportPetFound, markPetDeceased, getTransferOwnerEmailSuggestions } from '../controllers/petController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -21,6 +21,12 @@ router.post('/', authMiddleware, createPet);
  * Get pet by NFC tag (public endpoint for scanning)
  */
 router.get('/nfc/:nfcTagId', getPetByNfc);
+
+/**
+ * GET /api/pets/transfer-owner-suggestions?q=...
+ * Suggest transfer recipient emails (pet-owner accounts only)
+ */
+router.get('/transfer-owner-suggestions', authMiddleware, getTransferOwnerEmailSuggestions);
 
 /**
  * GET /api/pets/:id/public

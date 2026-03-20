@@ -138,13 +138,17 @@ export const requestPetTag = async (petId: string, clinicBranchId: string, picku
  */
 export const transferPet = async (
   id: string,
-  payload: { newOwnerEmail?: string; newOwnerPhone?: string },
+  payload: { newOwnerEmail?: string },
   token?: string
 ): Promise<{ status: string; message: string }> => {
   return authenticatedFetch(`/pets/${id}/transfer`, {
     method: 'POST',
     body: JSON.stringify(payload)
   }, token);
+};
+
+export const searchTransferOwnerEmails = async (query: string, token?: string): Promise<{ status: string; data?: { emails: string[] } }> => {
+  return authenticatedFetch(`/pets/transfer-owner-suggestions?q=${encodeURIComponent(query)}`, { method: 'GET' }, token);
 };
 
 export const markPetDeceased = async (id: string, token?: string): Promise<PetResponse> => {
