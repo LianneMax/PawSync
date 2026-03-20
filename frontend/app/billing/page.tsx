@@ -1027,107 +1027,143 @@ function ViewBillingModal({
       .catch(() => {})
   }, [initialBilling._id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const modalStatus = mapAdminStatus(billing)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 relative max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-bold text-[#4F4F4F] mb-1">Billing Details</h2>
-          <p className="text-sm text-gray-400">
-            {billing.petId?.name} &mdash; {billing.ownerId?.firstName} {billing.ownerId?.lastName}
-          </p>
-        </div>
-
-        {/* Items table */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-5">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">Qty</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Unit Price</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {billing.items.map((item) => (
-                <tr key={item._id}>
-                  <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'Service' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {item.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-center text-[#4F4F4F]">{item.quantity ?? 1}</td>
-                  <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱ {item.unitPrice.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-right font-medium text-[#4F4F4F]">₱ {((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</td>
-                </tr>
-              ))}
-              {billing.items.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">No items</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Order summary */}
-        <div className="border border-gray-100 rounded-xl p-4 mb-5 space-y-2">
-          <p className="text-sm font-semibold text-[#3D5A58] mb-2">Order Summary</p>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Services / Products Fee</span>
-            <span className="text-[#4F4F4F] font-medium">₱ {billing.subtotal.toLocaleString()}</span>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative max-h-[90vh] overflow-y-auto">
+        {/* Modal header bar */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 pt-5 pb-4 rounded-t-2xl">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-[#4F4F4F]">Billing Details</h2>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAdminStatusStyle(modalStatus)}`}>
+                  {modalStatus}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5 truncate">
+                <span className="font-medium text-[#4F4F4F]">{billing.petId?.name}</span>
+                {billing.petId?.breed ? <span className="text-gray-400"> · {billing.petId.species} {billing.petId.breed}</span> : null}
+                {' '}&mdash;{' '}
+                {billing.ownerId?.firstName} {billing.ownerId?.lastName}
+              </p>
+            </div>
           </div>
-          {billing.discount > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Discount</span>
-              <span className="text-red-500 font-medium">-₱ {billing.discount.toLocaleString()}</span>
+          {/* Meta row: vet, date */}
+          <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+            {billing.vetId?.firstName && (
+              <span>Dr. {billing.vetId.firstName} {billing.vetId.lastName}</span>
+            )}
+            {(billing.serviceDate || billing.createdAt) && (
+              <span>{formatDate(billing.serviceDate || billing.createdAt)}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Contextual status banners */}
+          {billing.status === 'pending_payment' && billing.medicalRecordId?.stage !== 'completed' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-xs text-yellow-700">
+              The visit is still in progress. This invoice will update automatically as the medical record is completed.
             </div>
           )}
-          <div className="border-t border-gray-100 pt-2 flex justify-between text-sm font-semibold">
-            <span className="text-[#4F4F4F]">Total Amount Due</span>
-            <span className="text-[#4F4F4F]">₱ {billing.totalAmountDue.toLocaleString()}</span>
+          {billing.status === 'pending_payment' && billing.medicalRecordId?.stage === 'completed' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+              The visit is complete. This invoice is ready for payment.
+            </div>
+          )}
+
+          {/* Items table */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">Qty</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Unit Price</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {billing.items.map((item) => (
+                  <tr key={item._id}>
+                    <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'Service' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {item.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center text-[#4F4F4F]">{item.quantity ?? 1}</td>
+                    <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱{item.unitPrice.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-right font-medium text-[#4F4F4F]">₱{((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</td>
+                  </tr>
+                ))}
+                {billing.items.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">No items yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
+
+          {/* Order summary */}
+          <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Subtotal</span>
+              <span className="text-[#4F4F4F] font-medium">₱{billing.subtotal.toLocaleString()}</span>
+            </div>
+            {billing.discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Discount</span>
+                <span className="text-red-500 font-medium">-₱{billing.discount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold">
+              <span className="text-[#3D5A58]">Total Amount Due</span>
+              <span className="text-[#3D5A58] text-base">₱{billing.totalAmountDue.toLocaleString()}</span>
+            </div>
+          </div>
+
+          {/* Payment details (paid only) */}
+          {billing.status === 'paid' && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2">
+              <p className="text-sm font-semibold text-green-700 mb-1">Payment Received</p>
+              {billing.amountPaid !== undefined && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Amount Paid</span>
+                  <span className="text-green-700 font-medium">₱{billing.amountPaid.toLocaleString()}</span>
+                </div>
+              )}
+              {billing.paymentMethod && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Payment Method</span>
+                  <span className="text-[#4F4F4F]">{PAYMENT_METHOD_LABEL[billing.paymentMethod] ?? billing.paymentMethod}</span>
+                </div>
+              )}
+              {billing.paidAt && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Paid On</span>
+                  <span className="text-[#4F4F4F]">{formatDate(billing.paidAt)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Payment details (paid only) */}
-        {billing.status === 'paid' && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2">
-            <p className="text-sm font-semibold text-green-700 mb-1">Payment Received</p>
-            {billing.amountPaid !== undefined && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Amount Paid</span>
-                <span className="text-green-700 font-medium">₱ {billing.amountPaid.toLocaleString()}</span>
-              </div>
-            )}
-            {billing.paymentMethod && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Payment Method</span>
-                <span className="text-[#4F4F4F]">{PAYMENT_METHOD_LABEL[billing.paymentMethod] ?? billing.paymentMethod}</span>
-              </div>
-            )}
-            {billing.paidAt && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Paid On</span>
-                <span className="text-[#4F4F4F]">{formatDate(billing.paidAt)}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex justify-end mt-6">
+        <div className="px-6 pb-5 flex justify-end">
           <button
             onClick={onClose}
             className="px-8 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold rounded-xl transition-colors text-sm"
@@ -1320,7 +1356,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending_payment' | 'paid'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'pending_payment' | 'paid'>('all')
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const [showQRModal, setShowQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
@@ -1354,7 +1390,14 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
       clientName.includes(q) ||
       (b.petId?.name || '').toLowerCase().includes(q) ||
       b._id.toLowerCase().includes(q)
-    const matchesStatus = statusFilter === 'all' || b.status === statusFilter
+    let matchesStatus = true
+    if (statusFilter === 'running') {
+      matchesStatus = b.status === 'pending_payment' && b.medicalRecordId?.stage !== 'completed'
+    } else if (statusFilter === 'pending_payment') {
+      matchesStatus = b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed'
+    } else if (statusFilter === 'paid') {
+      matchesStatus = b.status === 'paid'
+    }
     return matchesSearch && matchesStatus
   })
 
@@ -1415,7 +1458,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
         <div className="flex items-center gap-2 mb-4">
           {([
             { value: 'all', label: 'All' },
-            { value: 'pending_payment', label: 'Running' },
+            { value: 'running', label: 'Running' },
+            { value: 'pending_payment', label: 'Pending Payment' },
             { value: 'paid', label: 'Paid' },
           ] as const).map(({ value, label }) => (
             <button

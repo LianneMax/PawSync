@@ -12,6 +12,7 @@ interface CatalogEntry {
   category: string
   price: number
   administrationRoute?: string
+  injectionPricingType?: 'singleDose' | 'mlPerKg'
   catalogKind: 'product-service' | 'vaccine'
 }
 
@@ -101,6 +102,7 @@ export async function syncBillingFromRecord({
       category: p.category,
       price: p.price,
       administrationRoute: p.administrationRoute,
+      injectionPricingType: p.injectionPricingType,
       catalogKind: 'product-service' as const,
     }))
 
@@ -141,6 +143,7 @@ export async function syncBillingFromRecord({
   const billingItems: any[] = []
 
   // Medications
+  // Single-dose injections are always billed as quantity 1; all others use med.quantity (default 1)
   const medCatalog = allCatalog.filter((c) => c.category === 'Medication')
   for (const med of medications) {
     if (!med.name) continue
@@ -150,11 +153,16 @@ export async function syncBillingFromRecord({
           normalizeName(c.name) === normalizeName(med.name) &&
           (!c.administrationRoute || c.administrationRoute === med.route),
       ) || matchByName(med.name, medCatalog)
+    const isSingleDoseInjection =
+      match &&
+      match.administrationRoute === 'injection' &&
+      match.injectionPricingType === 'singleDose'
     billingItems.push({
       ...(match ? { productServiceId: match.id } : {}),
       name: match ? match.name : med.name,
       type: 'Product',
       unitPrice: match ? match.price : 0,
+      quantity: isSingleDoseInjection ? 1 : ((med as any).quantity ?? 1),
     })
   }
 

@@ -85,6 +85,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
     const newItems: any[] = [];
 
     // Medications — quantity comes from medication.quantity (default 1)
+    // Exception: single-dose injections are always billed as quantity 1 regardless of med.quantity
     for (const med of (record as any).medications ?? []) {
       if (!med.name) continue;
       const match =
@@ -93,13 +94,17 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
             normalizeName(c.name) === normalizeName(med.name) &&
             (!c.administrationRoute || c.administrationRoute === med.route),
         ) || matchByName(med.name, medCatalog);
+      const isSingleDoseInjection =
+        match &&
+        match.administrationRoute === 'injection' &&
+        (match as any).injectionPricingType === 'singleDose';
       newItems.push({
         productServiceId: match ? match._id : null,
         vaccineTypeId: null,
         name: match ? match.name : med.name,
         type: 'Product',
         unitPrice: match ? match.price : 0,
-        quantity: med.quantity ?? 1,
+        quantity: isSingleDoseInjection ? 1 : (med.quantity ?? 1),
       });
     }
 
