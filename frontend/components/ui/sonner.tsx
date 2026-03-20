@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
+const TOASTER_Z_INDEX = 2147483647
+
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
@@ -11,8 +13,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       closeButton
       duration={30000}
-      style={{ fontFamily: 'var(--font-outfit), sans-serif', zIndex: 9999 }}
+      style={{ fontFamily: 'var(--font-outfit), sans-serif', zIndex: TOASTER_Z_INDEX }}
       toastOptions={{
+        style: {
+          zIndex: TOASTER_Z_INDEX,
+        },
         classNames: {
           toast:
             "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg group-[.toaster]:font-[family-name:var(--font-outfit)]",
