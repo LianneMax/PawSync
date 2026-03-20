@@ -72,6 +72,8 @@ export async function syncBillingFromRecord({
   petSpecies,
   petWeightKg,
   preventiveExclusions,
+  confinementAction,
+  confinementDays,
 }: {
   billingId: string
   petId: string
@@ -87,6 +89,8 @@ export async function syncBillingFromRecord({
   petSpecies?: string
   petWeightKg?: number
   preventiveExclusions?: string[]
+  confinementAction?: 'none' | 'confined' | 'released'
+  confinementDays?: number
 }): Promise<void> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -333,6 +337,22 @@ export async function syncBillingFromRecord({
       })
       if (match) usedIds.add(match.id)
     }
+  }
+
+  // Confinement — add a line item for the number of confined days × daily rate.
+  // Use the live day count passed in (computed from ConfinementRecord.admissionDate on the
+  // frontend) so the running bill always reflects the current stay length.
+  if (confinementAction && confinementAction !== 'none' && confinementDays && confinementDays > 0) {
+    const confMatch = productServices.find(
+      (c) => normalizeName(c.name).includes('confinement'),
+    )
+    billingItems.push({
+      ...(confMatch ? { productServiceId: confMatch.id } : {}),
+      name: confMatch ? confMatch.name : 'Confinement',
+      type: 'Service',
+      unitPrice: confMatch ? confMatch.price : 0,
+      quantity: confinementDays,
+    })
   }
 
   if (billingItems.length === 0) return

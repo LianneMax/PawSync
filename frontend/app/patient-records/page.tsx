@@ -645,12 +645,19 @@ export default function PatientRecordsPage() {
                     <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : currentRecord ? (
-                  <div className="bg-linear-to-br from-[#7FA5A3]/5 to-[#476B6B]/5 rounded-xl p-6 shadow-md border-2 border-[#7FA5A3]/30">
+                  <div className={`bg-linear-to-br rounded-xl p-6 shadow-md border-2 ${currentRecord.stage === 'confined' ? 'from-blue-50 to-blue-100/30 border-blue-300' : 'from-[#7FA5A3]/5 to-[#476B6B]/5 border-[#7FA5A3]/30'}`}>
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                          <p className="text-sm font-semibold text-[#2C3E2D]">Active Medical Record</p>
+                          <div className={`w-3 h-3 rounded-full ${currentRecord.stage === 'confined' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                          <p className="text-sm font-semibold text-[#2C3E2D]">
+                            {currentRecord.stage === 'confined' ? 'Confined – Ongoing Record' : 'Active Medical Record'}
+                          </p>
+                          {currentRecord.stage === 'confined' && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide">
+                              Admitted
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-gray-600 mb-2">
                           <span className="flex items-center gap-1">

@@ -232,19 +232,36 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
       });
     }
 
-    // Confinement — quantity = number of days
-    if ((record as any).confinementAction !== 'none' && (record as any).confinementDays > 0) {
-      const confService = allProducts.find(
-        (p: any) => p.type === 'Service' && normalizeName(p.name).includes('confinement'),
-      );
-      newItems.push({
-        productServiceId: confService ? confService._id : null,
-        vaccineTypeId: null,
-        name: confService ? confService.name : 'Confinement',
-        type: 'Service',
-        unitPrice: confService ? confService.price : 0,
-        quantity: (record as any).confinementDays,
-      });
+    // Confinement — quantity = number of days.
+    // For an active confinement (action === 'confined') use a live day count from the
+    // ConfinementRecord so the bill stays current on every save without requiring a manual
+    // update of the medical record's confinementDays field.
+    if ((record as any).confinementAction !== 'none') {
+      let confDays: number = (record as any).confinementDays ?? 0;
+      if ((record as any).confinementAction === 'confined' && (record as any).confinementRecordId) {
+        const confRec = await ConfinementRecord
+          .findById((record as any).confinementRecordId)
+          .select('admissionDate')
+          .lean();
+        if ((confRec as any)?.admissionDate) {
+          confDays = Math.max(1, Math.ceil(
+            (Date.now() - new Date((confRec as any).admissionDate).getTime()) / 86_400_000,
+          ));
+        }
+      }
+      if (confDays > 0) {
+        const confService = allProducts.find(
+          (p: any) => p.type === 'Service' && normalizeName(p.name).includes('confinement'),
+        );
+        newItems.push({
+          productServiceId: confService ? confService._id : null,
+          vaccineTypeId: null,
+          name: confService ? confService.name : 'Confinement',
+          type: 'Service',
+          unitPrice: confService ? confService.price : 0,
+          quantity: confDays,
+        });
+      }
     }
 
     // Pregnancy Delivery — deliveryType stores the selected service name from the 'Pregnancy Delivery' catalog

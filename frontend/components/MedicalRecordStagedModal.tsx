@@ -603,6 +603,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [vitalsOpen, setVitalsOpen] = useState(true)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
+  // Tracks the stage the record was in when first loaded (e.g. 'confined').
+  const [recordStage, setRecordStage] = useState<string>('pre_procedure')
   const [confined, setConfined] = useState(false)
   const [discharge, setDischarge] = useState(false)
   const [referral, setReferral] = useState(false)
@@ -1074,8 +1076,8 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       if (r.vetId?._id) setVetId(r.vetId._id)
       
       const stageToStep: Record<string, StepKey> = (isVaccinationAppt || isSurgeryAppt)
-        ? { pre_procedure: 1, in_procedure: 2, post_procedure: 4, completed: 4 }
-        : { pre_procedure: 1, in_procedure: 2, post_procedure: 3, completed: 3 }
+        ? { pre_procedure: 1, in_procedure: 2, post_procedure: 4, confined: 4, completed: 4 }
+        : { pre_procedure: 1, in_procedure: 2, post_procedure: 3, confined: 3, completed: 3 }
       let currentStep = stageToStep[r.stage] || 1
 
       // Pre-fill vaccination rows from any existing vaccination records linked to this appointment.
@@ -1129,7 +1131,10 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       }
 
       setStep(currentStep)
-      setAlreadyCompleted(r.stage === 'completed')
+      setRecordStage(r.stage)
+      // 'confined' records have already had their appointment closed — treat them the same
+      // as 'completed' for the purpose of not re-closing the appointment on subsequent saves.
+      setAlreadyCompleted(r.stage === 'completed' || r.stage === 'confined')
       if (isSurgeryAppt && r.surgeryRecord) {
         setSurgeryVetRemarks(r.surgeryRecord.vetRemarks || '')
       }
@@ -1918,7 +1923,13 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       if (isVaccinationAppt) await trySaveVaccinations()
 
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
-      
+
+      // When the pet is marked as confined the appointment closes but the medical record
+      // stays open (stage = 'confined') so billing can continue during the stay.
+      // When the confined toggle is turned off on a previously-confined record the record
+      // moves to 'completed' and the confinement period ends.
+      const targetStage: 'confined' | 'completed' = confined ? 'confined' : 'completed'
+
       // Ensure preventiveCare items have correct careType mapping
       const sanitizedPreventiveCare = preventiveCare.map((care) => ({
         careType: mapProductToCareType(care.product),
@@ -1926,16 +1937,16 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         dateAdministered: care.dateAdministered,
         notes: care.notes,
       }))
-      
+
       // Extract diagnostic test images and combine with general images
       const diagImgs = buildDiagnosticTestImages()
       const allImages = [...diagImgs, ...images, ...titerImages]
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
-      
+
       await updateMedicalRecord(recordId, {
-        stage: 'completed',
+        stage: targetStage,
         visitSummary,
         plan: effectivePlan,
         immunityTesting: immunityPayload,
@@ -1958,16 +1969,40 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
         } : {}),
       }, token)
       if (billingId && recordCreatedAt) {
-        syncBillingFromRecord({ billingId, petId, medications, diagnosticTests: diagnosticTestsToSend, preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token, recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })), titerEnabled: titerEnabled && !skipTiterSuggested, deliveryServiceName: pregnancyDelivery ? (pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || '') : undefined, appointmentTypes }).catch(() => {})
+        // Compute live confinement days from confinedSince for the running-bill line item
+        const liveConfinementDays = confined && pet?.confinedSince
+          ? Math.max(1, Math.ceil((Date.now() - new Date(pet.confinedSince).getTime()) / 86_400_000))
+          : confinementDays
+        syncBillingFromRecord({
+          billingId, petId, medications, diagnosticTests: diagnosticTestsToSend,
+          preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token,
+          recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({
+            vaccineTypeId: v.vaccineTypeId,
+            vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '',
+            _id: v.createdVaccineId,
+          })),
+          titerEnabled: titerEnabled && !skipTiterSuggested,
+          deliveryServiceName: pregnancyDelivery ? (pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || '') : undefined,
+          appointmentTypes,
+          confinementAction: confinementAction || 'none',
+          confinementDays: liveConfinementDays,
+        }).catch(() => {})
       }
       await syncPregnancyStatus()
+      // Close the appointment on first completion (confined or fully completed).
+      // alreadyCompleted is true when we are re-saving a record that was already
+      // in 'confined' stage, so we skip the appointment update to avoid duplicates.
       if (!alreadyCompleted && appointmentId) {
         await updateAppointmentStatus(appointmentId, 'completed', token)
       }
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
       setShowCompleteConfirm(false)
-      toast.success('Visit completed!')
+      if (targetStage === 'confined') {
+        toast.success(recordStage === 'confined' ? 'Confinement record updated!' : 'Pet admitted. Visit closed, record stays open.')
+      } else {
+        toast.success('Visit completed!')
+      }
       onComplete()
     } catch {
       toast.error('Failed to complete visit')
@@ -4610,7 +4645,9 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
                 className="flex items-center gap-2 px-5 py-2 bg-[#35785C] text-white rounded-xl text-sm font-medium hover:bg-[#2a6049] transition-colors disabled:opacity-60"
               >
                 {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                Complete Record & Finish Visit
+                {confined
+                  ? (recordStage === 'confined' ? 'Save Confinement Update' : 'Admit & Close Visit')
+                  : (recordStage === 'confined' ? 'Release & Complete Visit' : 'Complete Record & Finish Visit')}
               </button>
             )}
           </div>
@@ -4621,9 +4658,19 @@ const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingServic
       <Dialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Complete Visit?</DialogTitle>
+            <DialogTitle>
+              {confined
+                ? (recordStage === 'confined' ? 'Save Confinement Update?' : 'Admit Pet for Confinement?')
+                : (recordStage === 'confined' ? 'Release Pet & Complete Visit?' : 'Complete Visit?')}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to complete this visit? This action cannot be undone.
+              {confined && recordStage !== 'confined'
+                ? 'The appointment will be closed but the medical record will stay open. You can add medications and services during confinement from Patient Records.'
+                : confined && recordStage === 'confined'
+                  ? 'This will save the current medications and services and update the running bill.'
+                  : recordStage === 'confined'
+                    ? 'The pet will be released from confinement, the confinement charge will be finalized, and the visit will be completed.'
+                    : 'Are you sure you want to complete this visit? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

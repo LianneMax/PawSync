@@ -486,13 +486,15 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Billing is already marked as paid' });
     }
 
-    // Billing can only be paid once the linked medical record is completed
+    // Billing can only be paid once the linked medical record is completed OR the pet is
+    // currently confined (running bill — payment may be taken at any point during a stay).
     if (!billing.medicalRecordId) {
       return res.status(400).json({ status: 'ERROR', message: 'No medical record linked to this billing' });
     }
     const linkedRecord = await MedicalRecord.findById(billing.medicalRecordId).select('stage').lean();
-    if (!linkedRecord || (linkedRecord as any).stage !== 'completed') {
-      return res.status(400).json({ status: 'ERROR', message: 'Billing can only be marked as paid after the medical record is completed' });
+    const payableStages: string[] = ['completed', 'confined'];
+    if (!linkedRecord || !payableStages.includes((linkedRecord as any).stage)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Billing can only be marked as paid after the medical record is completed or the pet is admitted' });
     }
 
     const { amountPaid, paymentMethod } = req.body;

@@ -99,7 +99,7 @@ export interface IMedicalRecord extends Document {
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
   appointmentId: mongoose.Types.ObjectId | null;
-  stage: 'pre_procedure' | 'in_procedure' | 'post_procedure' | 'completed';
+  stage: 'pre_procedure' | 'in_procedure' | 'post_procedure' | 'confined' | 'completed';
   chiefComplaint: string;
   vitals: {
     weight: IVitalEntry;
@@ -372,7 +372,7 @@ const MedicalRecordSchema = new Schema(
     },
     stage: {
       type: String,
-      enum: ['pre_procedure', 'in_procedure', 'post_procedure', 'completed'],
+      enum: ['pre_procedure', 'in_procedure', 'post_procedure', 'confined', 'completed'],
       default: 'pre_procedure'
     },
     chiefComplaint: {

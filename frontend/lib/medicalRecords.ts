@@ -131,7 +131,7 @@ export interface MedicalRecord {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clinicBranchId: any;
   appointmentId?: any;
-  stage: 'pre_procedure' | 'in_procedure' | 'post_procedure' | 'completed';
+  stage: 'pre_procedure' | 'in_procedure' | 'post_procedure' | 'confined' | 'completed';
   chiefComplaint: string;
   vitals: Vitals;
   images: ImageFragment[];
