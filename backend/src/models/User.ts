@@ -7,6 +7,7 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   contactNumber: string;
+  contactNumberNormalized?: string | null;
   photo?: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin';
   clinicId: mongoose.Types.ObjectId | null;
@@ -56,6 +57,13 @@ const UserSchema = new Schema(
       default: null,
       sparse: true // Allow null values
       //match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid contact number']
+    },
+    contactNumberNormalized: {
+      type: String,
+      default: null,
+      sparse: true,
+      unique: true,
+      index: true
     },
     userType: {
       type: String,
@@ -129,6 +137,12 @@ const UserSchema = new Schema(
 
 // Hash password before saving
 UserSchema.pre('save', async function (this: IUser) {
+  if (this.isModified('contactNumber')) {
+    const normalizedContact = (this.contactNumber || '').replace(/\D/g, '');
+    this.contactNumber = normalizedContact || null as any;
+    this.contactNumberNormalized = normalizedContact || null as any;
+  }
+
   // Only hash password if it's new or modified
   if (!this.isModified('password')) {
     return;

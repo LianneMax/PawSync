@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
 
+const normalizeContactNumber = (value?: string | null): string => (value || '').replace(/\D/g, '');
+
 /**
  * Get user profile
  */
@@ -58,7 +60,20 @@ export const updateProfile = async (req: Request, res: Response) => {
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (email) user.email = email.toLowerCase().trim();
-    if (contactNumber) user.contactNumber = contactNumber;
+    if (contactNumber !== undefined) {
+      const normalizedContact = normalizeContactNumber(contactNumber);
+      if (normalizedContact) {
+        const existingContactUser = await User.findOne({
+          contactNumberNormalized: normalizedContact,
+          _id: { $ne: user._id }
+        });
+
+        if (existingContactUser) {
+          return res.status(409).json({ status: 'ERROR', message: 'Mobile number is already registered' });
+        }
+      }
+      user.contactNumber = normalizedContact || null as any;
+    }
     if (photo !== undefined) user.photo = photo;
 
     await user.save({ validateBeforeSave: false });

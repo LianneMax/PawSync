@@ -23,6 +23,13 @@ import Pet from '../models/Pet';
 import mongoose from 'mongoose';
 
 const router = express.Router();
+const normalizeNfcTagId = (value?: string | null): string => {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (['null', 'undefined', 'n/a', 'na', '-'].includes(lower)) return '';
+  return trimmed.toUpperCase();
+};
 
 // GET /api/nfc/readers - List all connected NFC readers
 router.get('/readers', (_req: Request, res: Response) => {
@@ -162,6 +169,7 @@ router.post('/commands/:id/result', nfcAuthMiddleware, async (req: Request, res:
     writeSuccess: boolean;
     message?: string;
   };
+  const normalizedUid = normalizeNfcTagId(uid);
 
   try {
     const command = await NfcCommand.findByIdAndUpdate(
@@ -181,9 +189,19 @@ router.post('/commands/:id/result', nfcAuthMiddleware, async (req: Request, res:
     }
 
     // Persist the NFC tag UID on the pet document so the UI shows "Written"
-    if (writeSuccess && uid) {
-      await Pet.findByIdAndUpdate(command.petId, { nfcTagId: uid });
-      console.log(`[NFC/result] Saved tag UID ${uid} to pet ${command.petId}`);
+    if (writeSuccess && normalizedUid) {
+      const duplicateTag = await Pet.findOne({
+        nfcTagId: normalizedUid,
+        _id: { $ne: command.petId }
+      });
+
+      if (duplicateTag) {
+        res.status(409).json({ success: false, message: 'This NFC tag is already assigned to another pet' });
+        return;
+      }
+
+      await Pet.findByIdAndUpdate(command.petId, { nfcTagId: normalizedUid });
+      console.log(`[NFC/result] Saved tag UID ${normalizedUid} to pet ${command.petId}`);
     }
 
     // Notify WebSocket clients about the write outcome

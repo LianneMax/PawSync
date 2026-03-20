@@ -62,6 +62,25 @@ const generateQRCodeForPet = async (petId: string, baseUrl: string): Promise<str
   }
 };
 
+const normalizePetName = (value: string): string => value.trim().toLowerCase();
+const normalizeOptionalText = (value?: string | null): string => (value || '').trim().toLowerCase();
+const normalizeNfcTagId = (value?: string | null): string => {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (['null', 'undefined', 'n/a', 'na', '-'].includes(lower)) return '';
+  return trimmed.toUpperCase();
+};
+
+const getDayRange = (rawDate: string | Date) => {
+  const date = new Date(rawDate);
+  const start = new Date(date);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { start, end };
+};
+
 /**
  * Create a new pet
  */
@@ -77,6 +96,71 @@ export const createPet = async (req: Request, res: Response) => {
       nfcTagId, photo, color, allergies
     } = req.body;
 
+    const normalizedName = normalizePetName(name || '');
+    const normalizedBreed = normalizeOptionalText(breed);
+    const normalizedSecondaryBreed = normalizeOptionalText(secondaryBreed);
+    const normalizedMicrochip = normalizeOptionalText(microchipNumber);
+    const normalizedNfcTagId = normalizeNfcTagId(nfcTagId);
+    const parsedDob = new Date(dateOfBirth);
+    if (Number.isNaN(parsedDob.getTime())) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid dateOfBirth' });
+    }
+    const { start: dobStart, end: dobEnd } = getDayRange(parsedDob);
+
+    if (normalizedMicrochip) {
+      const duplicateMicrochip = await Pet.findOne({
+        ownerId: req.user.userId,
+        $expr: {
+          $eq: [{ $toLower: { $ifNull: ['$microchipNumber', ''] } }, normalizedMicrochip]
+        }
+      });
+
+      if (duplicateMicrochip) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'A pet with this microchip number already exists for this owner',
+          data: { pet: duplicateMicrochip }
+        });
+      }
+    }
+
+    if (normalizedNfcTagId) {
+      const duplicateTag = await Pet.findOne({ nfcTagId: normalizedNfcTagId });
+      if (duplicateTag) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'This NFC tag is already assigned to another pet',
+          data: { pet: duplicateTag }
+        });
+      }
+    }
+
+    const duplicatePet = await Pet.findOne({
+      species,
+      breed,
+      secondaryBreed: secondaryBreed || null,
+      sex,
+      dateOfBirth: { $gte: dobStart, $lt: dobEnd },
+      $expr: {
+        $and: [
+          { $eq: [{ $toLower: '$name' }, normalizedName] },
+          { $eq: [{ $toLower: { $ifNull: ['$breed', ''] } }, normalizedBreed] },
+          { $eq: [{ $toLower: { $ifNull: ['$secondaryBreed', ''] } }, normalizedSecondaryBreed] }
+        ]
+      }
+    });
+
+    if (duplicatePet) {
+      const sameOwner = duplicatePet.ownerId.toString() === req.user.userId;
+      return res.status(409).json({
+        status: 'ERROR',
+        message: sameOwner
+          ? 'A pet with the same identity already exists for this owner'
+          : 'This pet already exists under another account. Please use transfer instead of creating a new record.',
+        data: { pet: duplicatePet }
+      });
+    }
+
     const pet = await Pet.create({
       ownerId: req.user.userId,
       name,
@@ -88,7 +172,7 @@ export const createPet = async (req: Request, res: Response) => {
       weight,
       sterilization,
       microchipNumber: microchipNumber || null,
-      nfcTagId: nfcTagId || null,
+      nfcTagId: normalizedNfcTagId || null,
       photo: photo || null,
       color: color || null,
       allergies: allergies || []
@@ -215,6 +299,26 @@ export const updatePet = async (req: Request, res: Response) => {
     }
 
     const wasLost = pet.isLost;
+
+    if (req.body.nfcTagId !== undefined) {
+      const normalizedIncomingTag = normalizeNfcTagId(req.body.nfcTagId);
+      if (normalizedIncomingTag) {
+        const tagInUse = await Pet.findOne({
+          nfcTagId: normalizedIncomingTag,
+          _id: { $ne: pet._id }
+        });
+
+        if (tagInUse) {
+          return res.status(409).json({
+            status: 'ERROR',
+            message: 'This NFC tag is already assigned to another pet'
+          });
+        }
+        req.body.nfcTagId = normalizedIncomingTag;
+      } else {
+        req.body.nfcTagId = null;
+      }
+    }
 
     const allowedFields = [
       'name', 'species', 'breed', 'secondaryBreed', 'sex',

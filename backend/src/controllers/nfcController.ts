@@ -4,6 +4,13 @@ import { nfcService } from '../services/nfcService';
 import { NfcCommand } from '../models/NfcCommand';
 
 const isCloud = !!process.env.RENDER || process.env.NFC_MODE === 'remote';
+const normalizeNfcTagId = (value?: string | null): string => {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (['null', 'undefined', 'n/a', 'na', '-'].includes(lower)) return '';
+  return trimmed.toUpperCase();
+};
 
 /**
  * Get pet details for NFC tag writing.
@@ -133,9 +140,22 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
 
       if (writeResult.writeSuccess) {
         if (writeResult.uid) {
-          pet.nfcTagId = writeResult.uid;
+          const normalizedUid = normalizeNfcTagId(writeResult.uid);
+          const existingTagOwner = await Pet.findOne({
+            nfcTagId: normalizedUid,
+            _id: { $ne: pet._id }
+          });
+
+          if (existingTagOwner) {
+            return res.status(409).json({
+              status: 'ERROR',
+              message: 'This NFC tag is already assigned to another pet'
+            });
+          }
+
+          pet.nfcTagId = normalizedUid;
           await pet.save();
-          console.log(`[API] Saved NFC tag UID ${writeResult.uid} to pet ${petId}`);
+          console.log(`[API] Saved NFC tag UID ${normalizedUid} to pet ${petId}`);
         }
 
         return res.status(200).json({
@@ -179,13 +199,24 @@ export const recordNFCTagWriting = async (req: Request, res: Response) => {
     const { petId } = req.params;
     const { nfcTagId } = req.body;
 
-    if (!petId || !nfcTagId) {
+    const normalizedTagId = normalizeNfcTagId(nfcTagId);
+
+    if (!petId || !normalizedTagId) {
       return res.status(400).json({ status: 'ERROR', message: 'Pet ID and NFC Tag ID are required' });
+    }
+
+    const duplicateTag = await Pet.findOne({
+      nfcTagId: normalizedTagId,
+      _id: { $ne: petId }
+    });
+
+    if (duplicateTag) {
+      return res.status(409).json({ status: 'ERROR', message: 'This NFC tag is already assigned to another pet' });
     }
 
     const pet = await Pet.findByIdAndUpdate(
       petId,
-      { nfcTagId },
+      { nfcTagId: normalizedTagId },
       { new: true }
     );
 

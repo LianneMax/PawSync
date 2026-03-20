@@ -88,8 +88,7 @@ const PetSchema = new Schema(
     },
     nfcTagId: {
       type: String,
-      default: null,
-      index: true
+      default: null
     },
     qrCode: {
       type: String,
@@ -201,7 +200,27 @@ const PetSchema = new Schema(
   }
 );
 
+PetSchema.index(
+  { nfcTagId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      nfcTagId: { $type: 'string', $nin: ['', null] }
+    }
+  }
+);
+
 PetSchema.pre('save', async function () {
+  if (typeof this.nfcTagId === 'string') {
+    const trimmedTag = this.nfcTagId.trim();
+    const lower = trimmedTag.toLowerCase();
+    if (!trimmedTag || ['null', 'undefined', 'n/a', 'na', '-'].includes(lower)) {
+      this.nfcTagId = null as any;
+    } else {
+      this.nfcTagId = trimmedTag.toUpperCase() as any;
+    }
+  }
+
   if (this.sex === 'male') {
     this.pregnancyStatus = null as any;
   }

@@ -13,6 +13,7 @@ const getJwtExpire = () => process.env.JWT_EXPIRE || '7d';
 const MAX_LOGIN_ATTEMPTS = 3;
 const LOCK_DURATION = 15 * 60 * 1000; // 15 minutes
 const OTP_EXPIRY = 10 * 60 * 1000; // 10 minutes
+const normalizeContactNumber = (value?: string | null): string => (value || '').replace(/\D/g, '');
 
 /**
  * Check that an email domain has MX records (i.e. it can actually receive mail).
@@ -62,6 +63,7 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, confirmPassword, userType, mobileNumber } = req.body;
     let { firstName, lastName } = req.body;
+    const normalizedMobileNumber = normalizeContactNumber(mobileNumber);
 
     // Validation
     if (!email || !password || !confirmPassword || !userType) {
@@ -80,7 +82,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Validate mobile number
-    if (!mobileNumber) {
+    if (!normalizedMobileNumber) {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Please provide a mobile number'
@@ -112,6 +114,14 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    const existingContactUser = await User.findOne({ contactNumberNormalized: normalizedMobileNumber });
+    if (existingContactUser) {
+      return res.status(409).json({
+        status: 'ERROR',
+        message: 'Mobile number is already registered'
+      });
+    }
+
     // Validate that the email domain can actually receive mail (has MX records)
     const domainIsValid = await hasValidEmailDomain(email);
     if (!domainIsValid) {
@@ -134,7 +144,7 @@ export const register = async (req: Request, res: Response) => {
       firstName,
       lastName,
       email: email.toLowerCase(),
-      contactNumber: mobileNumber || null,
+      contactNumber: normalizedMobileNumber,
       password,
       userType,
       isVerified: userType !== 'veterinarian',
