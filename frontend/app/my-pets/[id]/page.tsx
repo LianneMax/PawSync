@@ -16,7 +16,7 @@ import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinic
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Skull } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -106,6 +106,10 @@ export default function PetProfilePage() {
   const [isMarkingLost, setIsMarkingLost] = useState(false)
   const [isUpdatingConfinement, setIsUpdatingConfinement] = useState(false)
   const hasRegisteredNfcTag = Boolean(pet?.nfcTagId?.trim() && pet.nfcTagId !== '-')
+  const isPetDeceased = Boolean(pet && (!pet.isAlive || pet.status === 'deceased'))
+  const deceasedDateLabel = pet
+    ? formatDate(pet.deceasedAt || new Date().toISOString())
+    : ''
   const lostPetLockedMessage = 'Purchase a pet tag first to unlock this feature.'
 
   // Editable fields
@@ -460,6 +464,11 @@ export default function PetProfilePage() {
   const handleRequestNfcTag = async () => {
     if (!pet || !token) return
 
+    if (!pet.isAlive || pet.status === 'deceased') {
+      toast('Action Unavailable', { description: 'Deceased pets cannot request NFC tags.' })
+      return
+    }
+
     // If pet has no tag, submit request immediately
     if (!pet.nfcTagId) {
       setIsSubmittingRequest(true)
@@ -735,6 +744,12 @@ export default function PetProfilePage() {
             <p className="text-white/70 text-sm mt-1">
               {pet.breed}{pet.secondaryBreed ? ` · ${pet.secondaryBreed}` : ''} | {pet.species}
             </p>
+            {isPetDeceased && (
+              <div className="mt-3 inline-flex items-center gap-1.5 bg-[#F5E6D8] border border-[#8B5E3C] text-[#8B5E3C] text-xs font-semibold px-3 py-1 rounded-full">
+                <Skull className="w-3.5 h-3.5" />
+                Passed Away — {deceasedDateLabel}
+              </div>
+            )}
           </div>
 
           {/* Photo upload area (toggled) */}
@@ -890,6 +905,14 @@ export default function PetProfilePage() {
                 label="Owner Contact"
                 value={typeof pet.ownerId === 'object' ? (pet.ownerId as PopulatedOwner).contactNumber || '-' : '-'}
               />
+
+              {isPetDeceased && (
+                <DetailField
+                  label="Passed Away"
+                  value={deceasedDateLabel}
+                  highlight
+                />
+              )}
             </div>
 
             {/* Health Section */}
@@ -1176,16 +1199,21 @@ export default function PetProfilePage() {
                       <span className="inline-flex">
                         <button
                           onClick={handleRequestNfcTag}
-                          disabled={isSubmittingRequest || !hasRegisteredNfcTag}
+                          disabled={isSubmittingRequest || !hasRegisteredNfcTag || isPetDeceased}
                           className="px-6 py-2.5 bg-[#7FA5A3] text-white font-semibold rounded-lg hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isSubmittingRequest ? 'Submitting...' : 'Request Replacement Pet Tag'}
+                          {isPetDeceased ? 'Tag Request Disabled' : isSubmittingRequest ? 'Submitting...' : 'Request Replacement Pet Tag'}
                         </button>
                       </span>
                     </TooltipTrigger>
                     {!hasRegisteredNfcTag && (
                       <TooltipContent side="top" sideOffset={8}>
                         Register a pet tag first before requesting a replacement.
+                      </TooltipContent>
+                    )}
+                    {isPetDeceased && (
+                      <TooltipContent side="top" sideOffset={8}>
+                        Deceased pets cannot request NFC tags.
                       </TooltipContent>
                     )}
                   </Tooltip>

@@ -41,6 +41,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // --- Types ---
@@ -777,6 +778,13 @@ function RemovePetModal({
 }) {
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
+  const [deceasedDate, setDeceasedDate] = useState(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })
   const [newOwnerEmail, setNewOwnerEmail] = useState('')
   const [emailSuggestions, setEmailSuggestions] = useState<string[]>([])
   const [isTransferSearchOpen, setIsTransferSearchOpen] = useState(false)
@@ -788,6 +796,11 @@ function RemovePetModal({
   const resetForm = () => {
     setReason('')
     setDetails('')
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    setDeceasedDate(`${year}-${month}-${day}`)
     setNewOwnerEmail('')
     setEmailSuggestions([])
     setIsTransferSearchOpen(false)
@@ -855,6 +868,11 @@ function RemovePetModal({
       return
     }
 
+    if (isPassedAway && !deceasedDate) {
+      setError('Please select the date of death')
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -879,7 +897,7 @@ function RemovePetModal({
           icon: <PawPrint className="w-4 h-4 text-[#7FA5A3]" />,
         })
       } else if (isPassedAway) {
-        const response = await markPetDeceased(pet.id, token)
+        const response = await markPetDeceased(pet.id, { deceasedAt: deceasedDate }, token)
         if (response.status === 'ERROR') {
           setError(response.message || 'Unable to mark pet as deceased')
           setLoading(false)
@@ -1024,6 +1042,22 @@ function RemovePetModal({
             <p className="text-xs text-gray-400 mt-1">
               Recipient must have an existing PawSync pet-owner account.
             </p>
+          </div>
+        )}
+
+        {isPassedAway && (
+          <div className="mb-4">
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Date of Death</label>
+            <DatePicker
+              value={deceasedDate}
+              onChange={(value) => {
+                setDeceasedDate(value)
+                setError('')
+              }}
+              placeholder="MM/DD/YYYY"
+              allowFutureDates={false}
+            />
+            <p className="text-xs text-gray-400 mt-1">Defaults to today. You may select an earlier date.</p>
           </div>
         )}
 

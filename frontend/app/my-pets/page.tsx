@@ -6,7 +6,7 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, requestPetTag, togglePetLost, type Pet as APIPet } from '@/lib/pets'
-import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X } from 'lucide-react'
+import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X, Skull } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ export default function MyPetsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [petTypeFilter, setPetTypeFilter] = useState<'all' | 'dog' | 'cat'>('all')
+  const [lifeStatusFilter, setLifeStatusFilter] = useState<'all' | 'alive' | 'deceased'>('all')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
@@ -143,10 +144,16 @@ export default function MyPetsPage() {
 
     return pets.filter((pet) => {
       const matchesType = petTypeFilter === 'all' ? true : getPetType(pet) === petTypeFilter
+      const isDeceased = !pet.isAlive || pet.status === 'deceased'
+      const matchesLifeStatus = lifeStatusFilter === 'all'
+        ? true
+        : lifeStatusFilter === 'deceased'
+          ? isDeceased
+          : !isDeceased
       const matchesSearch = query.length === 0 ? true : pet.name.toLowerCase().includes(query)
-      return matchesType && matchesSearch
+      return matchesType && matchesLifeStatus && matchesSearch
     })
-  }, [pets, petTypeFilter, searchQuery])
+  }, [pets, petTypeFilter, lifeStatusFilter, searchQuery])
 
   const suggestions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -244,7 +251,28 @@ export default function MyPetsPage() {
               ))}
             </div>
 
-            {(petTypeFilter !== 'all' || searchQuery.trim()) && (
+            <div className="inline-flex items-center gap-1 bg-white border border-gray-200 rounded-full p-1">
+              {[
+                { key: 'all', label: 'All Status' },
+                { key: 'alive', label: 'Alive' },
+                { key: 'deceased', label: 'Deceased' },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setLifeStatusFilter(option.key as 'all' | 'alive' | 'deceased')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                    lifeStatusFilter === option.key
+                      ? 'bg-[#7FA5A3] text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {(petTypeFilter !== 'all' || lifeStatusFilter !== 'all' || searchQuery.trim()) && (
               <div className="flex flex-wrap items-center gap-2">
                 {petTypeFilter !== 'all' && (
                   <button
@@ -253,6 +281,16 @@ export default function MyPetsPage() {
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EAF1F1] text-[#3D5E5C] hover:bg-[#dfe9e8] transition-colors"
                   >
                     {petTypeFilter === 'dog' ? 'Dogs' : 'Cats'}
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                {lifeStatusFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setLifeStatusFilter('all')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EAF1F1] text-[#3D5E5C] hover:bg-[#dfe9e8] transition-colors"
+                  >
+                    {lifeStatusFilter === 'alive' ? 'Alive' : 'Deceased'}
                     <X className="w-3 h-3" />
                   </button>
                 )}
@@ -293,13 +331,23 @@ export default function MyPetsPage() {
               <div
                 key={pet._id}
                 className={`bg-white rounded-2xl p-6 relative transition-all duration-300 ease-out hover:scale-103 hover:shadow-md ${
-                  pet.isLost
+                  !pet.isAlive || pet.status === 'deceased'
+                    ? 'border-2 border-[#8B5E3C] shadow-[0_0_0_1px_rgba(139,94,60,0.15)]'
+                    : pet.isLost
                     ? 'border-2 border-[#900B09] shadow-[0_0_0_1px_rgba(144,11,9,0.15)]'
                     : 'border border-gray-200 shadow-sm'
                 }`}
               >
+                {/* Deceased badge */}
+                {(!pet.isAlive || pet.status === 'deceased') && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#F5E6D8] border border-[#8B5E3C] text-[#8B5E3C] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                    <Skull className="w-3 h-3" />
+                    Marked as Deceased
+                  </div>
+                )}
+
                 {/* Lost badge */}
-                {pet.isLost && (
+                {pet.isLost && pet.isAlive && pet.status !== 'deceased' && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FEE2E2] border border-[#900B09] text-[#900B09] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
                     <AlertTriangle className="w-3 h-3" />
                     Marked as Lost
@@ -382,10 +430,11 @@ export default function MyPetsPage() {
                         setSelectedPetId(pet._id)
                         setShowConfirmation(true)
                       }}
-                      className="text-sm font-semibold py-2.5 rounded-xl border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors flex items-center justify-center gap-1.5"
+                      disabled={!pet.isAlive || pet.status === 'deceased'}
+                      className="text-sm font-semibold py-2.5 rounded-xl border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Nfc className="w-3.5 h-3.5" />
-                      Request Pet Tag
+                      {!pet.isAlive || pet.status === 'deceased' ? 'Tag Request Disabled' : 'Request Pet Tag'}
                     </button>
                   ) : (
                     <button
@@ -399,7 +448,7 @@ export default function MyPetsPage() {
                 </div>
 
                 {/* Found Button — only visible when pet is marked as lost */}
-                {pet.isLost && (
+                {pet.isLost && pet.isAlive && pet.status !== 'deceased' && (
                   <button
                     onClick={() => handleMarkFound(pet)}
                     disabled={togglingLostPetId === pet._id}

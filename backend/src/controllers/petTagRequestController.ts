@@ -42,6 +42,10 @@ export const requestPetTag = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to request tag for this pet' });
     }
 
+    if (!pet.isAlive || pet.status === 'deceased') {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot request an NFC tag for a pet marked as deceased' });
+    }
+
     // Check if there's already a pending request for this pet
     const existingRequest = await PetTagRequest.findOne({
       petId: petId,

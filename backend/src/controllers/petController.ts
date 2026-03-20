@@ -458,6 +458,19 @@ export const markPetDeceased = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to mark this pet as deceased' });
     }
 
+    const rawDeceasedAt = req.body?.deceasedAt;
+    let resolvedDeceasedAt = new Date();
+    if (rawDeceasedAt) {
+      const parsed = new Date(rawDeceasedAt);
+      if (Number.isNaN(parsed.getTime())) {
+        return res.status(400).json({ status: 'ERROR', message: 'Invalid deceased date' });
+      }
+      if (parsed.getTime() > Date.now()) {
+        return res.status(400).json({ status: 'ERROR', message: 'Date of death cannot be in the future' });
+      }
+      resolvedDeceasedAt = parsed;
+    }
+
     if (!pet.isAlive || pet.status === 'deceased') {
       return res.status(200).json({ status: 'SUCCESS', message: 'Pet is already marked as deceased', data: { pet } });
     }
@@ -467,7 +480,7 @@ export const markPetDeceased = async (req: Request, res: Response) => {
 
     pet.isAlive = false;
     pet.status = 'deceased';
-    pet.deceasedAt = new Date();
+    pet.deceasedAt = resolvedDeceasedAt;
     pet.deceasedBy = req.user.userId as any;
     pet.isLost = false;
     pet.lostReportedByStranger = false;
@@ -475,6 +488,28 @@ export const markPetDeceased = async (req: Request, res: Response) => {
     pet.lostContactNumber = null;
     pet.lostMessage = null;
     await pet.save();
+
+    const now = new Date();
+    const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+    const activeAppointments = await Appointment.find({
+      petId: pet._id,
+      status: { $in: cancellableStatuses }
+    }).select('_id date startTime status');
+
+    const appointmentsToCancel = activeAppointments.filter((appointment) => {
+      const datePart = new Date(appointment.date);
+      const [hours, minutes] = String(appointment.startTime || '00:00').split(':');
+      datePart.setHours(parseInt(hours || '0', 10), parseInt(minutes || '0', 10), 0, 0);
+      return datePart >= now;
+    });
+
+    if (appointmentsToCancel.length > 0) {
+      const appointmentIds = appointmentsToCancel.map((a) => a._id);
+      await Appointment.updateMany(
+        { _id: { $in: appointmentIds } },
+        { $set: { status: 'cancelled' } }
+      );
+    }
 
     const records = await MedicalRecord.find({ petId: pet._id }).select('ownerAtTime vetAtTime vetId');
     for (const record of records) {
@@ -535,8 +570,8 @@ export const markPetDeceased = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       status: 'SUCCESS',
-      message: `${pet.name} has been marked as deceased. Records are now read-only.`,
-      data: { pet }
+      message: `${pet.name} has been marked as deceased. Records are now read-only.${appointmentsToCancel.length ? ` ${appointmentsToCancel.length} future appointment${appointmentsToCancel.length > 1 ? 's were' : ' was'} cancelled.` : ''}`,
+      data: { pet, cancelledFutureAppointments: appointmentsToCancel.length }
     });
   } catch (error) {
     console.error('Mark pet deceased error:', error);

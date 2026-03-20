@@ -151,9 +151,14 @@ export const searchTransferOwnerEmails = async (query: string, token?: string): 
   return authenticatedFetch(`/pets/transfer-owner-suggestions?q=${encodeURIComponent(query)}`, { method: 'GET' }, token);
 };
 
-export const markPetDeceased = async (id: string, token?: string): Promise<PetResponse> => {
+export const markPetDeceased = async (
+  id: string,
+  payload?: { deceasedAt?: string },
+  token?: string
+): Promise<PetResponse> => {
   return authenticatedFetch(`/pets/${id}/mark-deceased`, {
-    method: 'POST'
+    method: 'POST',
+    body: JSON.stringify(payload || {})
   }, token);
 };
 
