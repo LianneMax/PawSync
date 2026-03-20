@@ -1,13 +1,12 @@
 'use client'
 
-import { Suspense, useState, useRef, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { Dog, Cat, Check, ArrowLeft, ArrowRight, Search, X, ChevronDown } from 'lucide-react'
+import { Dog, Cat, Check, ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { createPet, getMyPets } from '@/lib/pets'
-import { getAllClinicsWithBranches } from '@/lib/clinics'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
   DropdownMenu,
@@ -34,7 +33,6 @@ function PetOnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isFromDashboard = searchParams.get('from') === 'dashboard'
-  const clinicDropdownRef = useRef<HTMLDivElement>(null)
 
   // Step state: 2 = Pet Profile, 3 = Basic Details
   const [currentStep, setCurrentStep] = useState(2)
@@ -77,51 +75,6 @@ function PetOnboardingContent() {
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-
-  // Clinic search state
-  const [clinicSearch, setClinicSearch] = useState('')
-  const [selectedClinic, setSelectedClinic] = useState<{ id: string; name: string; address: string } | null>(null)
-  const [showClinicResults, setShowClinicResults] = useState(false)
-  const [clinics, setClinics] = useState<Array<{ id: string; name: string; address: string }>>([]);
-  const [clinicsLoading, setClinicsLoading] = useState(true);
-
-  // Fetch clinics from database
-  useEffect(() => {
-    const fetchClinics = async () => {
-      try {
-        const response = await getAllClinicsWithBranches();
-        if (response.status === 'SUCCESS' && response.data?.clinics) {
-          const clinicsList = response.data.clinics.map(clinic => ({
-            id: clinic._id,
-            name: clinic.name,
-            address: clinic.address || (clinic.branches?.[0]?.address ?? 'Address not available')
-          }));
-          setClinics(clinicsList);
-        }
-      } catch (error) {
-        console.error('Error fetching clinics:', error);
-      } finally {
-        setClinicsLoading(false);
-      }
-    };
-    fetchClinics();
-  }, []);
-
-  const filteredClinics = clinics.filter(clinic =>
-    clinic.name.toLowerCase().includes(clinicSearch.toLowerCase()) ||
-    clinic.address.toLowerCase().includes(clinicSearch.toLowerCase())
-  )
-
-  // Close clinic dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (clinicDropdownRef.current && !clinicDropdownRef.current.contains(event.target as Node)) {
-        setShowClinicResults(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const goToStep = (step: number) => {
     if (step === currentStep || slidePhase !== 'idle') return
@@ -430,73 +383,6 @@ function PetOnboardingContent() {
                   {submitError}
                 </div>
               )}
-
-              {/* Clinic Search Section */}
-              <div className="mb-8">
-                <div className="relative" ref={clinicDropdownRef}>
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  {selectedClinic ? (
-                    <div className="w-full pl-12 pr-12 py-4 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-[#4F4F4F]">{selectedClinic.name}</p>
-                        <p className="text-sm text-gray-500">{selectedClinic.address}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedClinic(null)
-                          setClinicSearch('')
-                        }}
-                        className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                      >
-                        <X className="w-5 h-5 text-gray-500" />
-                      </button>
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder="Select Clinic"
-                      value={clinicSearch}
-                      onChange={(e) => {
-                        setClinicSearch(e.target.value)
-                        setShowClinicResults(true)
-                      }}
-                      onFocus={() => setShowClinicResults(true)}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-xl border border-gray-200 shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all"
-                    />
-                  )}
-
-                  {showClinicResults && !selectedClinic && (
-                    <div className="absolute z-10 w-full mt-2 bg-white rounded-xl border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
-                      {clinicsLoading ? (
-                        <div className="px-4 py-3 text-gray-500 text-center">
-                          Loading clinics...
-                        </div>
-                      ) : filteredClinics.length > 0 ? (
-                        filteredClinics.map((clinic) => (
-                          <button
-                            key={clinic.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedClinic(clinic)
-                              setClinicSearch('')
-                              setShowClinicResults(false)
-                            }}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
-                          >
-                            <p className="font-medium text-[#4F4F4F]">{clinic.name}</p>
-                            <p className="text-sm text-gray-500">{clinic.address}</p>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-3 text-gray-500 text-center">
-                          No clinics found
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
 
               {/* Basic Information Section */}
               <div className="mb-8">
