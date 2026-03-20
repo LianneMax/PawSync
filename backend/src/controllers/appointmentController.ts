@@ -86,6 +86,13 @@ export const createAppointment = async (req: Request, res: Response) => {
 
     const { petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes } = req.body;
 
+    if (req.user.userType === 'pet-owner' && (!notes || !String(notes).trim())) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Chief complaint is required when booking an appointment.'
+      });
+    }
+
     if (req.user.userType === 'veterinarian') {
       const actingVet = await User.findById(req.user.userId).select('resignation');
       const resignationStatus = actingVet?.resignation?.status;
