@@ -137,19 +137,15 @@ export default function ClinicAdminDashboard() {
   return (
     <DashboardLayout userType="clinic-admin">
       <div className="p-6 lg:p-8">
-        {/* Header */}
-        <PageHeader
-          title="Clinic Admin Dashboard"
-          subtitle="Monitor clinic operations, appointments, and pending requests"
-          className="mb-8"
-        />
-
         {/* Welcome Banner */}
         <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-8 mb-8">
-          <p className="text-white/90 text-base font-medium">
+          <h1
+            className="text-3xl text-white mb-2"
+            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+          >
             Welcome back, {clinicName}!
-          </p>
-          <p className="text-white/80 text-sm mt-1">
+          </h1>
+          <p className="text-white/80 text-sm">
             You have {todayAppointments.length} appointments scheduled for today{pendingApps.length > 0 ? ` and ${pendingApps.length} pending vet application${pendingApps.length !== 1 ? 's' : ''} to review` : ''}.
           </p>
         </div>
