@@ -75,6 +75,23 @@ function addMinutes(time: string, minutes: number): string {
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
 }
 
+function getAppointmentStartDateTime(dateValue: Date, startTime: string): Date | null {
+  const [hourPart, minutePart] = String(startTime || '').split(':');
+  const hour = parseInt(hourPart, 10);
+  const minute = parseInt(minutePart, 10);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+  return new Date(
+    dateValue.getFullYear(),
+    dateValue.getMonth(),
+    dateValue.getDate(),
+    hour,
+    minute,
+    0,
+    0,
+  );
+}
+
 function getVetBookingCutoffDate(
   resignation?: { status?: string; noticeStart?: Date | null; endDate?: Date | null } | null
 ): Date | null {
@@ -194,6 +211,23 @@ export const createAppointment = async (req: Request, res: Response) => {
       }
     }
 
+    const appointmentDate = new Date(date);
+    if (Number.isNaN(appointmentDate.getTime())) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment date' });
+    }
+
+    const appointmentStartDateTime = getAppointmentStartDateTime(appointmentDate, startTime);
+    if (!appointmentStartDateTime) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment start time' });
+    }
+
+    if (appointmentStartDateTime.getTime() < Date.now()) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Cannot book an appointment in the past'
+      });
+    }
+
     // Check if appointment is grooming-only (no vet required) or requires vet
     const hasGrooming = types.some((t: string) => t === 'basic-grooming' || t === 'full-grooming');
     const hasOtherServices = types.some((t: string) => t !== 'basic-grooming' && t !== 'full-grooming');
@@ -230,7 +264,6 @@ export const createAppointment = async (req: Request, res: Response) => {
     // Pet-specific conflict validation
     // ─────────────────────────────────────────────────────────────────────────────────
 
-    const appointmentDate = new Date(date);
     const startOfDay = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
     const endOfDay = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate() + 1);
 
@@ -1221,6 +1254,23 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       });
     }
 
+    const clinicAppointmentDate = new Date(date);
+    if (Number.isNaN(clinicAppointmentDate.getTime())) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment date' });
+    }
+
+    const clinicAppointmentStartDateTime = getAppointmentStartDateTime(clinicAppointmentDate, startTime);
+    if (!clinicAppointmentStartDateTime) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment start time' });
+    }
+
+    if (clinicAppointmentStartDateTime.getTime() < Date.now()) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Cannot book an appointment in the past'
+      });
+    }
+
     // Validate types based on mode
     if (mode === 'online') {
       if (types.length !== 1 || types[0] !== 'consultation') {
@@ -1554,6 +1604,35 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
     } else if (date) {
       // No filter specified but a specific date was requested — exclude cancelled
       query.status = { $nin: ['cancelled'] };
+    }
+
+    const staleConfirmedQuery: any = {
+      clinicId: clinic._id,
+      status: 'confirmed',
+    };
+    if (query.clinicBranchId) staleConfirmedQuery.clinicBranchId = query.clinicBranchId;
+
+    const staleConfirmedAppointments = await Appointment.find(staleConfirmedQuery)
+      .select('_id date startTime')
+      .lean();
+
+    const nowLocal = new Date();
+    const staleAppointmentIds: string[] = [];
+    for (const appointment of staleConfirmedAppointments as any[]) {
+      if (!appointment?.date || !appointment?.startTime) continue;
+      const startDateTime = getAppointmentStartDateTime(new Date(appointment.date), appointment.startTime);
+      if (!startDateTime) continue;
+      const cancelThreshold = new Date(startDateTime.getTime() + 15 * 60 * 1000);
+      if (cancelThreshold < nowLocal) {
+        staleAppointmentIds.push(String(appointment._id));
+      }
+    }
+
+    if (staleAppointmentIds.length > 0) {
+      await Appointment.updateMany(
+        { _id: { $in: staleAppointmentIds }, status: 'confirmed' },
+        { $set: { status: 'cancelled' } }
+      );
     }
 
     const appointments = await Appointment.find(query)

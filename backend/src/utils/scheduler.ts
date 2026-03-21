@@ -351,14 +351,31 @@ export function startScheduler() {
   // Run every minute to auto-cancel/complete appointments based on elapsed time
   cron.schedule('* * * * *', async () => {
     try {
+      const getAppointmentStartDateTime = (dateValue: Date, startTime: string): Date | null => {
+        const [hourPart, minutePart] = String(startTime || '').split(':');
+        const hour = parseInt(hourPart, 10);
+        const minute = parseInt(minutePart, 10);
+        if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+        return new Date(
+          dateValue.getFullYear(),
+          dateValue.getMonth(),
+          dateValue.getDate(),
+          hour,
+          minute,
+          0,
+          0,
+        );
+      };
+
       const now = new Date();
       const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
       // Only consider appointments for today or earlier
       const todayStart = new Date(now);
-      todayStart.setUTCHours(0, 0, 0, 0);
+      todayStart.setHours(0, 0, 0, 0);
       const tomorrowStart = new Date(todayStart);
-      tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
       const activeAppointments = await Appointment.find({
         status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'] },
@@ -382,8 +399,8 @@ export function startScheduler() {
       const lostPetToCancel: typeof activeAppointments = [];
 
       for (const appt of activeAppointments) {
-        const dateStr = appt.date.toISOString().split('T')[0];
-        const apptStart = new Date(`${dateStr}T${appt.startTime}`);
+        const apptStart = getAppointmentStartDateTime(appt.date, appt.startTime);
+        if (!apptStart) continue;
         const pet = appt.petId as any;
 
         if (pet?.isLost || pet?.status === 'lost') {
@@ -407,8 +424,8 @@ export function startScheduler() {
         const owner = appt.ownerId as any;
         if (!owner?._id || !(pet?.isLost || pet?.status === 'lost')) continue;
 
-        const dateStr = appt.date.toISOString().split('T')[0];
-        const apptStart = new Date(`${dateStr}T${appt.startTime}`);
+        const apptStart = getAppointmentStartDateTime(appt.date, appt.startTime);
+        if (!apptStart) continue;
         if (apptStart <= now || apptStart > next24Hours) continue;
 
         const reminderExists = await Notification.exists({
