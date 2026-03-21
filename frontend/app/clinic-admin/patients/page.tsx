@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import VaccineCardPreview from '@/components/VaccineCardPreview'
 import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
 import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
@@ -1108,10 +1109,11 @@ export default function PatientManagementPage() {
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-7xl w-full h-screen flex flex-col">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-[#4F4F4F] mb-2">Patient Management</h1>
-          <p className="text-gray-500">Stay on top of your patients&apos; care</p>
-        </div>
+        <PageHeader
+          title="Patient Management"
+          subtitle="View and manage patient records and care information"
+          className="mb-8"
+        />
 
         {/* Species Filter Pill */}
         <div className="flex items-center justify-center gap-4 mb-6">

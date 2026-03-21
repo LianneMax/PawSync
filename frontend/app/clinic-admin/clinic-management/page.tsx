@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
@@ -500,6 +501,12 @@ export default function ClinicManagementPage() {
   return (
     <DashboardLayout userType="clinic-admin">
       <div className="p-6 lg:p-8">
+        <PageHeader
+          title="Clinic Management"
+          subtitle="Manage veterinarians, branches, and clinic-wide administration"
+          className="mb-8"
+        />
+
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-sm">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import VaccineCalendar from '@/components/VaccineCalendar'
 import { useAuthStore } from '@/store/authStore'
 import { getClinicUpcomingSchedule, type ClinicUpcomingSchedule } from '@/lib/vaccinations'
@@ -86,13 +87,10 @@ export default function ClinicVaccineSchedulePage() {
     <DashboardLayout>
       <div className="space-y-6 pb-10">
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Building2 className="w-6 h-6 text-[#35785C]" />
-            <h1 className="text-3xl font-bold text-[#4F4F4F]">Clinic Vaccine Schedule</h1>
-          </div>
-          <p className="text-gray-600">Track all upcoming vaccine appointments across your clinic</p>
-        </div>
+        <PageHeader
+          title="Clinic Vaccine Schedule"
+          subtitle="Track all upcoming vaccine appointments across your clinic"
+        />
 
         {/* Summary Cards */}
         {!loading && upcomingSchedule.length > 0 && (

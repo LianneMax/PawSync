@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe, Eye } from 'lucide-react'
 import {
   DropdownMenu,
@@ -2965,10 +2966,11 @@ export default function ProductManPage() {
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 min-h-screen bg-gray-50">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Product and Service Management</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Efficiently manage your clinic's products, services, and vaccines</p>
-        </div>
+        <PageHeader
+          title="Product and Service Management"
+          subtitle="Efficiently manage your clinic products, services, and vaccines"
+          className="mb-6"
+        />
 
         {/* Tabs */}
         <div className="inline-flex gap-1 mb-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm">

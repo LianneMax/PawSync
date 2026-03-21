@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import {
   createMedicalRecord,
@@ -317,11 +318,13 @@ function ClinicMedicalRecordFormInner() {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-[#4F4F4F]">
-              {editId ? 'Edit Medical Record' : 'New Medical Record'}
-            </h1>
+            <PageHeader
+              title={editId ? 'Edit Medical Record' : 'New Medical Record'}
+              subtitle="Create and maintain complete patient medical documentation"
+              className="mb-0"
+            />
             {appointment && (
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 mt-1">
                 From appointment · {new Date(appointment.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })} {appointment.startTime}
               </p>
             )}

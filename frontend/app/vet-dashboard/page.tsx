@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { type Appointment } from '@/lib/appointments'
@@ -175,15 +176,19 @@ export default function VetDashboardPage() {
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8">
+        {/* Header */}
+        <PageHeader
+          title="Veterinarian Dashboard"
+          subtitle="Monitor daily operations, appointments, and patient care priorities"
+          className="mb-8"
+        />
+
         {/* Welcome Banner */}
         <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-8 mb-8">
-          <h1
-            className="text-3xl text-white mb-2"
-            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-          >
+          <p className="text-white/90 text-base font-medium">
             {getGreeting()}, {displayName}!
-          </h1>
-          <p className="text-white/80 mb-4">
+          </p>
+          <p className="text-white/80 text-sm mt-1">
             {loading
               ? 'Loading your schedule...'
               : `You have ${todayCount} appointment${todayCount !== 1 ? 's' : ''} scheduled for today.`}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { refreshBillingPrices } from '@/lib/billingSync'
 import {
@@ -164,13 +165,11 @@ function PetOwnerBilling() {
 
   return (
     <div className="p-8">
-      <h1
-        className="text-[32px] text-[#476B6B] mb-2"
-        style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-      >
-        My Invoices
-      </h1>
-      <p className="text-gray-500 mb-8">View and manage your billing history</p>
+      <PageHeader
+        title="My Invoices"
+        subtitle="View and manage your billing history"
+        className="mb-8"
+      />
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-4">
@@ -333,8 +332,11 @@ function VetBilling() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-[#4F4F4F] mb-2">Client Billing</h1>
-      <p className="text-gray-500 mb-8">View billing records for your clients</p>
+      <PageHeader
+        title="Client Billing"
+        subtitle="View billing records for your clients"
+        className="mb-8"
+      />
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-4">
@@ -2190,7 +2192,11 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-[#4F4F4F]">Billing and Invoicing</h1>
+        <PageHeader
+          title="Billing and Invoicing"
+          subtitle="Manage invoices, payments, and QR billing workflows"
+          className="mb-0"
+        />
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowViewQRModal(true)}

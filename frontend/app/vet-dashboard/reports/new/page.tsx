@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
 import { createVetReport } from '@/lib/vetReports'
@@ -74,10 +75,11 @@ export default function NewReportPage() {
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">New Report</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Select a medical record to base the report on, then generate with AI or write manually.
-        </p>
+        <PageHeader
+          title="New Report"
+          subtitle="Select a medical record to generate or write a diagnostic report"
+          className="mb-6"
+        />
 
         {/* Title (optional) */}
         <div className="mb-5">

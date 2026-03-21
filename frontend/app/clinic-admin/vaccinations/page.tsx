@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { getStatusLabel, getStatusClasses, deleteVaccineType, getClinicVaccinations, type Vaccination, type VaccineType } from '@/lib/vaccinations'
 import {
@@ -365,15 +366,11 @@ export default function ClinicAdminVaccinationsPage() {
       <div className="flex flex-col h-screen overflow-hidden p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#7FA5A3]/10 rounded-xl flex items-center justify-center">
-              <Syringe className="w-5 h-5 text-[#7FA5A3]" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-[#4F4F4F]">Vaccinations</h1>
-              <p className="text-sm text-gray-500">Records and vaccine catalog</p>
-            </div>
-          </div>
+          <PageHeader
+            title="Vaccinations"
+            subtitle="Manage vaccination records and vaccine catalog"
+            className="mb-0"
+          />
           {tab === 'records' ? (
             <button
               onClick={() => router.push('/clinic-admin/vaccinations/new')}

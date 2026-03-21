@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
@@ -561,15 +562,11 @@ export default function ClinicNfcManagementPage() {
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-[#7FA5A3]/10 flex items-center justify-center">
-              <Nfc className="w-6 h-6 text-[#7FA5A3]" />
-            </div>
-            <h1 className="text-3xl font-bold text-[#476B6B]">NFC Tag Management</h1>
-          </div>
-          <p className="text-gray-600">Write NFC tags for your clinic&apos;s patients</p>
-        </div>
+        <PageHeader
+          title="NFC Tag Management"
+          subtitle="Write and manage NFC tags for your clinic patients"
+          className="mb-8"
+        />
 
         {/* Reader Status */}
         <div className={`mb-8 p-4 rounded-xl border-2 flex items-center gap-3 ${

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import {
   listVetReports,
@@ -79,12 +80,11 @@ export default function VetReportsPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Vet Reports</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Create and manage diagnostic reports for your patients
-            </p>
-          </div>
+          <PageHeader
+            title="Vet Reports"
+            subtitle="Create and manage diagnostic reports for your patients"
+            className="mb-0"
+          />
           <button
             onClick={() => router.push('/vet-dashboard/reports/new')}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { getClinicAppointments, Appointment } from '@/lib/appointments'
@@ -136,15 +137,19 @@ export default function ClinicAdminDashboard() {
   return (
     <DashboardLayout userType="clinic-admin">
       <div className="p-6 lg:p-8">
+        {/* Header */}
+        <PageHeader
+          title="Clinic Admin Dashboard"
+          subtitle="Monitor clinic operations, appointments, and pending requests"
+          className="mb-8"
+        />
+
         {/* Welcome Banner */}
         <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-8 mb-8">
-          <h1
-            className="text-3xl text-white mb-2"
-            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-          >
+          <p className="text-white/90 text-base font-medium">
             Welcome back, {clinicName}!
-          </h1>
-          <p className="text-white/80 text-sm">
+          </p>
+          <p className="text-white/80 text-sm mt-1">
             You have {todayAppointments.length} appointments scheduled for today{pendingApps.length > 0 ? ` and ${pendingApps.length} pending vet application${pendingApps.length !== 1 ? 's' : ''} to review` : ''}.
           </p>
         </div>

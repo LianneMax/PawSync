@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
@@ -456,10 +457,11 @@ export default function VetAppointmentsPage() {
       <div className="p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#4F4F4F]">My Appointments</h1>
-            <p className="text-gray-500 text-sm mt-1">View and manage your scheduled appointments</p>
-          </div>
+          <PageHeader
+            title="My Appointments"
+            subtitle="View and manage your scheduled appointments"
+            className="mb-0"
+          />
         </div>
 
         {/* Stat Cards */}

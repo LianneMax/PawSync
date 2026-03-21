@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { checkInAppointment, getVetAppointments, type Appointment } from '@/lib/appointments'
 import { getRecordByAppointment } from '@/lib/medicalRecords'
@@ -221,10 +222,11 @@ export default function VetAppointmentsPage() {
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#4F4F4F]">My Appointments</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage and complete your scheduled consultations</p>
-          </div>
+          <PageHeader
+            title="My Appointments"
+            subtitle="Manage and complete your scheduled consultations"
+            className="mb-0"
+          />
         </div>
 
         {/* Filter tabs */}

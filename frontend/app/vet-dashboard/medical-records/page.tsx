@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
 import {
@@ -67,12 +68,11 @@ export default function VetMedicalRecordsPage() {
       <div className="p-6 lg:p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#4F4F4F]">Medical Records</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {total} record{total !== 1 ? 's' : ''} found
-            </p>
-          </div>
+          <PageHeader
+            title="Medical Records"
+            subtitle="Access and manage comprehensive patient medical records"
+            className="mb-0"
+          />
           <button
             onClick={() => router.push('/vet-dashboard/medical-records/new')}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors"

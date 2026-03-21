@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import {
   getClinicAppointments,
@@ -1530,18 +1531,14 @@ export default function ClinicAdminAppointmentsPage() {
     <DashboardLayout userType="clinic-admin">
       <div className="p-8">
         {/* Header */}
-        <div className="mb-2">
-          <h1
-            className="text-[32px] text-[#476B6B]"
-            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-          >
-            Appointments
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Manage and schedule appointments for your clinic</p>
-        </div>
+        <PageHeader
+          title="Appointments"
+          subtitle="Manage and schedule appointments for your clinic"
+          className="mb-8"
+        />
 
         {/* Row 1: Tabs + Action */}
-        <div className="flex items-center justify-between mt-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
             <button
               onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}

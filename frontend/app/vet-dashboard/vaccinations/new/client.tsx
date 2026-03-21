@@ -23,6 +23,7 @@ import {
   type Vaccination,
 } from '@/lib/vaccinations'
 import VaccineCardPreview from '@/components/VaccineCardPreview'
+import PageHeader from '@/components/PageHeader'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
   DropdownMenu,
@@ -419,14 +420,11 @@ export default function VaccinationFormClient() {
         Back to Vaccinations
       </button>
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-[#7FA5A3]/10 rounded-xl flex items-center justify-center">
-          <Syringe className="w-5 h-5 text-[#7FA5A3]" />
-        </div>
-        <h1 className="text-xl font-bold text-[#4F4F4F]">
-          {editId ? 'Edit Vaccination Record' : 'New Vaccination Record'}
-        </h1>
-      </div>
+      <PageHeader
+        title={editId ? 'Edit Vaccination Record' : 'New Vaccination Record'}
+        subtitle="Create and update patient vaccination records"
+        className="mb-6"
+      />
 
       <div className={`grid gap-8 ${selectedPet ? 'lg:grid-cols-[1fr_360px]' : ''}`}>
       {/* ── Left: Form ────────────────────────────────── */}

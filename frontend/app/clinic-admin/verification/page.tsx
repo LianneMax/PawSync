@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import {
   CheckCircle2,
   XCircle,
@@ -235,10 +236,11 @@ export default function VerificationPage() {
     <DashboardLayout userType="clinic-admin">
       <div className="p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[#4F4F4F]">Verification Requests</h1>
-          <p className="text-gray-500 text-sm mt-1">Review and verify veterinarian PRC license submissions.</p>
-        </div>
+        <PageHeader
+          title="Verification Requests"
+          subtitle="Review and verify veterinarian PRC license submissions"
+          className="mb-8"
+        />
 
         {/* Tabs */}
         <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm mb-8">

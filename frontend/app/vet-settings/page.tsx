@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import AvatarUpload from '@/components/avatar-upload'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
@@ -179,6 +180,12 @@ export default function VetSettingsPage() {
   return (
     <DashboardLayout userType="veterinarian">
       <div className="p-6 lg:p-8">
+        <PageHeader
+          title="Settings"
+          subtitle="Manage your profile information and account security"
+          className="mb-8"
+        />
+
         {/* Profile Settings Form */}
         <div className="max-w-3xl">
           <form onSubmit={handleSaveProfile} className="space-y-6">

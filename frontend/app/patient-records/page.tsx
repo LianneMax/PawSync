@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
@@ -461,10 +462,11 @@ export default function PatientRecordsPage() {
         {!selectedPatient ? (
           <>
             {/* Header */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-[#4F4F4F]">Patient Records</h1>
-              <p className="text-gray-500 text-sm mt-1">View and manage medical records for your patients</p>
-            </div>
+            <PageHeader
+              title="Patient Records"
+              subtitle="View and manage medical records for your patients"
+              className="mb-6"
+            />
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import {
   Syringe,
@@ -285,15 +286,11 @@ export default function VaccineTypesPage() {
       <div className="p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#7FA5A3]/10 rounded-xl flex items-center justify-center">
-              <Syringe className="w-5 h-5 text-[#7FA5A3]" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-[#4F4F4F]">Vaccine Types</h1>
-              <p className="text-sm text-gray-500">Manage available vaccine options for your clinic</p>
-            </div>
-          </div>
+          <PageHeader
+            title="Vaccine Types"
+            subtitle="Manage available vaccine options for your clinic"
+            className="mb-0"
+          />
           <button
             onClick={openCreate}
             className="flex items-center gap-2 bg-[#476B6B] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3d5c5c] transition-colors"

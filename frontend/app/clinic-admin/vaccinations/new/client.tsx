@@ -22,6 +22,7 @@ import {
   type VaccineType,
 } from '@/lib/vaccinations'
 import VaccineCardPreview from '@/components/VaccineCardPreview'
+import PageHeader from '@/components/PageHeader'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
   DropdownMenu,
@@ -412,14 +413,11 @@ export default function ClinicVaccinationFormClient() {
         Back to Vaccinations
       </button>
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-[#7FA5A3]/10 rounded-xl flex items-center justify-center">
-          <Syringe className="w-5 h-5 text-[#7FA5A3]" />
-        </div>
-        <h1 className="text-xl font-bold text-[#4F4F4F]">
-          {isViewOnly ? 'View Vaccination Record' : editId ? 'Edit Vaccination Record' : 'New Vaccination Record'}
-        </h1>
-      </div>
+      <PageHeader
+        title={isViewOnly ? 'View Vaccination Record' : editId ? 'Edit Vaccination Record' : 'New Vaccination Record'}
+        subtitle="Create, update, and review patient vaccination records"
+        className="mb-6"
+      />
 
       {isViewOnly && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
