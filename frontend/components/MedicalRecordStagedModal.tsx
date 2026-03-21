@@ -2929,17 +2929,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </div>
 
               {/* ── PREGNANCY ASSESSMENT ── */}
-              {pet?.sex === 'female' && (
+              {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && (
                 <div className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
                   <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
                     <span className="text-sm font-semibold text-green-700">Pregnancy Assessment</span>
                   </div>
                   <div className="px-4 py-3 space-y-3">
-                    {pet?.sterilization === 'spayed' && (
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        This pet is recorded as spayed. Marking as pregnant may be incorrect — verify with the owner before proceeding.
-                      </p>
-                    )}
                     {pet?.pregnancyStatus === 'pregnant' && (
                       <p className="text-xs text-green-700 bg-green-100 border border-green-200 rounded-lg px-3 py-2">
                         This pet is already recorded as pregnant. Pregnancy status is locked until delivery is recorded.
@@ -3155,7 +3150,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
 
               {/* ── PREGNANCY DELIVERY ── */}
-              {pet?.sex === 'female' && <div className="border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
+              {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && <div className="border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
                 <div className="px-4 py-3 border-b border-blue-100">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
