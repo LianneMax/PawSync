@@ -120,6 +120,8 @@ export default function PetProfilePage() {
   const [editNotes, setEditNotes] = useState('')
   const [editAllergies, setEditAllergies] = useState('')
   const [editPhoto, setEditPhoto] = useState<string | null>(null)
+  const resolvedProfilePhoto = editPhoto || pet?.photo || (pet as APIPet & { profile_image?: string | null; image_url?: string | null })?.profile_image || (pet as APIPet & { profile_image?: string | null; image_url?: string | null })?.image_url || null
+  const hasProfilePhoto = Boolean(resolvedProfilePhoto)
 
   const fetchPet = useCallback(async () => {
     if (!token || !petId) return
@@ -702,9 +704,9 @@ export default function PetProfilePage() {
             {/* Pet Photo */}
             <div className="relative mb-4">
               <div className="w-28 h-28 rounded-full overflow-hidden bg-white/20 flex items-center justify-center border-4 border-white/30">
-                {(editPhoto || pet.photo) ? (
+                {hasProfilePhoto ? (
                   <Image
-                    src={editPhoto || pet.photo!}
+                    src={resolvedProfilePhoto!}
                     alt={pet.name}
                     width={112}
                     height={112}
@@ -715,13 +717,14 @@ export default function PetProfilePage() {
                   <PawPrint className="w-12 h-12 text-white/60" />
                 )}
               </div>
-              {/* Change photo button */}
-              <button
-                onClick={() => setShowPhotoUpload(!showPhotoUpload)}
-                className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors"
-              >
-                <Camera className="w-4 h-4 text-[#476B6B]" />
-              </button>
+              {!hasProfilePhoto && (
+                <button
+                  onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors"
+                >
+                  <Camera className="w-4 h-4 text-[#476B6B]" />
+                </button>
+              )}
             </div>
 
             {/* Name */}

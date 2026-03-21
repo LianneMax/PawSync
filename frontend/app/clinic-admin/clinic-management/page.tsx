@@ -136,6 +136,62 @@ export default function ClinicManagementPage() {
     name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] as string[],
     adminFirstName: '', adminLastName: '', adminPassword: '',
   })
+  const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({})
+  const [addFormTouched, setAddFormTouched] = useState<Record<string, boolean>>({})
+
+  const validateAddField = (field: string, value: string | string[]): string => {
+    switch (field) {
+      case 'name':
+        return (value as string).trim() ? '' : 'Branch name is required.'
+      case 'address':
+        return (value as string).trim() ? '' : 'Street address is required.'
+      case 'city':
+        return (value as string).trim() ? '' : 'City is required.'
+      case 'province':
+        return (value as string).trim() ? '' : 'Province/Region is required.'
+      case 'phone':
+        if (!(value as string).trim()) return 'Phone number is required.'
+        return /^[0-9+\-\s()]{7,15}$/.test(value as string) ? '' : 'Enter a valid phone number.'
+      case 'email':
+        if (!(value as string).trim()) return 'Email address is required.'
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value as string) ? '' : 'Enter a valid email address.'
+      case 'openingTime':
+        return (value as string).trim() ? '' : 'Opening time is required.'
+      case 'closingTime':
+        return (value as string).trim() ? '' : 'Closing time is required.'
+      case 'operatingDays':
+        return (value as string[]).length > 0 ? '' : 'Select at least one operating day.'
+      case 'adminFirstName':
+        return (value as string).trim() ? '' : 'Admin first name is required.'
+      case 'adminLastName':
+        return (value as string).trim() ? '' : 'Admin last name is required.'
+      case 'adminPassword':
+        if (!(value as string).trim()) return 'Password is required.'
+        return (value as string).length >= 8 ? '' : 'Password must be at least 8 characters.'
+      default:
+        return ''
+    }
+  }
+
+  const touchAddField = (field: string) => {
+    setAddFormTouched(prev => ({ ...prev, [field]: true }))
+    const value = addForm[field as keyof typeof addForm]
+    setAddFormErrors(prev => ({ ...prev, [field]: validateAddField(field, value as string | string[]) }))
+  }
+
+  const validateAllAddFields = () => {
+    const requiredFields = ['name', 'address', 'city', 'province', 'phone', 'email', 'openingTime', 'closingTime', 'operatingDays', 'adminFirstName', 'adminLastName', 'adminPassword']
+    const errors: Record<string, string> = {}
+    const touched: Record<string, boolean> = {}
+    for (const field of requiredFields) {
+      const value = addForm[field as keyof typeof addForm]
+      errors[field] = validateAddField(field, value as string | string[])
+      touched[field] = true
+    }
+    setAddFormErrors(errors)
+    setAddFormTouched(touched)
+    return Object.values(errors).every(e => !e)
+  }
 
   // Fetch real clinic data
   useEffect(() => {
@@ -320,16 +376,13 @@ export default function ClinicManagementPage() {
 
   const resetAddForm = () => {
     setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [], adminFirstName: '', adminLastName: '', adminPassword: '' })
+    setAddFormErrors({})
+    setAddFormTouched({})
   }
 
   const handleAddBranch = async () => {
     if (!clinicId || !token) return
-    if (!addForm.name.trim()) return
-    if (!addForm.address.trim()) return
-    if (!addForm.email.trim()) return
-    if (!addForm.adminFirstName.trim()) return
-    if (!addForm.adminLastName.trim()) return
-    if (!addForm.adminPassword.trim()) return
+    if (!validateAllAddFields()) return
 
     setAddingBranch(true)
     try {
@@ -407,7 +460,7 @@ export default function ClinicManagementPage() {
     setInviteErrorMsg(null)
     setLoadingAllVets(true)
     try {
-      const res = await authenticatedFetch('/clinics/mine/registered-vets', {}, token)
+      const res = await authenticatedFetch('/clinics/mine/registered-vets', {}, token ?? undefined)
       if (res.status === 'SUCCESS') {
         setAllVets(res.data.vets || [])
       }
@@ -430,7 +483,7 @@ export default function ClinicManagementPage() {
       const res = await authenticatedFetch('/clinics/mine/invite-vet', {
         method: 'POST',
         body: JSON.stringify({ vetId, branchId }),
-      }, token)
+      }, token ?? undefined)
       if (res.status === 'SUCCESS') {
         setInviteSuccessVetId(vetId)
       } else {
@@ -1020,63 +1073,93 @@ export default function ClinicManagementPage() {
               <input
                 type="text"
                 value={addForm.name}
-                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, name: e.target.value })
+                  if (addFormTouched.name) setAddFormErrors(prev => ({ ...prev, name: validateAddField('name', e.target.value) }))
+                }}
+                onBlur={() => touchAddField('name')}
                 placeholder="e.g. PawSync Makati Branch"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.name && addFormErrors.name ? 'border-red-400' : 'border-gray-200'}`}
               />
+              {addFormTouched.name && addFormErrors.name && <p className="text-xs text-red-500 mt-1">{addFormErrors.name}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={addForm.address}
-                onChange={(e) => setAddForm({ ...addForm, address: e.target.value })}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, address: e.target.value })
+                  if (addFormTouched.address) setAddFormErrors(prev => ({ ...prev, address: validateAddField('address', e.target.value) }))
+                }}
+                onBlur={() => touchAddField('address')}
                 placeholder="e.g. 123 Main St, Brgy. San Antonio"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.address && addFormErrors.address ? 'border-red-400' : 'border-gray-200'}`}
               />
+              {addFormTouched.address && addFormErrors.address && <p className="text-xs text-red-500 mt-1">{addFormErrors.address}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={addForm.city}
-                  onChange={(e) => setAddForm({ ...addForm, city: e.target.value })}
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, city: e.target.value })
+                    if (addFormTouched.city) setAddFormErrors(prev => ({ ...prev, city: validateAddField('city', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('city')}
                   placeholder="e.g. Makati"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.city && addFormErrors.city ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.city && addFormErrors.city && <p className="text-xs text-red-500 mt-1">{addFormErrors.city}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={addForm.province}
-                  onChange={(e) => setAddForm({ ...addForm, province: e.target.value })}
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, province: e.target.value })
+                    if (addFormTouched.province) setAddFormErrors(prev => ({ ...prev, province: validateAddField('province', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('province')}
                   placeholder="e.g. Metro Manila"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.province && addFormErrors.province ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.province && addFormErrors.province && <p className="text-xs text-red-500 mt-1">{addFormErrors.province}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={addForm.phone}
-                  onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, phone: e.target.value })
+                    if (addFormTouched.phone) setAddFormErrors(prev => ({ ...prev, phone: validateAddField('phone', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('phone')}
                   placeholder="e.g. 0917-123-4567"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.phone && addFormErrors.phone ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.phone && addFormErrors.phone && <p className="text-xs text-red-500 mt-1">{addFormErrors.phone}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Email Address</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Email Address <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={addForm.email}
-                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, email: e.target.value })
+                    if (addFormTouched.email) setAddFormErrors(prev => ({ ...prev, email: validateAddField('email', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('email')}
                   placeholder="e.g. branch@clinic.com"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.email && addFormErrors.email ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.email && addFormErrors.email && <p className="text-xs text-red-500 mt-1">{addFormErrors.email}</p>}
               </div>
             </div>
 
@@ -1085,60 +1168,85 @@ export default function ClinicManagementPage() {
               <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Branch Admin Credentials</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin First Name</label>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin First Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={addForm.adminFirstName}
-                    onChange={(e) => setAddForm({ ...addForm, adminFirstName: e.target.value })}
+                    onChange={(e) => {
+                      setAddForm({ ...addForm, adminFirstName: e.target.value })
+                      if (addFormTouched.adminFirstName) setAddFormErrors(prev => ({ ...prev, adminFirstName: validateAddField('adminFirstName', e.target.value) }))
+                    }}
+                    onBlur={() => touchAddField('adminFirstName')}
                     placeholder="e.g. John"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminFirstName && addFormErrors.adminFirstName ? 'border-red-400' : 'border-gray-200'}`}
                   />
+                  {addFormTouched.adminFirstName && addFormErrors.adminFirstName && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminFirstName}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Last Name</label>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Last Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={addForm.adminLastName}
-                    onChange={(e) => setAddForm({ ...addForm, adminLastName: e.target.value })}
+                    onChange={(e) => {
+                      setAddForm({ ...addForm, adminLastName: e.target.value })
+                      if (addFormTouched.adminLastName) setAddFormErrors(prev => ({ ...prev, adminLastName: validateAddField('adminLastName', e.target.value) }))
+                    }}
+                    onBlur={() => touchAddField('adminLastName')}
                     placeholder="e.g. Doe"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminLastName && addFormErrors.adminLastName ? 'border-red-400' : 'border-gray-200'}`}
                   />
+                  {addFormTouched.adminLastName && addFormErrors.adminLastName && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminLastName}</p>}
                 </div>
               </div>
               <div className="mt-4">
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Password</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Password <span className="text-red-500">*</span></label>
                 <input
                   type="password"
                   value={addForm.adminPassword}
-                  onChange={(e) => setAddForm({ ...addForm, adminPassword: e.target.value })}
-                  placeholder="Enter a secure password"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, adminPassword: e.target.value })
+                    if (addFormTouched.adminPassword) setAddFormErrors(prev => ({ ...prev, adminPassword: validateAddField('adminPassword', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('adminPassword')}
+                  placeholder="Enter a secure password (min. 8 characters)"
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminPassword && addFormErrors.adminPassword ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.adminPassword && addFormErrors.adminPassword && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminPassword}</p>}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-red-500">*</span></label>
                 <input
                   type="time"
                   value={addForm.openingTime}
-                  onChange={(e) => setAddForm({ ...addForm, openingTime: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, openingTime: e.target.value })
+                    if (addFormTouched.openingTime) setAddFormErrors(prev => ({ ...prev, openingTime: validateAddField('openingTime', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('openingTime')}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.openingTime && addFormErrors.openingTime ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.openingTime && addFormErrors.openingTime && <p className="text-xs text-red-500 mt-1">{addFormErrors.openingTime}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time</label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time <span className="text-red-500">*</span></label>
                 <input
                   type="time"
                   value={addForm.closingTime}
-                  onChange={(e) => setAddForm({ ...addForm, closingTime: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                  onChange={(e) => {
+                    setAddForm({ ...addForm, closingTime: e.target.value })
+                    if (addFormTouched.closingTime) setAddFormErrors(prev => ({ ...prev, closingTime: validateAddField('closingTime', e.target.value) }))
+                  }}
+                  onBlur={() => touchAddField('closingTime')}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.closingTime && addFormErrors.closingTime ? 'border-red-400' : 'border-gray-200'}`}
                 />
+                {addFormTouched.closingTime && addFormErrors.closingTime && <p className="text-xs text-red-500 mt-1">{addFormErrors.closingTime}</p>}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days</label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-red-500">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
                   const isSelected = addForm.operatingDays.includes(day)
@@ -1147,12 +1255,12 @@ export default function ClinicManagementPage() {
                       key={day}
                       type="button"
                       onClick={() => {
-                        setAddForm(prev => ({
-                          ...prev,
-                          operatingDays: isSelected
-                            ? prev.operatingDays.filter(d => d !== day)
-                            : [...prev.operatingDays, day],
-                        }))
+                        const updated = isSelected
+                          ? addForm.operatingDays.filter(d => d !== day)
+                          : [...addForm.operatingDays, day]
+                        setAddForm(prev => ({ ...prev, operatingDays: updated }))
+                        setAddFormTouched(prev => ({ ...prev, operatingDays: true }))
+                        setAddFormErrors(prev => ({ ...prev, operatingDays: validateAddField('operatingDays', updated) }))
                       }}
                       className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition-colors ${
                         isSelected
@@ -1165,6 +1273,7 @@ export default function ClinicManagementPage() {
                   )
                 })}
               </div>
+              {addFormTouched.operatingDays && addFormErrors.operatingDays && <p className="text-xs text-red-500 mt-1">{addFormErrors.operatingDays}</p>}
             </div>
           </div>
 
@@ -1177,7 +1286,7 @@ export default function ClinicManagementPage() {
             </button>
             <button
               onClick={handleAddBranch}
-              disabled={addingBranch || !addForm.name.trim() || !addForm.address.trim() || !addForm.email.trim() || !addForm.adminFirstName.trim() || !addForm.adminLastName.trim() || !addForm.adminPassword.trim()}
+              disabled={addingBranch}
               className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
             >
               {addingBranch ? 'Adding...' : 'Add Branch'}
