@@ -1062,7 +1062,7 @@ export async function sendPetTransferInvitation(params: {
             <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.8;">
               <li>Click the button below to set up your free PawSync account</li>
               <li>${params.petName}&apos;s full profile and records are already in your account</li>
-              <li>No additional setup needed &mdash; jump straight to your pet&apos;s profile</li>
+              <li>No additional setup needed, jump straight to your pet&apos;s profile</li>
             </ul>
           </div>
 

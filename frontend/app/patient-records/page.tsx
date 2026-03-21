@@ -97,6 +97,10 @@ interface PatientPet {
   clinicBranchName: string
   isConfined?: boolean
   isReferral?: boolean
+  status?: string
+  isAlive?: boolean
+  isLost?: boolean
+  removedByOwner?: boolean
 }
 
 // ==================== HELPERS ====================
@@ -263,6 +267,10 @@ export default function PatientRecordsPage() {
               nfcTagId: appt.petId?.nfcTagId || null,
               microchipNumber: appt.petId?.microchipNumber || null,
               allergies: appt.petId?.allergies || [],
+              status: appt.petId?.status,
+              isAlive: appt.petId?.isAlive,
+              isLost: appt.petId?.isLost,
+              removedByOwner: appt.petId?.removedByOwner,
               ownerFirstName: appt.ownerId?.firstName || '',
               ownerLastName: appt.ownerId?.lastName || '',
               ownerEmail: appt.ownerId?.email || '',
@@ -566,14 +574,32 @@ export default function PatientRecordsPage() {
                   <button
                     key={pet._id}
                     onClick={() => handleSelectPatient(pet)}
-                    className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40' : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'}`}
+                    className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
+                      pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
+                      : (pet.isLost || pet.status === 'lost') ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
+                      : (!pet.isAlive || pet.status === 'deceased') ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
+                      : pet.removedByOwner ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
+                      : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
+                    }`}
                   >
                     <div className="flex items-center gap-3 mb-3">
                       {pet.photo ? (
                         <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${pet.isConfined ? 'bg-blue-100' : 'bg-[#7FA5A3]/15'}`}>
-                          <PawPrint className={`w-6 h-6 ${pet.isConfined ? 'text-blue-500' : 'text-[#5A7C7A]'}`} />
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          pet.isConfined ? 'bg-blue-100'
+                          : (pet.isLost || pet.status === 'lost') ? 'bg-red-100'
+                          : (!pet.isAlive || pet.status === 'deceased') ? 'bg-amber-100'
+                          : pet.removedByOwner ? 'bg-orange-100'
+                          : 'bg-[#7FA5A3]/15'
+                        }`}>
+                          <PawPrint className={`w-6 h-6 ${
+                            pet.isConfined ? 'text-blue-500'
+                            : (pet.isLost || pet.status === 'lost') ? 'text-[#900B09]'
+                            : (!pet.isAlive || pet.status === 'deceased') ? 'text-amber-500'
+                            : pet.removedByOwner ? 'text-orange-500'
+                            : 'text-[#5A7C7A]'
+                          }`} />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -582,6 +608,21 @@ export default function PatientRecordsPage() {
                           {pet.isConfined && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide shrink-0">
                               Confined
+                            </span>
+                          )}
+                          {(pet.isLost || pet.status === 'lost') && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
+                              Lost
+                            </span>
+                          )}
+                          {(!pet.isAlive || pet.status === 'deceased') && !pet.isConfined && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide shrink-0">
+                              Deceased
+                            </span>
+                          )}
+                          {pet.removedByOwner && !pet.isConfined && !(pet.isLost || pet.status === 'lost') && !(!pet.isAlive || pet.status === 'deceased') && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide shrink-0">
+                              Relocated
                             </span>
                           )}
                         </div>
@@ -705,17 +746,44 @@ export default function PatientRecordsPage() {
                     <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : currentRecord ? (
-                  <div className={`bg-linear-to-br rounded-xl p-6 shadow-md border-2 ${currentRecord.stage === 'confined' ? 'from-blue-50 to-blue-100/30 border-blue-300' : 'from-[#7FA5A3]/5 to-[#476B6B]/5 border-[#7FA5A3]/30'}`}>
+                  <div className={`bg-white rounded-xl p-6 shadow-md border-2 ${
+                    currentRecord.stage === 'confined' ? 'border-blue-300'
+                    : (selectedPatient?.isLost || selectedPatient?.status === 'lost') ? 'border-[#900B09]/50'
+                    : (!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') ? 'border-amber-300'
+                    : selectedPatient?.removedByOwner ? 'border-orange-300'
+                    : 'border-[#7FA5A3]/30'
+                  }`}>
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className={`w-3 h-3 rounded-full ${currentRecord.stage === 'confined' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                          <div className={`w-3 h-3 rounded-full ${
+                            currentRecord.stage === 'confined' ? 'bg-blue-500'
+                            : (selectedPatient?.isLost || selectedPatient?.status === 'lost') ? 'bg-[#900B09]'
+                            : (!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') ? 'bg-amber-500'
+                            : selectedPatient?.removedByOwner ? 'bg-orange-500'
+                            : 'bg-green-500'
+                          }`}></div>
                           <p className="text-sm font-semibold text-[#2C3E2D]">
                             {currentRecord.stage === 'confined' ? 'Confined – Ongoing Record' : 'Active Medical Record'}
                           </p>
                           {currentRecord.stage === 'confined' && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide">
                               Admitted
+                            </span>
+                          )}
+                          {(selectedPatient?.isLost || selectedPatient?.status === 'lost') && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
+                              Lost
+                            </span>
+                          )}
+                          {(!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') && currentRecord.stage !== 'confined' && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
+                              Deceased
+                            </span>
+                          )}
+                          {selectedPatient?.removedByOwner && currentRecord.stage !== 'confined' && !(selectedPatient?.isLost || selectedPatient?.status === 'lost') && !(!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide">
+                              Relocated
                             </span>
                           )}
                         </div>
