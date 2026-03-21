@@ -27,6 +27,8 @@ export interface IPet extends Document {
   isAlive: boolean;
   deceasedAt: Date | null;
   deceasedBy: mongoose.Types.ObjectId | null;
+  removedByOwner: boolean;
+  removedAt: Date | null;
   lostContactName: string | null;
   lostContactNumber: string | null;
   lostMessage: string | null;
@@ -172,6 +174,15 @@ const PetSchema = new Schema(
     deceasedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      default: null
+    },
+    removedByOwner: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    removedAt: {
+      type: Date,
       default: null
     },
     lostReportedByStranger: {

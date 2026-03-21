@@ -8,6 +8,7 @@ import Vaccination from '../models/Vaccination';
 import Appointment from '../models/Appointment';
 import OwnershipTransfer from '../models/OwnershipTransfer';
 import ConfinementRecord from '../models/ConfinementRecord';
+import Billing from '../models/Billing';
 import PetTagRequest from '../models/PetTagRequest';
 import QRCode from 'qrcode';
 import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation, sendPetDeceasedNotice, sendPetOwnershipTransferredNotice } from '../services/emailService';
@@ -234,7 +235,7 @@ export const getMyPets = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const pets = await Pet.find({ ownerId: req.user.userId })
+    const pets = await Pet.find({ ownerId: req.user.userId, removedByOwner: { $ne: true } })
       .populate('assignedVetId', 'firstName lastName photo clinicId')
       .sort({ createdAt: -1 });
 
@@ -641,13 +642,43 @@ export const deletePet = async (req: Request, res: Response) => {
       console.log(`[Pet Removed] Pet "${pet.name}" (${pet._id}) removed by user ${req.user.userId}. Reason: ${reason}${details ? ` — ${details}` : ''}`);
     }
 
-    // Remove vet-pet relationships
+    // Block removal if there is an outstanding bill
+    const ongoingBill = await Billing.findOne({ petId: pet._id, status: 'pending_payment' });
+    if (ongoingBill) {
+      return res.status(400).json({ status: 'BILLING_BLOCKED', message: `${pet.name} has an outstanding bill that must be settled before they can be removed.` });
+    }
+
+    // Cancel all future appointments
+    const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+    const now = new Date();
+    const activeAppointments = await Appointment.find({
+      petId: pet._id,
+      status: { $in: cancellableStatuses },
+    }).select('_id date startTime');
+
+    const toCancel = activeAppointments.filter((appt) => {
+      const d = new Date(appt.date);
+      const [h, m] = String(appt.startTime || '00:00').split(':');
+      d.setHours(parseInt(h || '0', 10), parseInt(m || '0', 10), 0, 0);
+      return d >= now;
+    });
+
+    if (toCancel.length > 0) {
+      await Appointment.updateMany(
+        { _id: { $in: toCancel.map((a) => a._id) } },
+        { $set: { status: 'cancelled' } },
+      );
+    }
+
+    // Soft-remove — keep in database, hide from owner
     await AssignedVet.deleteMany({ petId: pet._id });
-    await pet.deleteOne();
+    pet.removedByOwner = true;
+    pet.removedAt = now;
+    await pet.save();
 
     return res.status(200).json({
       status: 'SUCCESS',
-      message: 'Pet deleted successfully'
+      message: 'Pet removed successfully'
     });
   } catch (error) {
     console.error('Delete pet error:', error);
@@ -694,10 +725,43 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Cannot transfer deceased pets.' });
     }
 
+    // Block transfer if the pet has an unpaid bill
+    const ongoingBill = await Billing.findOne({ petId: pet._id, status: 'pending_payment' });
+    if (ongoingBill) {
+      return res.status(400).json({ status: 'BILLING_BLOCKED', message: `${pet.name} has an outstanding bill that must be settled before they can be transferred.` });
+    }
+
     const newOwner = await User.findOne({ email: normalizedEmail });
 
     if (!newOwner) {
-      return res.status(404).json({ status: 'ERROR', message: 'No account found with that email address' });
+      // No PawSync account — soft-remove from current owner and cancel future appointments
+      const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+      const nowNoAccount = new Date();
+      const activeAppts = await Appointment.find({
+        petId: pet._id,
+        status: { $in: cancellableStatuses },
+      }).select('_id date startTime');
+
+      const toCancel = activeAppts.filter((appt) => {
+        const d = new Date(appt.date);
+        const [h, m] = String(appt.startTime || '00:00').split(':');
+        d.setHours(parseInt(h || '0', 10), parseInt(m || '0', 10), 0, 0);
+        return d >= nowNoAccount;
+      });
+
+      if (toCancel.length > 0) {
+        await Appointment.updateMany(
+          { _id: { $in: toCancel.map((a) => a._id) } },
+          { $set: { status: 'cancelled' } },
+        );
+      }
+
+      await AssignedVet.deleteMany({ petId: pet._id });
+      pet.removedByOwner = true;
+      pet.removedAt = nowNoAccount;
+      await pet.save();
+
+      return res.status(200).json({ status: 'SUCCESS', message: `${pet.name} has been removed from your profile.` });
     }
 
     if (newOwner._id.toString() === req.user.userId) {
@@ -722,6 +786,28 @@ export const transferPet = async (req: Request, res: Response) => {
     pet.ownerId = newOwner._id as any;
     pet.status = pet.isLost ? 'lost' : 'alive';
     await pet.save();
+
+    // Cancel future appointments for the old owner
+    const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+    const transferNow = new Date();
+    const activeAppts = await Appointment.find({
+      petId: pet._id,
+      status: { $in: cancellableStatuses },
+    }).select('_id date startTime');
+
+    const apptToCancel = activeAppts.filter((appt) => {
+      const d = new Date(appt.date);
+      const [h, m] = String(appt.startTime || '00:00').split(':');
+      d.setHours(parseInt(h || '0', 10), parseInt(m || '0', 10), 0, 0);
+      return d >= transferNow;
+    });
+
+    if (apptToCancel.length > 0) {
+      await Appointment.updateMany(
+        { _id: { $in: apptToCancel.map((a) => a._id) } },
+        { $set: { status: 'cancelled' } },
+      );
+    }
 
     // Re-parent pet data
     await Promise.all([

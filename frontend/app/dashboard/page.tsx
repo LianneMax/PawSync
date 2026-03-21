@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -341,7 +341,7 @@ function PetDetailModal({
                 <div className={`bg-[#476B6B] text-white rounded-[10px] py-2 px-3 ${pet.secondaryBreed ? 'col-span-2' : ''}`}>
                   <p className="text-[9px] text-white/70 text-left">{pet.secondaryBreed ? 'Crossbreed' : 'Breed'}</p>
                   <p className="text-[12px] text-center">
-                    {pet.secondaryBreed ? `${pet.breed} · ${pet.secondaryBreed}` : pet.breed}
+                    {pet.secondaryBreed ? `${pet.breed} Â· ${pet.secondaryBreed}` : pet.breed}
                   </p>
                 </div>
                 <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3">
@@ -447,7 +447,7 @@ function PetDetailModal({
                   onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
                   className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
                 >
-                  View public NFC profile →
+                  View public NFC profile â†’
                 </button>
               </div>
             </div>
@@ -816,6 +816,7 @@ function RemovePetModal({
   const [isLoadingEmailSuggestions, setIsLoadingEmailSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [billingBlocked, setBillingBlocked] = useState(false)
   const transferDebounceRef = useRef<NodeJS.Timeout>(null)
 
   const resetForm = () => {
@@ -831,6 +832,7 @@ function RemovePetModal({
     setIsTransferSearchOpen(false)
     setIsLoadingEmailSuggestions(false)
     setError('')
+    setBillingBlocked(false)
   }
 
   const handleClose = () => {
@@ -921,6 +923,11 @@ function RemovePetModal({
           { newOwnerEmail: recipient || undefined },
           token
         )
+        if (response.status === 'BILLING_BLOCKED') {
+          setBillingBlocked(true)
+          setLoading(false)
+          return
+        }
         if (response.status === 'ERROR') {
           setError(response.message || 'Transfer failed')
           setLoading(false)
@@ -944,6 +951,11 @@ function RemovePetModal({
       } else {
         const reasonLabel = REMOVAL_REASONS.find((r) => r.value === reason)?.label || reason
         const response = await removePet(pet.id, reasonLabel, details || undefined, token)
+        if (response.status === 'BILLING_BLOCKED') {
+          setBillingBlocked(true)
+          setLoading(false)
+          return
+        }
         if (response.status === 'ERROR') {
           setError(response.message || 'Removal failed')
           setLoading(false)
@@ -979,21 +991,34 @@ function RemovePetModal({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Billing blocked alert */}
+        {billingBlocked && (
+          <div className={'bg-amber-50 border border-amber-400 rounded-xl p-4 mb-4 flex items-start gap-3'}>
+            <AlertTriangle className={'w-5 h-5 text-amber-500 shrink-0 mt-0.5'} />
+            <div>
+              <p className={'text-sm font-semibold text-amber-800 mb-1'}>Outstanding Bill</p>
+              <p className={'text-xs text-amber-700 leading-relaxed'}>
+                This pet has an unpaid bill. Please settle the balance in Billing before removing or transferring them.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Info Box */}
-        <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
-          <p className="text-sm font-semibold text-[#B71C1C] mb-2">
-            This action cannot be undone
-          </p>
-          <p className="text-xs text-[#4F4F4F] leading-relaxed">
-            Removing a pet will permanently delete their profile, medical records,
-            and associated data from your account. Selecting “Pet passed away” marks
-            the profile as deceased instead of deleting records.
-          </p>
-        </div>
+        {!billingBlocked && (
+          <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
+            <p className="text-sm font-semibold text-[#B71C1C] mb-2">
+              This action cannot be undone
+            </p>
+            <p className="text-xs text-[#4F4F4F] leading-relaxed">
+              Removing a pet will hide their profile from your account. Records are kept for veterinary reference. Selecting "Pet passed away" marks the profile as deceased.
+            </p>
+          </div>
+        )}
 
         {/* Pet info */}
         <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] mb-4">
-          {pet.name} — {pet.breed}
+          {pet.name} â€'"' {pet.breed}
         </div>
 
         {/* Reason Selection */}
@@ -1120,7 +1145,7 @@ function RemovePetModal({
 
         {/* Confirm button */}
         <button
-          disabled={loading}
+          disabled={loading || billingBlocked}
           className={`w-full font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
             isTransfer
               ? 'bg-[#476B6B] hover:bg-[#3a5a5a] text-white'
@@ -1185,7 +1210,7 @@ export default function DashboardPage() {
     }
   }, [user])
 
-  // Fetch pets from API — redirect to onboarding if pet-owner has no pets
+  // Fetch pets from API â€'"' redirect to onboarding if pet-owner has no pets
   const fetchPets = useCallback(async () => {
     if (!token) {
       setPetsLoading(false)
