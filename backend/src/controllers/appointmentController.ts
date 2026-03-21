@@ -147,14 +147,13 @@ export const createAppointment = async (req: Request, res: Response) => {
     // Branch authorization validation
     // ─────────────────────────────────────────────────────────────────────────────────
 
-    // Helper: verify that every type ID in the request resolves to a Surgery-category
-    // product service.  Used to gate the cross-branch bypass so it cannot be repurposed
-    // for non-surgical appointment types.
+    // Helper: verify that every type in the request resolves to a Surgery-category
+    // product service.  Types are now sent as human-readable names (not ObjectIds)
+    // so we query by name.  Uses countDocuments for a single round-trip.
     const assertAllSurgeryTypes = async (): Promise<boolean> => {
       if (!Array.isArray(types) || types.length === 0) return false;
-      const services = await ProductService.find({ _id: { $in: types } }).select('category');
-      if (services.length !== types.length) return false; // unknown IDs
-      return services.every((s: any) => s.category === 'Surgeries');
+      const count = await ProductService.countDocuments({ name: { $in: types }, category: 'Surgeries' });
+      return count === types.length;
     };
 
     // Helper: verify that the requested clinicBranchId belongs to the same clinic

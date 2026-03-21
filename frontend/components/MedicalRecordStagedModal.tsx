@@ -635,6 +635,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Tracks the appointment ID created via the Care Plan → Schedule Surgery flow
   // so it can be cancelled if the vet unchecks the surgery toggle.
   const [carePlanSurgeryAppointmentId, setCarePlanSurgeryAppointmentId] = useState<string | null>(null)
+  // Controls the "Unschedule this surgery?" confirmation dialog.
+  const [showUnscheduleConfirm, setShowUnscheduleConfirm] = useState(false)
   const [carePlanOpen, setCarePlanOpen] = useState(true)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
@@ -1509,13 +1511,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   // Care plan toggle handlers — enforce mutual exclusivity rules
-  const handleConfinedChange = (checked: boolean) => {
-    setConfined(checked)
-    if (checked) {
-      setReferral(false)
-      setEuthanasia(false)
-    }
-  }
 
   const handleReferralChange = (checked: boolean) => {
     setReferral(checked)
@@ -1532,21 +1527,35 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     try {
       await cancelAppointment(carePlanSurgeryAppointmentId, token)
     } catch {
-      // non-blocking: log but don't prevent the toggle from being cleared
       console.warn('[CarePlan] Failed to cancel surgery appointment', carePlanSurgeryAppointmentId)
     }
     setCarePlanSurgeryAppointmentId(null)
   }
 
   const handleSurgeryChange = (checked: boolean) => {
-    setSurgery(checked)
     if (checked) {
+      // Do NOT set surgery=true yet — defer until onScheduled confirms an
+      // appointment was actually created. Opening the modal is the only action.
       setShowSurgeryModal(true)
       setConfined(false)
       setEuthanasia(false)
     } else {
-      cancelCarePlanSurgery()
+      if (carePlanSurgeryAppointmentId) {
+        // An appointment was scheduled this session — ask before cancelling.
+        setShowUnscheduleConfirm(true)
+      } else {
+        // No tracked appointment (e.g. surgery flag loaded from a saved record,
+        // or modal was never completed). Just clear the toggle.
+        setSurgery(false)
+      }
     }
+  }
+
+  // Called when the user confirms the "Unschedule this surgery?" dialog.
+  const confirmUnscheduleSurgery = async () => {
+    setShowUnscheduleConfirm(false)
+    setSurgery(false)
+    await cancelCarePlanSurgery()
   }
 
   const handleEuthanasiaChange = (checked: boolean) => {
@@ -1556,6 +1565,19 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setReferral(false)
       setSurgery(false)
       cancelCarePlanSurgery()
+    }
+  }
+
+  const handleConfinedChange = (checked: boolean) => {
+    setConfined(checked)
+    if (checked) {
+      setReferral(false)
+      setEuthanasia(false)
+      // Confined also clears surgery (exclusivity); cancel the appointment silently.
+      if (surgery) {
+        setSurgery(false)
+        cancelCarePlanSurgery()
+      }
     }
   }
 
@@ -5067,7 +5089,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       {/* Surgery Appointment Modal (Care Plan path — schedule only, no procedure recording) */}
       <SurgeryAppointmentModal
         open={showSurgeryModal}
-        onOpenChange={setShowSurgeryModal}
+        onOpenChange={(open) => {
+          setShowSurgeryModal(open)
+          // If modal closes without a successful scheduling (no appointment ID was
+          // stored this open-cycle), reset the surgery toggle back to OFF so the
+          // toggle state never drifts ahead of actual appointment creation.
+          if (!open && !carePlanSurgeryAppointmentId) {
+            setSurgery(false)
+          }
+        }}
         petId={petId}
         petName={pet?.name || 'Pet'}
         clinicId={clinicId}
@@ -5077,10 +5107,40 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           if (isDifferentBranch) setReferral(true)
         }}
         onScheduled={(appointmentId) => {
+          // Appointment confirmed — NOW set the toggle to ON and store the ID.
+          setSurgery(true)
           setCarePlanSurgeryAppointmentId(appointmentId)
           setShowSurgeryModal(false)
         }}
       />
+
+      {/* Unschedule surgery confirmation */}
+      <Dialog open={showUnscheduleConfirm} onOpenChange={setShowUnscheduleConfirm}>
+        <DialogContent className="max-w-sm rounded-2xl p-6 gap-0 [&>button]:hidden">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-base font-semibold text-[#4F4F4F]">
+              Unschedule this surgery appointment?
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500 mt-1">
+              This will cancel the currently scheduled surgery appointment. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowUnscheduleConfirm(false)}
+              className="px-5 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+            >
+              Keep appointment
+            </button>
+            <button
+              onClick={confirmUnscheduleSurgery}
+              className="px-5 py-2 text-sm font-medium text-white bg-[#900B09] rounded-full hover:bg-[#7a0907] transition-colors"
+            >
+              Unschedule
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       </div>
     </div>
