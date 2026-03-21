@@ -861,8 +861,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Pregnancy / delivery field-level N/A flags
   const [litterNumberNA, setLitterNumberNA] = useState(false)
   const [laborDurationNA, setLaborDurationNA] = useState(false)
+
+  // Pregnancy assessment field errors
   const [litterNumberError, setLitterNumberError] = useState('')
+  const [pregMethodError, setPregMethodError] = useState('')
+  const [pregSourceError, setPregSourceError] = useState('')
+  const [gestationDateError, setGestationDateError] = useState('')
+  const [expectedDueDateFieldError, setExpectedDueDateFieldError] = useState('')
+
+  // Pregnancy delivery field errors
   const [laborDurationError, setLaborDurationError] = useState('')
+  const [deliveryDateFieldError, setDeliveryDateFieldError] = useState('')
+  const [deliveryTypeError, setDeliveryTypeError] = useState('')
+  const [liveBirthsError, setLiveBirthsError] = useState('')
+  const [stillBirthsError, setStillBirthsError] = useState('')
 
   // Pregnancy loss
   const [pregnancyLoss, setPregnancyLoss] = useState(false)
@@ -1514,6 +1526,87 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     return ''
   }
 
+  // Comprehensive required-field validation for the Pregnancy Assessment block
+  // Returns true when valid; sets per-field error state as a side-effect.
+  const validatePregnancyFields = (): boolean => {
+    if (!ultrasoundPregnant) return true
+    let valid = true
+
+    if (pregnancyConfirmationMethod === 'unknown') {
+      setPregMethodError('Confirmation method is required.')
+      valid = false
+    } else setPregMethodError('')
+
+    if (pregnancyConfirmationSource === 'unknown') {
+      setPregSourceError('Confirmation source is required.')
+      valid = false
+    } else setPregSourceError('')
+
+    if (!gestationDate) {
+      setGestationDateError('Gestation date is required.')
+      valid = false
+    } else setGestationDateError('')
+
+    if (!expectedDueDate) {
+      setExpectedDueDateFieldError('Expected due date is required.')
+      valid = false
+    } else setExpectedDueDateFieldError('')
+
+    // Litter number: existing NA-conflict / range check first, then required
+    const naConflict = validateLitterNumber()
+    if (naConflict) {
+      setLitterNumberError(naConflict)
+      valid = false
+    } else if (!litterNumberNA && litterNumber === '') {
+      setLitterNumberError('Litter number is required.')
+      valid = false
+    } else {
+      setLitterNumberError('')
+    }
+
+    return valid
+  }
+
+  // Comprehensive required-field validation for the Pregnancy Delivery block
+  const validateDeliveryFields = (): boolean => {
+    if (!pregnancyDelivery) return true
+    let valid = true
+
+    if (!deliveryDate) {
+      setDeliveryDateFieldError('Delivery date is required.')
+      valid = false
+    } else setDeliveryDateFieldError('')
+
+    if (!deliveryServiceId) {
+      setDeliveryTypeError('Delivery type is required.')
+      valid = false
+    } else setDeliveryTypeError('')
+
+    if (liveBirths === '') {
+      setLiveBirthsError('Live births is required (enter 0 if none).')
+      valid = false
+    } else setLiveBirthsError('')
+
+    if (stillBirths === '') {
+      setStillBirthsError('Still births is required (enter 0 if none).')
+      valid = false
+    } else setStillBirthsError('')
+
+    // Labor duration: existing NA-conflict / range check first, then required
+    const laborConflict = validateLaborDuration()
+    if (laborConflict) {
+      setLaborDurationError(laborConflict)
+      valid = false
+    } else if (!laborDurationNA && laborDuration === '') {
+      setLaborDurationError('Labor duration is required.')
+      valid = false
+    } else {
+      setLaborDurationError('')
+    }
+
+    return valid
+  }
+
   // Auto-populate preventive care based on appointment-selected preventive services
   useEffect(() => {
     if (!appointmentDate || preventiveCare.length > 0) return
@@ -1963,17 +2056,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       return
     }
 
-    // Validate litter number and labor duration
-    const litterErr = validateLitterNumber()
-    if (litterErr) {
-      setLitterNumberError(litterErr)
-      toast.error(litterErr)
-      return
-    }
-    const laborErr = validateLaborDuration()
-    if (laborErr) {
-      setLaborDurationError(laborErr)
-      toast.error(laborErr)
+    // Validate all required pregnancy and delivery fields
+    const pregValid = validatePregnancyFields()
+    const delivValid = validateDeliveryFields()
+    if (!pregValid || !delivValid) {
+      const targetId = !pregValid ? 'pregnancy-assessment-section' : 'pregnancy-delivery-section'
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      toast.error(!pregValid ? 'Please fill in all required Pregnancy fields.' : 'Please fill in all required Delivery fields.')
       return
     }
 
@@ -2212,17 +2301,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       return
     }
 
-    // Validate litter number and labor duration
-    const litterErrC = validateLitterNumber()
-    if (litterErrC) {
-      setLitterNumberError(litterErrC)
-      toast.error(litterErrC)
-      return
-    }
-    const laborErrC = validateLaborDuration()
-    if (laborErrC) {
-      setLaborDurationError(laborErrC)
-      toast.error(laborErrC)
+    // Validate all required pregnancy and delivery fields
+    const pregValidC = validatePregnancyFields()
+    const delivValidC = validateDeliveryFields()
+    if (!pregValidC || !delivValidC) {
+      const targetId = !pregValidC ? 'pregnancy-assessment-section' : 'pregnancy-delivery-section'
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      toast.error(!pregValidC ? 'Please fill in all required Pregnancy fields.' : 'Please fill in all required Delivery fields.')
       return
     }
 
@@ -3251,7 +3336,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
               {/* ── PREGNANCY ASSESSMENT ── */}
               {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && (
-                <div className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
+                <div id="pregnancy-assessment-section" className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
                   <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
                     <span className="text-sm font-semibold text-green-700">Pregnancy Assessment</span>
                   </div>
@@ -3275,7 +3360,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div className="space-y-3 pt-1">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Confirmation Method</label>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Method <span className="text-red-500">*</span></label>
                             <DropdownField
                               value={pregnancyConfirmationMethod}
                               onValueChange={(value) => {
@@ -3283,6 +3368,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 const prevMethod = pregnancyConfirmationMethod
 
                                 setPregnancyConfirmationMethod(nextMethod)
+                                if (nextMethod !== 'unknown') setPregMethodError('')
 
                                 // ── Bidirectional ultrasound diagnostic-test sync ──────────────
                                 const ultrasoundService = diagnosticTestServices.find((s) =>
@@ -3327,7 +3413,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 }
                               }}
                               placeholder="Select method"
-                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${pregMethodError ? 'border-red-400' : 'border-gray-200'}`}
                               options={[
                                 { value: 'unknown', label: 'Unknown / Not specified' },
                                 { value: 'ultrasound', label: 'Ultrasound' },
@@ -3336,14 +3422,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 { value: 'external_documentation', label: 'External Documentation' },
                               ]}
                             />
+                            {pregMethodError && <p className="text-xs text-red-600 mt-1">{pregMethodError}</p>}
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Confirmation Source</label>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Source <span className="text-red-500">*</span></label>
                             <DropdownField
                               value={pregnancyConfirmationSource}
-                              onValueChange={(value) => setPregnancyConfirmationSource(value as 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown')}
+                              onValueChange={(value) => {
+                                setPregnancyConfirmationSource(value as 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown')
+                                if (value !== 'unknown') setPregSourceError('')
+                              }}
                               placeholder="Select source"
-                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${pregSourceError ? 'border-red-400' : 'border-gray-200'}`}
                               options={[
                                 { value: 'this_clinic', label: 'This Clinic' },
                                 { value: 'external_clinic', label: 'External Clinic' },
@@ -3351,42 +3441,55 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 { value: 'unknown', label: 'Unknown' },
                               ]}
                             />
+                            {pregSourceError && <p className="text-xs text-red-600 mt-1">{pregSourceError}</p>}
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs text-gray-500">Gestation Date</label>
+                            <label className="text-xs text-gray-500">Gestation Date <span className="text-red-500">*</span></label>
                             {(() => { const days = getGestationAgeDays(); return days !== null && days >= 0 ? <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{days}d pregnant</span> : null })()}
                           </div>
-                          <DatePicker
-                            value={gestationDate}
-                            onChange={(value) => {
-                              setGestationDate(value)
-                              if (value && !expectedDueDate) {
-                                setExpectedDueDate(suggestDueDate(value))
-                              }
-                            }}
-                            compact
-                            className="w-full"
-                          />
+                          <div className={gestationDateError ? 'ring-1 ring-red-400 rounded-lg' : ''}>
+                            <DatePicker
+                              value={gestationDate}
+                              onChange={(value) => {
+                                setGestationDate(value)
+                                if (value) setGestationDateError('')
+                                if (value && !expectedDueDate) {
+                                  setExpectedDueDate(suggestDueDate(value))
+                                }
+                              }}
+                              compact
+                              className="w-full"
+                            />
+                          </div>
+                          {gestationDateError && <p className="text-xs text-red-600 mt-1">{gestationDateError}</p>}
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Expected Due Date</label>
-                          <DatePicker
-                            value={expectedDueDate}
-                            onChange={setExpectedDueDate}
-                            allowFutureDates
-                            compact
-                            className="w-full"
-                          />
-                          {pregnancyDateError() && (
+                          <label className="block text-xs text-gray-500 mb-1">Expected Due Date <span className="text-red-500">*</span></label>
+                          <div className={expectedDueDateFieldError ? 'ring-1 ring-red-400 rounded-lg' : ''}>
+                            <DatePicker
+                              value={expectedDueDate}
+                              onChange={(value) => {
+                                setExpectedDueDate(value)
+                                if (value) setExpectedDueDateFieldError('')
+                              }}
+                              allowFutureDates
+                              compact
+                              className="w-full"
+                            />
+                          </div>
+                          {expectedDueDateFieldError && (
+                            <p className="text-xs text-red-600 mt-1">{expectedDueDateFieldError}</p>
+                          )}
+                          {!expectedDueDateFieldError && pregnancyDateError() && (
                             <p className="text-xs text-red-600 mt-1">{pregnancyDateError()}</p>
                           )}
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Litter Number</label>
+                          <label className="block text-xs text-gray-500 mb-1">Litter Number <span className="text-red-500">*</span></label>
                           <input
                             type="number"
                             min="0"
@@ -3527,7 +3630,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
 
               {/* ── PREGNANCY DELIVERY ── */}
-              {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && <div className="border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
+              {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && <div id="pregnancy-delivery-section" className="border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
                 <div className="px-4 py-3 border-b border-blue-100">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -3543,49 +3646,70 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   <div className="px-4 py-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Delivery Date</label>
-                        <DatePicker
-                          value={deliveryDate}
-                          onChange={setDeliveryDate}
-                          allowFutureDates
-                          compact
-                          className="w-full"
-                        />
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Date <span className="text-red-500">*</span></label>
+                        <div className={deliveryDateFieldError ? 'ring-1 ring-red-400 rounded-lg' : ''}>
+                          <DatePicker
+                            value={deliveryDate}
+                            onChange={(value) => {
+                              setDeliveryDate(value)
+                              if (value) setDeliveryDateFieldError('')
+                            }}
+                            allowFutureDates
+                            compact
+                            className="w-full"
+                          />
+                        </div>
+                        {deliveryDateFieldError && <p className="text-xs text-red-600 mt-1">{deliveryDateFieldError}</p>}
+                        {!deliveryDateFieldError && deliveryDateError() && (
+                          <p className="text-xs text-red-600 mt-1">{deliveryDateError()}</p>
+                        )}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Delivery Type</label>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Type <span className="text-red-500">*</span></label>
                         <DropdownField
                           value={deliveryServiceId}
-                          onValueChange={setDeliveryServiceId}
+                          onValueChange={(v) => {
+                            setDeliveryServiceId(v)
+                            if (v) setDeliveryTypeError('')
+                          }}
                           placeholder="Select delivery type"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${deliveryTypeError ? 'border-red-400' : 'border-gray-200'}`}
                           options={pregnancyDeliveryServices.map(s => ({ value: s._id, label: s.name }))}
                         />
+                        {deliveryTypeError && <p className="text-xs text-red-600 mt-1">{deliveryTypeError}</p>}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Live Births</label>
+                        <label className="block text-xs text-gray-500 mb-1">Live Births <span className="text-red-500">*</span></label>
                         <input
                           type="number"
                           min="0"
                           value={liveBirths}
-                          onChange={(e) => setLiveBirths(e.target.value)}
+                          onChange={(e) => {
+                            setLiveBirths(e.target.value)
+                            if (e.target.value !== '') setLiveBirthsError('')
+                          }}
                           placeholder="0"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${liveBirthsError ? 'border-red-400' : 'border-gray-200'}`}
                         />
+                        {liveBirthsError && <p className="text-xs text-red-600 mt-1">{liveBirthsError}</p>}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Still Births</label>
+                        <label className="block text-xs text-gray-500 mb-1">Still Births <span className="text-red-500">*</span></label>
                         <input
                           type="number"
                           min="0"
                           value={stillBirths}
-                          onChange={(e) => setStillBirths(e.target.value)}
+                          onChange={(e) => {
+                            setStillBirths(e.target.value)
+                            if (e.target.value !== '') setStillBirthsError('')
+                          }}
                           placeholder="0"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${stillBirthsError ? 'border-red-400' : 'border-gray-200'}`}
                         />
+                        {stillBirthsError && <p className="text-xs text-red-600 mt-1">{stillBirthsError}</p>}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Labor Duration (hours)</label>
+                        <label className="block text-xs text-gray-500 mb-1">Labor Duration (hours) <span className="text-red-500">*</span></label>
                         <input
                           type="number"
                           min="0"
