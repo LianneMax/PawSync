@@ -23,6 +23,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DatePicker } from '@/components/ui/date-picker'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -2052,7 +2053,9 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'pending_payment' | 'paid'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const [showQRModal, setShowQRModal] = useState(false)
   const [showViewQRModal, setShowViewQRModal] = useState(false)
@@ -2081,13 +2084,25 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
     fetchBillings()
   }, [fetchBillings])
 
+  const toLocalYmd = (value?: string | null) => {
+    if (!value) return ''
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return ''
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const filteredData = billings.filter((b) => {
     const q = searchQuery.toLowerCase()
     const clientName = `${b.ownerId?.firstName || ''} ${b.ownerId?.lastName || ''}`.toLowerCase()
+    const invoiceDateYmd = toLocalYmd(b.serviceDate || b.createdAt)
     const matchesSearch =
       clientName.includes(q) ||
       (b.petId?.name || '').toLowerCase().includes(q) ||
       b._id.toLowerCase().includes(q)
+    const matchesDate = !dateFilter || invoiceDateYmd === dateFilter
     let matchesStatus = true
     if (statusFilter === 'running') {
       matchesStatus = b.status === 'pending_payment' && b.medicalRecordId?.stage !== 'completed'
@@ -2096,8 +2111,22 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
     } else if (statusFilter === 'paid') {
       matchesStatus = b.status === 'paid'
     }
-    return matchesSearch && matchesStatus
+    return matchesSearch && matchesStatus && matchesDate
   })
+
+  const itemsPerPage = 6
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage
+  const displayedInvoices = filteredData.slice(startIndex, startIndex + itemsPerPage)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter, dateFilter])
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages)
+  }, [currentPage, totalPages])
 
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedRecords)
@@ -2107,8 +2136,19 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   }
 
   const toggleAllSelections = () => {
-    if (selectedRecords.size === filteredData.length) setSelectedRecords(new Set())
-    else setSelectedRecords(new Set(filteredData.map((r) => r._id)))
+    const pageIds = displayedInvoices.map((r) => r._id)
+    const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedRecords.has(id))
+
+    if (allPageSelected) {
+      const next = new Set(selectedRecords)
+      pageIds.forEach((id) => next.delete(id))
+      setSelectedRecords(next)
+      return
+    }
+
+    const next = new Set(selectedRecords)
+    pageIds.forEach((id) => next.add(id))
+    setSelectedRecords(next)
   }
 
   const handleDelete = async () => {
@@ -2163,38 +2203,28 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           <h2 className="text-xl font-semibold text-[#4F4F4F]">Invoices</h2>
         </div>
 
-        <div className="flex items-center gap-2 mb-4">
-          {([
-            { value: 'all', label: 'All' },
-            { value: 'running', label: 'Running' },
-            { value: 'pending_payment', label: 'Pending Payment' },
-            { value: 'paid', label: 'Paid' },
-          ] as const).map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => { setStatusFilter(value); setSelectedRecords(new Set()) }}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === value
-                  ? 'bg-[#476B6B] text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <div className="flex-1 max-w-md relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Enter a Client, Patients Name or ID Tag"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
-            />
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            {([
+              { value: 'all', label: 'All' },
+              { value: 'running', label: 'Running' },
+              { value: 'pending_payment', label: 'Pending Payment' },
+              { value: 'paid', label: 'Paid' },
+            ] as const).map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => { setStatusFilter(value); setSelectedRecords(new Set()) }}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === value
+                    ? 'bg-[#476B6B] text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+
           <div className="flex items-center gap-3">
             <button
               onClick={handleDelete}
@@ -2211,14 +2241,39 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div className="flex-1 max-w-md relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-13 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
+            />
+          </div>
+          <div className="flex flex-col items-end gap-2 min-w-[260px]">
+            <div className="w-full flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500">Date</span>
+              <DatePicker
+                value={dateFilter}
+                onChange={setDateFilter}
+                placeholder="Select date"
+                allowFutureDates={true}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-gray-200 min-h-[520px]">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="w-12 px-4 py-3">
                   <input
                     type="checkbox"
-                    checked={selectedRecords.size === filteredData.length && filteredData.length > 0}
+                    checked={displayedInvoices.length > 0 && displayedInvoices.every((record) => selectedRecords.has(record._id))}
                     onChange={toggleAllSelections}
                     className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
                   />
@@ -2236,7 +2291,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                   <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
                 </tr>
               )}
-              {!loading && filteredData.map((b) => {
+              {!loading && displayedInvoices.map((b) => {
                 const status = mapAdminStatus(b)
                 const canMarkPaid = b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed'
                 return (
@@ -2302,12 +2357,50 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           {!loading && filteredData.length === 0 && (
             <div className="text-center py-12">
               <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No billing records found</p>
-              <p className="text-sm text-gray-400">Try adjusting your search or create a new billing record.</p>
+              <p className="text-gray-500 mb-2">No invoices available.</p>
             </div>
           )}
 
         </div>
+
+        {!loading && filteredData.length > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-xs text-gray-500">
+              Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredData.length)} of {filteredData.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`min-w-8 px-2.5 py-1.5 text-sm rounded-lg border transition-colors ${
+                    safeCurrentPage === page
+                      ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                      : 'text-[#4F4F4F] border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {markingPaidBilling && (
