@@ -341,7 +341,7 @@ function PetDetailModal({
                 <div className={`bg-[#476B6B] text-white rounded-[10px] py-2 px-3 ${pet.secondaryBreed ? 'col-span-2' : ''}`}>
                   <p className="text-[9px] text-white/70 text-left">{pet.secondaryBreed ? 'Crossbreed' : 'Breed'}</p>
                   <p className="text-[12px] text-center">
-                    {pet.secondaryBreed ? `${pet.breed} Â· ${pet.secondaryBreed}` : pet.breed}
+                    {pet.secondaryBreed ? `${pet.breed} · ${pet.secondaryBreed}` : pet.breed}
                   </p>
                 </div>
                 <div className="bg-[#476B6B] text-white rounded-[10px] py-2 px-3">
