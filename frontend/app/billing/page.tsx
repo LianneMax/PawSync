@@ -90,15 +90,26 @@ interface ApiMedicalRecord {
 type AdminStatus = 'Running' | 'Paid' | 'Pending Payment'
 type OwnerStatus = 'Paid' | 'Pending Payment' | 'Running'
 
+/**
+ * Returns true when a billing is ready to be paid by the owner:
+ * - Standalone billings with no medical record (e.g. NFC tag) are immediately payable.
+ * - Medical-record-linked billings require the record to be completed.
+ */
+function isPayableBilling(billing: ApiBilling): boolean {
+  if (billing.status !== 'pending_payment') return false
+  if (!billing.medicalRecordId) return true
+  return billing.medicalRecordId.stage === 'completed'
+}
+
 function mapAdminStatus(billing: ApiBilling): AdminStatus {
   if (billing.status === 'paid') return 'Paid'
-  if (billing.status === 'pending_payment' && billing.medicalRecordId?.stage === 'completed') return 'Pending Payment'
+  if (isPayableBilling(billing)) return 'Pending Payment'
   return 'Running'
 }
 
 function mapOwnerStatus(billing: ApiBilling): OwnerStatus {
   if (billing.status === 'paid') return 'Paid'
-  if (billing.status === 'pending_payment' && billing.medicalRecordId?.stage === 'completed') return 'Pending Payment'
+  if (isPayableBilling(billing)) return 'Pending Payment'
   return 'Running'
 }
 
@@ -220,12 +231,12 @@ function PetOwnerBilling() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        {b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed' && b.pendingQrApproval && (
+                        {isPayableBilling(b) && b.pendingQrApproval && (
                           <span className="inline-flex items-center px-3 py-1.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-lg">
                             Awaiting Approval
                           </span>
                         )}
-                        {b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed' && !b.pendingQrApproval && (
+                        {isPayableBilling(b) && !b.pendingQrApproval && (
                           <button
                             onClick={() => setPayingBilling(b)}
                             className="inline-flex items-center px-3 py-1.5 bg-[#3D5A58] hover:bg-[#2e4341] text-white text-xs font-medium rounded-lg transition-colors"
@@ -1386,9 +1397,14 @@ function ViewBillingModal({
 
         <div className="px-6 py-5 space-y-5">
           {/* Contextual status banners */}
-          {billing.status === 'pending_payment' && billing.medicalRecordId?.stage !== 'completed' && (
+          {billing.status === 'pending_payment' && billing.medicalRecordId && billing.medicalRecordId.stage !== 'completed' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-xs text-yellow-700">
               The visit is still in progress. This invoice will update automatically as the medical record is completed.
+            </div>
+          )}
+          {isPayableBilling(billing) && !billing.medicalRecordId && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+              This invoice is ready for payment.
             </div>
           )}
           {billing.status === 'pending_payment' && billing.medicalRecordId?.stage === 'completed' && (
@@ -2121,9 +2137,9 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
     const matchesDate = !rangeStart || !rangeEnd || (invoiceDateYmd >= rangeStart && invoiceDateYmd <= rangeEnd)
     let matchesStatus = true
     if (statusFilter === 'running') {
-      matchesStatus = b.status === 'pending_payment' && b.medicalRecordId?.stage !== 'completed'
+      matchesStatus = b.status === 'pending_payment' && !isPayableBilling(b)
     } else if (statusFilter === 'pending_payment') {
-      matchesStatus = b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed'
+      matchesStatus = isPayableBilling(b)
     } else if (statusFilter === 'paid') {
       matchesStatus = b.status === 'paid'
     }
@@ -2325,7 +2341,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
               )}
               {!loading && displayedInvoices.map((b) => {
                 const status = mapAdminStatus(b)
-                const canMarkPaid = b.status === 'pending_payment' && b.medicalRecordId?.stage === 'completed'
+                const canMarkPaid = isPayableBilling(b)
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4">

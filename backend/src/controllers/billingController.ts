@@ -486,15 +486,14 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Billing is already marked as paid' });
     }
 
-    // Billing can only be paid once the linked medical record is completed OR the pet is
-    // currently confined (running bill — payment may be taken at any point during a stay).
-    if (!billing.medicalRecordId) {
-      return res.status(400).json({ status: 'ERROR', message: 'No medical record linked to this billing' });
-    }
-    const linkedRecord = await MedicalRecord.findById(billing.medicalRecordId).select('stage').lean();
-    const payableStages: string[] = ['completed', 'confined'];
-    if (!linkedRecord || !payableStages.includes((linkedRecord as any).stage)) {
-      return res.status(400).json({ status: 'ERROR', message: 'Billing can only be marked as paid after the medical record is completed or the pet is admitted' });
+    // If linked to a medical record, ensure it is in a payable stage.
+    // Standalone billings (e.g. NFC tag) with no medical record are payable at any time.
+    if (billing.medicalRecordId) {
+      const linkedRecord = await MedicalRecord.findById(billing.medicalRecordId).select('stage').lean();
+      const payableStages: string[] = ['completed', 'confined'];
+      if (!linkedRecord || !payableStages.includes((linkedRecord as any).stage)) {
+        return res.status(400).json({ status: 'ERROR', message: 'Billing can only be marked as paid after the medical record is completed or the pet is admitted' });
+      }
     }
 
     const { amountPaid, paymentMethod } = req.body;

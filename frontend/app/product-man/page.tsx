@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
-import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe, Eye } from 'lucide-react'
+import { Search, Trash2, Plus, Pencil, ChevronDown, Minus, X, Syringe, Eye, Lock } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,7 @@ interface ProductItem {
   category: string
   price: number
   lastUpdateDate: string
+  isSystemProduct?: boolean
   administrationRoute?: string
   administrationMethod?: string
   dosageAmount?: string
@@ -1267,7 +1268,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const showBranchSection = qualifiesForBranchAvailability(tab, form.category)
+  const showBranchSection = qualifiesForBranchAvailability(tab, form.category) || !!item.isSystemProduct
 
   // When branches load after modal opens, add any missing ones to branchState
   useEffect(() => {
@@ -1312,8 +1313,12 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
   }
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.price) {
-      setError('Name and price are required.')
+    if (!item.isSystemProduct && !form.name.trim()) {
+      setError('Name is required.')
+      return
+    }
+    if (!form.price) {
+      setError('Price is required.')
       return
     }
     const parsed = parseFloat(form.price)
@@ -1321,7 +1326,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       setError('Please enter a valid price.')
       return
     }
-    if (isMedication) {
+    if (isMedication && !item.isSystemProduct) {
       if (!admRoute) { setError('Please select an administration route.'); return }
       if ((admRoute === 'oral' || admRoute === 'topical' || admRoute === 'preventive') && !admMethod) {
         setError('Please select an administration method.'); return
@@ -1427,6 +1432,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
             branchName: typeof ba.branchId === 'object' ? ba.branchId.name : (branches.find((b) => b.id === ba.branchId)?.name ?? ''),
             isActive: ba.isActive,
           })),
+          isSystemProduct: data.data.item.isSystemProduct ?? item.isSystemProduct ?? false,
         })
         onClose()
       } else {
@@ -1475,20 +1481,28 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Enter name"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-            />
-          </div>
+          {item.isSystemProduct && (
+            <div className="px-3.5 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-500">
+              This is a system product. Only the price and branch availability can be edited.
+            </div>
+          )}
 
-          {/* Category — locked for Medication; editable for Services/Others */}
-          {isMedication ? (
+          {!item.isSystemProduct && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Enter name"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+              />
+            </div>
+          )}
+
+          {/* Category — locked for Medication or system products; editable for Services/Others */}
+          {!item.isSystemProduct && (isMedication ? (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
               <div className="px-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-500">Medication</div>
@@ -1504,7 +1518,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
                 options={categories.map((cat) => ({ value: cat, label: cat }))}
               />
             </div>
-          )}
+          ))}
 
           {/* Administration Route — Medications only */}
           {isMedication && (
@@ -1676,17 +1690,19 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
-            <input
-              type="text"
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Enter description"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
-            />
-          </div>
+          {!item.isSystemProduct && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Description (Optional)</label>
+              <input
+                type="text"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                placeholder="Enter description"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
+              />
+            </div>
+          )}
 
           {/* Standard Information — Medications only */}
           {isMedication && (
@@ -2249,6 +2265,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
             preventiveDuration: item.preventiveDuration,
             preventiveDurationUnit: item.preventiveDurationUnit,
             branchAvailability: mapBranchAvailability(item.branchAvailability),
+            isSystemProduct: item.isSystemProduct ?? false,
           }))
           setData(items)
         } else {
@@ -2291,20 +2308,23 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
     })
   }
 
-  const allSelected = selected.size === data.length && data.length > 0
-  const someSelected = selected.size > 0 && selected.size < data.length
+  const selectable = data.filter((d) => !d.isSystemProduct)
+  const allSelected = selected.size === selectable.length && selectable.length > 0
+  const someSelected = selected.size > 0 && selected.size < selectable.length
 
   const handleSelectAll = () => {
-    setSelected(allSelected ? new Set() : new Set(data.map((d) => d.id)))
+    setSelected(allSelected ? new Set() : new Set(selectable.map((d) => d.id)))
   }
 
   const handleDelete = async () => {
     if (selected.size === 0) return
-    if (!window.confirm(`Delete ${selected.size} item(s)?`)) return
+    // Safety: never delete system products even if accidentally selected
+    const ids = Array.from(selected).filter((id) => !data.find((d) => d.id === id)?.isSystemProduct)
+    if (ids.length === 0) return
+    if (!window.confirm(`Delete ${ids.length} item(s)?`)) return
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const ids = Array.from(selected)
 
       for (const id of ids) {
         await fetch(`${apiUrl}/product-services/${id}`, {
@@ -2313,7 +2333,8 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
         })
       }
 
-      setData((prev) => prev.filter((d) => !selected.has(d.id)))
+      const deletedSet = new Set(ids)
+      setData((prev) => prev.filter((d) => !deletedSet.has(d.id)))
       setSelected(new Set())
     } catch {
       alert('Error deleting items. Please try again.')
@@ -2526,24 +2547,38 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
                   <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
                     {isMainBranch && (
                       <td className="px-5 py-3.5">
-                        <button
-                          onClick={() => toggleSelect(item.id)}
-                          className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                            selected.has(item.id) ? 'bg-[#7FA5A3] border-[#7FA5A3]' : 'border-gray-300 hover:border-[#7FA5A3]'
-                          }`}
-                        >
-                          {selected.has(item.id) && (
-                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
-                              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </button>
+                        {item.isSystemProduct ? (
+                          <span className="w-5 h-5 flex items-center justify-center text-gray-300" title="System product — cannot be deleted">
+                            <Lock className="w-3.5 h-3.5" />
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => toggleSelect(item.id)}
+                            className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                              selected.has(item.id) ? 'bg-[#7FA5A3] border-[#7FA5A3]' : 'border-gray-300 hover:border-[#7FA5A3]'
+                            }`}
+                          >
+                            {selected.has(item.id) && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                                <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
                       </td>
                     )}
                     <td className="px-4 py-3.5">
-                      <span className="text-sm font-medium text-[#476B6B] underline underline-offset-2 cursor-pointer hover:text-[#7FA5A3] transition-colors">
-                        {item.name}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[#476B6B] underline underline-offset-2 cursor-pointer hover:text-[#7FA5A3] transition-colors">
+                          {item.name}
+                        </span>
+                        {item.isSystemProduct && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">
+                            <Lock className="w-2.5 h-2.5" />
+                            System
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#EAF1F1] text-[#3D5E5C]">
@@ -2751,7 +2786,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
                           >
                             <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#7FA5A3] transition-colors" />
                           </button>
-                        ) : qualifiesForBranchAvailability(tab, item.category) ? (() => {
+                        ) : (qualifiesForBranchAvailability(tab, item.category) || item.isSystemProduct) ? (() => {
                           const ba = item.branchAvailability.find((b) => b.branchId === userBranchId)
                           const isActive = ba?.isActive ?? false
                           return (

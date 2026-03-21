@@ -5,6 +5,8 @@ import PetTagRequest from '../models/PetTagRequest';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 import Appointment from '../models/Appointment';
+import Billing from '../models/Billing';
+import ProductService from '../models/ProductService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 
 /**
@@ -147,6 +149,51 @@ export const requestPetTag = async (req: Request, res: Response) => {
     });
 
     console.log(`[NFC Request] Successfully created tag request ${(tagRequest as any)._id} for pet ${petId}`);
+
+    // Create billing immediately upon request (owner can pay before tag is written)
+    try {
+      const nfcTagProduct = await ProductService.findOne({ isSystemProduct: true, name: 'NFC Pet Tag' });
+      if (nfcTagProduct) {
+        let billingBranchId = finalClinicBranchId;
+        if (!billingBranchId) {
+          const mainBranch = await ClinicBranch.findOne({ clinicId: clinic._id, isMain: true }).select('_id');
+          billingBranchId = mainBranch?._id || null;
+        }
+
+        if (billingBranchId) {
+          await Billing.create({
+            ownerId: req.user.userId,
+            petId: petId,
+            vetId: null,
+            clinicId: clinic._id,
+            clinicBranchId: billingBranchId,
+            medicalRecordId: null,
+            confinementRecordId: null,
+            appointmentId: null,
+            items: [{
+              productServiceId: nfcTagProduct._id,
+              name: nfcTagProduct.name,
+              type: 'Product',
+              unitPrice: nfcTagProduct.price,
+              quantity: 1,
+            }],
+            subtotal: nfcTagProduct.price,
+            discount: 0,
+            totalAmountDue: nfcTagProduct.price,
+            status: 'pending_payment',
+            serviceLabel: 'NFC Pet Tag',
+            serviceDate: new Date(),
+          });
+          console.log(`[NFC Request] Billing created for tag request ${(tagRequest as any)._id}`);
+        } else {
+          console.warn(`[NFC Request] Could not create billing — no clinic branch found`);
+        }
+      } else {
+        console.warn('[NFC Request] NFC Pet Tag product not found — billing not created');
+      }
+    } catch (billingError) {
+      console.error('[NFC Request] Failed to create billing:', billingError);
+    }
 
     return res.status(201).json({
       status: 'SUCCESS',

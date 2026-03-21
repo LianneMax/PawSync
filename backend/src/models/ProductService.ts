@@ -21,6 +21,7 @@ export interface IProductService extends Document {
   price: number;
   description: string;
   isActive: boolean;
+  isSystemProduct: boolean;
   administrationRoute?: AdministrationRoute;
   administrationMethod?: AdministrationMethod;
 
@@ -75,6 +76,7 @@ const ProductServiceSchema: Schema = new Schema(
     price: { type: Number, required: true, min: 0 },
     description: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
+    isSystemProduct: { type: Boolean, default: false },
     administrationRoute: {
       type: String,
       enum: ['oral', 'topical', 'injection', 'preventive'],

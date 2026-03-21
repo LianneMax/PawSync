@@ -28,6 +28,7 @@ import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { startScheduler } from './utils/scheduler';
 import { backfillAssignedVets } from './utils/backfillAssignedVets';
+import { ensureNfcTagProduct } from './utils/seedSystemProducts';
 
 // Load environment variables
 dotenv.config();
@@ -127,6 +128,7 @@ const startServer = async () => {
   try {
     await connectDatabase();
     await backfillAssignedVets();
+    await ensureNfcTagProduct();
     startScheduler();
 
     const server = http.createServer(app);

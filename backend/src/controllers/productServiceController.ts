@@ -219,6 +219,22 @@ export const updateProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
+    // System products can only have price and branchAvailability updated
+    if ((item as any).isSystemProduct) {
+      const { price, branchAvailability } = req.body;
+      if (price !== undefined) item.price = price;
+      if (branchAvailability !== undefined) {
+        (item as any).branchAvailability = branchAvailability;
+      }
+      await item.save();
+      await item.populate('branchAvailability.branchId', 'name isMain');
+      return res.status(200).json({
+        status: 'SUCCESS',
+        message: 'Product/service updated successfully',
+        data: { item },
+      });
+    }
+
     const { name, type, price, description, category, isActive, administrationRoute, administrationMethod, branchAvailability, dosageAmount, frequencyNotes, frequency, frequencyLabel, duration, durationLabel, dosePerKg, doseUnit, doseConcentration, netContent, intervalDays, weightMin, weightMax, pricingType, piecesPerPack, injectionPricingType, associatedServiceId, preventiveDuration, preventiveDurationUnit } = req.body;
 
     if (name !== undefined) item.name = name.trim();
@@ -305,6 +321,10 @@ export const deleteProductService = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
+    if ((item as any).isSystemProduct) {
+      return res.status(403).json({ status: 'ERROR', message: 'This is a system product and cannot be deleted' });
+    }
+
     item.isActive = false;
     await item.save();
 
@@ -343,7 +363,7 @@ export const updateBranchAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Product/service not found' });
     }
 
-    if (!qualifiesForBranchAvailability(item.type, item.category)) {
+    if (!qualifiesForBranchAvailability(item.type, item.category) && !(item as any).isSystemProduct) {
       return res.status(400).json({ status: 'ERROR', message: 'This item does not support branch availability' });
     }
 
