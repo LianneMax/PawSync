@@ -10,6 +10,7 @@ import { getVaccineTypes, getVaccinationsByPet, createVaccination, updateVaccina
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
 import SurgeryAppointmentModal from './SurgeryAppointmentModal'
+import ReferralModal from './ReferralModal'
 import { HistoricalMedicalRecord } from './HistoricalMedicalRecord'
 import {
   X,
@@ -637,6 +638,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [carePlanSurgeryAppointmentId, setCarePlanSurgeryAppointmentId] = useState<string | null>(null)
   // Controls the "Unschedule this surgery?" confirmation dialog.
   const [showUnscheduleConfirm, setShowUnscheduleConfirm] = useState(false)
+  // Referral modal state
+  const [showReferralModal, setShowReferralModal] = useState(false)
+  const [carePlanReferralId, setCarePlanReferralId] = useState<string | null>(null)
   const [carePlanOpen, setCarePlanOpen] = useState(true)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
@@ -1513,10 +1517,19 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Care plan toggle handlers — enforce mutual exclusivity rules
 
   const handleReferralChange = (checked: boolean) => {
-    setReferral(checked)
     if (checked) {
       setConfined(false)
       setEuthanasia(false)
+      if (!surgery) {
+        // Referral-only path: open modal, defer setReferral(true) to onReferred
+        setShowReferralModal(true)
+      } else {
+        // Auto-referral from cross-branch surgery — set immediately, no modal
+        setReferral(true)
+      }
+    } else {
+      setReferral(false)
+      setCarePlanReferralId(null)
     }
   }
 
@@ -5141,6 +5154,27 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Referral Modal (Care Plan referral-only path) */}
+      <ReferralModal
+        open={showReferralModal}
+        onOpenChange={(open) => {
+          setShowReferralModal(open)
+          // If closed without completing a referral, reset the toggle back to OFF
+          if (!open && !carePlanReferralId) {
+            setReferral(false)
+          }
+        }}
+        petId={petId}
+        petName={pet?.name || 'Pet'}
+        recordId={recordId}
+        referringBranchId={clinicBranchId}
+        onReferred={(referralId) => {
+          setReferral(true)
+          setCarePlanReferralId(referralId)
+          setShowReferralModal(false)
+        }}
+      />
 
       </div>
     </div>

@@ -736,6 +736,78 @@ export async function sendConfinementReleaseRequestToVet(params: {
   }
 }
 
+export async function sendReferralToVet(params: {
+  referredVetEmail: string;
+  referredVetFirstName: string;
+  referringVetName: string;
+  referringBranchName: string;
+  referredBranchName: string;
+  ownerName: string;
+  petName: string;
+  petId: string;
+  reason: string;
+}) {
+  const recordsUrl = `${FRONTEND_URL}/patient-records?petId=${params.petId}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.referredVetEmail,
+      subject: `PawSync – You have a new patient referral: ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">New Patient Referral</h2>
+          <p>Hi Dr. ${params.referredVetFirstName},</p>
+          <p>Dr. ${params.referringVetName} at <strong>${params.referringBranchName}</strong> has referred a patient to you at <strong>${params.referredBranchName}</strong>.</p>
+          <div style="background: #f0f9f8; border: 1px solid #99c4c2; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Patient:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0;"><strong>Owner:</strong> ${params.ownerName}</p>
+            <p style="margin: 4px 0;"><strong>Reason:</strong> ${params.reason}</p>
+          </div>
+          <p>The pet's full medical history has been shared with you. You can review it in the patient records section.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${recordsUrl}" style="background: #5A7C7A; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">View Patient Records</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendReferralToVet error:', err);
+  }
+}
+
+export async function sendReferralToOwner(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  referringVetName: string;
+  referredVetName: string;
+  referredBranchName: string;
+}) {
+  const appointmentsUrl = `${FRONTEND_URL}/my-appointments`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – ${params.petName} has been referred to a specialist`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Your Pet Has Been Referred</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Dr. ${params.referringVetName} has referred <strong>${params.petName}</strong> to Dr. ${params.referredVetName} at <strong>${params.referredBranchName}</strong>.</p>
+          <p>Their medical history has been shared with the referred veterinarian so they have full context before your visit.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${appointmentsUrl}" style="background: #5A7C7A; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">View My Appointments</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendReferralToOwner error:', err);
+  }
+}
+
 export async function sendConfinementReleaseConfirmedToOwner(params: {
   ownerEmail: string;
   ownerFirstName: string;

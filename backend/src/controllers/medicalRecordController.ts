@@ -10,6 +10,7 @@ import Billing from '../models/Billing';
 import ConfinementRecord from '../models/ConfinementRecord';
 import ProductService from '../models/ProductService';
 import VaccineType from '../models/VaccineType';
+import Referral from '../models/Referral';
 import { createNotification } from '../services/notificationService';
 import { sendBillingPendingPayment, sendPrescriptionEmail } from '../services/emailService';
 import { getPregnancySnapshot, syncPregnancyFromMedicalRecord, getPregnancyEpisodeHistory } from '../services/pregnancyDomainService';
@@ -704,6 +705,11 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       } else {
         const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
         isAuthorizedVet = !!hasRecords;
+      }
+      // Referred vets also get full read access to the pet's history
+      if (!isAuthorizedVet) {
+        const referral = await Referral.exists({ referredVetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!referral;
       }
     }
 
@@ -1661,6 +1667,11 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
       if (!isAuthorizedVet) {
         const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId, isActive: true });
         isAuthorizedVet = !!assignment;
+      }
+      // Referred vets also get read access to the pet's full history
+      if (!isAuthorizedVet) {
+        const referral = await Referral.exists({ referredVetId: req.user.userId, petId });
+        isAuthorizedVet = !!referral;
       }
     }
 

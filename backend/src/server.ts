@@ -24,6 +24,7 @@ import notificationRoutes from './routes/notificationRoutes';
 import petNotesRoutes from './routes/petNotesRoutes';
 import vetReportRoutes from './routes/vetReportRoutes';
 import resignationRoutes from './routes/resignationRoutes';
+import referralRoutes from './routes/referralRoutes';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { startScheduler } from './utils/scheduler';
@@ -111,6 +112,9 @@ app.use('/api/vet-reports', vetReportRoutes);
 
 // Resignation routes
 app.use('/api/resignations', resignationRoutes);
+
+// Referral routes
+app.use('/api/referrals', referralRoutes);
 
 // NFC routes
 app.use('/api/nfc', nfcRoutes);
