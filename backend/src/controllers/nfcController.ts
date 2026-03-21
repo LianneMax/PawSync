@@ -20,15 +20,19 @@ const normalizeNfcTagId = (value?: string | null): string => {
 /**
  * Fire-and-forget: notify the pet owner that their NFC tag has been linked.
  */
-async function notifyOwnerTagLinked(petId: string): Promise<void> {
+async function notifyOwnerTagLinked(petId: string, clinicId?: string): Promise<void> {
   try {
     const pet = await Pet.findById(petId).select('name ownerId').lean();
     if (!pet) return;
 
-    const owner = await User.findById((pet as any).ownerId).select('firstName email').lean();
+    const [owner, clinic] = await Promise.all([
+      User.findById((pet as any).ownerId).select('firstName email').lean(),
+      clinicId ? Clinic.findById(clinicId).select('name').lean() : null,
+    ]);
     if (!owner) return;
 
     const petName = (pet as any).name as string;
+    const clinicName = (clinic as any)?.name || 'the clinic';
     const ownerId = (owner as any)._id.toString();
 
     await createNotification(
@@ -44,7 +48,7 @@ async function notifyOwnerTagLinked(petId: string): Promise<void> {
         ownerEmail: (owner as any).email,
         ownerFirstName: (owner as any).firstName || 'Pet Owner',
         petName,
-        clinicName: 'your clinic',
+        clinicName,
       });
     }
   } catch (err) {
@@ -196,7 +200,7 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
           pet.nfcTagId = normalizedUid;
           await pet.save();
           console.log(`[API] Saved NFC tag UID ${normalizedUid} to pet ${petId}`);
-          notifyOwnerTagLinked(pet._id.toString()).catch(() => {});
+          notifyOwnerTagLinked(pet._id.toString(), req.user?.clinicId).catch(() => {});
         }
 
         return res.status(200).json({
@@ -265,7 +269,7 @@ export const recordNFCTagWriting = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    notifyOwnerTagLinked(petId).catch(() => {});
+    notifyOwnerTagLinked(petId, req.user?.clinicId).catch(() => {});
 
     return res.status(200).json({
       status: 'SUCCESS',

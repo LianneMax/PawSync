@@ -38,8 +38,10 @@ export async function alertClinicAdmins(params: AlertClinicAdminsParams): Promis
       .select('_id firstName email')
       .lean();
 
+    console.log(`[ClinicAdminAlert] Found ${admins.length} admin(s) for clinicId=${params.clinicId} branchId=${params.clinicBranchId ?? 'none'}`);
     if (admins.length === 0 && params.clinicBranchId) {
       admins = await User.find(baseFilter).select('_id firstName email').lean();
+      console.log(`[ClinicAdminAlert] Fallback found ${admins.length} admin(s)`);
     }
 
     await Promise.all(
