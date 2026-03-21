@@ -314,7 +314,11 @@ export default function SurgeryAppointmentModal({
           clinicId: clinicId || '',
           clinicBranchId: selectedBranchId || '',
           mode: 'face-to-face',
-          types: selectedServices,
+          // Map service ObjectIds → human-readable names so appointment list
+          // pages can display them without hitting a display-map miss.
+          types: selectedServices.map(
+            (id) => surgeryServices.find((s) => s._id === id)?.name ?? id
+          ),
           date,
           startTime: selectedSlot.startTime,
           endTime: selectedSlot.endTime,
