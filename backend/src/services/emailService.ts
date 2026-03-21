@@ -16,6 +16,10 @@ export const getResend = (): Resend => {
 export const FROM = 'PawSync <noreply@pawsync.app>';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+function emailHtml(body: string): string {
+  return `<!DOCTYPE html><html><head><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"></head><body style="margin:0;padding:0;background:#f9fafb;">${body}</body></html>`;
+}
+
 function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -44,8 +48,8 @@ export async function sendAppointmentBooked(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: 'PawSync – Appointment Confirmed',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Appointment Confirmed!</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>Your appointment for <strong>${params.petName}</strong> has been booked successfully.</p>
@@ -60,7 +64,7 @@ export async function sendAppointmentBooked(params: {
           <p style="color: #666;">Please arrive 10 minutes early for face-to-face visits.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendAppointmentBooked error:', err);
@@ -84,8 +88,8 @@ export async function sendAppointmentReminder(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: 'PawSync – Appointment Reminder (Tomorrow)',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Appointment Reminder</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>This is a reminder that <strong>${params.petName}</strong> has an appointment <strong>tomorrow</strong>.</p>
@@ -99,7 +103,7 @@ export async function sendAppointmentReminder(params: {
           <p style="color: #666;">We look forward to seeing you and ${params.petName}!</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendAppointmentReminder error:', err);
@@ -121,8 +125,8 @@ export async function sendAppointmentCancelled(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: 'PawSync – Appointment Cancelled',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Appointment Cancelled</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>Your appointment for <strong>${params.petName}</strong> has been cancelled.</p>
@@ -134,7 +138,7 @@ export async function sendAppointmentCancelled(params: {
           <p style="color: #666;">You can rebook an appointment anytime through the PawSync app.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendAppointmentCancelled error:', err);
@@ -152,32 +156,40 @@ export async function sendAppointmentMissed(params: {
   date: Date | string;
   startTime: string;
   types: string[];
+  petId?: string;
+  branchId?: string;
+  vetId?: string;
 }) {
-  const rescheduleUrl = `${FRONTEND_URL}/my-appointments`;
+  const query = new URLSearchParams();
+  if (params.petId) query.set('petId', params.petId);
+  if (params.branchId) query.set('branchId', params.branchId);
+  if (params.vetId) query.set('vetId', params.vetId);
+  if (params.types?.length) query.set('types', params.types.join(','));
+  const rescheduleUrl = `${FRONTEND_URL}/my-appointments?${query.toString()}`;
   try {
     await getResend().emails.send({
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Missed Appointment for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #b45309;">Missed Appointment</h2>
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #900B09;">Missed Appointment</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>We noticed that your appointment for <strong>${params.petName}</strong> was not attended and has been automatically cancelled.</p>
-          <div style="background: #fef3c7; border: 1px solid #fcd34d; padding: 16px; border-radius: 12px; margin: 20px 0;">
+          <div style="background: #fef2f2; border: 1px solid #fca5a5; padding: 16px; border-radius: 12px; margin: 20px 0;">
             <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
             <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
             <p style="margin: 4px 0;"><strong>Vet:</strong> Dr. ${params.vetName}</p>
             <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
             <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
           </div>
-          <p style="color: #666;">Don't worry — you can reschedule anytime. Click the button below to book a new appointment.</p>
+          <p style="color: #666;">Don't worry — you can reschedule anytime. Click the button below to book a new appointment with the same details pre-filled.</p>
           <div style="text-align: center; margin: 24px 0;">
-            <a href="${rescheduleUrl}" style="background: #7FA5A3; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Reschedule Appointment</a>
+            <a href="${rescheduleUrl}" style="background: #900B09; color: white; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: bold;">Reschedule Appointment</a>
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendAppointmentMissed error:', err);
@@ -202,8 +214,8 @@ export async function sendVaccinationDueReminder(params: {
       subject: isOverdue
         ? `PawSync – Vaccination Overdue for ${params.petName}`
         : `PawSync – Vaccination Due in 7 Days for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">${isOverdue ? 'Vaccination Overdue' : 'Vaccination Due Soon'}</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>${isOverdue
@@ -221,7 +233,7 @@ export async function sendVaccinationDueReminder(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendVaccinationDueReminder error:', err);
@@ -243,8 +255,8 @@ export async function sendBoosterScheduledVet(params: {
       from: FROM,
       to: params.vetEmail,
       subject: `PawSync – Booster Appointment Scheduled for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Booster Appointment Auto-Scheduled</h2>
           <p>Hi Dr. ${params.vetFirstName},</p>
           <p>A booster vaccination appointment has been automatically scheduled for your patient.</p>
@@ -257,7 +269,7 @@ export async function sendBoosterScheduledVet(params: {
           <p style="color: #666;">Please confirm or adjust this appointment in PawSync as needed.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendBoosterScheduledVet error:', err);
@@ -283,8 +295,8 @@ export async function sendVaccinationDueReminderVet(params: {
       subject: isOverdue
         ? `PawSync – Vaccination Overdue: ${params.petName}`
         : `PawSync – Vaccination Due in 7 Days: ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">${isOverdue ? 'Vaccination Overdue' : 'Vaccination Due Soon'}</h2>
           <p>Hi Dr. ${params.vetFirstName},</p>
           <p>${isOverdue
@@ -301,7 +313,7 @@ export async function sendVaccinationDueReminderVet(params: {
           <p style="color: #666;">Please follow up with the owner to schedule an appointment.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendVaccinationDueReminderVet error:', err);
@@ -323,8 +335,8 @@ export async function sendLostPetConfirmation(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – ${params.petName} Has Been Marked as Lost`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Your Pet Has Been Reported Missing</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>We've marked <strong>${params.petName}</strong>'s profile as lost. Share the link below so anyone who finds your ${params.species} can contact you.</p>
@@ -335,7 +347,7 @@ export async function sendLostPetConfirmation(params: {
           <p style="color: #666;">If you find ${params.petName}, you can mark them as found in the PawSync app.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendLostPetConfirmation error:', err);
@@ -356,8 +368,8 @@ export async function sendLostPetScanAlert(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Someone Scanned ${params.petName}'s NFC/QR Pet Tag`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Someone Found ${params.petName}!</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>Someone just scanned <strong>${params.petName}</strong>&apos;s NFC/QR Pet Tag and viewed their public profile. They may be trying to return your pet.</p>
@@ -369,7 +381,7 @@ export async function sendLostPetScanAlert(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendLostPetScanAlert error:', err);
@@ -394,8 +406,8 @@ export async function sendPetFoundAlert(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Someone Shared a Location for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Someone Shared a Location for ${params.petName}</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>A finder shared their location with you from <strong>${params.petName}</strong>&apos;s public profile.</p>
@@ -409,7 +421,7 @@ export async function sendPetFoundAlert(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendPetFoundAlert error:', err);
@@ -430,8 +442,8 @@ export async function sendPetFoundConfirmation(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – ${params.petName} Marked as Found`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">${params.petName} Is Marked as Found</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>You successfully marked <strong>${params.petName}</strong> as found.</p>
@@ -443,7 +455,7 @@ export async function sendPetFoundConfirmation(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendPetFoundConfirmation error:', err);
@@ -465,8 +477,8 @@ export async function sendPetDeceasedNotice(params: {
       from: FROM,
       to: params.recipientEmail,
       subject: `PawSync – ${params.petName} Marked as Deceased`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">With Sympathy</h2>
           <p>Hi ${params.recipientName},</p>
           <p><strong>${params.petName}</strong> has been marked as deceased by <strong>${params.markedBy}</strong> on <strong>${markedOn}</strong>.</p>
@@ -474,7 +486,7 @@ export async function sendPetDeceasedNotice(params: {
           <p>Our thoughts are with you during this loss.</p>
           <p style="margin-top: 20px;">With care,<br/>PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendPetDeceasedNotice error:', err);
@@ -496,8 +508,8 @@ export async function sendPetOwnershipTransferredNotice(params: {
       from: FROM,
       to: params.recipientEmail,
       subject: `PawSync – ${params.petName} Ownership Transferred`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Pet Ownership Updated</h2>
           <p>Hi ${params.recipientName},</p>
           <p>The ownership for <strong>${params.petName}</strong> has been transferred.</p>
@@ -509,7 +521,7 @@ export async function sendPetOwnershipTransferredNotice(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendPetOwnershipTransferredNotice error:', err);
@@ -531,8 +543,8 @@ export async function sendVetInvitation(params: {
       from: FROM,
       to: params.vetEmail,
       subject: `Invitation to Join ${params.branchName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">You've Been Invited!</h2>
           <p>Hello Dr. ${params.vetFirstName} ${params.vetLastName},</p>
           <p>You have been invited to join <strong>${params.branchName}</strong> in our veterinary system.</p>
@@ -549,7 +561,7 @@ export async function sendVetInvitation(params: {
           <p style="color: #999; font-size: 12px;">This invitation link expires in 7 days.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendVetInvitation error:', err);
@@ -577,8 +589,8 @@ export async function sendBillingPendingPayment(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Invoice Ready for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Invoice Ready – Payment Due</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>An invoice for <strong>${params.petName}</strong>'s visit has been approved and is ready for payment.</p>
@@ -597,7 +609,7 @@ export async function sendBillingPendingPayment(params: {
           <p style="color: #666;">Please proceed to the clinic to settle your balance.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendBillingPendingPayment error:', err);
@@ -626,8 +638,8 @@ export async function sendBillingPaidReceipt(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Payment Received for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Payment Confirmed ✓</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>Thank you! Payment for <strong>${params.petName}</strong>'s visit has been received.</p>
@@ -647,7 +659,7 @@ export async function sendBillingPaidReceipt(params: {
           <p style="color: #666;">Thank you for trusting PawSync with ${params.petName}'s care.</p>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendBillingPaidReceipt error:', err);
@@ -679,8 +691,8 @@ export async function sendClinicAdminAlertEmail(params: {
       from: FROM,
       to: params.adminEmail,
       subject: params.subject,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A; margin: 0 0 12px;">${params.headline}</h2>
           <p style="margin: 0 0 10px;">Hi ${params.adminFirstName},</p>
           <p style="margin: 0 0 16px; color: #374151;">${params.intro}</p>
@@ -691,7 +703,7 @@ export async function sendClinicAdminAlertEmail(params: {
           ` : ''}
           <p style="color: #9ca3af; font-size: 12px; margin-top: 16px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendClinicAdminAlertEmail error:', err);
@@ -714,8 +726,8 @@ export async function sendConfinementReleaseRequestToVet(params: {
       from: FROM,
       to: params.vetEmail,
       subject: `PawSync – Confinement Release Requested for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Confinement Release Request</h2>
           <p>Hi Dr. ${params.vetFirstName},</p>
           <p><strong>${params.ownerName}</strong> requested confinement release for <strong>${params.petName}</strong>.</p>
@@ -729,7 +741,7 @@ export async function sendConfinementReleaseRequestToVet(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendConfinementReleaseRequestToVet error:', err);
@@ -753,8 +765,8 @@ export async function sendReferralToVet(params: {
       from: FROM,
       to: params.referredVetEmail,
       subject: `PawSync – You have a new patient referral: ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">New Patient Referral</h2>
           <p>Hi Dr. ${params.referredVetFirstName},</p>
           <p>Dr. ${params.referringVetName} at <strong>${params.referringBranchName}</strong> has referred a patient to you at <strong>${params.referredBranchName}</strong>.</p>
@@ -769,7 +781,7 @@ export async function sendReferralToVet(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendReferralToVet error:', err);
@@ -790,8 +802,8 @@ export async function sendReferralToOwner(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – ${params.petName} has been referred to a specialist`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Your Pet Has Been Referred</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>Dr. ${params.referringVetName} has referred <strong>${params.petName}</strong> to Dr. ${params.referredVetName} at <strong>${params.referredBranchName}</strong>.</p>
@@ -801,7 +813,7 @@ export async function sendReferralToOwner(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendReferralToOwner error:', err);
@@ -821,8 +833,8 @@ export async function sendConfinementReleaseConfirmedToOwner(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – ${params.petName} Has Been Released from Confinement`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Confinement Release Confirmed</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p><strong>${params.petName}</strong> has been released from confinement by Dr. ${params.vetName}.</p>
@@ -835,7 +847,7 @@ export async function sendConfinementReleaseConfirmedToOwner(params: {
           </div>
           <p style="color: #999; font-size: 12px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendConfinementReleaseConfirmedToOwner error:', err);
@@ -912,8 +924,8 @@ export async function sendPrescriptionEmail(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Prescription & Care Summary for ${params.petName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; background: #ffffff;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; background: #ffffff;">
 
           <!-- Header -->
           <div style="background: #5A7C7A; border-radius: 14px; padding: 24px 28px; margin-bottom: 24px;">
@@ -984,7 +996,7 @@ export async function sendPrescriptionEmail(params: {
 
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendPrescriptionEmail error:', err);
@@ -1006,8 +1018,8 @@ export async function sendPetTagReadyEmail(params: {
       from: FROM,
       to: params.ownerEmail,
       subject: `PawSync – Your NFC Tag for ${params.petName} is Ready`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #5A7C7A;">Your Pet Tag is Ready!</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>Great news! The NFC tag you requested for <strong>${params.petName}</strong> is now ready for pickup.</p>
@@ -1019,9 +1031,58 @@ export async function sendPetTagReadyEmail(params: {
           <p style="color: #374151; font-size: 13px;">Please visit the clinic to collect your pet's NFC tag. Once attached, anyone who scans it will see ${params.petName}'s public profile.</p>
           <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">- PawSync Team</p>
         </div>
-      `,
+      `),
     });
   } catch (err) {
     console.error('[Email] sendPetTagReadyEmail error:', err);
+  }
+}
+
+// ─── Pet Transfer Invitation Email ───────────────────────────────────────────
+
+export async function sendPetTransferInvitation(params: {
+  toEmail: string;
+  petName: string;
+  transferredByName: string;
+  invitationLink: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.toEmail,
+      subject: `PawSync – ${params.petName} Has Been Transferred to You`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #476B6B; margin-bottom: 4px;">You have a pet waiting for you!</h2>
+          <p style="color: #374151;">Hi there,</p>
+          <p style="color: #374151;"><strong>${params.transferredByName}</strong> has transferred ownership of <strong>${params.petName}</strong> to you on PawSync.</p>
+
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #166534;">What happens next?</p>
+            <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.8;">
+              <li>Click the button below to set up your free PawSync account</li>
+              <li>${params.petName}&apos;s full profile and records are already in your account</li>
+              <li>No additional setup needed &mdash; jump straight to your pet&apos;s profile</li>
+            </ul>
+          </div>
+
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #6b7280;">Pet being transferred</p>
+            <p style="margin: 0; font-size: 18px; font-weight: 700; color: #476B6B;">${params.petName}</p>
+          </div>
+
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${params.invitationLink}" style="display: inline-block; background: #476B6B; color: #ffffff; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 10px; text-decoration: none;">
+              Accept Transfer &amp; Set Up Account
+            </a>
+          </div>
+
+          <p style="color: #9ca3af; font-size: 12px; margin-top: 8px; text-align: center;">This invitation expires in 7 days. If you did not expect this transfer, you can safely ignore this email.</p>
+          <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendPetTransferInvitation error:', err);
   }
 }

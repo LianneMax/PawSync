@@ -698,6 +698,68 @@ export const verifyEmail = async (req: Request, res: Response) => {
 };
 
 /**
+ * Activate a transfer invitation — set name + password for an invited pet-owner account.
+ * POST /api/auth/activate-invitation
+ * Body: { token, firstName, lastName, password }
+ */
+export const activateInvitation = async (req: Request, res: Response) => {
+  try {
+    const { token, firstName, lastName, password } = req.body;
+
+    if (!token || !firstName?.trim() || !lastName?.trim() || !password) {
+      return res.status(400).json({ status: 'ERROR', message: 'All fields are required.' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ status: 'ERROR', message: 'Password must be at least 8 characters.' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: new Date() },
+      emailVerified: false,
+      userType: 'pet-owner',
+    }).select('+emailVerificationToken +emailVerificationExpires +password');
+
+    if (!user) {
+      return res.status(400).json({ status: 'ERROR', message: 'This invitation link is invalid or has already been used.' });
+    }
+
+    user.firstName = firstName.trim();
+    user.lastName = lastName.trim();
+    user.password = password;
+    user.emailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    const jwtToken = generateToken(user);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Account activated successfully.',
+      data: {
+        user: {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          userType: user.userType,
+          isVerified: user.isVerified,
+          emailVerified: user.emailVerified,
+          photo: user.photo || null,
+        },
+        token: jwtToken,
+      },
+    });
+  } catch (error) {
+    console.error('Activate invitation error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred during account activation.' });
+  }
+};
+
+/**
  * Resend verification email
  * POST /api/auth/resend-verification
  * Body: { email }

@@ -120,12 +120,12 @@ export default function ClinicManagementPage() {
   const [selectedVet, setSelectedVet] = useState<Veterinarian | null>(null)
   const [editBranchOpen, setEditBranchOpen] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
-  const [changeMainOpen, setChangeMainOpen] = useState(false)
-  const [selectedMainBranchId, setSelectedMainBranchId] = useState<string>('')
   const [removeBranchOpen, setRemoveBranchOpen] = useState(false)
   const [branchToRemove, setBranchToRemove] = useState<Branch | null>(null)
   const [addBranchOpen, setAddBranchOpen] = useState(false)
   const [addingBranch, setAddingBranch] = useState(false)
+  const [editIs24h, setEditIs24h] = useState(false)
+  const [addIs24h, setAddIs24h] = useState(false)
 
   // Edit branch form
   const [editForm, setEditForm] = useState({
@@ -290,6 +290,9 @@ export default function ClinicManagementPage() {
 
   const openEditBranch = (branch: Branch) => {
     setSelectedBranch(branch)
+    const days = branch.operatingDays ? branch.operatingDays.split(', ').filter(Boolean) : []
+    const is24h = branch.openingTime === '00:00' && branch.closingTime === '23:59' && days.length === 7
+    setEditIs24h(is24h)
     setEditForm({
       name: branch.name,
       address: branch.address,
@@ -299,7 +302,7 @@ export default function ClinicManagementPage() {
       email: branch.email,
       openingTime: branch.openingTime,
       closingTime: branch.closingTime,
-      operatingDays: branch.operatingDays ? branch.operatingDays.split(', ').filter(Boolean) : [],
+      operatingDays: days,
     })
     setEditBranchOpen(true)
   }
@@ -335,20 +338,6 @@ export default function ClinicManagementPage() {
     }
   }
 
-  const openChangeMain = () => {
-    const currentMain = branches.find(b => b.isMain)
-    setSelectedMainBranchId(currentMain?.id || '')
-    setChangeMainOpen(true)
-  }
-
-  const handleSetMainBranch = () => {
-    setBranches(prev => prev.map(b => ({
-      ...b,
-      isMain: b.id === selectedMainBranchId,
-    })))
-    setChangeMainOpen(false)
-  }
-
   const handleRemoveVet = () => {
     if (!selectedVet) return
     setVets(prev => prev.filter(v => v.id !== selectedVet.id))
@@ -379,6 +368,7 @@ export default function ClinicManagementPage() {
     setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [], adminFirstName: '', adminLastName: '', adminPassword: '' })
     setAddFormErrors({})
     setAddFormTouched({})
+    setAddIs24h(false)
   }
 
   const handleAddBranch = async () => {
@@ -731,20 +721,12 @@ export default function ClinicManagementPage() {
                         <Edit2 className="w-3.5 h-3.5" /> Edit
                       </button>
                       {!branch.isMain && (
-                        <>
-                          <button
-                            onClick={openChangeMain}
-                            className="px-3 py-1.5 text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
-                          >
-                            Set as Main
-                          </button>
-                          <button
-                            onClick={() => { setBranchToRemove(branch); setRemoveBranchOpen(true) }}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                        <button
+                          onClick={() => { setBranchToRemove(branch); setRemoveBranchOpen(true) }}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -915,7 +897,7 @@ export default function ClinicManagementPage() {
       </Dialog>
 
       {/* ==================== EDIT BRANCH MODAL ==================== */}
-      <Dialog open={editBranchOpen} onOpenChange={setEditBranchOpen}>
+      <Dialog open={editBranchOpen} onOpenChange={(v) => { if (!v) setEditIs24h(false); setEditBranchOpen(v) }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-[#4F4F4F]">Edit Branch</DialogTitle>
@@ -950,7 +932,32 @@ export default function ClinicManagementPage() {
                 <input type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            {/* Open 24/7 checkbox */}
+            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={editIs24h}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setEditIs24h(checked)
+                  if (checked) {
+                    setEditForm(prev => ({
+                      ...prev,
+                      openingTime: '00:00',
+                      closingTime: '23:59',
+                      operatingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    }))
+                  }
+                }}
+                className="w-4 h-4 rounded accent-[#476B6B]"
+              />
+              <div>
+                <span className="text-sm font-medium text-[#4F4F4F]">Open 24/7</span>
+                <p className="text-xs text-gray-400 mt-0.5">Automatically selects all days and sets hours to midnight–midnight</p>
+              </div>
+            </label>
+
+            <div className={`grid grid-cols-2 gap-4 transition-opacity ${editIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-red-500">*</span></label>
                 <input type="time" value={editForm.openingTime} onChange={(e) => setEditForm({...editForm, openingTime: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
@@ -960,7 +967,7 @@ export default function ClinicManagementPage() {
                 <input type="time" value={editForm.closingTime} onChange={(e) => setEditForm({...editForm, closingTime: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
               </div>
             </div>
-            <div>
+            <div className={`transition-opacity ${editIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-red-500">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
@@ -997,71 +1004,6 @@ export default function ClinicManagementPage() {
             </button>
             <button onClick={handleSaveBranch} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors">
               Save Changes
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ==================== CHANGE MAIN BRANCH MODAL ==================== */}
-      <Dialog open={changeMainOpen} onOpenChange={setChangeMainOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-[#4F4F4F]">Change Main Branch</DialogTitle>
-          </DialogHeader>
-
-          {/* Warning */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-amber-800 text-sm">Important Notice</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  Changing the main branch will update the primary contact information displayed to pet owners. The current main branch will become a regular branch.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Branch selection */}
-          <div className="mt-4">
-            <p className="text-sm font-medium text-[#4F4F4F] mb-3">Select New Main Branch</p>
-            <div className="space-y-2">
-              {branches.map((branch) => (
-                <label
-                  key={branch.id}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${
-                    selectedMainBranchId === branch.id
-                      ? 'border-amber-400 bg-amber-50/50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="mainBranch"
-                    checked={selectedMainBranchId === branch.id}
-                    onChange={() => setSelectedMainBranchId(branch.id)}
-                    className="w-4 h-4 text-[#476B6B] focus:ring-[#476B6B]"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#4F4F4F] text-sm">{branch.name}</span>
-                      {branch.isMain && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">CURRENT MAIN</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{branch.address}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-4">
-            <button onClick={() => setChangeMainOpen(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button onClick={handleSetMainBranch} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors">
-              Set as Main Branch
             </button>
           </div>
         </DialogContent>
@@ -1222,7 +1164,29 @@ export default function ClinicManagementPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Open 24/7 checkbox */}
+            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={addIs24h}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setAddIs24h(checked)
+                  if (checked) {
+                    const allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                    setAddForm(prev => ({ ...prev, openingTime: '00:00', closingTime: '23:59', operatingDays: allDays }))
+                    setAddFormErrors(prev => ({ ...prev, openingTime: '', closingTime: '', operatingDays: '' }))
+                  }
+                }}
+                className="w-4 h-4 rounded accent-[#476B6B]"
+              />
+              <div>
+                <span className="text-sm font-medium text-[#4F4F4F]">Open 24/7</span>
+                <p className="text-xs text-gray-400 mt-0.5">Automatically selects all days and sets hours to midnight–midnight</p>
+              </div>
+            </label>
+
+            <div className={`grid grid-cols-2 gap-4 transition-opacity ${addIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-red-500">*</span></label>
                 <input
@@ -1252,7 +1216,7 @@ export default function ClinicManagementPage() {
                 {addFormTouched.closingTime && addFormErrors.closingTime && <p className="text-xs text-red-500 mt-1">{addFormErrors.closingTime}</p>}
               </div>
             </div>
-            <div>
+            <div className={`transition-opacity ${addIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-red-500">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {

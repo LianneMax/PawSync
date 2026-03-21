@@ -11,7 +11,8 @@ import ConfinementRecord from '../models/ConfinementRecord';
 import Billing from '../models/Billing';
 import PetTagRequest from '../models/PetTagRequest';
 import QRCode from 'qrcode';
-import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation, sendPetDeceasedNotice, sendPetOwnershipTransferredNotice } from '../services/emailService';
+import { sendLostPetConfirmation, sendLostPetScanAlert, sendPetFoundAlert, sendPetFoundConfirmation, sendPetDeceasedNotice, sendPetOwnershipTransferredNotice, sendPetTransferInvitation } from '../services/emailService';
+import crypto from 'crypto';
 import { createNotification } from '../services/notificationService';
 
 /** Decode JWT from Authorization header without failing if absent/invalid */
@@ -698,12 +699,9 @@ export const transferPet = async (req: Request, res: Response) => {
 
     const { newOwnerEmail } = req.body;
 
-    if (!newOwnerEmail || typeof newOwnerEmail !== 'string') {
-      return res.status(400).json({ status: 'ERROR', message: 'Please provide the new owner\'s email address' });
-    }
-
-    const normalizedEmail = newOwnerEmail.trim().toLowerCase();
-    if (!normalizedEmail.includes('@')) {
+    // Email is optional — owner may transfer to someone without a PawSync account
+    const normalizedEmail = (newOwnerEmail && typeof newOwnerEmail === 'string') ? newOwnerEmail.trim().toLowerCase() : '';
+    if (normalizedEmail && !normalizedEmail.includes('@')) {
       return res.status(400).json({ status: 'ERROR', message: 'Please provide a valid email address' });
     }
 
@@ -732,37 +730,107 @@ export const transferPet = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'BILLING_BLOCKED', message: `${pet.name} has an outstanding bill that must be settled before they can be transferred.` });
     }
 
-    const newOwner = await User.findOne({ email: normalizedEmail });
+    // No email provided — soft-remove from current owner without linking to a new account
+    const newOwner = normalizedEmail ? await User.findOne({ email: normalizedEmail }) : null;
 
     if (!newOwner) {
-      // No PawSync account — soft-remove from current owner and cancel future appointments
-      const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
-      const nowNoAccount = new Date();
-      const activeAppts = await Appointment.find({
-        petId: pet._id,
-        status: { $in: cancellableStatuses },
-      }).select('_id date startTime');
+      if (!normalizedEmail) {
+        // No email provided — soft-remove from current owner
+        const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+        const nowNoAccount = new Date();
+        const activeAppts = await Appointment.find({
+          petId: pet._id,
+          status: { $in: cancellableStatuses },
+        }).select('_id date startTime');
 
+        const toCancel = activeAppts.filter((appt) => {
+          const d = new Date(appt.date);
+          const [h, m] = String(appt.startTime || '00:00').split(':');
+          d.setHours(parseInt(h || '0', 10), parseInt(m || '0', 10), 0, 0);
+          return d >= nowNoAccount;
+        });
+
+        if (toCancel.length > 0) {
+          await Appointment.updateMany(
+            { _id: { $in: toCancel.map((a) => a._id) } },
+            { $set: { status: 'cancelled' } },
+          );
+        }
+
+        await AssignedVet.deleteMany({ petId: pet._id });
+        pet.removedByOwner = true;
+        pet.removedAt = nowNoAccount;
+        await pet.save();
+
+        return res.status(200).json({ status: 'SUCCESS', message: `${pet.name} has been removed from your profile.` });
+      }
+
+      // Email provided but no PawSync account — create an invited pet-owner account and transfer immediately
+      const invitationToken = crypto.randomBytes(32).toString('hex');
+      const hashedInvitationToken = crypto.createHash('sha256').update(invitationToken).digest('hex');
+
+      const invitedUser = new User({
+        email: normalizedEmail,
+        firstName: '',
+        lastName: '',
+        contactNumber: '',
+        userType: 'pet-owner',
+        isVerified: true,
+        emailVerified: false, // blocks login until they complete their profile
+        emailVerificationToken: hashedInvitationToken,
+        emailVerificationExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+      await invitedUser.save({ validateBeforeSave: false });
+
+      // Transfer pet to the invited account
+      const oldOwnerId = pet.ownerId;
+      const actingUser = await User.findById(req.user.userId).select('firstName lastName');
+      const oldOwner = await User.findById(oldOwnerId).select('firstName lastName email');
+      const oldOwnerName = oldOwner ? getUserDisplayName(oldOwner) : 'Unknown Owner';
+      const transferDate = new Date();
+
+      pet.previousOwners.push({ id: oldOwnerId as any, name: oldOwnerName, until: transferDate } as any);
+      pet.ownerId = invitedUser._id as any;
+      pet.status = pet.isLost ? 'lost' : 'alive';
+      await pet.save();
+
+      // Cancel future appointments for old owner
+      const cancellableStatuses = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+      const activeAppts = await Appointment.find({ petId: pet._id, status: { $in: cancellableStatuses } }).select('_id date startTime');
       const toCancel = activeAppts.filter((appt) => {
         const d = new Date(appt.date);
         const [h, m] = String(appt.startTime || '00:00').split(':');
         d.setHours(parseInt(h || '0', 10), parseInt(m || '0', 10), 0, 0);
-        return d >= nowNoAccount;
+        return d >= transferDate;
+      });
+      if (toCancel.length > 0) {
+        await Appointment.updateMany({ _id: { $in: toCancel.map((a) => a._id) } }, { $set: { status: 'cancelled' } });
+      }
+      await Appointment.updateMany({ petId: pet._id }, { $set: { ownerId: invitedUser._id } });
+
+      await OwnershipTransfer.create({
+        petId: pet._id,
+        oldOwnerId: oldOwner?._id ?? oldOwnerId,
+        newOwnerId: invitedUser._id,
+        transferDate,
+        recordsTransferred: true,
+        transferredBy: req.user.userId,
       });
 
-      if (toCancel.length > 0) {
-        await Appointment.updateMany(
-          { _id: { $in: toCancel.map((a) => a._id) } },
-          { $set: { status: 'cancelled' } },
-        );
-      }
+      // Send invitation email (fire-and-forget)
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const invitationLink = `${baseUrl}/join?token=${invitationToken}`;
+      sendPetTransferInvitation({
+        toEmail: normalizedEmail,
+        petName: pet.name,
+        transferredByName: actingUser ? getUserDisplayName(actingUser) : 'A PawSync user',
+        invitationLink,
+      }).catch(() => {});
 
-      await AssignedVet.deleteMany({ petId: pet._id });
-      pet.removedByOwner = true;
-      pet.removedAt = nowNoAccount;
-      await pet.save();
-
-      return res.status(200).json({ status: 'SUCCESS', message: `${pet.name} has been removed from your profile.` });
+      return res.status(200).json({
+        status: 'SUCCESS',
+        message: `${pet.name} has been transferred and an invitation has been sent to ${normalizedEmail} to set up their PawSync account.`,
+      });
     }
 
     if (newOwner._id.toString() === req.user.userId) {

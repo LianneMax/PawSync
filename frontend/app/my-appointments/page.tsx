@@ -261,6 +261,9 @@ function Dropdown({
 function MyAppointmentsPageContent() {
   const searchParams = useSearchParams()
   const petIdFromUrl = searchParams.get('petId')
+  const branchIdFromUrl = searchParams.get('branchId')
+  const vetIdFromUrl = searchParams.get('vetId')
+  const typesFromUrl = searchParams.get('types')
   const { token } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [serviceType, setServiceType] = useState<'all' | 'medical' | 'grooming'>('all')
@@ -801,6 +804,9 @@ function MyAppointmentsPageContent() {
         onClose={() => setModalOpen(false)}
         onBooked={() => { setModalOpen(false); loadAppointments() }}
         initialPetId={petIdFromUrl || undefined}
+        initialBranchId={branchIdFromUrl || undefined}
+        initialVetId={vetIdFromUrl || undefined}
+        initialTypes={typesFromUrl ? typesFromUrl.split(',') : undefined}
       />
 
       {/* Cancel Confirmation Modal */}
@@ -868,11 +874,17 @@ function ScheduleModal({
   onClose,
   onBooked,
   initialPetId,
+  initialBranchId,
+  initialVetId,
+  initialTypes,
 }: {
   open: boolean
   onClose: () => void
   onBooked: () => void
   initialPetId?: string
+  initialBranchId?: string
+  initialVetId?: string
+  initialTypes?: string[]
 }) {
   const { token } = useAuthStore()
   const currentYear = new Date().getFullYear()
@@ -1042,6 +1054,20 @@ function ScheduleModal({
       }
     }
   }, [open, initialPetId, pets])
+
+  // Auto-select branch, vet, types from URL (reschedule flow)
+  useEffect(() => {
+    if (!open) return
+    if (initialBranchId) setSelectedBranchId(initialBranchId)
+    if (initialTypes?.length) setSelectedTypes(initialTypes)
+  }, [open, initialBranchId, initialTypes])
+
+  // Auto-select vet once branch vets are loaded
+  useEffect(() => {
+    if (!open || !initialVetId || branchVets.length === 0) return
+    const match = branchVets.find((v) => v._id === initialVetId)
+    if (match) setSelectedVetId(initialVetId)
+  }, [open, initialVetId, branchVets])
 
   // Load vets when branch changes
   useEffect(() => {

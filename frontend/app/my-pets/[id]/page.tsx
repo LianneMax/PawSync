@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 
 const LastScannedMap = dynamic(() => import('@/components/LastScannedMap'), { ssr: false })
@@ -10,13 +10,13 @@ import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getPetById, updatePet, togglePetLost, requestConfinementRelease, type Pet as APIPet } from '@/lib/pets'
+import { getPetById, updatePet, togglePetLost, requestConfinementRelease, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Cross } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Cross, Skull, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -105,6 +105,20 @@ export default function PetProfilePage() {
   const [lostMessage, setLostMessage] = useState('')
   const [isMarkingLost, setIsMarkingLost] = useState(false)
   const [isUpdatingConfinement, setIsUpdatingConfinement] = useState(false)
+  const [showRemoveModal, setShowRemoveModal] = useState(false)
+  const [removeReason, setRemoveReason] = useState('')
+  const [removeDeceasedDate, setRemoveDeceasedDate] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  })
+  const [removeNewOwnerEmail, setRemoveNewOwnerEmail] = useState('')
+  const [removeEmailSuggestions, setRemoveEmailSuggestions] = useState<string[]>([])
+  const [isRemoveTransferSearchOpen, setIsRemoveTransferSearchOpen] = useState(false)
+  const [isLoadingRemoveEmailSuggestions, setIsLoadingRemoveEmailSuggestions] = useState(false)
+  const [removeLoading, setRemoveLoading] = useState(false)
+  const [removeError, setRemoveError] = useState('')
+  const [removeBillingBlocked, setRemoveBillingBlocked] = useState(false)
+  const removeTransferDebounceRef = useRef<NodeJS.Timeout>(null)
   const hasRegisteredNfcTag = Boolean(pet?.nfcTagId?.trim() && pet.nfcTagId !== '-')
   const isPetDeceased = Boolean(pet && (!pet.isAlive || pet.status === 'deceased'))
   const deceasedDateLabel = pet
@@ -583,6 +597,86 @@ export default function PetProfilePage() {
     }
   }
 
+  const isRemoveTransfer = removeReason === 'transfer'
+  const isRemovePassedAway = removeReason === 'passed-away'
+
+  useEffect(() => {
+    if (!showRemoveModal || !isRemoveTransfer) {
+      setRemoveEmailSuggestions([])
+      setIsRemoveTransferSearchOpen(false)
+      setIsLoadingRemoveEmailSuggestions(false)
+      return
+    }
+    const query = removeNewOwnerEmail.trim().toLowerCase()
+    if (query.length < 2) {
+      setRemoveEmailSuggestions([])
+      setIsLoadingRemoveEmailSuggestions(false)
+      return
+    }
+    if (removeTransferDebounceRef.current) clearTimeout(removeTransferDebounceRef.current)
+    removeTransferDebounceRef.current = setTimeout(async () => {
+      try {
+        setIsLoadingRemoveEmailSuggestions(true)
+        const response = await searchTransferOwnerEmails(query, token || undefined)
+        setRemoveEmailSuggestions(response.status === 'SUCCESS' ? (response.data?.emails || []) : [])
+      } catch {
+        setRemoveEmailSuggestions([])
+      } finally {
+        setIsLoadingRemoveEmailSuggestions(false)
+      }
+    }, 300)
+    return () => {
+      if (removeTransferDebounceRef.current) clearTimeout(removeTransferDebounceRef.current)
+    }
+  }, [showRemoveModal, isRemoveTransfer, removeNewOwnerEmail, token])
+
+  const resetRemoveForm = () => {
+    setRemoveReason('')
+    const now = new Date()
+    setRemoveDeceasedDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`)
+    setRemoveNewOwnerEmail('')
+    setRemoveEmailSuggestions([])
+    setIsRemoveTransferSearchOpen(false)
+    setIsLoadingRemoveEmailSuggestions(false)
+    setRemoveError('')
+    setRemoveBillingBlocked(false)
+  }
+
+  const handleRemovePet = async () => {
+    if (!removeReason) { setRemoveError('Please select a reason'); return }
+    if (isRemoveTransfer && removeNewOwnerEmail.trim() && !removeNewOwnerEmail.includes('@')) { setRemoveError('Please enter a valid email address'); return }
+    if (pet?.isLost) {
+      setRemoveError(isRemoveTransfer
+        ? 'Cannot transfer a pet marked as lost. Mark the pet as found first.'
+        : 'Cannot mark a lost pet as deceased. Mark the pet as found first.')
+      return
+    }
+    if (isRemovePassedAway && !removeDeceasedDate) { setRemoveError('Please select the date of death'); return }
+
+    setRemoveLoading(true)
+    setRemoveError('')
+    try {
+      if (!token || !pet) return
+      if (isRemoveTransfer) {
+        const response = await transferPet(pet._id, { newOwnerEmail: removeNewOwnerEmail.trim() || undefined }, token)
+        if (response.status === 'BILLING_BLOCKED') { setRemoveBillingBlocked(true); setRemoveLoading(false); return }
+        if (response.status === 'ERROR') { setRemoveError(response.message || 'Transfer failed'); setRemoveLoading(false); return }
+        toast('Pet Transferred', { description: response.message || `${pet.name} has been transferred successfully.`, icon: <PawPrint className="w-4 h-4 text-[#7FA5A3]" /> })
+      } else if (isRemovePassedAway) {
+        const response = await markPetDeceased(pet._id, { deceasedAt: removeDeceasedDate }, token)
+        if (response.status === 'ERROR') { setRemoveError(response.message || 'Unable to mark pet as deceased'); setRemoveLoading(false); return }
+        toast('Pet Marked as Deceased', { description: `${pet.name} is now read-only and remains in dashboard history.`, icon: <Skull className="w-4 h-4 text-amber-700" /> })
+      }
+      resetRemoveForm()
+      setShowRemoveModal(false)
+      router.push('/my-pets')
+    } catch {
+      setRemoveError('Something went wrong. Please try again.')
+    } finally {
+      setRemoveLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -659,6 +753,19 @@ export default function PetProfilePage() {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {/* Header with photo */}
           <div className="bg-linear-to-br from-[#476B6B] to-[#5A8A8A] p-8 flex flex-col items-center relative">
+            {/* Remove Pet button — left side */}
+            {!editing && !isPetDeceased && (
+              <div className="absolute top-4 left-4">
+                <button
+                  onClick={() => setShowRemoveModal(true)}
+                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remove Pet
+                </button>
+              </div>
+            )}
+
             {/* Edit / Save buttons */}
             <div className="absolute top-4 right-4 flex gap-2">
               {editing ? (
@@ -1719,6 +1826,148 @@ export default function PetProfilePage() {
               {isMarkingLost ? 'Marking...' : 'Mark as Lost & Update NFC Tag'}
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Pet Modal */}
+      <Dialog open={showRemoveModal} onOpenChange={(v) => { if (!v) { resetRemoveForm(); setShowRemoveModal(false) } }}>
+        <DialogContent className="max-w-lg w-[95vw] p-6">
+          <DialogHeader className="mb-0">
+            <DialogTitle className="text-2xl text-[#900B09]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+              Remove Pet
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Remove {pet?.name} from your profile
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Billing blocked alert */}
+          {removeBillingBlocked && (
+            <div className="bg-amber-50 border border-amber-400 rounded-xl p-4 mb-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800 mb-1">Outstanding Bill</p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  This pet has an unpaid bill. Please settle the balance in Billing before removing or transferring them.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Info Box */}
+          {!removeBillingBlocked && (
+            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
+              <p className="text-sm font-semibold text-[#B71C1C] mb-2">This action cannot be undone</p>
+              <p className="text-xs text-[#4F4F4F] leading-relaxed">
+                This will permanently affect your pet&apos;s profile. Records are kept for veterinary reference. Marking as deceased is irreversible. Transferring ownership requires a settled bill.
+              </p>
+            </div>
+          )}
+
+          {/* Pet info */}
+          <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] mb-4">
+            {pet?.name} &mdash; {pet?.breed}
+          </div>
+
+          {/* Reason Selection */}
+          <div className="space-y-3 mb-4">
+            <label className="text-sm font-semibold text-[#4F4F4F] block">Reason for Removal</label>
+            {([{ value: 'passed-away', label: 'Pet passed away' }, { value: 'transfer', label: 'Transfer pet ownership' }] as const).map((r) => (
+              <button
+                key={r.value}
+                type="button"
+                onClick={() => { setRemoveReason(r.value); setRemoveError('') }}
+                className={`w-full flex items-center gap-3 border rounded-xl p-3 cursor-pointer transition-colors text-left ${
+                  removeReason === r.value ? 'border-[#7FA5A3] bg-[#F8F6F2]' : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${removeReason === r.value ? 'border-[#7FA5A3]' : 'border-gray-300'}`}>
+                  {removeReason === r.value && <span className="w-2 h-2 rounded-full bg-[#7FA5A3]" />}
+                </span>
+                <span className="text-sm text-[#4F4F4F]">{r.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {isRemoveTransfer && (
+            <div className="mb-4 relative">
+              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">New Owner Email <span className="text-gray-400 font-normal">(optional)</span></label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="Search pet owner email..."
+                  value={removeNewOwnerEmail}
+                  onChange={(e) => { setRemoveNewOwnerEmail(e.target.value); setIsRemoveTransferSearchOpen(true); setRemoveError('') }}
+                  onFocus={() => setIsRemoveTransferSearchOpen(true)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors"
+                />
+                {isLoadingRemoveEmailSuggestions && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              {isRemoveTransferSearchOpen && removeEmailSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto">
+                  {removeEmailSuggestions.map((email) => (
+                    <button
+                      key={email}
+                      type="button"
+                      onClick={() => { setRemoveNewOwnerEmail(email); setIsRemoveTransferSearchOpen(false); setRemoveError('') }}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F8F6F2] transition-colors text-[#4F4F4F]"
+                    >
+                      {email}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isRemoveTransferSearchOpen && removeNewOwnerEmail.trim().length >= 2 && !isLoadingRemoveEmailSuggestions && removeEmailSuggestions.length === 0 && (
+                <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 px-4 py-3 text-sm text-gray-400">
+                  No pet owners found
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1">Recipient must have an existing PawSync pet-owner account.</p>
+            </div>
+          )}
+
+          {/* Date of Death */}
+          {isRemovePassedAway && (
+            <div className="mb-4">
+              <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">Date of Death</label>
+              <DatePicker
+                value={removeDeceasedDate}
+                onChange={(value) => { setRemoveDeceasedDate(value); setRemoveError('') }}
+                placeholder="MM/DD/YYYY"
+                allowFutureDates={false}
+              />
+              <p className="text-xs text-gray-400 mt-1">Defaults to today. You may select an earlier date.</p>
+            </div>
+          )}
+
+          {/* Error */}
+          {removeError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+              <p className="text-sm text-red-600">{removeError}</p>
+            </div>
+          )}
+
+          {/* Confirm button */}
+          <button
+            disabled={removeLoading || removeBillingBlocked}
+            className={`w-full font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+              isRemoveTransfer ? 'bg-[#476B6B] hover:bg-[#3a5a5a] text-white' : 'bg-[#900B09] hover:bg-[#7A0A08] text-white'
+            }`}
+            onClick={handleRemovePet}
+          >
+            {removeLoading ? 'Processing...' : isRemoveTransfer ? (
+              <><PawPrint className="w-4 h-4" />Transfer {pet?.name}</>
+            ) : (
+              `Mark ${pet?.name} as Deceased`
+            )}
+          </button>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

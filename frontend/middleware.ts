@@ -36,7 +36,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
 const AUTH_ONLY_ROUTES = ['/login', '/signup', '/clinic-login']
 
 // Public routes that are always accessible regardless of auth state
-const PUBLIC_ROUTES = ['/verify-email', '/reports']
+const PUBLIC_ROUTES = ['/verify-email', '/reports', '/join']
 
 function getDashboardForUserType(userType: string): string {
   switch (userType) {

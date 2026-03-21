@@ -910,12 +910,7 @@ function RemovePetModal({
       return
     }
 
-    if (isTransfer && !newOwnerEmail.trim()) {
-      setError('Please enter the new owner email')
-      return
-    }
-
-    if (isTransfer && !newOwnerEmail.includes('@')) {
+    if (isTransfer && newOwnerEmail.trim() && !newOwnerEmail.includes('@')) {
       setError('Please enter a valid email address')
       return
     }
@@ -1033,34 +1028,27 @@ function RemovePetModal({
         <div className="space-y-3 mb-4">
           <label className="text-sm font-semibold text-[#4F4F4F] block">Reason for Removal</label>
           {REMOVAL_REASONS.map((r) => (
-            <label
+            <button
               key={r.value}
-              className={`flex items-center gap-3 border rounded-xl p-3 cursor-pointer transition-colors ${
+              type="button"
+              onClick={() => { setReason(r.value); setError('') }}
+              className={`w-full flex items-center gap-3 border rounded-xl p-3 cursor-pointer transition-colors text-left ${
                 reason === r.value
                   ? 'border-[#7FA5A3] bg-[#F8F6F2]'
                   : 'border-gray-200 hover:bg-gray-50'
               }`}
             >
-              <input
-                type="radio"
-                name="removal-reason"
-                value={r.value}
-                checked={reason === r.value}
-                onChange={(e) => {
-                  setReason(e.target.value)
-                  setError('')
-                }}
-                className="accent-[#7FA5A3]"
-              />
+              <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${reason === r.value ? 'border-[#7FA5A3]' : 'border-gray-300'}`}>
+                {reason === r.value && <span className="w-2 h-2 rounded-full bg-[#7FA5A3]" />}
+              </span>
               <span className="text-sm text-[#4F4F4F]">{r.label}</span>
-            </label>
+            </button>
           ))}
         </div>
 
-        {/* Transfer email input (optional) */}
         {isTransfer && (
           <div className="mb-4 relative">
-            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">New Owner Email</label>
+            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">New Owner Email <span className="text-gray-400 font-normal">(optional)</span></label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -1153,10 +1141,7 @@ function RemovePetModal({
               Transfer {pet.name}
             </>
           ) : (
-            <>
-              <Skull className="w-4 h-4" />
-              Mark {pet.name} as Deceased
-            </>
+            `Mark ${pet.name} as Deceased`
           )}
         </button>
       </DialogContent>

@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail } from '../controllers/authController';
+import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail, activateInvitation } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -71,5 +71,12 @@ router.get('/verify-email', verifyEmail);
  * Body: { email }
  */
 router.post('/resend-verification', resendVerificationEmail);
+
+/**
+ * POST /api/auth/activate-invitation
+ * Complete profile setup for a pet-owner invited via pet transfer
+ * Body: { token, firstName, lastName, password }
+ */
+router.post('/activate-invitation', activateInvitation);
 
 export default router;

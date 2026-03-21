@@ -484,6 +484,9 @@ export function startScheduler() {
               date: appt.date,
               startTime: appt.startTime,
               types: appt.types,
+              petId: pet?._id?.toString(),
+              branchId: branch?._id?.toString(),
+              vetId: vet?._id?.toString(),
             }).catch(() => {});
           }
         }
