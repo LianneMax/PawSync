@@ -644,6 +644,7 @@ export const deletePet = async (req: Request, res: Response) => {
 
     // Block removal if there is an outstanding bill
     const ongoingBill = await Billing.findOne({ petId: pet._id, status: 'pending_payment' });
+    console.log(`[deletePet] petId=${pet._id} billing check — found:`, ongoingBill?._id ?? 'none');
     if (ongoingBill) {
       return res.status(400).json({ status: 'BILLING_BLOCKED', message: `${pet.name} has an outstanding bill that must be settled before they can be removed.` });
     }

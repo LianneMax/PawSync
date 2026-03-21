@@ -6,7 +6,7 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, requestPetTag, togglePetLost, type Pet as APIPet } from '@/lib/pets'
-import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X, Cross } from 'lucide-react'
+import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -337,7 +337,7 @@ export default function MyPetsPage() {
                 key={pet._id}
                 className={`bg-white rounded-2xl p-6 relative transition-all duration-300 ease-out hover:scale-103 hover:shadow-md ${
                   !pet.isAlive || pet.status === 'deceased'
-                    ? 'border-2 border-[#8B5E3C] shadow-[0_0_0_1px_rgba(139,94,60,0.15)]'
+                    ? 'border-2 border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.15)]'
                     : pet.isLost
                     ? 'border-2 border-[#900B09] shadow-[0_0_0_1px_rgba(144,11,9,0.15)]'
                     : pet.isConfined
@@ -347,8 +347,7 @@ export default function MyPetsPage() {
               >
                 {/* Deceased badge */}
                 {(!pet.isAlive || pet.status === 'deceased') && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
-                    <Cross className="w-3 h-3" />
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-50 border border-amber-400 text-amber-600 text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
                     Deceased
                   </div>
                 )}

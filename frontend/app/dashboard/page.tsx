@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, togglePetLost, markPetDeceased, removePet, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
+import { getMyPets, togglePetLost, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
 import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
 import { getProfile } from '@/lib/users'
 import { hasNFCTag } from '@/lib/petNfc'
@@ -25,6 +25,8 @@ import {
   Trash2,
   Skull,
   Search,
+  Cross,
+  Hospital,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -329,6 +331,21 @@ function PetDetailModal({
                   </span>
                 </div>
               )}
+              {!isDeceased && pet.isConfined && (
+                <div className="mb-4 flex justify-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold cursor-default">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        Currently Confined
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={8}>
+                      Pet is currently confined
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
               {pet.previousOwners.length > 0 && (
                 <div className="mb-4 flex justify-center">
                   <span className="inline-flex items-center rounded-full bg-[#F1F0ED] text-[#4F4F4F] px-3 py-1 text-xs font-medium">
@@ -447,33 +464,45 @@ function PetDetailModal({
                   onClick={() => { onClose(); router.push(`/pet/${pet.id}`) }}
                   className="w-full text-xs text-[#7FA5A3] hover:text-[#5A7C7A] font-medium underline text-left transition-colors"
                 >
-                  View public NFC profile â†’
+                  View public NFC profile &rarr;
                 </button>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <button
-              disabled={isDeceased || pet.isConfined}
-              className={`w-full border rounded-xl p-4 text-left transition-colors flex items-center justify-between ${
-                isDeceased || pet.isConfined ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
-              }`}
-              onClick={() => { if (!isDeceased && !pet.isConfined) { onClose(); router.push(`/my-appointments?petId=${pet.id}`) } }}
-            >
-              <div>
-                <p className="font-semibold text-[#4F4F4F] text-sm">
-                  {pet.isConfined ? 'Unable to Book Appointment' : 'Book Appointment'}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {isDeceased
-                    ? `Pet deceased on ${formatLongDate(pet.deceasedAt)}`
-                    : pet.isConfined
-                    ? 'Pet is currently confined'
-                    : `Schedule a Vet Visit for ${pet.name}`}
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block">
+                  <button
+                    type="button"
+                    disabled={isDeceased || pet.isConfined}
+                    className={`w-full border rounded-xl p-4 text-left transition-colors flex items-center justify-between ${
+                      isDeceased || pet.isConfined ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => { if (!isDeceased && !pet.isConfined) { onClose(); router.push(`/my-appointments?petId=${pet.id}`) } }}
+                  >
+                    <div>
+                      <p className="font-semibold text-[#4F4F4F] text-sm">
+                        {pet.isConfined ? 'Unable to Book Appointment' : 'Book Appointment'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {isDeceased
+                          ? `Pet deceased on ${formatLongDate(pet.deceasedAt)}`
+                          : pet.isConfined
+                          ? 'Pet is currently confined'
+                          : `Schedule a Vet Visit for ${pet.name}`}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {pet.isConfined && (
+                <TooltipContent side="top" sideOffset={8}>
+                  Pet is currently confined
+                </TooltipContent>
+              )}
+            </Tooltip>
             {/* <button
               className="w-full border border-gray-200 rounded-xl p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
               onClick={onNavigateToMedicalRecords}
@@ -785,9 +814,7 @@ function ReportLostPetModal({
 // --- Remove Pet Modal ---
 const REMOVAL_REASONS = [
   { value: 'passed-away', label: 'Pet passed away' },
-  { value: 'relocated', label: 'Pet was relocated' },
-  { value: 'transfer', label: 'Transferred to another owner' },
-  { value: 'other', label: 'Other' },
+  { value: 'transfer', label: 'Transfer pet ownership' },
 ] as const
 
 function RemovePetModal({
@@ -802,7 +829,6 @@ function RemovePetModal({
   onPetRemoved?: () => void
 }) {
   const [reason, setReason] = useState('')
-  const [details, setDetails] = useState('')
   const [deceasedDate, setDeceasedDate] = useState(() => {
     const now = new Date()
     const year = now.getFullYear()
@@ -821,7 +847,6 @@ function RemovePetModal({
 
   const resetForm = () => {
     setReason('')
-    setDetails('')
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -895,7 +920,7 @@ function RemovePetModal({
       return
     }
 
-    if ((isTransfer || isPassedAway) && pet.isLost) {
+    if (pet.isLost) {
       setError(
         isTransfer
           ? 'Cannot transfer a pet marked as lost. Mark the pet as found first.'
@@ -948,23 +973,6 @@ function RemovePetModal({
           description: `${pet.name} is now read-only and remains in dashboard history.`,
           icon: <Skull className="w-4 h-4 text-amber-700" />,
         })
-      } else {
-        const reasonLabel = REMOVAL_REASONS.find((r) => r.value === reason)?.label || reason
-        const response = await removePet(pet.id, reasonLabel, details || undefined, token)
-        if (response.status === 'BILLING_BLOCKED') {
-          setBillingBlocked(true)
-          setLoading(false)
-          return
-        }
-        if (response.status === 'ERROR') {
-          setError(response.message || 'Removal failed')
-          setLoading(false)
-          return
-        }
-        toast('Pet Removed', {
-          description: `${pet.name} has been removed from your profile.`,
-          icon: <Trash2 className="w-4 h-4 text-[#900B09]" />,
-        })
       }
 
       onPetRemoved?.()
@@ -1011,14 +1019,14 @@ function RemovePetModal({
               This action cannot be undone
             </p>
             <p className="text-xs text-[#4F4F4F] leading-relaxed">
-              Removing a pet will hide their profile from your account. Records are kept for veterinary reference. Selecting "Pet passed away" marks the profile as deceased.
+              This will permanently affect your pet&apos;s profile. Records are kept for veterinary reference. Marking as deceased is irreversible. Transferring ownership requires a settled bill.
             </p>
           </div>
         )}
 
         {/* Pet info */}
         <div className="w-full border border-gray-200 rounded-xl p-3 bg-white text-sm text-[#4F4F4F] mb-4">
-          {pet.name} â€'"' {pet.breed}
+          {pet.name} &mdash; {pet.breed}
         </div>
 
         {/* Reason Selection */}
@@ -1120,22 +1128,6 @@ function RemovePetModal({
           </div>
         )}
 
-        {/* Details (optional for non-transfer) */}
-        {!isTransfer && !isPassedAway && reason && (
-          <div className="mb-4">
-            <label className="text-sm font-semibold text-[#4F4F4F] block mb-1.5">
-              Additional Details (Optional)
-            </label>
-            <textarea
-              placeholder="Any additional notes..."
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              rows={2}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
-            />
-          </div>
-        )}
-
         {/* Error message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
@@ -1160,15 +1152,10 @@ function RemovePetModal({
               <PawPrint className="w-4 h-4" />
               Transfer {pet.name}
             </>
-          ) : isPassedAway ? (
+          ) : (
             <>
               <Skull className="w-4 h-4" />
               Mark {pet.name} as Deceased
-            </>
-          ) : (
-            <>
-              <Trash2 className="w-4 h-4" />
-              Remove {pet.name}
             </>
           )}
         </button>
@@ -1424,24 +1411,21 @@ export default function DashboardPage() {
                 onClick={() => handlePetClick(pet)}
               >
                 {pet.status === 'deceased' ? (
-                  <div className="absolute -top-3 right-4 bg-amber-500 text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10 flex items-center gap-1">
-                    <Skull className="w-3 h-3" />
+                  <div className="absolute -top-3 right-4 bg-amber-400 text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                    <Cross className="w-3 h-3" />
                     Deceased
                   </div>
                 ) : pet.isLost ? (
-                  <div className="absolute -top-3 right-4 bg-[#900B09] text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
-                    Marked as LOST
+                  <div className="absolute -top-3 right-4 bg-[#900B09] text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                    <AlertTriangle className="w-3 h-3" />
+                    Marked as Lost
                   </div>
                 ) : pet.isConfined ? (
-                  <div className="absolute -top-3 right-4 bg-blue-500 text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
+                  <div className="absolute -top-3 right-4 bg-blue-400 text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                    <Hospital className="w-3 h-3" />
                     Confined
                   </div>
                 ) : null}
-                {pet.previousOwners.length > 0 && (
-                  <div className="absolute -top-3 left-4 bg-[#F1F0ED] text-[#4F4F4F] text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
-                    Past Owner: {pet.previousOwners[pet.previousOwners.length - 1].name}
-                  </div>
-                )}
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
                     {pet.image ? (
