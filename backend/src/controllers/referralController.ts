@@ -32,6 +32,11 @@ export const createReferral = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Cannot refer to yourself' });
     }
 
+    // Cross-branch referrals only — same-branch referrals are not allowed
+    if (referredBranchId.toString() === referringBranchId.toString()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot refer to a vet in the same branch' });
+    }
+
     const [pet, record, referredVet, referredBranch, referringBranch] = await Promise.all([
       Pet.findById(petId).lean(),
       MedicalRecord.findById(medicalRecordId).lean(),
@@ -99,5 +104,77 @@ export const createReferral = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Create referral error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the referral' });
+  }
+};
+
+/**
+ * GET /api/referrals/referred-pets
+ * Returns all pets that have been referred to the requesting vet, with full
+ * pet info, owner info, and branch/clinic info from the referral.
+ * Used by patient-records to surface referred patients in the vet's patient list.
+ */
+export const getReferredPets = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+    if (req.user.userType !== 'veterinarian') {
+      return res.status(403).json({ status: 'ERROR', message: 'Only veterinarians can view referred pets' });
+    }
+
+    const referrals = await Referral.find({ referredVetId: req.user.userId })
+      .populate<{ petId: any }>({
+        path: 'petId',
+        populate: { path: 'ownerId', select: 'firstName lastName email _id' },
+      })
+      .populate<{ referredBranchId: any }>({
+        path: 'referredBranchId',
+        populate: { path: 'clinicId', select: 'name _id' },
+      })
+      .lean();
+
+    // Deduplicate by petId — one pet may have multiple referrals to the same vet
+    const seen = new Set<string>();
+    const pets: any[] = [];
+
+    for (const ref of referrals) {
+      const pet = ref.petId as any;
+      if (!pet?._id) continue;
+      const key = pet._id.toString();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const branch = ref.referredBranchId as any;
+      const clinic = branch?.clinicId as any;
+      const owner = pet.ownerId as any;
+
+      pets.push({
+        _id: pet._id,
+        name: pet.name,
+        species: pet.species,
+        breed: pet.breed,
+        photo: pet.photo ?? null,
+        sex: pet.sex,
+        dateOfBirth: pet.dateOfBirth ?? null,
+        color: pet.color ?? null,
+        sterilization: pet.sterilization ?? null,
+        nfcTagId: pet.nfcTagId ?? null,
+        microchipNumber: pet.microchipNumber ?? null,
+        allergies: pet.allergies ?? [],
+        ownerId: owner?._id ?? '',
+        ownerFirstName: owner?.firstName ?? '',
+        ownerLastName: owner?.lastName ?? '',
+        ownerEmail: owner?.email ?? '',
+        clinicId: clinic?._id ?? '',
+        clinicName: clinic?.name ?? '',
+        clinicBranchId: branch?._id ?? '',
+        clinicBranchName: branch?.name ?? '',
+      });
+    }
+
+    return res.status(200).json({ status: 'SUCCESS', data: { pets } });
+  } catch (error) {
+    console.error('Get referred pets error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching referred pets' });
   }
 };

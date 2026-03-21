@@ -18,3 +18,32 @@ export const createReferral = async (
     body: JSON.stringify(data),
   }, token);
 };
+
+export interface ReferredPet {
+  _id: string;
+  name: string;
+  species: string;
+  breed: string;
+  photo: string | null;
+  sex: string;
+  dateOfBirth: string | null;
+  color: string | null;
+  sterilization: string | null;
+  nfcTagId: string | null;
+  microchipNumber: string | null;
+  allergies: string[];
+  ownerId: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail: string;
+  clinicId: string;
+  clinicName: string;
+  clinicBranchId: string;
+  clinicBranchName: string;
+}
+
+export const getReferredPets = async (
+  token?: string
+): Promise<{ status: string; message?: string; data?: { pets: ReferredPet[] } }> => {
+  return authenticatedFetch('/referrals/referred-pets', { method: 'GET' }, token);
+};

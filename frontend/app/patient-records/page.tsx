@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -68,6 +69,7 @@ import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
+import { getReferredPets } from '@/lib/referrals'
 
 
 // ==================== TYPES ====================
@@ -94,6 +96,7 @@ interface PatientPet {
   clinicBranchId: string
   clinicBranchName: string
   isConfined?: boolean
+  isReferral?: boolean
 }
 
 // ==================== HELPERS ====================
@@ -193,6 +196,7 @@ function emptyExtraCheckboxes(): ExtraCheckboxState {
 
 export default function PatientRecordsPage() {
   const { token } = useAuthStore()
+  const searchParams = useSearchParams()
   const [patients, setPatients] = useState<PatientPet[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -230,15 +234,20 @@ export default function PatientRecordsPage() {
   const [pendingReleaseRequest, setPendingReleaseRequest] = useState<{ confinementRecordId: string; requestedAt?: string | null } | null>(null)
   const [confirmingRelease, setConfirmingRelease] = useState(false)
 
-  // Load patients from vet's appointments
+  // Load patients from vet's appointments + referred pets
   const loadPatients = useCallback(async () => {
     if (!token) return
     setLoading(true)
     try {
-      const res = await authenticatedFetch('/appointments/vet', { method: 'GET' }, token)
-      if (res.status === 'SUCCESS' && res.data?.appointments) {
-        const petMap = new Map<string, PatientPet>()
-        for (const appt of res.data.appointments) {
+      const [apptRes, referralRes] = await Promise.all([
+        authenticatedFetch('/appointments/vet', { method: 'GET' }, token),
+        getReferredPets(token),
+      ])
+
+      const petMap = new Map<string, PatientPet>()
+
+      if (apptRes.status === 'SUCCESS' && apptRes.data?.appointments) {
+        for (const appt of apptRes.data.appointments) {
           const petId = appt.petId?._id
           if (petId && !petMap.has(petId)) {
             petMap.set(petId, {
@@ -265,23 +274,33 @@ export default function PatientRecordsPage() {
             })
           }
         }
-        // Mark confined pets
-        try {
-          const confRes = await authenticatedFetch('/confinement?status=admitted', { method: 'GET' }, token)
-          if (confRes?.status === 'SUCCESS') {
-            const confPetIds = new Set<string>(
-              (confRes.data?.records || []).map((r: any) => r.petId?._id || r.petId)
-            )
-            for (const [id, pet] of petMap) {
-              if (confPetIds.has(id)) petMap.set(id, { ...pet, isConfined: true })
-            }
-          }
-        } catch {
-          // Non-critical; proceed without confinement markers
-        }
-
-        setPatients(Array.from(petMap.values()))
       }
+
+      // Merge referred pets — skipped if pet already appears via appointments
+      if (referralRes.status === 'SUCCESS' && referralRes.data?.pets) {
+        for (const p of referralRes.data.pets) {
+          if (!petMap.has(p._id)) {
+            petMap.set(p._id, { ...p, isReferral: true })
+          }
+        }
+      }
+
+      // Mark confined pets
+      try {
+        const confRes = await authenticatedFetch('/confinement?status=admitted', { method: 'GET' }, token)
+        if (confRes?.status === 'SUCCESS') {
+          const confPetIds = new Set<string>(
+            (confRes.data?.records || []).map((r: any) => r.petId?._id || r.petId)
+          )
+          for (const [id, pet] of petMap) {
+            if (confPetIds.has(id)) petMap.set(id, { ...pet, isConfined: true })
+          }
+        }
+      } catch {
+        // Non-critical; proceed without confinement markers
+      }
+
+      setPatients(Array.from(petMap.values()))
     } catch (err) {
       console.error('Failed to load patients:', err)
     } finally {
@@ -292,6 +311,22 @@ export default function PatientRecordsPage() {
   useEffect(() => {
     loadPatients()
   }, [loadPatients])
+
+  // Deep-link: auto-select pet when ?petId= is present in the URL and patients have loaded
+  const deepLinkHandled = useRef(false)
+  useEffect(() => {
+    if (loading || deepLinkHandled.current) return
+    const petId = searchParams.get('petId')
+    if (!petId) return
+    const match = patients.find((p) => p._id === petId)
+    if (match) {
+      deepLinkHandled.current = true
+      handleSelectPatient(match)
+    }
+    // If petId is present but not found in the list the user either lacks access
+    // or the ID is invalid — silently fall through to the normal patient list.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, patients, searchParams])
 
   // Load records when patient selected
   const loadRecords = useCallback(async (petId: string) => {

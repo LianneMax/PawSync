@@ -561,6 +561,11 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
         const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
         isAuthorizedVet = !!hasRecords;
       }
+      // Referred vets also get read access to the pet's full records
+      if (!isAuthorizedVet) {
+        const referral = await Referral.exists({ referredVetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!referral;
+      }
     }
 
     const isAdmin = isClinicAdminUser(req);
@@ -635,6 +640,11 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
       } else {
         const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
         isAuthorizedVet = !!hasRecords;
+      }
+      // Referred vets also get read access to the pet's current record
+      if (!isAuthorizedVet) {
+        const referral = await Referral.exists({ referredVetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!referral;
       }
     }
 

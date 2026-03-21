@@ -220,7 +220,9 @@ export default function ReferralModal({
               label="Clinic Branch"
               value={selectedBranchId}
               placeholder="Select a branch"
-              options={branches.map((b) => ({ value: b._id, label: b.name }))}
+              options={branches
+                .filter((b) => b._id !== referringBranchId)
+                .map((b) => ({ value: b._id, label: b.name }))}
               onSelect={setSelectedBranchId}
               loading={branchesLoading}
             />
