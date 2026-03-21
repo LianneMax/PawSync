@@ -64,6 +64,16 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandCheck,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 
 interface Props {
   recordId: string
@@ -278,6 +288,67 @@ function DropdownField({
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function SearchableDropdownField({
+  value,
+  onValueChange,
+  options,
+  className,
+  placeholder,
+  disabled = false,
+  emptyMessage = 'No options found.',
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string }[]
+  className: string
+  placeholder: string
+  disabled?: boolean
+  emptyMessage?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((opt) => opt.value === value)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={`${className} flex items-center justify-between text-left disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`}
+        >
+          <span className="truncate">{selected?.label || placeholder}</span>
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--radix-popper-anchor-width) p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search…" className="h-8 text-xs" />
+          <CommandList>
+            <CommandEmpty className="py-3 text-center text-xs text-gray-500">{emptyMessage}</CommandEmpty>
+            <CommandGroup>
+              {options.filter((opt) => opt.value !== '').map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.value}
+                  keywords={[opt.label]}
+                  onSelect={(val) => {
+                    onValueChange(val === value ? '' : val)
+                    setOpen(false)
+                  }}
+                  className="text-xs"
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {value === opt.value && <CommandCheck />}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -827,6 +898,35 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [preventiveMedicationIntervalOverrides, setPreventiveMedicationIntervalOverrides] = useState<Record<string, string>>({})
   // Tracks productServiceIds of associated preventive medications/injections the vet has opted out of
   const [preventiveAssociatedExclusions, setPreventiveAssociatedExclusions] = useState<Set<string>>(new Set())
+  // Tracks the vet's selected injection/medication service IDs per preventive care entry (index → serviceId)
+  const [preventiveSelectedInjectionIds, setPreventiveSelectedInjectionIds] = useState<Record<number, string>>({})
+  const [preventiveSelectedMedicationIds, setPreventiveSelectedMedicationIds] = useState<Record<number, string>>({})
+
+  // Effective exclusion set = manual exclusions + all non-selected associated injections/medications.
+  // Used when syncing billing so only the vet-selected items are billed.
+  const effectivePreventiveExclusions = (() => {
+    const result = new Set<string>(preventiveAssociatedExclusions)
+    preventiveCare.forEach((care, i) => {
+      const matchedService = preventiveCareServices.find((s) =>
+        normalizeServiceToken(s.name) === normalizeServiceToken(care.product) ||
+        normalizeServiceToken(s.name).includes(normalizeServiceToken(care.product)) ||
+        normalizeServiceToken(care.product).includes(normalizeServiceToken(s.name)),
+      )
+      if (!matchedService?._id) return
+      const serviceId = matchedService._id
+      const selectedInjId = preventiveSelectedInjectionIds[i] || ''
+      const selectedMedId = preventiveSelectedMedicationIds[i] || ''
+      // Exclude all associated injections except the selected one
+      medicationServices
+        .filter((s) => isProductMedicationService(s) && String(s.administrationRoute || '').toLowerCase() === 'injection' && getAssociatedServiceIdValue(s) === serviceId)
+        .forEach((s) => { if (s._id !== selectedInjId) result.add(s._id) })
+      // Exclude all associated preventive meds except the selected one
+      medicationServices
+        .filter((s) => isProductMedicationService(s) && String(s.administrationRoute || '').toLowerCase() === 'preventive' && getAssociatedServiceIdValue(s) === serviceId)
+        .forEach((s) => { if (s._id !== selectedMedId) result.add(s._id) })
+    })
+    return result
+  })()
 
   const isPreventiveCareAppt = appointmentTypes.some((apptType) => {
     const normalizedType = normalizeServiceToken(apptType)
@@ -1644,7 +1744,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         medications,
         diagnosticTests: diagnosticTestsToSend,
         preventiveCare,
-        preventiveAssociatedExclusions: [...preventiveAssociatedExclusions],
+        preventiveAssociatedExclusions: [...effectivePreventiveExclusions],
         sharedWithOwner,
         confinementAction,
         confinementDays,
@@ -1677,7 +1777,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           appointmentTypes,
           petSpecies: pet?.species,
           petWeightKg: parseFloat(String(vitals?.weight?.value ?? '')) || undefined,
-          preventiveExclusions: [...preventiveAssociatedExclusions],
+          preventiveExclusions: [...effectivePreventiveExclusions],
           euthanasiaEnabled: euthanasia,
         }).catch((e) => console.error('[BillingSync] Frontend billing sync error:', e))
       }
@@ -2150,6 +2250,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           confinementAction: confinementAction || 'none',
           confinementDays: liveConfinementDays,
           euthanasiaEnabled: euthanasia,
+          preventiveExclusions: [...effectivePreventiveExclusions],
         }).catch(() => {})
       }
       if (euthanasia) {
@@ -4245,7 +4346,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           const injectionPricingTypeLabel = formatInjectionPricingTypeLabel(medService?.injectionPricingType)
                           return (
                         <div className="grid grid-cols-2 gap-2">
-                          <DropdownField
+                          <SearchableDropdownField
                             value={selectedServiceId || medService?._id || ''}
                             onValueChange={(selectedServiceId) => {
                               const selectedService = medicationServices.find((s) => String(s._id) === String(selectedServiceId))
@@ -4343,19 +4444,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             }}
                             placeholder="Select a medication"
                             className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
-                            options={[
-                              { value: '', label: 'Select a medication' },
-                              ...medicationServices
-                                .filter((service) => {
-                                  // Keep injections with associated preventive service in Preventive Care; allow unassociated injections here
-                                  if (String(service.administrationRoute || '').toLowerCase() === 'injection' && getAssociatedServiceIdValue(service)) return false
-                                  return true
-                                })
-                                .map((service) => ({
-                                  value: service._id,
-                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
-                                })),
-                            ]}
+                            emptyMessage="No matching medications found."
+                            options={medicationServices
+                              .filter((service) => {
+                                // Exclude any medication tied to a specific service via associatedServiceId
+                                // (those belong in the Preventive Care section)
+                                if (getAssociatedServiceIdValue(service)) return false
+                                return true
+                              })
+                              .map((service) => ({
+                                value: service._id,
+                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                              }))}
                           />
                           {!isTopical && !isInjectionMedication && <input type="text" placeholder="Dosage (e.g. 10mg)" value={med.dosage} onChange={(e) => setMedications((prev) => prev.map((m, j) => j === i ? { ...m, dosage: e.target.value } : m))} className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />}
                           {isInjectionMedication && (
@@ -4427,7 +4527,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             options={[
                               { value: 'active', label: 'Active' },
                               { value: 'completed', label: 'Completed' },
-                              { value: 'discontinued', label: 'Discontinued' },
                             ]}
                           />}
                         </div>
@@ -4474,8 +4573,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 {preventiveOpen && (
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
                     {preventiveCare.map((care, i) => {
-                      const associatedPreventiveMeds = getAssociatedPreventiveMedications(care.product)
-                      const associatedInjectionMeds = getAssociatedInjectionMedications(care.product)
                       return (
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
@@ -4530,12 +4627,30 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 })
                                 return next
                               })
+                              setPreventiveSelectedInjectionIds((prev) => {
+                                const next: Record<number, string> = {}
+                                Object.entries(prev).forEach(([k, v]) => {
+                                  const ki = parseInt(k)
+                                  if (ki < i) next[ki] = v
+                                  else if (ki > i) next[ki - 1] = v
+                                })
+                                return next
+                              })
+                              setPreventiveSelectedMedicationIds((prev) => {
+                                const next: Record<number, string> = {}
+                                Object.entries(prev).forEach(([k, v]) => {
+                                  const ki = parseInt(k)
+                                  if (ki < i) next[ki] = v
+                                  else if (ki > i) next[ki - 1] = v
+                                })
+                                return next
+                              })
                             }} className="text-[#900B09] hover:text-red-600">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                           <div>
-                            <DropdownField
+                            <SearchableDropdownField
                               value={care.product}
                               onValueChange={(value) => {
                                 setPreventiveCare((prev) => prev.map((c, j) =>
@@ -4543,45 +4658,147 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                     ? { ...c, product: value, careType: mapProductToCareType(value) }
                                     : c
                                 ))
+                                // Clear dependent selections when service changes
+                                setPreventiveSelectedInjectionIds((prev) => { const next = { ...prev }; delete next[i]; return next })
+                                setPreventiveSelectedMedicationIds((prev) => { const next = { ...prev }; delete next[i]; return next })
                               }}
                               placeholder="Select a preventive care service"
-                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                              options={[
-                                { value: '', label: 'Select a preventive care service' },
-                                ...preventiveCareServices.map((service) => ({
-                                  value: service.name,
-                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
-                                })),
-                              ]}
+                              emptyMessage="No preventive care services found."
+                              className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
+                              options={preventiveCareServices.map((service) => ({
+                                value: service.name,
+                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                              }))}
                             />
                           </div>
 
-                          {associatedInjectionMeds.filter((inj) => !preventiveAssociatedExclusions.has(inj._id!)).length > 0 && (
-                            <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
-                              <p className="text-[11px] font-semibold text-[#476B6B]">Associated Injection</p>
-                              {associatedInjectionMeds.filter((inj) => !preventiveAssociatedExclusions.has(inj._id!)).map((inj, injIndex) => {
-                                const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
-                                const inferredCareType = care.careType || getInjectionCareType(care.product)
-                                const effectiveCareType: 'flea' | 'deworming' | 'heartworm' | null =
-                                  inferredCareType === 'tick'
-                                    ? 'flea'
-                                    : inferredCareType === 'other'
-                                      ? null
-                                      : inferredCareType
-                                const injectionCalc = calculateInjectionDosage(inj, bodyWeightVal, effectiveCareType)
-                                const fallbackDosage = !isNaN(bodyWeightVal) && bodyWeightVal > 0 && inj.dosePerKg != null
-                                  ? `${parseFloat((inj.dosePerKg * bodyWeightVal).toFixed(2))} ${inj.doseUnit || 'mL'}`
-                                  : null
-                                const dosageKey = `${i}-${inj._id}`
-                                const computedDosage = injectionCalc
-                                  ? `${injectionCalc.dosageMl} mL`
-                                  : (fallbackDosage || '')
-                                return (
-                                  <div key={`${inj._id}-${injIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
-                                    <div className="flex items-center justify-between">
-                                      <p className="text-xs font-semibold text-[#4F4F4F]">{inj.name}</p>
+                          {(() => {
+                            const matchedPreventiveService = preventiveCareServices.find((s) =>
+                              normalizeServiceToken(s.name) === normalizeServiceToken(care.product) ||
+                              normalizeServiceToken(s.name).includes(normalizeServiceToken(care.product)) ||
+                              normalizeServiceToken(care.product).includes(normalizeServiceToken(s.name)),
+                            )
+                            const availableInjections = matchedPreventiveService?._id
+                              ? medicationServices.filter((s) => {
+                                  if (!isProductMedicationService(s)) return false
+                                  if (String(s.administrationRoute || '').toLowerCase() !== 'injection') return false
+                                  return getAssociatedServiceIdValue(s) === matchedPreventiveService._id
+                                })
+                              : []
+                            const selectedInjId = preventiveSelectedInjectionIds[i] || ''
+                            const selectedInj = availableInjections.find((s) => s._id === selectedInjId)
+                            const isInjExcluded = !!(selectedInjId && preventiveAssociatedExclusions.has(selectedInjId))
+                            return (
+                              <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
+                                <p className="text-[11px] font-semibold text-[#476B6B]">Administered Injection</p>
+                                <SearchableDropdownField
+                                  value={selectedInjId}
+                                  onValueChange={(val) => {
+                                    setPreventiveSelectedInjectionIds((prev) => ({ ...prev, [i]: val }))
+                                    if (val) setPreventiveAssociatedExclusions((prev) => { const next = new Set(prev); next.delete(val); return next })
+                                  }}
+                                  placeholder={availableInjections.length > 0 ? 'Select administered injection' : 'No injections linked to this service'}
+                                  emptyMessage="No matching injections found."
+                                  disabled={availableInjections.length === 0}
+                                  className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
+                                  options={availableInjections.map((s) => ({
+                                    value: s._id,
+                                    label: `${s.name}${s.price ? ` (₱${s.price})` : ''}`,
+                                  }))}
+                                />
+                                {selectedInj && !isInjExcluded && (() => {
+                                  const bodyWeightVal = parseFloat(String(vitals?.weight?.value ?? ''))
+                                  const inferredCareType = care.careType || getInjectionCareType(care.product)
+                                  const effectiveCareType: 'flea' | 'deworming' | 'heartworm' | null =
+                                    inferredCareType === 'tick' ? 'flea' : inferredCareType === 'other' ? null : inferredCareType
+                                  const injectionCalc = calculateInjectionDosage(selectedInj, bodyWeightVal, effectiveCareType)
+                                  const fallbackDosage = !isNaN(bodyWeightVal) && bodyWeightVal > 0 && selectedInj.dosePerKg != null
+                                    ? `${parseFloat((selectedInj.dosePerKg * bodyWeightVal).toFixed(2))} ${selectedInj.doseUnit || 'mL'}`
+                                    : null
+                                  const dosageKey = `${i}-${selectedInj._id}`
+                                  const computedDosage = injectionCalc ? `${injectionCalc.dosageMl} mL` : (fallbackDosage || '')
+                                  return (
+                                    <div className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-xs font-semibold text-[#4F4F4F]">{selectedInj.name}</p>
+                                        <button
+                                          onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, selectedInj._id!]))}
+                                          className="text-[#900B09] hover:text-red-600"
+                                          title="Remove from billing"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                      <div className="mt-1.5">
+                                        <p className="text-[10px] text-gray-400 mb-0.5">Dosage</p>
+                                        <input
+                                          type="text"
+                                          value={preventiveInjectionDosageOverrides[dosageKey] ?? computedDosage}
+                                          onChange={(e) => setPreventiveInjectionDosageOverrides((prev) => ({ ...prev, [dosageKey]: e.target.value }))}
+                                          placeholder={computedDosage || '—'}
+                                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                        />
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
+                                {selectedInj && isInjExcluded && (
+                                  <p className="text-[11px] text-gray-500">
+                                    Injection removed from billing.{' '}
+                                    <button
+                                      type="button"
+                                      className="text-[#476B6B] underline"
+                                      onClick={() => setPreventiveAssociatedExclusions((prev) => { const next = new Set(prev); next.delete(selectedInjId); return next })}
+                                    >
+                                      Undo
+                                    </button>
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })()}
+
+                          {(() => {
+                            const matchedPreventiveServiceForMed = preventiveCareServices.find((s) =>
+                              normalizeServiceToken(s.name) === normalizeServiceToken(care.product) ||
+                              normalizeServiceToken(s.name).includes(normalizeServiceToken(care.product)) ||
+                              normalizeServiceToken(care.product).includes(normalizeServiceToken(s.name)),
+                            )
+                            const availablePreventiveMeds = matchedPreventiveServiceForMed?._id
+                              ? medicationServices.filter((s) => {
+                                  if (!isProductMedicationService(s)) return false
+                                  if (String(s.administrationRoute || '').toLowerCase() !== 'preventive') return false
+                                  return getAssociatedServiceIdValue(s) === matchedPreventiveServiceForMed._id
+                                })
+                              : []
+                            const selectedMedId = preventiveSelectedMedicationIds[i] || ''
+                            const selectedMed = availablePreventiveMeds.find((s) => s._id === selectedMedId)
+                            const isMedExcluded = !!(selectedMedId && preventiveAssociatedExclusions.has(selectedMedId))
+                            const medKey = `${i}-${selectedMedId}`
+                            return (
+                              <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
+                                <p className="text-[11px] font-semibold text-[#476B6B]">Prescribed Medicine</p>
+                                <SearchableDropdownField
+                                  value={selectedMedId}
+                                  onValueChange={(val) => {
+                                    setPreventiveSelectedMedicationIds((prev) => ({ ...prev, [i]: val }))
+                                    if (val) setPreventiveAssociatedExclusions((prev) => { const next = new Set(prev); next.delete(val); return next })
+                                  }}
+                                  placeholder={availablePreventiveMeds.length > 0 ? 'Select prescribed medicine' : 'No medicines linked to this service'}
+                                  emptyMessage="No matching medicines found."
+                                  disabled={availablePreventiveMeds.length === 0}
+                                  className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
+                                  options={availablePreventiveMeds.map((s) => ({
+                                    value: s._id,
+                                    label: `${s.name}${s.price ? ` (₱${s.price})` : ''}`,
+                                  }))}
+                                />
+                                {selectedMed && !isMedExcluded && (
+                                  <div className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p className="text-xs font-semibold text-[#4F4F4F]">{selectedMed.name}</p>
                                       <button
-                                        onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, inj._id!]))}
+                                        onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, selectedMed._id!]))}
                                         className="text-[#900B09] hover:text-red-600"
                                         title="Remove from billing"
                                       >
@@ -4589,120 +4806,66 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                       </button>
                                     </div>
                                     <div className="mt-1.5">
-                                      <p className="text-[10px] text-gray-400 mb-0.5">Dosage</p>
-                                      <input
-                                        type="text"
-                                        value={preventiveInjectionDosageOverrides[dosageKey] ?? computedDosage}
-                                        onChange={(e) => {
-                                          const nextValue = e.target.value
-                                          setPreventiveInjectionDosageOverrides((prev) => ({
-                                            ...prev,
-                                            [dosageKey]: nextValue,
-                                          }))
-                                        }}
-                                        placeholder={computedDosage || '—'}
-                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                      <p className="text-[10px] text-gray-400 mb-1">Dispensing</p>
+                                      <DropdownField
+                                        value={preventiveMedicationDispensing[medKey] || selectedMed.pricingType || ''}
+                                        onValueChange={(value) => setPreventiveMedicationDispensing((prev) => ({ ...prev, [medKey]: value as 'singlePill' | 'pack' | '' }))}
+                                        placeholder="Dispensing"
+                                        className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                        options={[
+                                          { value: '', label: 'Dispensing' },
+                                          { value: 'singlePill', label: 'Individual Pill Packages' },
+                                          { value: 'pack', label: `Bottle${selectedMed.piecesPerPack ? ` (${selectedMed.piecesPerPack} pcs)` : ''}` },
+                                        ]}
                                       />
                                     </div>
+                                    <div className="grid grid-cols-3 gap-2 mt-1.5">
+                                      <div>
+                                        <p className="text-[10px] text-gray-400">Administration Method</p>
+                                        <p className="text-xs text-gray-600">{selectedMed.administrationMethod || '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] text-gray-400">Duration</p>
+                                        <input
+                                          type="text"
+                                          value={preventiveMedicationDurationOverrides[medKey] ?? (selectedMed.preventiveDuration != null ? String(selectedMed.preventiveDuration) : '')}
+                                          onChange={(e) => setPreventiveMedicationDurationOverrides((prev) => ({ ...prev, [medKey]: e.target.value }))}
+                                          placeholder={selectedMed.preventiveDuration != null ? `${selectedMed.preventiveDuration}` : '—'}
+                                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                        />
+                                        {selectedMed.preventiveDurationUnit && (
+                                          <p className="text-[10px] text-gray-400 mt-0.5">{selectedMed.preventiveDurationUnit}</p>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] text-gray-400">Interval Days</p>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={preventiveMedicationIntervalOverrides[medKey] ?? (selectedMed.intervalDays != null ? String(selectedMed.intervalDays) : '')}
+                                          onChange={(e) => setPreventiveMedicationIntervalOverrides((prev) => ({ ...prev, [medKey]: e.target.value }))}
+                                          placeholder={selectedMed.intervalDays != null ? String(selectedMed.intervalDays) : '—'}
+                                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
-                                )
-                              })}
-                            </div>
-                          )}
-
-                          <div className="rounded-lg border border-[#7FA5A3]/25 bg-[#f0f7f7] p-2.5 space-y-2">
-                            <p className="text-[11px] font-semibold text-[#476B6B]">Associated Preventive Medication</p>
-                            {associatedPreventiveMeds.filter((med) => !preventiveAssociatedExclusions.has(med._id!)).length > 0 ? (
-                              associatedPreventiveMeds.filter((med) => !preventiveAssociatedExclusions.has(med._id!)).map((med, medIndex) => (
-                                <div key={`${med._id}-${medIndex}`} className="rounded-lg border border-[#7FA5A3]/20 bg-white p-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <p className="text-xs font-semibold text-[#4F4F4F]">{med.name}</p>
+                                )}
+                                {selectedMed && isMedExcluded && (
+                                  <p className="text-[11px] text-gray-500">
+                                    Medicine removed from billing.{' '}
                                     <button
-                                      onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, med._id!]))}
-                                      className="text-[#900B09] hover:text-red-600"
-                                      title="Remove from billing"
+                                      type="button"
+                                      className="text-[#476B6B] underline"
+                                      onClick={() => setPreventiveAssociatedExclusions((prev) => { const next = new Set(prev); next.delete(selectedMedId); return next })}
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      Undo
                                     </button>
-                                  </div>
-                                  {(() => {
-                                    const medKey = `${i}-${med._id}`
-                                    return (
-                                  <>
-                                  <div className="mt-1.5">
-                                    <p className="text-[10px] text-gray-400 mb-1">Dispensing</p>
-                                    <DropdownField
-                                      value={preventiveMedicationDispensing[medKey] || med.pricingType || ''}
-                                      onValueChange={(value) => {
-                                        setPreventiveMedicationDispensing((prev) => ({
-                                          ...prev,
-                                          [medKey]: value as 'singlePill' | 'pack' | '',
-                                        }))
-                                      }}
-                                      placeholder="Dispensing"
-                                      className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                                      options={[
-                                        { value: '', label: 'Dispensing' },
-                                        { value: 'singlePill', label: 'Individual Pill Packages' },
-                                        { value: 'pack', label: `Bottle${med.piecesPerPack ? ` (${med.piecesPerPack} pcs)` : ''}` },
-                                      ]}
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-3 gap-2 mt-1.5">
-                                    <div>
-                                      <p className="text-[10px] text-gray-400">Administration Method</p>
-                                      <p className="text-xs text-gray-600">{med.administrationMethod || '—'}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-gray-400">Duration</p>
-                                      <input
-                                        type="text"
-                                        value={preventiveMedicationDurationOverrides[medKey] ?? (med.preventiveDuration != null ? String(med.preventiveDuration) : '')}
-                                        onChange={(e) => {
-                                          const nextValue = e.target.value
-                                          setPreventiveMedicationDurationOverrides((prev) => ({
-                                            ...prev,
-                                            [medKey]: nextValue,
-                                          }))
-                                        }}
-                                        placeholder={med.preventiveDuration != null ? `${med.preventiveDuration}` : '—'}
-                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                                      />
-                                      {med.preventiveDurationUnit && (
-                                        <p className="text-[10px] text-gray-400 mt-0.5">{med.preventiveDurationUnit}</p>
-                                      )}
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-gray-400">Interval Days</p>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={preventiveMedicationIntervalOverrides[medKey] ?? (med.intervalDays != null ? String(med.intervalDays) : '')}
-                                        onChange={(e) => {
-                                          const nextValue = e.target.value
-                                          setPreventiveMedicationIntervalOverrides((prev) => ({
-                                            ...prev,
-                                            [medKey]: nextValue,
-                                          }))
-                                        }}
-                                        placeholder={med.intervalDays != null ? String(med.intervalDays) : '—'}
-                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
-                                      />
-                                    </div>
-                                  </div>
-                                  </>
-                                    )
-                                  })()}
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-[11px] text-gray-500">
-                                {associatedPreventiveMeds.length > 0
-                                  ? 'All associated medications have been removed from billing.'
-                                  : 'No preventive medication linked to this preventive care service.'}
-                              </p>
-                            )}
-                          </div>
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })()}
 
                           <input
                             type="text"
