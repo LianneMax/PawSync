@@ -2470,6 +2470,13 @@ function ClinicScheduleModal({
     }
   }, [mode])
 
+  // Emergency appointments are always face-to-face.
+  useEffect(() => {
+    if (isEmergency && mode !== 'face-to-face') {
+      setMode('face-to-face')
+    }
+  }, [isEmergency, mode])
+
   // Reset vet when branch changes
   useEffect(() => {
     setSelectedVetId('')
@@ -2763,6 +2770,7 @@ function ClinicScheduleModal({
                 value={mode}
                 placeholder="Select mode"
                 options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
+                disabled={isEmergency}
                 onSelect={setMode}
               />
             </div>
@@ -2843,27 +2851,6 @@ function ClinicScheduleModal({
               </div>
             )}
 
-            {/* Type of Appointment */}
-            <div>
-              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Type of Appointment</p>
-              {!mode ? (
-                <div className="px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
-                  Select mode first
-                </div>
-              ) : mode === 'online' ? (
-                <div className="px-4 py-2.5 border border-[#7FA5A3] rounded-xl bg-[#7FA5A3]/5 text-sm text-[#5A7C7A] font-medium flex items-center gap-2">
-                  <Check className="w-4 h-4" />
-                  Consultation
-                </div>
-              ) : (
-                <AppointmentServiceSelector
-                  values={selectedTypes}
-                  onChange={handleTypeChange}
-                  categories={serviceCategories}
-                />
-              )}
-            </div>
-
             {/* Walk-In / Emergency Toggles */}
             <div className="space-y-2.5">
               {/* Walk-In Toggle */}
@@ -2895,7 +2882,10 @@ function ClinicScheduleModal({
                   onClick={() => {
                     const next = !isEmergency
                     setIsEmergency(next)
-                    if (next) setIsWalkIn(true)
+                    if (next) {
+                      setIsWalkIn(true)
+                      setMode('face-to-face')
+                    }
                     else if (selectedSlot && slots.find(s => s.startTime === selectedSlot.startTime)?.status !== 'available') {
                       setSelectedSlot(null)
                     }
@@ -2918,6 +2908,27 @@ function ClinicScheduleModal({
                   <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-red-700">This will override any existing booking for the selected time slot. Affected appointments will be flagged for review after saving.</p>
                 </div>
+              )}
+            </div>
+
+            {/* Type of Appointment */}
+            <div>
+              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Type of Appointment</p>
+              {!mode ? (
+                <div className="px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                  Select mode first
+                </div>
+              ) : mode === 'online' ? (
+                <div className="px-4 py-2.5 border border-[#7FA5A3] rounded-xl bg-[#7FA5A3]/5 text-sm text-[#5A7C7A] font-medium flex items-center gap-2">
+                  <Check className="w-4 h-4" />
+                  Consultation
+                </div>
+              ) : (
+                <AppointmentServiceSelector
+                  values={selectedTypes}
+                  onChange={handleTypeChange}
+                  categories={serviceCategories}
+                />
               )}
             </div>
           </div>
@@ -2980,7 +2991,7 @@ function ClinicScheduleModal({
                     {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
                       <div key={hour} className="flex gap-2">
                         <div className="w-10 shrink-0 text-right pt-1">
-                          <span className="text-[10px] font-medium text-gray-400">
+                          <span className="-ml-[3px] text-[10px] font-medium text-gray-400">
                             {parseInt(hour) > 12 ? parseInt(hour) - 12 : parseInt(hour)}{parseInt(hour) >= 12 ? 'PM' : 'AM'}
                           </span>
                         </div>
