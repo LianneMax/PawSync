@@ -69,6 +69,7 @@ export interface PreventiveCare {
   careType: 'flea' | 'tick' | 'heartworm' | 'deworming' | 'other';
   product: string;
   dateAdministered: string | null;
+  nextDueDate?: string | null;
   notes: string;
 }
 
@@ -90,7 +91,7 @@ export interface PregnancyDelivery {
   laborDuration: string;
   liveBirths: number;
   stillBirths: number;
-  motherCondition: 'stable' | 'critical' | 'recovering';
+  motherCondition?: 'stable' | 'critical' | 'recovering';
   vetRemarks: string;
   deliveryLocation?: 'in_clinic' | 'outside_clinic' | 'unknown';
   reportedBy?: 'vet' | 'owner' | 'external_vet' | 'unknown';

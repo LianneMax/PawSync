@@ -43,7 +43,7 @@ export interface IPregnancyRecord {
   litterNumber: number | null;
   confirmationMethod: 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown';
   confirmationSource: 'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown';
-  confidence: 'high' | 'medium' | 'low';
+  confidence?: 'high' | 'medium' | 'low';
   confirmedAt: Date | null;
   notes: string;
 }
@@ -54,7 +54,7 @@ export interface IPregnancyDelivery {
   laborDuration: string;
   liveBirths: number;
   stillBirths: number;
-  motherCondition: 'stable' | 'critical' | 'recovering';
+  motherCondition?: 'stable' | 'critical' | 'recovering';
   vetRemarks: string;
   deliveryLocation: 'in_clinic' | 'outside_clinic' | 'unknown';
   reportedBy: 'vet' | 'owner' | 'external_vet' | 'unknown';

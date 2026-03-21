@@ -844,7 +844,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [litterNumber, setLitterNumber] = useState('')
   const [pregnancyConfirmationMethod, setPregnancyConfirmationMethod] = useState<'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown'>('unknown')
   const [pregnancyConfirmationSource, setPregnancyConfirmationSource] = useState<'this_clinic' | 'external_clinic' | 'owner_reported' | 'inferred' | 'unknown'>('this_clinic')
-  const [pregnancyConfidence, setPregnancyConfidence] = useState<'high' | 'medium' | 'low'>('medium')
   const [pregnancyNotes, setPregnancyNotes] = useState('')
 
   // Pregnancy delivery
@@ -855,10 +854,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [laborDuration, setLaborDuration] = useState('')
   const [liveBirths, setLiveBirths] = useState('')
   const [stillBirths, setStillBirths] = useState('')
-  const [motherCondition, setMotherCondition] = useState<'stable' | 'critical' | 'recovering'>('stable')
   const [deliveryVetRemarks, setDeliveryVetRemarks] = useState('')
   const [deliveryLocation, setDeliveryLocation] = useState<'in_clinic' | 'outside_clinic' | 'unknown'>('in_clinic')
   const [deliveryReportedBy, setDeliveryReportedBy] = useState<'vet' | 'owner' | 'external_vet' | 'unknown'>('vet')
+
+  // Pregnancy / delivery field-level N/A flags
+  const [litterNumberNA, setLitterNumberNA] = useState(false)
+  const [laborDurationNA, setLaborDurationNA] = useState(false)
+  const [litterNumberError, setLitterNumberError] = useState('')
+  const [laborDurationError, setLaborDurationError] = useState('')
 
   // Pregnancy loss
   const [pregnancyLoss, setPregnancyLoss] = useState(false)
@@ -1171,14 +1175,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setLitterNumber(r.pregnancyRecord.litterNumber != null ? String(r.pregnancyRecord.litterNumber) : '')
         setPregnancyConfirmationMethod(r.pregnancyRecord.confirmationMethod || 'unknown')
         setPregnancyConfirmationSource(r.pregnancyRecord.confirmationSource || 'this_clinic')
-        setPregnancyConfidence(r.pregnancyRecord.confidence || 'medium')
         setPregnancyNotes(r.pregnancyRecord.notes || '')
       } else if (petRes.data?.pet?.pregnancyStatus === 'pregnant') {
         // Pet is already pregnant from a previous record — auto-check and lock
         setUltrasoundPregnant(true)
         setPregnancyConfirmationMethod(medHistRes?.pregnancyEpisode?.latestConfirmationMethod || 'unknown')
         setPregnancyConfirmationSource(medHistRes?.pregnancyEpisode?.latestConfirmationSource || 'unknown')
-        setPregnancyConfidence(medHistRes?.pregnancyEpisode?.confidence || 'low')
         if (medHistRes?.pregnancyEpisode?.expectedDueDate) {
           setExpectedDueDate(medHistRes.pregnancyEpisode.expectedDueDate.split('T')[0])
         }
@@ -1190,10 +1192,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setPregnancyDelivery(true)
         setDeliveryDate(r.pregnancyDelivery.deliveryDate ? r.pregnancyDelivery.deliveryDate.split('T')[0] : '')
         // deliveryServiceId is restored after delivery services load in the services block below
-        setLaborDuration(r.pregnancyDelivery.laborDuration || '')
+        const savedLaborDuration = r.pregnancyDelivery.laborDuration || ''
+        setLaborDurationNA(savedLaborDuration === 'N/A')
+        setLaborDuration(savedLaborDuration === 'N/A' ? '' : savedLaborDuration)
         setLiveBirths(r.pregnancyDelivery.liveBirths != null ? String(r.pregnancyDelivery.liveBirths) : '')
         setStillBirths(r.pregnancyDelivery.stillBirths != null ? String(r.pregnancyDelivery.stillBirths) : '')
-        setMotherCondition(r.pregnancyDelivery.motherCondition || 'stable')
         setDeliveryVetRemarks(r.pregnancyDelivery.vetRemarks || '')
         setDeliveryLocation(r.pregnancyDelivery.deliveryLocation || 'in_clinic')
         setDeliveryReportedBy(r.pregnancyDelivery.reportedBy || 'vet')
@@ -1482,6 +1485,33 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       return 'Delivery date cannot be in the future'
     }
     return null
+  }
+
+  // Field-level validation for litter number and labor duration
+  const litterNumberNAAllowed = pregnancyConfirmationMethod !== 'ultrasound'
+  const laborDurationNAAllowed = deliveryLocation !== 'in_clinic'
+
+  const validateLitterNumber = (): string => {
+    if (litterNumberNA) {
+      if (!litterNumberNAAllowed) return 'N/A is not allowed when Ultrasound is the confirmation method.'
+      return ''
+    }
+    if (litterNumber === '') return ''
+    const n = Number(litterNumber)
+    if (isNaN(n) || n < 0) return 'Litter number cannot be negative.'
+    return ''
+  }
+
+  const validateLaborDuration = (): string => {
+    if (laborDurationNA) {
+      if (!laborDurationNAAllowed) return 'N/A is not allowed when delivery location is In Clinic.'
+      return ''
+    }
+    if (laborDuration === '') return ''
+    const n = Number(laborDuration)
+    if (isNaN(n) || n < 0) return 'Labor duration cannot be negative.'
+    if (n > 24) return 'Labor duration cannot be more than 24 hours.'
+    return ''
   }
 
   // Auto-populate preventive care based on appointment-selected preventive services
@@ -1863,7 +1893,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     const alreadyPregnant = pet?.pregnancyStatus === 'pregnant'
     const inferredMethod = inferPregnancyMethodFromDiagnostics()
     const effectiveMethod = pregnancyConfirmationMethod === 'unknown' ? inferredMethod : pregnancyConfirmationMethod
-    const effectiveConfidence = effectiveMethod === 'ultrasound' ? 'high' : pregnancyConfidence
+    const effectiveConfidence: 'high' | 'medium' | 'low' = effectiveMethod === 'ultrasound' ? 'high' : effectiveMethod === 'unknown' ? 'low' : 'medium'
     const resolvedDeliveryType = pregnancyDeliveryServices.find(s => s._id === deliveryServiceId)?.name || ''
 
     // When loss is recorded, override pregnancyRecord.isPregnant to false
@@ -1875,7 +1905,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           isPregnant: effectiveIsPregnant,
           gestationDate: effectiveIsPregnant && gestationDate ? gestationDate : null,
           expectedDueDate: effectiveIsPregnant && expectedDueDate ? expectedDueDate : null,
-          litterNumber: effectiveIsPregnant && litterNumber ? parseInt(litterNumber) : null,
+          litterNumber: effectiveIsPregnant && !litterNumberNA && litterNumber ? parseInt(litterNumber) : null,
           confirmationMethod: effectiveIsPregnant ? effectiveMethod : 'unknown',
           confirmationSource: effectiveIsPregnant ? pregnancyConfirmationSource : 'unknown',
           confidence: effectiveIsPregnant ? effectiveConfidence : 'low',
@@ -1887,10 +1917,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         pregnancyDelivery: {
           deliveryDate: deliveryDate || null,
           deliveryType: resolvedDeliveryType,
-          laborDuration,
+          laborDuration: laborDurationNA ? 'N/A' : laborDuration,
           liveBirths: parseInt(liveBirths) || 0,
           stillBirths: parseInt(stillBirths) || 0,
-          motherCondition,
           vetRemarks: deliveryVetRemarks,
           deliveryLocation,
           reportedBy: deliveryReportedBy,
@@ -1931,6 +1960,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
     if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
       toast.error('Please select a pregnancy confirmation method')
+      return
+    }
+
+    // Validate litter number and labor duration
+    const litterErr = validateLitterNumber()
+    if (litterErr) {
+      setLitterNumberError(litterErr)
+      toast.error(litterErr)
+      return
+    }
+    const laborErr = validateLaborDuration()
+    if (laborErr) {
+      setLaborDurationError(laborErr)
+      toast.error(laborErr)
       return
     }
 
@@ -2166,6 +2209,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     const delivDateErr = deliveryDateError()
     if (delivDateErr) {
       toast.error(delivDateErr)
+      return
+    }
+
+    // Validate litter number and labor duration
+    const litterErrC = validateLitterNumber()
+    if (litterErrC) {
+      setLitterNumberError(litterErrC)
+      toast.error(litterErrC)
+      return
+    }
+    const laborErrC = validateLaborDuration()
+    if (laborErrC) {
+      setLaborDurationError(laborErrC)
+      toast.error(laborErrC)
       return
     }
 
@@ -3221,7 +3278,54 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             <label className="block text-xs text-gray-500 mb-1">Confirmation Method</label>
                             <DropdownField
                               value={pregnancyConfirmationMethod}
-                              onValueChange={(value) => setPregnancyConfirmationMethod(value as 'ultrasound' | 'abdominal_palpation' | 'clinical_observation' | 'external_documentation' | 'unknown')}
+                              onValueChange={(value) => {
+                                const nextMethod = value as typeof pregnancyConfirmationMethod
+                                const prevMethod = pregnancyConfirmationMethod
+
+                                setPregnancyConfirmationMethod(nextMethod)
+
+                                // ── Bidirectional ultrasound diagnostic-test sync ──────────────
+                                const ultrasoundService = diagnosticTestServices.find((s) =>
+                                  s.name.toLowerCase().includes('ultrasound'),
+                                )
+                                if (nextMethod === 'ultrasound') {
+                                  // Select → add ultrasound test if not already present
+                                  if (ultrasoundService) {
+                                    setDiagnosticTests((prev) => {
+                                      const alreadyAdded = prev.some(
+                                        (t) => t.testType === 'ultrasound' || t.name.toLowerCase().includes('ultrasound'),
+                                      )
+                                      if (alreadyAdded) return prev
+                                      return [...prev, { ...emptyDiagnosticTest(), name: ultrasoundService.name, testType: 'ultrasound' }]
+                                    })
+                                  }
+                                } else if (prevMethod === 'ultrasound') {
+                                  // Deselect → remove the mapped ultrasound test only; leave other tests untouched
+                                  setDiagnosticTests((prev) =>
+                                    prev.filter((t) => {
+                                      if (t.testType === 'ultrasound') return false
+                                      if (ultrasoundService && t.name === ultrasoundService.name) return false
+                                      return true
+                                    }),
+                                  )
+                                }
+
+                                // ── Auto-set Confirmation Source to "This Clinic" ──────────────
+                                // Applies when method is one of the clinic-performed methods
+                                // (i.e. not "unknown / not specified" and not "external documentation")
+                                if (nextMethod !== 'unknown' && nextMethod !== 'external_documentation') {
+                                  setPregnancyConfirmationSource('this_clinic')
+                                }
+
+                                // ── Litter-number N/A conflict check ──────────────────────────
+                                // If the vet had marked litter number as N/A and then switches to
+                                // Ultrasound (where N/A is not allowed), surface an error immediately.
+                                if (nextMethod === 'ultrasound' && litterNumberNA) {
+                                  setLitterNumberError('N/A is not allowed when Ultrasound is the confirmation method.')
+                                } else {
+                                  setLitterNumberError('')
+                                }
+                              }}
                               placeholder="Select method"
                               className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
                               options={[
@@ -3244,22 +3348,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 { value: 'this_clinic', label: 'This Clinic' },
                                 { value: 'external_clinic', label: 'External Clinic' },
                                 { value: 'owner_reported', label: 'Owner Reported' },
-                                { value: 'inferred', label: 'Inferred from Records' },
                                 { value: 'unknown', label: 'Unknown' },
-                              ]}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Confidence</label>
-                            <DropdownField
-                              value={pregnancyConfidence}
-                              onValueChange={(value) => setPregnancyConfidence(value as 'high' | 'medium' | 'low')}
-                              placeholder="Select confidence"
-                              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
-                              options={[
-                                { value: 'high', label: 'High' },
-                                { value: 'medium', label: 'Medium' },
-                                { value: 'low', label: 'Low' },
                               ]}
                             />
                           </div>
@@ -3302,10 +3391,34 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             type="number"
                             min="0"
                             value={litterNumber}
-                            onChange={(e) => setLitterNumber(e.target.value)}
-                            placeholder="e.g. 1"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                            disabled={litterNumberNA}
+                            onChange={(e) => {
+                              setLitterNumber(e.target.value)
+                              setLitterNumberError('')
+                            }}
+                            placeholder={litterNumberNA ? 'N/A' : 'e.g. 1'}
+                            className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${litterNumberError ? 'border-red-400' : 'border-gray-200'} ${litterNumberNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                           />
+                          {litterNumberNAAllowed && (
+                            <label className="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={litterNumberNA}
+                                onChange={(e) => {
+                                  setLitterNumberNA(e.target.checked)
+                                  if (e.target.checked) {
+                                    setLitterNumber('')
+                                    setLitterNumberError('')
+                                  }
+                                }}
+                                className="w-3 h-3 accent-gray-500"
+                              />
+                              <span className="text-xs text-gray-500">N/A (not determined)</span>
+                            </label>
+                          )}
+                          {litterNumberError && (
+                            <p className="text-xs text-red-600 mt-1">{litterNumberError}</p>
+                          )}
                         </div>
                         </div>
                         <div>
@@ -3450,30 +3563,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Labor Duration</label>
-                        <input
-                          type="text"
-                          value={laborDuration}
-                          onChange={(e) => setLaborDuration(e.target.value)}
-                          placeholder="e.g. 3 hours"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Mother Condition</label>
-                        <DropdownField
-                          value={motherCondition}
-                          onValueChange={(value) => setMotherCondition(value as 'stable' | 'critical' | 'recovering')}
-                          placeholder="Stable"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          options={[
-                            { value: 'stable', label: 'Stable' },
-                            { value: 'recovering', label: 'Recovering' },
-                            { value: 'critical', label: 'Critical' },
-                          ]}
-                        />
-                      </div>
-                      <div>
                         <label className="block text-xs text-gray-500 mb-1">Live Births</label>
                         <input
                           type="number"
@@ -3496,10 +3585,56 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         />
                       </div>
                       <div>
+                        <label className="block text-xs text-gray-500 mb-1">Labor Duration (hours)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="23"
+                          step="0.5"
+                          value={laborDuration}
+                          disabled={laborDurationNA}
+                          onChange={(e) => {
+                            setLaborDuration(e.target.value)
+                            setLaborDurationError('')
+                          }}
+                          placeholder={laborDurationNA ? 'N/A' : 'e.g. 3'}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${laborDurationError ? 'border-red-400' : 'border-gray-200'} ${laborDurationNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                        />
+                        {laborDurationNAAllowed && (
+                          <label className="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={laborDurationNA}
+                              onChange={(e) => {
+                                setLaborDurationNA(e.target.checked)
+                                if (e.target.checked) {
+                                  setLaborDuration('')
+                                  setLaborDurationError('')
+                                }
+                              }}
+                              className="w-3 h-3 accent-gray-500"
+                            />
+                            <span className="text-xs text-gray-500">N/A (outside clinic / not known)</span>
+                          </label>
+                        )}
+                        {laborDurationError && (
+                          <p className="text-xs text-red-600 mt-1">{laborDurationError}</p>
+                        )}
+                      </div>
+                      <div>
                         <label className="block text-xs text-gray-500 mb-1">Delivery Location</label>
                         <DropdownField
                           value={deliveryLocation}
-                          onValueChange={(value) => setDeliveryLocation(value as 'in_clinic' | 'outside_clinic' | 'unknown')}
+                          onValueChange={(value) => {
+                            const nextLocation = value as typeof deliveryLocation
+                            setDeliveryLocation(nextLocation)
+                            // If switching to in_clinic while labor duration is N/A, surface error
+                            if (nextLocation === 'in_clinic' && laborDurationNA) {
+                              setLaborDurationError('N/A is not allowed when delivery location is In Clinic.')
+                            } else {
+                              setLaborDurationError('')
+                            }
+                          }}
                           placeholder="Select location"
                           className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                           options={[
@@ -3551,11 +3686,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                       Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
-                    {motherCondition === 'critical' && (
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        A post-delivery follow-up appointment will be automatically scheduled in <strong>3 days</strong> due to critical maternal condition.
-                      </p>
-                    )}
                   </div>
                 )}
               </div>

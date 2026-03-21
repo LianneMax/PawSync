@@ -121,6 +121,7 @@ export default function ClinicMedicalRecordsPage() {
       pre_procedure:  { label: 'Pre',       cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
       in_procedure:   { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
       post_procedure: { label: 'Post',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+      confined:       { label: 'Confined',  cls: 'bg-orange-50 text-orange-700 border-orange-200' },
       completed:      { label: 'Completed', cls: 'bg-green-50 text-green-700 border-green-200' },
     }
     const s = map[stage] ?? { label: stage, cls: 'bg-gray-50 text-gray-500 border-gray-200' }
