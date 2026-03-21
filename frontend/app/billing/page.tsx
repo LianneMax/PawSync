@@ -2053,7 +2053,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [billings, setBillings] = useState<ApiBilling[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [dateFilter, setDateFilter] = useState('')
+  const [startDateFilter, setStartDateFilter] = useState('')
+  const [endDateFilter, setEndDateFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'pending_payment' | 'paid'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
@@ -2098,11 +2099,24 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
     const q = searchQuery.toLowerCase()
     const clientName = `${b.ownerId?.firstName || ''} ${b.ownerId?.lastName || ''}`.toLowerCase()
     const invoiceDateYmd = toLocalYmd(b.serviceDate || b.createdAt)
+    let rangeStart = startDateFilter
+    let rangeEnd = endDateFilter
+
+    // If only one end of the range is selected, treat it as a single-day filter.
+    if (rangeStart && !rangeEnd) rangeEnd = rangeStart
+    if (!rangeStart && rangeEnd) rangeStart = rangeEnd
+
+    if (rangeStart && rangeEnd && rangeStart > rangeEnd) {
+      const temp = rangeStart
+      rangeStart = rangeEnd
+      rangeEnd = temp
+    }
+
     const matchesSearch =
       clientName.includes(q) ||
       (b.petId?.name || '').toLowerCase().includes(q) ||
       b._id.toLowerCase().includes(q)
-    const matchesDate = !dateFilter || invoiceDateYmd === dateFilter
+    const matchesDate = !rangeStart || !rangeEnd || (invoiceDateYmd >= rangeStart && invoiceDateYmd <= rangeEnd)
     let matchesStatus = true
     if (statusFilter === 'running') {
       matchesStatus = b.status === 'pending_payment' && b.medicalRecordId?.stage !== 'completed'
@@ -2122,7 +2136,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, statusFilter, dateFilter])
+  }, [searchQuery, statusFilter, startDateFilter, endDateFilter])
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
@@ -2242,24 +2256,36 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
         </div>
 
         <div className="mb-4 flex items-end justify-between gap-4">
-          <div className="flex-1 max-w-md relative">
+          <div className="flex-1 max-w-sm relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search invoices..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-13 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
+              className="w-full h-11 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
             />
           </div>
-          <div className="flex flex-col items-end gap-2 min-w-[260px]">
-            <div className="w-full flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Date</span>
+          <div className="flex items-center gap-3 min-w-[420px] justify-end">
+            <div className="w-48 flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 shrink-0">From</span>
               <DatePicker
-                value={dateFilter}
-                onChange={setDateFilter}
-                placeholder="Select date"
+                value={startDateFilter}
+                onChange={setStartDateFilter}
+                placeholder="Start date"
                 allowFutureDates={true}
+                compact
+                className="w-full"
+              />
+            </div>
+            <div className="w-48 flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 shrink-0">To</span>
+              <DatePicker
+                value={endDateFilter}
+                onChange={setEndDateFilter}
+                placeholder="End date"
+                allowFutureDates={true}
+                compact
                 className="w-full"
               />
             </div>
@@ -2278,7 +2304,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                     className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
                   />
                 </th>
-                {['Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Service', 'Date', 'Amount Due', 'Status', 'Action'].map((col) => (
+                {['View', 'Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Service', 'Date', 'Amount Due', 'Status', 'Action'].map((col) => (
                   <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center gap-1">{col} <ChevronDown className="w-3 h-3" /></div>
                   </th>
@@ -2288,7 +2314,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
+                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
                 </tr>
               )}
               {!loading && displayedInvoices.map((b) => {
@@ -2303,6 +2329,15 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                         onChange={() => toggleSelection(b._id)}
                         className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
                       />
+                    </td>
+                    <td className="px-4 py-4">
+                      <button
+                        onClick={() => setViewingBilling(b)}
+                        className="text-gray-400 hover:text-[#476B6B] transition-colors"
+                        title="View billing details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     </td>
                     <td className="px-4 py-4">
                       <span className="text-sm text-[#7FA5A3] hover:text-[#6A8E8C] cursor-pointer underline">
@@ -2340,13 +2375,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                             Mark as Paid
                           </button>
                         )}
-                        <button
-                          onClick={() => setViewingBilling(b)}
-                          className="text-gray-400 hover:text-[#476B6B] transition-colors"
-                          title="View billing details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
