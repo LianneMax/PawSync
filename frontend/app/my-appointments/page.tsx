@@ -1035,7 +1035,7 @@ function ScheduleModal({
   useEffect(() => {
     if (open && initialPetId && pets.length > 0) {
       const initialPet = pets.find((pet) => pet._id === initialPetId)
-      if (initialPet && !initialPet.isLost && initialPet.isAlive && initialPet.status !== 'deceased') {
+      if (initialPet && !initialPet.isLost && initialPet.isAlive && initialPet.status !== 'deceased' && !initialPet.isConfined) {
         setSelectedPetId(initialPetId)
       } else {
         setSelectedPetId('')
@@ -1286,6 +1286,7 @@ function ScheduleModal({
     if (!selectedPetId) return toast.error('Please select a pet')
     if (selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased')) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
     if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
+    if (selectedPet?.isConfined) return toast.error('Appointments cannot be scheduled for pets that are currently confined.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter) {
@@ -1417,6 +1418,14 @@ function ScheduleModal({
               </div>
             )}
 
+            {/* Confined Pet Warning */}
+            {selectedPet?.isConfined && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800 font-medium">⚠️ This pet is currently confined</p>
+                <p className="text-xs text-blue-700 mt-1">Appointments cannot be scheduled for pets that are currently confined. Please wait until they are discharged.</p>
+              </div>
+            )}
+
             {/* Row 1: Pet + Branch */}
             <div className="grid grid-cols-2 gap-4">
               <Dropdown
@@ -1424,13 +1433,13 @@ function ScheduleModal({
                 value={selectedPetId}
                 placeholder="Menu Label"
                 options={pets.map((p) => ({ value: p._id, label: p.name }))}
-                disabledOptions={pets.filter(p => p.isLost || !p.isAlive || p.status === 'deceased').map(p => p._id)}
+                disabledOptions={pets.filter(p => p.isLost || !p.isAlive || p.status === 'deceased' || p.isConfined).map(p => p._id)}
                 disabledReasonByValue={Object.fromEntries(
                   pets
-                    .filter((p) => p.isLost || !p.isAlive || p.status === 'deceased')
+                    .filter((p) => p.isLost || !p.isAlive || p.status === 'deceased' || p.isConfined)
                     .map((p) => [
                       p._id,
-                      !p.isAlive || p.status === 'deceased' ? 'Deceased Pet' : 'Lost Pet',
+                      !p.isAlive || p.status === 'deceased' ? 'Deceased Pet' : p.isLost ? 'Lost Pet' : 'Confined Pet',
                     ])
                 )}
                 onSelect={setSelectedPetId}

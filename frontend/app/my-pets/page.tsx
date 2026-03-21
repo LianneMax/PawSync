@@ -340,6 +340,8 @@ export default function MyPetsPage() {
                     ? 'border-2 border-[#8B5E3C] shadow-[0_0_0_1px_rgba(139,94,60,0.15)]'
                     : pet.isLost
                     ? 'border-2 border-[#900B09] shadow-[0_0_0_1px_rgba(144,11,9,0.15)]'
+                    : pet.isConfined
+                    ? 'border-2 border-blue-400 shadow-[0_0_0_1px_rgba(96,165,250,0.15)]'
                     : 'border border-gray-200 shadow-sm'
                 }`}
               >
@@ -356,6 +358,13 @@ export default function MyPetsPage() {
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FEE2E2] border border-[#900B09] text-[#900B09] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
                     <AlertTriangle className="w-3 h-3" />
                     Marked as Lost
+                  </div>
+                )}
+
+                {/* Confined badge */}
+                {pet.isConfined && pet.isAlive && pet.status !== 'deceased' && !pet.isLost && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-50 border border-blue-400 text-blue-600 text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                    Confined
                   </div>
                 )}
 

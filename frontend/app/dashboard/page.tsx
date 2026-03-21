@@ -63,6 +63,7 @@ interface Pet {
   nextVisit: string
   image: string | null
   isLost: boolean
+  isConfined: boolean
   lostReportedByStranger: boolean
   lostContactName: string | null
   lostContactNumber: string | null
@@ -139,6 +140,7 @@ function apiPetToDashboardPet(apiPet: APIPet): Pet {
     nextVisit: '-',
     image: apiPet.photo,
     isLost: apiPet.isLost,
+    isConfined: apiPet.isConfined,
     lostReportedByStranger: apiPet.lostReportedByStranger,
     lostContactName: apiPet.lostContactName ?? null,
     lostContactNumber: apiPet.lostContactNumber ?? null,
@@ -452,15 +454,23 @@ function PetDetailModal({
 
             {/* Action Buttons */}
             <button
-              disabled={isDeceased}
+              disabled={isDeceased || pet.isConfined}
               className={`w-full border rounded-xl p-4 text-left transition-colors flex items-center justify-between ${
-                isDeceased ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
+                isDeceased || pet.isConfined ? 'border-gray-100 bg-gray-50 opacity-70 cursor-not-allowed' : 'border-gray-200 hover:bg-gray-50'
               }`}
-              onClick={() => { if (!isDeceased) { onClose(); router.push(`/my-appointments?petId=${pet.id}`) } }}
+              onClick={() => { if (!isDeceased && !pet.isConfined) { onClose(); router.push(`/my-appointments?petId=${pet.id}`) } }}
             >
               <div>
-                <p className="font-semibold text-[#4F4F4F] text-sm">Book Appointment</p>
-                <p className="text-xs text-gray-400">{isDeceased ? `Pet deceased on ${formatLongDate(pet.deceasedAt)}` : `Schedule a Vet Visit for ${pet.name}`}</p>
+                <p className="font-semibold text-[#4F4F4F] text-sm">
+                  {pet.isConfined ? 'Unable to Book Appointment' : 'Book Appointment'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {isDeceased
+                    ? `Pet deceased on ${formatLongDate(pet.deceasedAt)}`
+                    : pet.isConfined
+                    ? 'Pet is currently confined'
+                    : `Schedule a Vet Visit for ${pet.name}`}
+                </p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
@@ -1382,6 +1392,8 @@ export default function DashboardPage() {
                     ? 'border-2 border-amber-400'
                     : pet.isLost
                     ? 'border-2 border-[#900B09]'
+                    : pet.isConfined
+                    ? 'border-2 border-blue-400'
                     : 'border border-gray-200'
                 }`}
                 onClick={() => handlePetClick(pet)}
@@ -1394,6 +1406,10 @@ export default function DashboardPage() {
                 ) : pet.isLost ? (
                   <div className="absolute -top-3 right-4 bg-[#900B09] text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
                     Marked as LOST
+                  </div>
+                ) : pet.isConfined ? (
+                  <div className="absolute -top-3 right-4 bg-blue-500 text-white text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap z-10">
+                    Confined
                   </div>
                 ) : null}
                 {pet.previousOwners.length > 0 && (
