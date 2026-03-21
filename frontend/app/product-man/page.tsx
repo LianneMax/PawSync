@@ -12,6 +12,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Switch } from '@/components/ui/switch'
 
 // ==================== TYPES ====================
 
@@ -1147,27 +1148,35 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
                 <p className="text-xs text-gray-400 py-1">No branches found.</p>
               ) : (
                 <div className="space-y-2">
-                  {localBranches.map((branch) => (
-                    <button
-                      key={branch.id}
-                      type="button"
-                      onClick={() => setSelectedBranches((prev) => {
-                        const next = new Set(prev)
-                        next.has(branch.id) ? next.delete(branch.id) : next.add(branch.id)
-                        return next
-                      })}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
-                        selectedBranches.has(branch.id)
-                          ? 'bg-[#EAF1F1] border-[#7FA5A3] text-[#3D5E5C]'
-                          : 'bg-white border-gray-200 text-gray-500'
-                      }`}
-                    >
-                      <span className="font-medium">{branch.name}{branch.isMain ? ' (Main)' : ''}</span>
-                      <span className={`text-xs font-semibold ${selectedBranches.has(branch.id) ? 'text-[#476B6B]' : 'text-gray-400'}`}>
-                        {selectedBranches.has(branch.id) ? 'Available' : 'Not Available'}
-                      </span>
-                    </button>
-                  ))}
+                  {localBranches.map((branch) => {
+                    const isAvailable = selectedBranches.has(branch.id)
+                    return (
+                      <div key={branch.id} className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50">
+                        <div>
+                          <span className="block text-sm font-medium text-gray-700">
+                            {branch.name}
+                            {branch.isMain ? ' (Main)' : ''}
+                          </span>
+                          <span className={`text-xs font-semibold ${isAvailable ? 'text-[#476B6B]' : 'text-gray-400'}`}>
+                            {isAvailable ? 'Available' : 'Not Available'}
+                          </span>
+                        </div>
+                        <Switch
+                          checked={isAvailable}
+                          onCheckedChange={(checked) => {
+                            setSelectedBranches((prev) => {
+                              const next = new Set(prev)
+                              if (checked) next.add(branch.id)
+                              else next.delete(branch.id)
+                              return next
+                            })
+                          }}
+                          className="data-checked:bg-[#476B6B]"
+                          aria-label={`Set ${branch.name} availability`}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -3000,7 +3009,7 @@ export default function ProductManPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 min-h-screen bg-gray-50">
+      <div className="p-6 lg:p-8 min-h-screen">
         <PageHeader
           title="Product and Service Management"
           subtitle="Efficiently manage your clinic products, services, and vaccines"
