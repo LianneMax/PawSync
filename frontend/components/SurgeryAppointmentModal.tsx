@@ -30,6 +30,12 @@ interface SurgeryAppointmentModalProps {
   clinicId?: string
   clinicBranchId?: string
   vetId?: string
+  onBranchSelected?: (isDifferentBranch: boolean) => void
+  /** When provided, called after successful scheduling instead of opening the
+   *  SurgeryMedicalRecordModal. Use this when scheduling from Care Plan to
+   *  avoid the procedure-recording step at schedule time. Receives the newly
+   *  created appointment ID so the parent can track and cancel it if needed. */
+  onScheduled?: (appointmentId: string) => void
 }
 
 interface TimeSlot {
@@ -117,6 +123,8 @@ export default function SurgeryAppointmentModal({
   clinicId,
   clinicBranchId,
   vetId,
+  onBranchSelected,
+  onScheduled,
 }: SurgeryAppointmentModalProps) {
   const token = useAuthStore((s) => s.token)
   const currentYear = new Date().getFullYear()
@@ -250,7 +258,7 @@ export default function SurgeryAppointmentModal({
     const loadBranches = async () => {
       setBranchesLoading(true)
       try {
-        const res = await getClinicBranches(token as string)
+        const res = await getClinicBranches(token as string, true)
         if (res.status === 'SUCCESS' && res.data) {
           setBranches(res.data)
         }
@@ -298,6 +306,7 @@ export default function SurgeryAppointmentModal({
 
     setSubmitting(true)
     try {
+      const isCrossBranch = selectedBranchId !== (clinicBranchId || '')
       const res = await createAppointment(
         {
           petId,
@@ -309,20 +318,29 @@ export default function SurgeryAppointmentModal({
           date,
           startTime: selectedSlot.startTime,
           endTime: selectedSlot.endTime,
+          // Only set when this modal is used from the Care Plan scheduling path
+          // (onScheduled present) AND the user picked a different branch.
+          // This is the auditable flag the backend requires for cross-branch surgery.
+          ...(onScheduled && isCrossBranch ? { crossBranchSurgeryReferral: true } : {}),
         },
         token as string
       )
 
       if (res.status === 'SUCCESS' && res.data?.appointment?._id) {
         toast.success('Surgery appointment scheduled successfully')
-        setCreatedAppointmentId(res.data.appointment._id)
-        setShowMedicalRecordModal(true)
-        // Close the appointment modal but keep it in memory
         onOpenChange(false)
         // Reset form
         setSelectedServices([])
         setDate('')
         setSelectedSlot(null)
+        if (onScheduled) {
+          // Called from Care Plan: only schedule, do not open procedure-recording modal
+          onScheduled(res.data.appointment._id)
+        } else {
+          // Called from dedicated surgery step: open procedure-recording modal as before
+          setCreatedAppointmentId(res.data.appointment._id)
+          setShowMedicalRecordModal(true)
+        }
       } else {
         toast.error(res.message || 'Failed to schedule appointment')
       }
@@ -398,6 +416,7 @@ export default function SurgeryAppointmentModal({
                     setSelectedVetId('')
                     setSelectedSlot(null)
                     setDate('')
+                    onBranchSelected?.(val !== clinicBranchId)
                   }}
                 />
               </div>

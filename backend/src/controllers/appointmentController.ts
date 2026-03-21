@@ -10,6 +10,7 @@ import VetSchedule from '../models/VetSchedule';
 import Vaccination from '../models/Vaccination';
 import MedicalRecord from '../models/MedicalRecord';
 import Billing from '../models/Billing';
+import ProductService from '../models/ProductService';
 import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
@@ -122,7 +123,7 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
-    const { petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes } = req.body;
+    const { petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, crossBranchSurgeryReferral } = req.body;
 
     if (req.user.userType === 'pet-owner' && (!notes || !String(notes).trim())) {
       return res.status(400).json({
@@ -145,38 +146,78 @@ export const createAppointment = async (req: Request, res: Response) => {
     // ─────────────────────────────────────────────────────────────────────────────────
     // Branch authorization validation
     // ─────────────────────────────────────────────────────────────────────────────────
-    
-    // Clinic admins can only book appointments for their assigned branch
+
+    // Helper: verify that every type ID in the request resolves to a Surgery-category
+    // product service.  Used to gate the cross-branch bypass so it cannot be repurposed
+    // for non-surgical appointment types.
+    const assertAllSurgeryTypes = async (): Promise<boolean> => {
+      if (!Array.isArray(types) || types.length === 0) return false;
+      const services = await ProductService.find({ _id: { $in: types } }).select('category');
+      if (services.length !== types.length) return false; // unknown IDs
+      return services.every((s: any) => s.category === 'Surgeries');
+    };
+
+    // Helper: verify that the requested clinicBranchId belongs to the same clinic
+    // as the requesting user.  Prevents the bypass from being used to book across
+    // completely different clinics.
+    const assertSameClinic = async (): Promise<boolean> => {
+      const targetBranch = await ClinicBranch.findById(clinicBranchId).select('clinicId');
+      if (!targetBranch) return false;
+      return (targetBranch.clinicId as any).toString() === (clinicId as any).toString();
+    };
+
+    // Clinic admins can only book appointments for their assigned branch.
+    // Exception: cross-branch surgery referral from the ScheduleSurgeryModal
+    // (indicated by crossBranchSurgeryReferral === true) is permitted when all
+    // types are Surgery-category services and the target branch belongs to the
+    // same clinic.
     if (req.user.userType === 'clinic-admin') {
       if (!req.user.clinicBranchId) {
-        return res.status(403).json({ 
-          status: 'ERROR', 
-          message: 'Clinic admin must have a branch assigned' 
+        return res.status(403).json({
+          status: 'ERROR',
+          message: 'Clinic admin must have a branch assigned'
         });
       }
-      
+
       const userBranchId = (req.user.clinicBranchId as any).toString();
       const requestedBranchId = (clinicBranchId as any).toString();
-      
+
       if (userBranchId !== requestedBranchId) {
-        return res.status(403).json({ 
-          status: 'ERROR', 
-          message: 'You can only create appointments for your assigned branch' 
-        });
+        // Allow only when explicit surgery-referral flag is set, types are all
+        // surgery services, and the target branch is within the same clinic.
+        const isCrossBranchSurgeryAllowed =
+          crossBranchSurgeryReferral === true &&
+          (await assertAllSurgeryTypes()) &&
+          (await assertSameClinic());
+
+        if (!isCrossBranchSurgeryAllowed) {
+          return res.status(403).json({
+            status: 'ERROR',
+            message: 'You can only create appointments for your assigned branch'
+          });
+        }
       }
     }
-    
-    // Veterinarians can only book appointments for branches they are assigned to
+
+    // Veterinarians can only book appointments for branches they are assigned to.
+    // Same cross-branch surgery referral exception applies.
     if (req.user.userType === 'veterinarian') {
       const vetApps = await VetApplication.find({ vetId: req.user.userId });
       const assignedBranchIds = vetApps.map(va => (va.branchId as any).toString());
       const requestedBranchId = (clinicBranchId as any).toString();
-      
+
       if (!assignedBranchIds.includes(requestedBranchId)) {
-        return res.status(403).json({ 
-          status: 'ERROR', 
-          message: 'You can only create appointments for branches you are assigned to' 
-        });
+        const isCrossBranchSurgeryAllowed =
+          crossBranchSurgeryReferral === true &&
+          (await assertAllSurgeryTypes()) &&
+          (await assertSameClinic());
+
+        if (!isCrossBranchSurgeryAllowed) {
+          return res.status(403).json({
+            status: 'ERROR',
+            message: 'You can only create appointments for branches you are assigned to'
+          });
+        }
       }
     }
 
@@ -1795,10 +1836,13 @@ export const getClinicBranches = async (req: Request, res: Response) => {
       }
     }
 
-    // Fetch branches; include inactive if requested
+    // Fetch branches; include inactive if requested.
+    // ?allBranches=true bypasses the per-user assignment scope so all active
+    // clinic branches are returned — used for cross-branch surgery scheduling.
     const includeInactive = req.query.all === 'true';
+    const allBranches = req.query.allBranches === 'true';
     const branchFilter: any = { clinicId };
-    if (branchIds) {
+    if (branchIds && !allBranches) {
       branchFilter._id = { $in: branchIds };
     }
     if (!includeInactive) branchFilter.isActive = true;

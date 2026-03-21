@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
 import { getPetById, updatePetConfinement, updatePetPregnancyStatus, markPetDeceased } from '@/lib/pets'
-import { updateAppointmentStatus } from '@/lib/appointments'
+import { updateAppointmentStatus, cancelAppointment } from '@/lib/appointments'
 import { getVaccineTypes, getVaccinationsByPet, createVaccination, updateVaccination, type VaccineType, type Vaccination } from '@/lib/vaccinations'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
 import type { Pet } from '@/lib/pets'
@@ -628,11 +628,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Tracks the stage the record was in when first loaded (e.g. 'confined').
   const [recordStage, setRecordStage] = useState<string>('pre_procedure')
   const [confined, setConfined] = useState(false)
-  const [discharge, setDischarge] = useState(false)
   const [referral, setReferral] = useState(false)
   const [surgery, setSurgery] = useState(false)
   const [euthanasia, setEuthanasia] = useState(false)
   const [showSurgeryModal, setShowSurgeryModal] = useState(false)
+  // Tracks the appointment ID created via the Care Plan → Schedule Surgery flow
+  // so it can be cancelled if the vet unchecks the surgery toggle.
+  const [carePlanSurgeryAppointmentId, setCarePlanSurgeryAppointmentId] = useState<string | null>(null)
   const [carePlanOpen, setCarePlanOpen] = useState(true)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
@@ -678,6 +680,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     t === 'dental-scaling' || t === 'laser-therapy'
   )
   const patientTiterSpecies: TiterSpecies = pet?.species === 'feline' ? 'feline' : 'canine'
+
+  // Discharge is auto-derived: pet is sent home unless confined or euthanised.
+  // Referral and scheduled surgery do not block discharge (they can coexist).
+  const autoDischarge = !confined && !euthanasia
 
   // Load pet-level vet notes on mount
   useEffect(() => {
@@ -1044,7 +1050,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }
       setVisitSummary(r.visitSummary || '')
       setReferral(r.referral ?? false)
-      setDischarge(r.discharge ?? false)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       setMedications((r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest))
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1503,6 +1508,57 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     return { action: 'none', days: 0 }
   }
 
+  // Care plan toggle handlers — enforce mutual exclusivity rules
+  const handleConfinedChange = (checked: boolean) => {
+    setConfined(checked)
+    if (checked) {
+      setReferral(false)
+      setEuthanasia(false)
+    }
+  }
+
+  const handleReferralChange = (checked: boolean) => {
+    setReferral(checked)
+    if (checked) {
+      setConfined(false)
+      setEuthanasia(false)
+    }
+  }
+
+  // Cancels the surgery appointment created from the Care Plan scheduling flow,
+  // if one exists. Silently swallows errors — the toggle still turns off regardless.
+  const cancelCarePlanSurgery = async () => {
+    if (!carePlanSurgeryAppointmentId || !token) return
+    try {
+      await cancelAppointment(carePlanSurgeryAppointmentId, token)
+    } catch {
+      // non-blocking: log but don't prevent the toggle from being cleared
+      console.warn('[CarePlan] Failed to cancel surgery appointment', carePlanSurgeryAppointmentId)
+    }
+    setCarePlanSurgeryAppointmentId(null)
+  }
+
+  const handleSurgeryChange = (checked: boolean) => {
+    setSurgery(checked)
+    if (checked) {
+      setShowSurgeryModal(true)
+      setConfined(false)
+      setEuthanasia(false)
+    } else {
+      cancelCarePlanSurgery()
+    }
+  }
+
+  const handleEuthanasiaChange = (checked: boolean) => {
+    setEuthanasia(checked)
+    if (checked) {
+      setConfined(false)
+      setReferral(false)
+      setSurgery(false)
+      cancelCarePlanSurgery()
+    }
+  }
+
   // Build a one-paragraph draft visit summary from existing form data
   const buildDraftSummary = (): string => {
     const parts: string[] = []
@@ -1558,7 +1614,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         confinementAction,
         confinementDays,
         referral,
-        discharge,
+        discharge: autoDischarge,
         scheduledSurgery: surgery,
         ...(allImages.length > 0 ? { images: allImages } : {}),
         ...buildPregnancyPayload(),
@@ -1798,7 +1854,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         confinementAction,
         confinementDays,
         referral,
-        discharge,
+        discharge: autoDischarge,
         scheduledSurgery: surgery,
         ...(allImages.length > 0 ? { images: allImages } : {}),
         ...buildPregnancyPayload(),
@@ -2030,7 +2086,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         confinementAction,
         confinementDays,
         referral,
-        discharge,
+        discharge: autoDischarge,
         scheduledSurgery: surgery,
         ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
@@ -4669,6 +4725,21 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 </button>
                 {carePlanOpen && (
                   <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
+                    {/* Auto-discharge status label */}
+                    <div className={`flex items-center justify-between p-3 rounded-xl ${autoDischarge ? 'bg-green-50 border border-green-100' : 'bg-gray-50'}`}>
+                      <div>
+                        <p className={`text-xs font-semibold ${autoDischarge ? 'text-green-700' : 'text-gray-400'}`}>
+                          Discharged for At-Home Care
+                        </p>
+                        <p className={`text-[10px] ${autoDischarge ? 'text-green-500' : 'text-gray-400'}`}>
+                          {autoDischarge ? 'Pet will be sent home after this visit' : 'Not applicable — overridden by another care plan action'}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${autoDischarge ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                        {autoDischarge ? 'Auto' : 'Off'}
+                      </span>
+                    </div>
+
                     {/* Confinement Toggle */}
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                       <div>
@@ -4681,25 +4752,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <Switch
                         checked={confined}
-                        onCheckedChange={setConfined}
+                        onCheckedChange={handleConfinedChange}
+                        disabled={euthanasia}
                         className="data-checked:bg-green-600"
-                      />
-                    </div>
-
-                    {/* Discharge Toggle */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                      <div>
-                        <p className="text-xs font-semibold text-[#4F4F4F]">
-                          {discharge ? 'Discharge Approved' : 'Discharge for At Home Care'}
-                        </p>
-                        <p className="text-[10px] text-gray-500">
-                          {discharge ? 'Pet approved for discharge' : 'Mark for at-home care'}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={discharge}
-                        onCheckedChange={setDischarge}
-                        className="data-checked:bg-green-500"
                       />
                     </div>
 
@@ -4715,7 +4770,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <Switch
                         checked={referral}
-                        onCheckedChange={setReferral}
+                        onCheckedChange={handleReferralChange}
+                        disabled={euthanasia}
                         className="data-checked:bg-blue-500"
                       />
                     </div>
@@ -4732,12 +4788,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <Switch
                         checked={surgery}
-                        onCheckedChange={(checked) => {
-                          setSurgery(checked)
-                          if (checked) {
-                            setShowSurgeryModal(true)
-                          }
-                        }}
+                        onCheckedChange={handleSurgeryChange}
+                        disabled={euthanasia}
                         className="data-checked:bg-red-500"
                       />
                     </div>
@@ -4754,7 +4806,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
                       <Switch
                         checked={euthanasia}
-                        onCheckedChange={setEuthanasia}
+                        onCheckedChange={handleEuthanasiaChange}
                         className="data-checked:bg-[#900B09]"
                       />
                     </div>
@@ -5012,7 +5064,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         )}
       </div>
 
-      {/* Surgery Appointment Modal */}
+      {/* Surgery Appointment Modal (Care Plan path — schedule only, no procedure recording) */}
       <SurgeryAppointmentModal
         open={showSurgeryModal}
         onOpenChange={setShowSurgeryModal}
@@ -5021,6 +5073,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         clinicId={clinicId}
         clinicBranchId={clinicBranchId}
         vetId={vetId}
+        onBranchSelected={(isDifferentBranch) => {
+          if (isDifferentBranch) setReferral(true)
+        }}
+        onScheduled={(appointmentId) => {
+          setCarePlanSurgeryAppointmentId(appointmentId)
+          setShowSurgeryModal(false)
+        }}
       />
 
       </div>

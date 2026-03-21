@@ -56,6 +56,10 @@ export const createAppointment = async (data: {
   startTime: string;
   endTime: string;
   notes?: string;
+  /** Set to true only when scheduling a surgery appointment for a different clinic
+   *  branch from the ScheduleSurgeryModal (care-plan referral flow). This allows
+   *  the backend to permit cross-branch creation for surgery types only. */
+  crossBranchSurgeryReferral?: boolean;
 }, token?: string) => {
   return authenticatedFetch('/appointments', {
     method: 'POST',
@@ -64,10 +68,14 @@ export const createAppointment = async (data: {
 };
 
 /**
- * Get clinic branches for the authenticated user's clinic
+ * Get clinic branches for the authenticated user's clinic.
+ * Pass allBranches=true to return every active branch in the clinic regardless
+ * of which branches the caller is personally assigned to (needed for cross-branch
+ * surgery scheduling).
  */
-export const getClinicBranches = async (token?: string): Promise<{ status: string; data?: ClinicBranch[] }> => {
-  return authenticatedFetch('/appointments/clinic-branches', { method: 'GET' }, token);
+export const getClinicBranches = async (token?: string, allBranches?: boolean): Promise<{ status: string; data?: ClinicBranch[] }> => {
+  const qs = allBranches ? '?allBranches=true' : '';
+  return authenticatedFetch(`/appointments/clinic-branches${qs}`, { method: 'GET' }, token);
 };
 
 /**
