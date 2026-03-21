@@ -101,6 +101,7 @@ interface PatientPet {
   isAlive?: boolean
   isLost?: boolean
   removedByOwner?: boolean
+  previousOwners?: Array<unknown>
 }
 
 // ==================== HELPERS ====================
@@ -271,6 +272,7 @@ export default function PatientRecordsPage() {
               isAlive: appt.petId?.isAlive,
               isLost: appt.petId?.isLost,
               removedByOwner: appt.petId?.removedByOwner,
+              previousOwners: Array.isArray(appt.petId?.previousOwners) ? appt.petId.previousOwners : [],
               ownerFirstName: appt.ownerId?.firstName || '',
               ownerLastName: appt.ownerId?.lastName || '',
               ownerEmail: appt.ownerId?.email || '',
@@ -498,6 +500,9 @@ export default function PatientRecordsPage() {
 
   const totalPatients = patients.length
   const totalRecords = (currentRecord ? 1 : 0) + historicalRecords.length
+  const selectedIsLost = selectedPatient?.isLost || selectedPatient?.status === 'lost'
+  const selectedIsDeceased = selectedPatient?.status === 'deceased' && selectedPatient?.isAlive === false
+  const selectedIsRelocated = Array.isArray(selectedPatient?.previousOwners) && selectedPatient.previousOwners.length > 0
 
   return (
     <DashboardLayout userType="veterinarian">
@@ -570,49 +575,44 @@ export default function PatientRecordsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredPatients.map((pet) => (
+                {filteredPatients.map((pet) => {
+                  const isLost = pet.isLost || pet.status === 'lost'
+                  const isDeceased = pet.status === 'deceased' && pet.isAlive === false
+                  const isRelocated = Array.isArray(pet.previousOwners) && pet.previousOwners.length > 0
+
+                  return (
                   <button
                     key={pet._id}
                     onClick={() => handleSelectPatient(pet)}
                     className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
-<<<<<<< Updated upstream
                       pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
-                      : (pet.isLost || pet.status === 'lost') ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
-                      : (!pet.isAlive || pet.status === 'deceased') ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
-                      : pet.removedByOwner ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
+                      : isLost ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
+                      : isDeceased ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
+                      : isRelocated ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
+                      : pet.isReferral ? 'bg-teal-50 border-2 border-teal-200 hover:ring-1 hover:ring-teal-400/40'
                       : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
-=======
-                      pet.isConfined
-                        ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
-                        : pet.isReferral
-                        ? 'bg-teal-50 border-2 border-teal-200 hover:ring-1 hover:ring-teal-400/40'
-                        : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
->>>>>>> Stashed changes
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-3">
                       {pet.photo ? (
                         <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
-<<<<<<< Updated upstream
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                           pet.isConfined ? 'bg-blue-100'
-                          : (pet.isLost || pet.status === 'lost') ? 'bg-red-100'
-                          : (!pet.isAlive || pet.status === 'deceased') ? 'bg-amber-100'
-                          : pet.removedByOwner ? 'bg-orange-100'
+                          : isLost ? 'bg-red-100'
+                          : isDeceased ? 'bg-amber-100'
+                          : isRelocated ? 'bg-orange-100'
+                          : pet.isReferral ? 'bg-teal-100'
                           : 'bg-[#7FA5A3]/15'
                         }`}>
                           <PawPrint className={`w-6 h-6 ${
                             pet.isConfined ? 'text-blue-500'
-                            : (pet.isLost || pet.status === 'lost') ? 'text-[#900B09]'
-                            : (!pet.isAlive || pet.status === 'deceased') ? 'text-amber-500'
-                            : pet.removedByOwner ? 'text-orange-500'
+                            : isLost ? 'text-[#900B09]'
+                            : isDeceased ? 'text-amber-500'
+                            : isRelocated ? 'text-orange-500'
+                            : pet.isReferral ? 'text-teal-600'
                             : 'text-[#5A7C7A]'
                           }`} />
-=======
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${pet.isConfined ? 'bg-blue-100' : pet.isReferral ? 'bg-teal-100' : 'bg-[#7FA5A3]/15'}`}>
-                          <PawPrint className={`w-6 h-6 ${pet.isConfined ? 'text-blue-500' : pet.isReferral ? 'text-teal-600' : 'text-[#5A7C7A]'}`} />
->>>>>>> Stashed changes
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -623,25 +623,24 @@ export default function PatientRecordsPage() {
                               Confined
                             </span>
                           )}
-<<<<<<< Updated upstream
-                          {(pet.isLost || pet.status === 'lost') && (
+                          {isLost && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
                               Lost
                             </span>
                           )}
-                          {(!pet.isAlive || pet.status === 'deceased') && !pet.isConfined && (
+                          {isDeceased && !pet.isConfined && !isLost && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide shrink-0">
                               Deceased
                             </span>
                           )}
-                          {pet.removedByOwner && !pet.isConfined && !(pet.isLost || pet.status === 'lost') && !(!pet.isAlive || pet.status === 'deceased') && (
+                          {isRelocated && !pet.isConfined && !isLost && !isDeceased && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide shrink-0">
                               Relocated
-=======
+                            </span>
+                          )}
                           {pet.isReferral && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-700 font-semibold uppercase tracking-wide shrink-0">
                               Referred
->>>>>>> Stashed changes
                             </span>
                           )}
                         </div>
@@ -653,7 +652,8 @@ export default function PatientRecordsPage() {
                       <p className="mt-0.5">{pet.clinicBranchName || pet.clinicName}</p>
                     </div>
                   </button>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>
@@ -767,9 +767,9 @@ export default function PatientRecordsPage() {
                 ) : currentRecord ? (
                   <div className={`bg-white rounded-xl p-6 shadow-md border-2 ${
                     currentRecord.stage === 'confined' ? 'border-blue-300'
-                    : (selectedPatient?.isLost || selectedPatient?.status === 'lost') ? 'border-[#900B09]/50'
-                    : (!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') ? 'border-amber-300'
-                    : selectedPatient?.removedByOwner ? 'border-orange-300'
+                    : selectedIsLost ? 'border-[#900B09]/50'
+                    : selectedIsDeceased ? 'border-amber-300'
+                    : selectedIsRelocated ? 'border-orange-300'
                     : 'border-[#7FA5A3]/30'
                   }`}>
                     <div className="flex items-start justify-between mb-4">
@@ -777,9 +777,9 @@ export default function PatientRecordsPage() {
                         <div className="flex items-center gap-2 mb-2">
                           <div className={`w-3 h-3 rounded-full ${
                             currentRecord.stage === 'confined' ? 'bg-blue-500'
-                            : (selectedPatient?.isLost || selectedPatient?.status === 'lost') ? 'bg-[#900B09]'
-                            : (!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') ? 'bg-amber-500'
-                            : selectedPatient?.removedByOwner ? 'bg-orange-500'
+                            : selectedIsLost ? 'bg-[#900B09]'
+                            : selectedIsDeceased ? 'bg-amber-500'
+                            : selectedIsRelocated ? 'bg-orange-500'
                             : 'bg-green-500'
                           }`}></div>
                           <p className="text-sm font-semibold text-[#2C3E2D]">
@@ -790,17 +790,17 @@ export default function PatientRecordsPage() {
                               Admitted
                             </span>
                           )}
-                          {(selectedPatient?.isLost || selectedPatient?.status === 'lost') && (
+                          {selectedIsLost && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
                               Lost
                             </span>
                           )}
-                          {(!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') && currentRecord.stage !== 'confined' && (
+                          {selectedIsDeceased && currentRecord.stage !== 'confined' && !selectedIsLost && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
                               Deceased
                             </span>
                           )}
-                          {selectedPatient?.removedByOwner && currentRecord.stage !== 'confined' && !(selectedPatient?.isLost || selectedPatient?.status === 'lost') && !(!selectedPatient?.isAlive || selectedPatient?.status === 'deceased') && (
+                          {selectedIsRelocated && currentRecord.stage !== 'confined' && !selectedIsLost && !selectedIsDeceased && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide">
                               Relocated
                             </span>
