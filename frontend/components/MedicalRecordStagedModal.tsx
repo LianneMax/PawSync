@@ -750,6 +750,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [ultrasound] = useState(false)
   const [availedProducts] = useState(false)
 
+  // Emergency surgery (step 2 — non-surgery appointments only)
+  const [emergencySurgery, setEmergencySurgery] = useState(false)
+  const [emergencySurgeryNotes, setEmergencySurgeryNotes] = useState('')
+
   // Pregnancy tracking (from ultrasound diagnostic)
   const [ultrasoundPregnant, setUltrasoundPregnant] = useState(false)
   const [gestationDate, setGestationDate] = useState('')
@@ -1525,11 +1529,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     try {
       if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
-      const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
+      const surgImgs = (isSurgeryAppt || emergencySurgery) ? buildSurgeryImagesPayload() : undefined
       const diagImgs = buildDiagnosticTestImages()
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
-      const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
+      const selectedSurgery = (isSurgeryAppt || emergencySurgery) ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
       // Combine all images: diagnostic test images + general images
       const allImages = [...diagImgs, ...images, ...titerImages]
@@ -1798,13 +1802,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         scheduledSurgery: surgery,
         ...(allImages.length > 0 ? { images: allImages } : {}),
         ...buildPregnancyPayload(),
-        // Only advance stage to post_procedure if not a vaccination or surgery appointment
+        // Only advance stage to post_procedure if not a vaccination, surgery, or emergency surgery appointment
         // (those have an intermediate step 3)
-        ...(!isVaccinationAppt && !isSurgeryAppt ? { stage: 'post_procedure' } : {}),
+        ...(!isVaccinationAppt && !isSurgeryAppt && !emergencySurgery ? { stage: 'post_procedure' } : {}),
       }, token)
       await syncPregnancyStatus()
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
+      if (emergencySurgery && emergencySurgeryNotes.trim() && !surgeryVetRemarks.trim()) {
+        setSurgeryVetRemarks(emergencySurgeryNotes.trim())
+      }
       if (isVaccinationAppt && antigenSkipsVaccination) {
         setVaccinationSkippedDue(positiveAntigenDiseases)
         setStep(4)
@@ -2208,7 +2215,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           <button
             onClick={async () => {
               if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
-              if (isSurgeryAppt && token) {
+              if ((isSurgeryAppt || emergencySurgery) && token) {
                 const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
                 const xImgs = buildSurgeryImagesPayload()
                 await updateMedicalRecord(recordId, {
@@ -2227,9 +2234,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         {/* Step progress */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
-            {((isVaccinationAppt || isSurgeryAppt) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
-              const labels = isVaccinationAppt ? VACC_STEP_LABELS : isSurgeryAppt ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
-              const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
+            {((isVaccinationAppt || isSurgeryAppt || emergencySurgery) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
+              const labels = isVaccinationAppt ? VACC_STEP_LABELS : (isSurgeryAppt || emergencySurgery) ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
+              const icons = isVaccinationAppt ? VACC_STEP_ICONS : (isSurgeryAppt || emergencySurgery) ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
                   {(() => {
@@ -2621,6 +2628,57 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </div>
                 </div>
               </div>
+
+              {/* ── EMERGENCY SURGERY ── */}
+              {!isSurgeryAppt && (
+                <div className="border border-red-200 rounded-2xl overflow-hidden bg-red-50/30">
+                  <div className="px-4 py-3 border-b border-red-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Scissors className="w-4 h-4 text-red-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-700">Emergency Surgery</p>
+                        <p className="text-[11px] text-red-500">Flag this case for immediate surgical intervention</p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-red-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={emergencySurgery}
+                        onChange={async (e) => {
+                          setEmergencySurgery(e.target.checked)
+                          if (e.target.checked && token && surgeryServices.length === 0) {
+                            setSurgeryServicesLoading(true)
+                            const sres = await getSurgeryServices(token)
+                            if (sres.status === 'SUCCESS' && sres.data?.items) {
+                              setSurgeryServices(sres.data.items)
+                            }
+                            setSurgeryServicesLoading(false)
+                          }
+                        }}
+                        className="w-4 h-4 accent-red-600"
+                      />
+                      Requires Emergency Surgery
+                    </label>
+                  </div>
+                  {emergencySurgery && (
+                    <div className="px-4 py-3 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Reason / Clinical Justification</label>
+                        <textarea
+                          rows={2}
+                          value={emergencySurgeryNotes}
+                          onChange={(e) => setEmergencySurgeryNotes(e.target.value)}
+                          placeholder="Describe the finding or condition that requires emergency surgery…"
+                          className="w-full border border-red-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-400 resize-none"
+                        />
+                      </div>
+                      <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        Proceeding will add an Emergency Surgery step to this visit. Document the surgery details before completing the record.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ── TITER TESTING ── */}
               {showTiterSection && (
@@ -3794,8 +3852,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             </div>
           )}
 
-          {/* ── STEP 3: SURGERY (surgery appointments only) ── */}
-          {step === 3 && isSurgeryAppt && (
+          {/* ── STEP 3: SURGERY (surgery appointments or emergency surgery) ── */}
+          {step === 3 && (isSurgeryAppt || emergencySurgery) && (
             <div className="space-y-5">
               {/* Patient card */}
               {pet && (
@@ -3946,8 +4004,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             </div>
           )}
 
-          {/* ── STEP 3 (regular) / STEP 4 (vaccination or surgery): POST-PROCEDURE ── */}
-          {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
+          {/* ── STEP 3 (regular) / STEP 4 (vaccination, surgery, or emergency surgery): POST-PROCEDURE ── */}
+          {((step === 3 && !isVaccinationAppt && !isSurgeryAppt && !emergencySurgery) || step === 4) && (
             <>
               {/* Vaccination skipped notice */}
               {isVaccinationAppt && vaccinationSkippedDue.length > 0 && (
@@ -4761,7 +4819,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isVaccinationAppt ? 'Proceed to Vaccination' : isSurgeryAppt ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}
+                {isVaccinationAppt ? 'Proceed to Vaccination' : (isSurgeryAppt || emergencySurgery) ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
@@ -4790,7 +4848,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </button>
               )
             })()}
-            {step === 3 && isSurgeryAppt && (
+            {step === 3 && (isSurgeryAppt || emergencySurgery) && (
               <button
                 onClick={handleProceedStep3Surgery}
                 disabled={saving || !surgeryTypeId}
@@ -4802,7 +4860,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
-            {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
+            {((step === 3 && !isVaccinationAppt && !isSurgeryAppt && !emergencySurgery) || step === 4) && (
               <button
                 onClick={handleCompleteClick}
                 disabled={completing}
