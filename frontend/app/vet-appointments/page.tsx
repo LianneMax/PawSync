@@ -35,6 +35,7 @@ import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog'
 
 // ==================== CONSTANTS ====================
@@ -922,6 +923,7 @@ export default function VetAppointmentsPage() {
       {/* Cancel Confirmation Modal */}
       <Dialog open={appointmentToCancel !== null} onOpenChange={(open) => { if (!open) setAppointmentToCancel(null) }}>
         <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+          <DialogTitle className="sr-only">Cancel Appointment</DialogTitle>
           <div className="p-6">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 bg-[#FEE2E2] rounded-full flex items-center justify-center">

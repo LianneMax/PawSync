@@ -1387,6 +1387,7 @@ function ScheduleModal({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="max-w-225 max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
+        <DialogTitle className="sr-only">Schedule Appointment</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-8 pb-2 shrink-0">
           <h2 className="text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
