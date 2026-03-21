@@ -809,6 +809,9 @@ export default function ClinicAdminAppointmentsPage() {
   const { token } = useAuthStore()
   const user = useAuthStore((state) => state.user)
   const isClinicAdmin = user?.userType === 'clinic-admin'
+  const isMainBranchAdmin = isClinicAdmin && user?.isMainBranch === true
+
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all')
   
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
@@ -1045,23 +1048,32 @@ export default function ClinicAdminAppointmentsPage() {
     if (token) load()
   }, [token, isClinicAdmin])
 
-  // Load all vets for the clinic (for calendar headers)
+  // Load vets for the calendar — scoped to selected branch when one is chosen
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await authenticatedFetch('/clinics/mine/vets', {}, token || undefined)
-        if (res.status === 'SUCCESS' && res.data?.vets) {
-          setAllVets(res.data.vets.map((v: { vetId?: string; _id?: string; name?: string; email?: string }) => ({
-            _id: v.vetId || v._id,
-            firstName: v.name?.replace('Dr. ', '').split(' ')[0] || '',
-            lastName: v.name?.replace('Dr. ', '').split(' ').slice(1).join(' ') || '',
-            email: v.email || '',
-          })))
+        if (isMainBranchAdmin && selectedBranchFilter !== 'all') {
+          // Fetch vets assigned to the specific selected branch
+          const res = await getVetsForBranch(selectedBranchFilter, token || undefined)
+          if (res.status === 'SUCCESS' && res.data?.vets) {
+            setAllVets(res.data.vets)
+          }
+        } else {
+          // Fetch all vets across the clinic
+          const res = await authenticatedFetch('/clinics/mine/vets', {}, token || undefined)
+          if (res.status === 'SUCCESS' && res.data?.vets) {
+            setAllVets(res.data.vets.map((v: { vetId?: string; _id?: string; name?: string; email?: string }) => ({
+              _id: v.vetId || v._id,
+              firstName: v.name?.replace('Dr. ', '').split(' ')[0] || '',
+              lastName: v.name?.replace('Dr. ', '').split(' ').slice(1).join(' ') || '',
+              email: v.email || '',
+            })))
+          }
         }
       } catch { /* silent */ }
     }
     if (token) load()
-  }, [token])
+  }, [token, isMainBranchAdmin, selectedBranchFilter])
 
   // Load appointments (backend auto-filters by branch from JWT)
   const loadAppointments = useCallback(async () => {
@@ -1069,7 +1081,9 @@ export default function ClinicAdminAppointmentsPage() {
     setAppointments([])
     try {
       // Calendar view is only available for upcoming; activeTab is the source of truth for the filter
-      const res = await getClinicAppointments({ filter: activeTab }, token || undefined)
+      // Main branch admins can filter by branch; passing no branchId returns all branches
+      const branchIdParam = isMainBranchAdmin && selectedBranchFilter !== 'all' ? selectedBranchFilter : undefined
+      const res = await getClinicAppointments({ filter: activeTab, branchId: branchIdParam }, token || undefined)
       if (res.status === 'SUCCESS' && res.data) {
         // Store the full unfiltered list for NFC check-in (which must work across all service types)
         allAppointmentsRef.current = res.data.appointments
@@ -1101,7 +1115,7 @@ export default function ClinicAdminAppointmentsPage() {
       }
     } catch { /* silent */ }
     finally { setLoading(false) }
-  }, [activeTab, viewMode, token, scheduleType])
+  }, [activeTab, viewMode, token, scheduleType, isMainBranchAdmin, selectedBranchFilter])
 
   useEffect(() => { loadAppointments() }, [loadAppointments])
 
@@ -1595,12 +1609,26 @@ export default function ClinicAdminAppointmentsPage() {
               </button>
             </div>
 
-            {/* Branch name indicator */}
-            {branches.length > 0 && (
+            {/* Branch filter — dropdown for main branch admin, static badge otherwise */}
+            {isMainBranchAdmin && branches.length > 0 ? (
+              <div className="relative">
+                <select
+                  value={selectedBranchFilter}
+                  onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                  className="appearance-none pl-3 pr-8 py-1.5 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] cursor-pointer"
+                >
+                  <option value="all">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b._id} value={b._id}>{b.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4F4F4F]" />
+              </div>
+            ) : branches.length > 0 ? (
               <span className="px-3 py-1.5 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium">
-                {branches[0]?.name || 'My Branch'}
+                {branches.find(b => b._id === user?.clinicBranchId)?.name || branches[0]?.name || 'My Branch'}
               </span>
-            )}
+            ) : null}
           </div>
 
           {activeTab === 'upcoming' && (
@@ -1884,6 +1912,15 @@ export default function ClinicAdminAppointmentsPage() {
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Clock className="w-3 h-3" /> {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
                         </span>
+                        {isMainBranchAdmin && selectedBranchFilter === 'all' && (() => {
+                          const branchId = typeof appt.clinicBranchId === 'object' ? appt.clinicBranchId?._id : appt.clinicBranchId
+                          const branchName = branches.find(b => b._id === branchId)?.name
+                          return branchName ? (
+                            <span className="text-xs text-[#7FA5A3] flex items-center gap-1 font-medium">
+                              <Building2 className="w-3 h-3" /> {branchName}
+                            </span>
+                          ) : null
+                        })()}
                       </div>
                     </div>
                   </div>
