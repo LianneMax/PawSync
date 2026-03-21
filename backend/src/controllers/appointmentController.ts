@@ -902,6 +902,7 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
           appointmentId: appointment._id,
           stage: 'pre_procedure',
           isCurrent: true,
+          chiefComplaint: appointment.notes || '',
         });
         medicalRecordId = record._id.toString();
         appointment.medicalRecordId = record._id;
