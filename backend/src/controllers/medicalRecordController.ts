@@ -11,7 +11,7 @@ import ConfinementRecord from '../models/ConfinementRecord';
 import ProductService from '../models/ProductService';
 import VaccineType from '../models/VaccineType';
 import { createNotification } from '../services/notificationService';
-import { sendBillingPendingPayment } from '../services/emailService';
+import { sendBillingPendingPayment, sendPrescriptionEmail } from '../services/emailService';
 import { getPregnancySnapshot, syncPregnancyFromMedicalRecord, getPregnancyEpisodeHistory } from '../services/pregnancyDomainService';
 import type { PregnancyEvidenceSource } from '../models/PregnancyEvidence';
 
@@ -1297,6 +1297,55 @@ export const updateRecord = async (req: Request, res: Response) => {
         }
       } catch (billNotifyErr) {
         console.error('[MedicalRecord] Billing notification on completion failed:', billNotifyErr);
+        // Non-fatal
+      }
+    }
+
+    // Send prescription email if medications or preventive care were prescribed
+    if (stage === 'completed') {
+      try {
+        const prescribedMeds = (record.medications || []).filter(
+          (m: any) => m.status === 'active' || m.status === 'completed'
+        );
+        const preventiveCareItems = record.preventiveCare || [];
+
+        if (prescribedMeds.length > 0 || preventiveCareItems.length > 0) {
+          const [owner, vet, clinic] = await Promise.all([
+            User.findById(record.ownerId).select('firstName email').lean(),
+            User.findById(record.vetId).select('firstName lastName').lean(),
+            record.clinicId
+              ? (await import('../models/Clinic')).default.findById(record.clinicId).select('name').lean()
+              : null,
+          ]);
+
+          if ((owner as any)?.email) {
+            const petForRx = await Pet.findById(record.petId).select('name').lean();
+            sendPrescriptionEmail({
+              ownerEmail: (owner as any).email,
+              ownerFirstName: (owner as any).firstName || 'Pet Owner',
+              petName: (petForRx as any)?.name || 'your pet',
+              vetName: vet ? `${(vet as any).firstName} ${(vet as any).lastName}` : 'the veterinarian',
+              clinicName: (clinic as any)?.name || 'the clinic',
+              visitDate: record.createdAt || new Date(),
+              medications: prescribedMeds.map((m: any) => ({
+                name: m.name,
+                dosage: m.dosage,
+                route: m.route,
+                frequency: m.frequency,
+                duration: m.duration,
+                notes: m.notes || '',
+              })),
+              preventiveCare: preventiveCareItems.map((p: any) => ({
+                careType: p.careType,
+                product: p.product,
+                dateAdministered: p.dateAdministered || null,
+                notes: p.notes || '',
+              })),
+            });
+          }
+        }
+      } catch (rxErr) {
+        console.error('[MedicalRecord] Prescription email on completion failed:', rxErr);
         // Non-fatal
       }
     }

@@ -28,7 +28,8 @@ export type NotificationType =
   | 'vet_resignation_rejected'
   | 'vet_resigned'
   | 'clinic_vet_resignation_review'
-  | 'appointment_reassigned';
+  | 'appointment_reassigned'
+  | 'pet_tag_ready';
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;

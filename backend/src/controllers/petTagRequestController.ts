@@ -8,6 +8,8 @@ import Appointment from '../models/Appointment';
 import Billing from '../models/Billing';
 import ProductService from '../models/ProductService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
+import { createNotification } from '../services/notificationService';
+import { sendPetTagReadyEmail } from '../services/emailService';
 
 /**
  * Request a new NFC pet tag (by pet owner)
@@ -298,6 +300,46 @@ export const markTagRequestFulfilled = async (req: Request, res: Response) => {
     await tagRequest.save();
 
     console.log(`[Tag Request] Request ${requestId} marked as fulfilled by ${req.user.userId}`);
+
+    // Notify owner that their pet tag is ready for pickup
+    try {
+      const [owner, pet, branch] = await Promise.all([
+        User.findById(tagRequest.ownerId).select('firstName email').lean(),
+        Pet.findById(tagRequest.petId).select('name').lean(),
+        tagRequest.clinicBranchId
+          ? ClinicBranch.findById(tagRequest.clinicBranchId).select('name').lean()
+          : null,
+      ]);
+      const clinic = await Clinic.findById(tagRequest.clinicId).select('name').lean();
+
+      const petName = (pet as any)?.name || 'your pet';
+      const clinicName = (clinic as any)?.name || 'the clinic';
+      const branchName = (branch as any)?.name;
+
+      if ((owner as any)?._id) {
+        await createNotification(
+          (owner as any)._id.toString(),
+          'pet_tag_ready',
+          'Pet Tag Ready for Pickup',
+          `The NFC tag for ${petName} is ready. Visit ${clinicName} to collect it.`,
+          { tagRequestId: tagRequest._id, petId: tagRequest.petId },
+        );
+      }
+
+      if ((owner as any)?.email) {
+        sendPetTagReadyEmail({
+          ownerEmail: (owner as any).email,
+          ownerFirstName: (owner as any).firstName || 'Pet Owner',
+          petName,
+          clinicName,
+          branchName,
+          pickupDate: tagRequest.pickupDate || null,
+        });
+      }
+    } catch (notifyErr) {
+      console.error('[Tag Request] Owner notification on fulfillment failed:', notifyErr);
+      // Non-fatal
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',

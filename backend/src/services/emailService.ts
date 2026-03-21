@@ -769,3 +769,187 @@ export async function sendConfinementReleaseConfirmedToOwner(params: {
     console.error('[Email] sendConfinementReleaseConfirmedToOwner error:', err);
   }
 }
+
+// ─── Prescription Email ───────────────────────────────────────────────────────
+
+export async function sendPrescriptionEmail(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  clinicName: string;
+  visitDate: Date | string;
+  medications: {
+    name: string;
+    dosage: string;
+    route: string;
+    frequency: string;
+    duration: string;
+    notes?: string;
+  }[];
+  preventiveCare: {
+    careType: string;
+    product: string;
+    dateAdministered: Date | null;
+    notes?: string;
+  }[];
+}) {
+  const careTypeLabel: Record<string, string> = {
+    flea: 'Flea Prevention',
+    tick: 'Tick Prevention',
+    heartworm: 'Heartworm Prevention',
+    deworming: 'Deworming',
+    other: 'Preventive Care',
+  };
+
+  const routeLabel: Record<string, string> = {
+    oral: 'Oral',
+    topical: 'Topical',
+    injection: 'Injection',
+    other: 'Other',
+  };
+
+  const medicationRows = params.medications.map((m) => `
+    <tr>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">
+        <strong>${m.name}</strong>
+        ${m.notes ? `<br><span style="font-size: 11px; color: #6b7280;">${m.notes}</span>` : ''}
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">${m.dosage}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">${routeLabel[m.route] || m.route}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">${m.frequency}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">${m.duration}</td>
+    </tr>
+  `).join('');
+
+  const preventiveCareRows = params.preventiveCare.map((p) => `
+    <tr>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">
+        <strong>${careTypeLabel[p.careType] || p.careType}</strong>
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">${p.product}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">
+        ${p.dateAdministered ? formatDate(p.dateAdministered) : 'N/A'}
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">${p.notes || '—'}</td>
+    </tr>
+  `).join('');
+
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Prescription & Care Summary for ${params.petName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; background: #ffffff;">
+
+          <!-- Header -->
+          <div style="background: #5A7C7A; border-radius: 14px; padding: 24px 28px; margin-bottom: 24px;">
+            <h1 style="color: #ffffff; margin: 0 0 4px; font-size: 22px; letter-spacing: 0.5px;">Prescription & Care Summary</h1>
+            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 13px;">${params.clinicName}</p>
+          </div>
+
+          <p style="color: #374151; margin: 0 0 6px;">Hi ${params.ownerFirstName},</p>
+          <p style="color: #374151; margin: 0 0 20px;">
+            Following <strong>${params.petName}</strong>'s visit on <strong>${formatDate(params.visitDate)}</strong>,
+            Dr. ${params.vetName} has prescribed the following medications and care. Please follow all instructions carefully.
+          </p>
+
+          <!-- Visit Info -->
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px 16px; border-radius: 12px; margin-bottom: 24px;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #374151;"><strong>Patient:</strong> ${params.petName}</p>
+            <p style="margin: 0 0 4px; font-size: 13px; color: #374151;"><strong>Veterinarian:</strong> Dr. ${params.vetName}</p>
+            <p style="margin: 0; font-size: 13px; color: #374151;"><strong>Visit Date:</strong> ${formatDate(params.visitDate)}</p>
+          </div>
+
+          ${params.medications.length > 0 ? `
+          <!-- Medications -->
+          <h3 style="color: #5A7C7A; font-size: 15px; margin: 0 0 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px;">
+            Prescribed Medications
+          </h3>
+          <div style="overflow-x: auto; margin-bottom: 24px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="background: #f3f4f6;">
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Medication</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Dosage</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Route</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Frequency</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Duration</th>
+                </tr>
+              </thead>
+              <tbody>${medicationRows}</tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          ${params.preventiveCare.length > 0 ? `
+          <!-- Preventive Care -->
+          <h3 style="color: #5A7C7A; font-size: 15px; margin: 0 0 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px;">
+            Preventive Care Administered
+          </h3>
+          <div style="overflow-x: auto; margin-bottom: 24px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="background: #f3f4f6;">
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Type</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Product</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Date Given</th>
+                  <th style="padding: 10px 12px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb;">Notes</th>
+                </tr>
+              </thead>
+              <tbody>${preventiveCareRows}</tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          <!-- Reminder -->
+          <div style="background: #fef3c7; border: 1px solid #fcd34d; padding: 14px 16px; border-radius: 12px; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 13px; color: #92400e;">
+              <strong>Important:</strong> Complete the full course of any prescribed medication even if ${params.petName} appears to feel better. Contact your veterinarian if you notice any adverse reactions.
+            </p>
+          </div>
+
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendPrescriptionEmail error:', err);
+  }
+}
+
+// ─── Pet Tag Ready Email ──────────────────────────────────────────────────────
+
+export async function sendPetTagReadyEmail(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  clinicName: string;
+  branchName?: string;
+  pickupDate?: Date | string | null;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Your NFC Tag for ${params.petName} is Ready`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Your Pet Tag is Ready!</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Great news! The NFC tag you requested for <strong>${params.petName}</strong> is now ready for pickup.</p>
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0; font-size: 13px; color: #374151;"><strong>Pet:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #374151;"><strong>Clinic:</strong> ${params.clinicName}${params.branchName ? ` — ${params.branchName}` : ''}</p>
+            ${params.pickupDate ? `<p style="margin: 4px 0; font-size: 13px; color: #374151;"><strong>Scheduled Pickup:</strong> ${formatDate(params.pickupDate)}</p>` : ''}
+          </div>
+          <p style="color: #374151; font-size: 13px;">Please visit the clinic to collect your pet's NFC tag. Once attached, anyone who scans it will see ${params.petName}'s public profile.</p>
+          <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">- PawSync Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[Email] sendPetTagReadyEmail error:', err);
+  }
+}
