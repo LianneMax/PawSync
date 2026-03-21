@@ -112,6 +112,11 @@ export const createReferral = async (req: Request, res: Response) => {
  * Returns all pets that have been referred to the requesting vet, with full
  * pet info, owner info, and branch/clinic info from the referral.
  * Used by patient-records to surface referred patients in the vet's patient list.
+ *
+ * Branch/clinic display context intentionally uses the REFERRING (originating) branch,
+ * not the referred branch. This preserves the pet's original record ownership in the UI
+ * and prevents the appearance of branch migration. The Referral document is the sole
+ * access grant — no Pet or MedicalRecord fields are mutated.
  */
 export const getReferredPets = async (req: Request, res: Response) => {
   try {
@@ -127,8 +132,9 @@ export const getReferredPets = async (req: Request, res: Response) => {
         path: 'petId',
         populate: { path: 'ownerId', select: 'firstName lastName email _id' },
       })
-      .populate<{ referredBranchId: any }>({
-        path: 'referredBranchId',
+      // Populate the REFERRING branch so display context reflects where records originated
+      .populate<{ referringBranchId: any }>({
+        path: 'referringBranchId',
         populate: { path: 'clinicId', select: 'name _id' },
       })
       .lean();
@@ -144,8 +150,9 @@ export const getReferredPets = async (req: Request, res: Response) => {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      const branch = ref.referredBranchId as any;
-      const clinic = branch?.clinicId as any;
+      // Use the referring (originating) branch for display — records were created there
+      const originBranch = ref.referringBranchId as any;
+      const originClinic = originBranch?.clinicId as any;
       const owner = pet.ownerId as any;
 
       pets.push({
@@ -165,10 +172,12 @@ export const getReferredPets = async (req: Request, res: Response) => {
         ownerFirstName: owner?.firstName ?? '',
         ownerLastName: owner?.lastName ?? '',
         ownerEmail: owner?.email ?? '',
-        clinicId: clinic?._id ?? '',
-        clinicName: clinic?.name ?? '',
-        clinicBranchId: branch?._id ?? '',
-        clinicBranchName: branch?.name ?? '',
+        // Display the originating clinic/branch so the pet does not appear to "belong" to
+        // the referred vet's branch — record ownership is not moved by referral.
+        clinicId: originClinic?._id ?? '',
+        clinicName: originClinic?.name ?? '',
+        clinicBranchId: originBranch?._id ?? '',
+        clinicBranchName: originBranch?.name ?? '',
       });
     }
 

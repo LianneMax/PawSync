@@ -565,7 +565,7 @@ export default function PatientRecordsPage() {
                 <p className="text-gray-500 text-sm">
                   {searchQuery
                     ? 'No patients match your search. Try a different term.'
-                    : 'Your patients will appear here once you have confirmed appointments.'}
+                    : 'Your patients will appear here once you have confirmed appointments or receive a referral.'}
                 </p>
               </div>
             ) : (
@@ -575,17 +575,26 @@ export default function PatientRecordsPage() {
                     key={pet._id}
                     onClick={() => handleSelectPatient(pet)}
                     className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
+<<<<<<< Updated upstream
                       pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
                       : (pet.isLost || pet.status === 'lost') ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
                       : (!pet.isAlive || pet.status === 'deceased') ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
                       : pet.removedByOwner ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
                       : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
+=======
+                      pet.isConfined
+                        ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
+                        : pet.isReferral
+                        ? 'bg-teal-50 border-2 border-teal-200 hover:ring-1 hover:ring-teal-400/40'
+                        : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
+>>>>>>> Stashed changes
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-3">
                       {pet.photo ? (
                         <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
+<<<<<<< Updated upstream
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                           pet.isConfined ? 'bg-blue-100'
                           : (pet.isLost || pet.status === 'lost') ? 'bg-red-100'
@@ -600,6 +609,10 @@ export default function PatientRecordsPage() {
                             : pet.removedByOwner ? 'text-orange-500'
                             : 'text-[#5A7C7A]'
                           }`} />
+=======
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${pet.isConfined ? 'bg-blue-100' : pet.isReferral ? 'bg-teal-100' : 'bg-[#7FA5A3]/15'}`}>
+                          <PawPrint className={`w-6 h-6 ${pet.isConfined ? 'text-blue-500' : pet.isReferral ? 'text-teal-600' : 'text-[#5A7C7A]'}`} />
+>>>>>>> Stashed changes
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -610,6 +623,7 @@ export default function PatientRecordsPage() {
                               Confined
                             </span>
                           )}
+<<<<<<< Updated upstream
                           {(pet.isLost || pet.status === 'lost') && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
                               Lost
@@ -623,6 +637,11 @@ export default function PatientRecordsPage() {
                           {pet.removedByOwner && !pet.isConfined && !(pet.isLost || pet.status === 'lost') && !(!pet.isAlive || pet.status === 'deceased') && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide shrink-0">
                               Relocated
+=======
+                          {pet.isReferral && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-700 font-semibold uppercase tracking-wide shrink-0">
+                              Referred
+>>>>>>> Stashed changes
                             </span>
                           )}
                         </div>
