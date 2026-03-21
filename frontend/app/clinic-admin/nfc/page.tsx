@@ -244,9 +244,11 @@ export default function ClinicNfcManagementPage() {
 
   // Fetch pending tag requests
   useEffect(() => {
+    let isInitial = true
+
     const fetchPendingRequests = async () => {
       if (!token) return
-      setLoadingRequests(true)
+      if (isInitial) setLoadingRequests(true)
       try {
         const response = await authenticatedFetch(
           `/nfc/clinic/pending-requests`,
@@ -264,12 +266,15 @@ export default function ClinicNfcManagementPage() {
         console.error('Failed to fetch pending requests:', error)
         setPendingRequests([])
       } finally {
-        setLoadingRequests(false)
+        if (isInitial) {
+          setLoadingRequests(false)
+          isInitial = false
+        }
       }
     }
 
-    const interval = setInterval(fetchPendingRequests, 5000)
     fetchPendingRequests()
+    const interval = setInterval(fetchPendingRequests, 30000)
     return () => clearInterval(interval)
   }, [token])
 

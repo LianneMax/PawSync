@@ -1,7 +1,12 @@
 import { Request, Response } from 'express';
 import Pet from '../models/Pet';
+import User from '../models/User';
+import Clinic from '../models/Clinic';
+import ClinicBranch from '../models/ClinicBranch';
 import { nfcService } from '../services/nfcService';
 import { NfcCommand } from '../models/NfcCommand';
+import { sendPetTagReadyEmail } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
 
 const isCloud = !!process.env.RENDER || process.env.NFC_MODE === 'remote';
 const normalizeNfcTagId = (value?: string | null): string => {
@@ -11,6 +16,41 @@ const normalizeNfcTagId = (value?: string | null): string => {
   if (['null', 'undefined', 'n/a', 'na', '-'].includes(lower)) return '';
   return trimmed.toUpperCase();
 };
+
+/**
+ * Fire-and-forget: notify the pet owner that their NFC tag has been linked.
+ */
+async function notifyOwnerTagLinked(petId: string): Promise<void> {
+  try {
+    const pet = await Pet.findById(petId).select('name ownerId').lean();
+    if (!pet) return;
+
+    const owner = await User.findById((pet as any).ownerId).select('firstName email').lean();
+    if (!owner) return;
+
+    const petName = (pet as any).name as string;
+    const ownerId = (owner as any)._id.toString();
+
+    await createNotification(
+      ownerId,
+      'pet_tag_ready',
+      'NFC Tag Linked',
+      `An NFC tag has been successfully linked to ${petName}. Anyone who scans it will see their profile.`,
+      { petId },
+    );
+
+    if ((owner as any).email) {
+      await sendPetTagReadyEmail({
+        ownerEmail: (owner as any).email,
+        ownerFirstName: (owner as any).firstName || 'Pet Owner',
+        petName,
+        clinicName: 'your clinic',
+      });
+    }
+  } catch (err) {
+    console.error('[NFC] notifyOwnerTagLinked failed:', err);
+  }
+}
 
 /**
  * Get pet details for NFC tag writing.
@@ -156,6 +196,7 @@ export const startNFCTagWriting = async (req: Request, res: Response) => {
           pet.nfcTagId = normalizedUid;
           await pet.save();
           console.log(`[API] Saved NFC tag UID ${normalizedUid} to pet ${petId}`);
+          notifyOwnerTagLinked(pet._id.toString()).catch(() => {});
         }
 
         return res.status(200).json({
@@ -223,6 +264,8 @@ export const recordNFCTagWriting = async (req: Request, res: Response) => {
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
+
+    notifyOwnerTagLinked(petId).catch(() => {});
 
     return res.status(200).json({
       status: 'SUCCESS',
