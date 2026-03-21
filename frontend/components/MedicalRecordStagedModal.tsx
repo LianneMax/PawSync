@@ -870,6 +870,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   // Step 3 fields
   const [visitSummary, setVisitSummary] = useState('')
+  const [visitSummaryError, setVisitSummaryError] = useState(false)
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
   const [diagnosticTests, setDiagnosticTests] = useState<(Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] })[]>([])
 
@@ -2282,6 +2283,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   const handleCompleteClick = () => {
+    if (!visitSummary.trim()) {
+      setVisitSummaryError(true)
+      toast.error('Please fill in the Visit Summary and Diagnosis before completing.')
+      return
+    }
     setShowCompleteConfirm(true)
   }
 
@@ -4212,11 +4218,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               {/* Visit Summary */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-[#4F4F4F]">Visit Summary and Diagnosis</label>
+                  <label className="block text-sm font-semibold text-[#4F4F4F]">
+                    Visit Summary and Diagnosis
+                    <span className="text-[#900B09] ml-0.5">*</span>
+                  </label>
                   {!visitSummary && (
                     <button
                       type="button"
-                      onClick={() => setVisitSummary(buildDraftSummary())}
+                      onClick={() => { setVisitSummary(buildDraftSummary()); setVisitSummaryError(false) }}
                       className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-[#476B6B] border border-[#7FA5A3]/50 rounded-lg hover:bg-[#f0f7f7] transition-colors"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
@@ -4226,11 +4235,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 </div>
                 <textarea
                   value={visitSummary}
-                  onChange={(e) => setVisitSummary(e.target.value)}
+                  onChange={(e) => { setVisitSummary(e.target.value); if (e.target.value.trim()) setVisitSummaryError(false) }}
                   rows={3}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 resize-none ${visitSummaryError ? 'border-red-400 focus:ring-red-300' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                   placeholder="Brief summary of today's visit, key findings, outcome…"
                 />
+                {visitSummaryError && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    This field is required.
+                  </p>
+                )}
               </div>
 
               {/* Medications */}
