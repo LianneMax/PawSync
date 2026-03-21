@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
-import { getPetById, updatePetConfinement, updatePetPregnancyStatus } from '@/lib/pets'
+import { getPetById, updatePetConfinement, updatePetPregnancyStatus, markPetDeceased } from '@/lib/pets'
 import { updateAppointmentStatus } from '@/lib/appointments'
 import { getVaccineTypes, getVaccinationsByPet, createVaccination, updateVaccination, type VaccineType, type Vaccination } from '@/lib/vaccinations'
 import type { Medication, DiagnosticTest, PreventiveCare, Vitals } from '@/lib/medicalRecords'
@@ -631,6 +631,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [discharge, setDischarge] = useState(false)
   const [referral, setReferral] = useState(false)
   const [surgery, setSurgery] = useState(false)
+  const [euthanasia, setEuthanasia] = useState(false)
   const [showSurgeryModal, setShowSurgeryModal] = useState(false)
   const [carePlanOpen, setCarePlanOpen] = useState(true)
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
@@ -1582,6 +1583,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           petSpecies: pet?.species,
           petWeightKg: parseFloat(String(vitals?.weight?.value ?? '')) || undefined,
           preventiveExclusions: [...preventiveAssociatedExclusions],
+          euthanasiaEnabled: euthanasia,
         }).catch((e) => console.error('[BillingSync] Frontend billing sync error:', e))
       }
       await handleSaveNotes()
@@ -2049,7 +2051,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           appointmentTypes,
           confinementAction: confinementAction || 'none',
           confinementDays: liveConfinementDays,
+          euthanasiaEnabled: euthanasia,
         }).catch(() => {})
+      }
+      if (euthanasia) {
+        await markPetDeceased(petId, { deceasedAt: new Date().toISOString() }, token)
       }
       await syncPregnancyStatus()
       // Close the appointment on first completion (confined or fully completed).
@@ -2063,6 +2069,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setShowCompleteConfirm(false)
       if (targetStage === 'confined') {
         toast.success(recordStage === 'confined' ? 'Confinement record updated!' : 'Pet admitted. Visit closed, record stays open.')
+      } else if (euthanasia) {
+        toast.success('Visit completed. Pet has been marked as deceased.')
       } else {
         toast.success('Visit completed!')
       }
@@ -4673,6 +4681,23 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           }
                         }}
                         className="data-checked:bg-red-500"
+                      />
+                    </div>
+
+                    {/* Euthanasia Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
+                      <div>
+                        <p className="text-xs font-semibold text-red-700">Euthanasia</p>
+                        <p className="text-[10px] text-red-400">
+                          {euthanasia
+                            ? 'Pet will be marked as deceased and service will be billed'
+                            : 'Mark pet for humane euthanasia service'}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={euthanasia}
+                        onCheckedChange={setEuthanasia}
+                        className="data-checked:bg-[#900B09]"
                       />
                     </div>
                   </div>

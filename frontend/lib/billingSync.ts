@@ -74,6 +74,7 @@ export async function syncBillingFromRecord({
   preventiveExclusions,
   confinementAction,
   confinementDays,
+  euthanasiaEnabled,
 }: {
   billingId: string
   petId: string
@@ -91,6 +92,7 @@ export async function syncBillingFromRecord({
   preventiveExclusions?: string[]
   confinementAction?: 'none' | 'confined' | 'released'
   confinementDays?: number
+  euthanasiaEnabled?: boolean
 }): Promise<void> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -352,6 +354,19 @@ export async function syncBillingFromRecord({
       type: 'Service',
       unitPrice: confMatch ? confMatch.price : 0,
       quantity: confinementDays,
+    })
+  }
+
+  // Euthanasia service
+  if (euthanasiaEnabled) {
+    const euthanasiaMatch = productServices.find(
+      (c) => normalizeName(c.name).includes('euthanasia'),
+    )
+    billingItems.push({
+      ...(euthanasiaMatch ? { productServiceId: euthanasiaMatch.id } : {}),
+      name: euthanasiaMatch ? euthanasiaMatch.name : 'Euthanasia',
+      type: 'Service',
+      unitPrice: euthanasiaMatch ? euthanasiaMatch.price : 0,
     })
   }
 

@@ -487,7 +487,8 @@ export const markPetDeceased = async (req: Request, res: Response) => {
     }
 
     const isOwner = pet.ownerId.toString() === req.user.userId;
-    if (!isOwner) {
+    const isVet = req.user.userType === 'veterinarian';
+    if (!isOwner && !isVet) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to mark this pet as deceased' });
     }
 

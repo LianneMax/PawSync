@@ -6,7 +6,7 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, requestPetTag, togglePetLost, type Pet as APIPet } from '@/lib/pets'
-import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X, Skull } from 'lucide-react'
+import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X, Cross } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -345,9 +345,9 @@ export default function MyPetsPage() {
               >
                 {/* Deceased badge */}
                 {(!pet.isAlive || pet.status === 'deceased') && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#F5E6D8] border border-[#8B5E3C] text-[#8B5E3C] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
-                    <Skull className="w-3 h-3" />
-                    Marked as Deceased
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                    <Cross className="w-3 h-3" />
+                    Deceased
                   </div>
                 )}
 
@@ -482,17 +482,19 @@ export default function MyPetsPage() {
               })()
             ))}
 
-            {/* Add New Pet Card */}
-            <div
-              className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors min-h-70"
-              onClick={() => router.push('/onboarding/pet?from=dashboard')}
-            >
-              <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <Plus className="w-7 h-7 text-gray-400" />
+            {/* Add New Pet Card — hidden when viewing deceased pets */}
+            {lifeStatusFilter !== 'deceased' && (
+              <div
+                className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-[#7FA5A3] hover:bg-[#F8F6F2] transition-colors min-h-70"
+                onClick={() => router.push('/onboarding/pet?from=dashboard')}
+              >
+                <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                  <Plus className="w-7 h-7 text-gray-400" />
+                </div>
+                <p className="font-semibold text-[#4F4F4F]">Add New Pet</p>
+                <p className="text-xs text-gray-400 mt-1 text-center">Register a new pet to start tracking their health</p>
               </div>
-              <p className="font-semibold text-[#4F4F4F]">Add New Pet</p>
-              <p className="text-xs text-gray-400 mt-1 text-center">Register a new pet to start tracking their health</p>
-            </div>
+            )}
           </div>
         ) : pets.length > 0 ? (
           /* Search returned no results */

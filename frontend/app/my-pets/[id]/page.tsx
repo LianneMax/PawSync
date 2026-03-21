@@ -16,7 +16,7 @@ import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinic
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
-import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Skull } from 'lucide-react'
+import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Cross } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -746,7 +746,7 @@ export default function PetProfilePage() {
             </p>
             {isPetDeceased && (
               <div className="mt-3 inline-flex items-center gap-1.5 bg-[#F5E6D8] border border-[#8B5E3C] text-[#8B5E3C] text-xs font-semibold px-3 py-1 rounded-full">
-                <Skull className="w-3.5 h-3.5" />
+                <Cross className="w-3.5 h-3.5" />
                 Passed Away — {deceasedDateLabel}
               </div>
             )}
