@@ -619,7 +619,7 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
 /**
  * POST /api/billings/:id/submit-qr-proof
  * Pet owner — submit a QR payment screenshot for clinic review.
- * Body: { screenshot: string (data URL) }
+ * Body: { screenshot: string (data URL or uploads path) }
  */
 export const submitQrPaymentProof = async (req: Request, res: Response) => {
   try {
@@ -644,7 +644,10 @@ export const submitQrPaymentProof = async (req: Request, res: Response) => {
     if (!screenshot) {
       return res.status(400).json({ status: 'ERROR', message: 'Payment screenshot is required' });
     }
-    if (!screenshot.startsWith('data:image/')) {
+    const isDataUrl = typeof screenshot === 'string' && screenshot.startsWith('data:image/');
+    const isLocalUploadsPath = typeof screenshot === 'string' && screenshot.startsWith('/uploads/');
+    const isLegacyAbsoluteUploadsUrl = typeof screenshot === 'string' && /^https?:\/\/[^\s]+\/uploads\//i.test(screenshot);
+    if (!isDataUrl && !isLocalUploadsPath && !isLegacyAbsoluteUploadsUrl) {
       return res.status(400).json({ status: 'ERROR', message: 'Invalid image format' });
     }
 

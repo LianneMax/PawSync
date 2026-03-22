@@ -9,5 +9,7 @@ build/
 .DS_Store
 *.log
 uploads/
+!backend/uploads/
+!backend/uploads/**
 temp/
 .vscode/settings.json

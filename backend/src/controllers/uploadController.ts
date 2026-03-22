@@ -3,8 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 
-const BACKEND_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5001';
-
 const storage = multer.diskStorage({
   destination: (req: Request, _file, cb) => {
     const folder = (req.query.folder as string) || 'general';
@@ -40,6 +38,6 @@ export const uploadFile = (req: Request, res: Response): void => {
 
   const folder = (req.query.folder as string) || 'general';
   const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'general';
-  const url = `${BACKEND_BASE_URL}/uploads/${safeFolder}/${req.file.filename}`;
+  const url = `/uploads/${safeFolder}/${req.file.filename}`;
   res.status(200).json({ status: 'SUCCESS', url });
 };

@@ -2,6 +2,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+const backendOrigin = apiBaseUrl.replace(/\/api\/?$/, '')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -22,7 +24,11 @@ const nextConfig = {
       beforeFiles: [
         {
           source: '/api/:path*',
-          destination: 'http://localhost:5001/api/:path*',
+          destination: `${backendOrigin}/api/:path*`,
+        },
+        {
+          source: '/uploads/:path*',
+          destination: `${backendOrigin}/uploads/:path*`,
         },
       ],
     };
