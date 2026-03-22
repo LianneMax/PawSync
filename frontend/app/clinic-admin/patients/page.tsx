@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
+import { Badge } from '@/components/ui/badge'
 import dynamic from 'next/dynamic'
 const VaccineCardPreview = dynamic(() => import('@/components/VaccineCardPreview'), { ssr: false })
 import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
@@ -960,15 +961,42 @@ function PatientDrawer({
 
 // ==================== MAIN PAGE ====================
 
+type PatientStatusFilter = 'All' | 'Alive' | 'Deceased' | 'Confined' | 'Lost' | 'Relocated'
+type ClinicPatientWithStatus = ClinicPatient & {
+  status?: string
+  isAlive?: boolean
+  isLost?: boolean
+  isConfined?: boolean
+  removedByOwner?: boolean
+}
+
+function getNormalizedPatientStatus(patient: ClinicPatientWithStatus): Exclude<PatientStatusFilter, 'All'> {
+  const normalizedStatus = (patient.status || '').trim().toLowerCase()
+  if (patient.isConfined || normalizedStatus === 'confined') return 'Confined'
+  if (patient.isLost || normalizedStatus === 'lost') return 'Lost'
+  if (patient.removedByOwner || normalizedStatus === 'relocated') return 'Relocated'
+  if (patient.isAlive === false || normalizedStatus === 'deceased') return 'Deceased'
+  return 'Alive'
+}
+
+function getStatusBadgeClasses(status: Exclude<PatientStatusFilter, 'All'>): string {
+  if (status === 'Confined') return 'bg-blue-100 text-blue-700'
+  if (status === 'Lost') return 'text-[#900B09]'
+  if (status === 'Deceased') return 'bg-amber-100 text-amber-700'
+  if (status === 'Relocated') return 'bg-orange-100 text-orange-700'
+  return 'bg-emerald-100 text-emerald-700'
+}
+
 export default function PatientManagementPage() {
   const token = useAuthStore((state) => state.token)
 
-  const [patients, setPatients] = useState<ClinicPatient[]>([])
-  const [filteredPatients, setFilteredPatients] = useState<ClinicPatient[]>([])
+  const [patients, setPatients] = useState<ClinicPatientWithStatus[]>([])
+  const [filteredPatients, setFilteredPatients] = useState<ClinicPatientWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [speciesFilter, setSpeciesFilter] = useState<'all' | 'canine' | 'feline'>('all')
+  const [statusFilter, setStatusFilter] = useState<PatientStatusFilter>('All')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedPatient, setSelectedPatient] = useState<ClinicPatient | null>(null)
+  const [selectedPatient, setSelectedPatient] = useState<ClinicPatientWithStatus | null>(null)
 
   // Scan states
   const [scanModalOpen, setScanModalOpen] = useState(false)
@@ -1003,10 +1031,18 @@ export default function PatientManagementPage() {
     }
   }, [token])
 
-  const applyFilters = (data: ClinicPatient[], species: string, query: string) => {
+  const applyFilters = (
+    data: ClinicPatientWithStatus[],
+    species: string,
+    status: PatientStatusFilter,
+    query: string,
+  ) => {
     let filtered = data
     if (species !== 'all') {
       filtered = filtered.filter((p) => p.species === species)
+    }
+    if (status !== 'All') {
+      filtered = filtered.filter((p) => getNormalizedPatientStatus(p) === status)
     }
     if (query.trim()) {
       const q = query.toLowerCase()
@@ -1024,12 +1060,17 @@ export default function PatientManagementPage() {
 
   const handleSpeciesChange = (species: 'all' | 'canine' | 'feline') => {
     setSpeciesFilter(species)
-    applyFilters(patients, species, searchQuery)
+    applyFilters(patients, species, statusFilter, searchQuery)
+  }
+
+  const handleStatusChange = (status: PatientStatusFilter) => {
+    setStatusFilter(status)
+    applyFilters(patients, speciesFilter, status, searchQuery)
   }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    applyFilters(patients, speciesFilter, query)
+    applyFilters(patients, speciesFilter, statusFilter, query)
   }
 
   // Handle NFC scan completion
@@ -1048,7 +1089,7 @@ export default function PatientManagementPage() {
     // Pet not in the loaded list — construct a ClinicPatient from the NFC API data
     // (happens when the pet hasn't visited this clinic before, or the list hasn't refreshed)
     if (petData) {
-      const constructed: ClinicPatient = {
+      const constructed: ClinicPatientWithStatus = {
         _id: petData._id,
         name: petData.name,
         species: petData.species as 'canine' | 'feline',
@@ -1104,11 +1145,11 @@ export default function PatientManagementPage() {
   }
 
   useEffect(() => { fetchPatients() }, [fetchPatients])
-  useEffect(() => { applyFilters(patients, speciesFilter, searchQuery) }, [patients, speciesFilter, searchQuery])
+  useEffect(() => { applyFilters(patients, speciesFilter, statusFilter, searchQuery) }, [patients, speciesFilter, statusFilter, searchQuery])
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-7xl w-full h-screen flex flex-col">
+      <div className="p-6 lg:p-8 w-full max-w-none h-screen flex flex-col">
         {/* Header */}
         <PageHeader
           title="Patient Management"
@@ -1116,23 +1157,44 @@ export default function PatientManagementPage() {
           className="mb-8"
         />
 
-        {/* Species Filter Pill */}
-        <div className="flex items-center justify-center gap-4 mb-6">
-          <span className="text-sm font-semibold text-[#2D5353]">Select Species:</span>
-          <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
-            {(['all', 'canine', 'feline'] as const).map((species) => (
-              <button
-                key={species}
-                onClick={() => handleSpeciesChange(species)}
-                className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
-                  speciesFilter === species
-                    ? 'bg-[#476B6B] text-white shadow-sm'
-                    : 'text-[#4F4F4F] hover:bg-gray-50'
-                }`}
-              >
-                {species === 'all' ? 'All' : species === 'canine' ? 'Dogs' : 'Cats'}
-              </button>
-            ))}
+        {/* Filters */}
+        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 overflow-x-auto min-w-0">
+            <span className="text-sm font-semibold text-[#2D5353] shrink-0">Species:</span>
+            <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 min-w-max">
+              {(['all', 'canine', 'feline'] as const).map((species) => (
+                <button
+                  key={species}
+                  onClick={() => handleSpeciesChange(species)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                    speciesFilter === species
+                      ? 'bg-[#476B6B] text-white shadow-sm'
+                      : 'text-[#4F4F4F] hover:bg-white/70'
+                  }`}
+                >
+                  {species === 'all' ? 'All' : species === 'canine' ? 'Dogs' : 'Cats'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 overflow-x-auto min-w-0 lg:justify-end">
+            <span className="text-sm font-semibold text-[#2D5353] shrink-0">Status:</span>
+            <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 min-w-max">
+              {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleStatusChange(status)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                    statusFilter === status
+                      ? 'bg-[#476B6B] text-white shadow-sm'
+                      : 'text-[#4F4F4F] hover:bg-white/70'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1167,7 +1229,7 @@ export default function PatientManagementPage() {
         </div>
 
         {/* Patients List */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col shadow-md flex-1">
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col shadow-md flex-1 w-full max-w-none">
           {/* Search & Actions Container */}
           <div className="bg-white px-6 py-5 border-b border-[#EAECF0] shadow-sm shrink-0">
             <div className="flex items-center gap-4">
@@ -1209,11 +1271,20 @@ export default function PatientManagementPage() {
                   <button
                     key={patient._id}
                     onClick={() => setSelectedPatient(patient)}
-                    className={`w-full hover:bg-gray-50 p-6 transition-colors text-left ${
+                    className={`relative w-full hover:bg-gray-50 p-6 transition-colors text-left ${
                       selectedPatient?._id === patient._id ? 'bg-[#7FA5A3]/5 border-l-2 border-[#4A8A87]' : 'bg-white'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <Badge
+                      className={`absolute top-4 right-6 inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide border-0 ${
+                        getStatusBadgeClasses(getNormalizedPatientStatus(patient))
+                      }`}
+                      style={getNormalizedPatientStatus(patient) === 'Lost' ? { backgroundColor: '#FEE2E2' } : undefined}
+                    >
+                      {getNormalizedPatientStatus(patient)}
+                    </Badge>
+
+                    <div className="flex items-center justify-between gap-4 pr-24">
                       <div className="flex gap-4 flex-1">
                         {patient.photo ? (
                           <div className="w-16 h-16 rounded-full overflow-hidden shrink-0">
@@ -1272,7 +1343,7 @@ export default function PatientManagementPage() {
                           )}
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-300 shrink-0 mt-2" />
+                      <ChevronRight className="w-5 h-5 text-gray-300 shrink-0" />
                     </div>
                   </button>
                 ))}
