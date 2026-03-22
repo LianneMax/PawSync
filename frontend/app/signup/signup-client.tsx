@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Mail, Lock, User, Heart, Stethoscope, Eye, EyeOff, Phone } from 'lucide-react'
-import { register, googleAuth, resendVerificationEmail } from '@/lib/auth'
+import { register, googleAuth, resendVerificationEmail, claimGuestAccount } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 import { useGoogleLogin } from '@react-oauth/google'
 
@@ -45,6 +45,24 @@ export default function SignUpClient() {
 
   const [currentSlide, setCurrentSlide] = useState(0)
   const [exitingSlide, setExitingSlide] = useState<number | null>(null)
+
+  // ── Guest-claim mode ─────────────────────────────────────────────────────────
+  // When the signup page is opened from a guest claim invite email, it contains
+  // claimToken + claimEmail + claimFirstName query params and behaves differently:
+  // the email is locked, user type is forced to pet-owner, and submission calls
+  // /api/auth/claim-guest instead of the standard registration endpoint.
+  const claimToken = searchParams.get('claimToken') || ''
+  const claimEmail = searchParams.get('claimEmail') || ''
+  const claimFirstName = searchParams.get('claimFirstName') || ''
+  const isClaimMode = !!claimToken
+
+  useEffect(() => {
+    if (isClaimMode) {
+      if (claimEmail) setEmail(claimEmail)
+      if (claimFirstName) setFirstName(claimFirstName)
+      setUserType('pet-owner')
+    }
+  }, [isClaimMode, claimEmail, claimFirstName])
 
   // If redirected from login due to unverified email, show the verify screen immediately
   useEffect(() => {
@@ -90,7 +108,7 @@ export default function SignUpClient() {
     setError(null)
 
     const newFieldErrors: Record<string, string> = {}
-    if (!userType) newFieldErrors.userType = 'Please select a user type'
+    if (!isClaimMode && !userType) newFieldErrors.userType = 'Please select a user type'
     if (!firstName.trim()) newFieldErrors.firstName = 'This field is required'
     if (!lastName.trim()) newFieldErrors.lastName = 'This field is required'
     if (!email.trim()) {
@@ -98,7 +116,7 @@ export default function SignUpClient() {
     } else if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email.trim())) {
       newFieldErrors.email = 'Please enter a valid email address (e.g. name@gmail.com)'
     }
-    if (!mobileNumber.trim()) newFieldErrors.mobileNumber = 'This field is required'
+    if (!isClaimMode && !mobileNumber.trim()) newFieldErrors.mobileNumber = 'This field is required'
     if (!password) newFieldErrors.password = 'This field is required'
     if (!confirmPassword) newFieldErrors.confirmPassword = 'This field is required'
 
@@ -118,9 +136,41 @@ export default function SignUpClient() {
     }
 
     setFieldErrors({})
-
     setLoading(true)
 
+    // ── Claim mode: upgrade guest account in-place ───────────────────────────
+    if (isClaimMode) {
+      try {
+        const response = await claimGuestAccount({
+          claimToken,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          password,
+          contactNumber: mobileNumber.trim() || undefined,
+        })
+
+        if (response.status === 'SUCCESS' && response.data) {
+          const { user, token } = response.data
+          storeLogin(user as any, token)
+          localStorage.setItem('authToken', token)
+          document.cookie = `authToken=${token}; path=/; SameSite=Lax`
+          document.cookie = `userType=${user.userType}; path=/; SameSite=Lax`
+          sessionStorage.setItem('justLoggedIn', 'true')
+          router.push('/dashboard')
+          return
+        }
+
+        setError(response.message || 'Failed to claim account. The link may have expired.')
+      } catch (err) {
+        setError('An error occurred while claiming your account. Please try again.')
+        console.error('Claim error:', err)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // ── Standard registration path ───────────────────────────────────────────
     try {
       const response = await register(firstName, lastName, email, mobileNumber, password, confirmPassword, userType!)
 
@@ -256,11 +306,20 @@ export default function SignUpClient() {
               className="text-5xl text-[#5A7C7A] mb-3 text-center"
               style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
             >
-              Sign Up
+              {isClaimMode ? 'Claim Records' : 'Sign Up'}
             </h1>
             <p className="text-gray-600 mb-8 text-center" style={{ fontFamily: 'var(--font-outfit)' }}>
-              Register Your PawSync Account
+              {isClaimMode ? 'Create your account to access your pet\'s records' : 'Register Your PawSync Account'}
             </p>
+
+            {/* Claim-mode context banner */}
+            {isClaimMode && (
+              <div className="mb-6 p-4 bg-[#7FA5A3]/10 border border-[#7FA5A3]/40 rounded-xl text-sm text-[#4F4F4F]">
+                <p className="font-semibold text-[#5A7C7A] mb-1">Claiming your guest appointment records</p>
+                <p>Your clinic created a guest profile for you. Create a password below to activate your account — your appointments, pet records, and billing will be linked automatically.</p>
+                <p className="mt-2 text-xs text-gray-500">You must complete this form using the email address shown — changing it will not link your records.</p>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} noValidate>
               {/* Server Error Message */}
@@ -270,8 +329,8 @@ export default function SignUpClient() {
                 </div>
               )}
 
-              {/* User Type Selection */}
-              <div className="mb-6">
+              {/* User Type Selection — hidden in claim mode (always pet-owner) */}
+              {!isClaimMode && <div className="mb-6">
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-3">I am a...</label>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pet Owner Button */}
@@ -315,7 +374,7 @@ export default function SignUpClient() {
                   </button>
                 </div>
                 {fieldErrors.userType && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.userType}</p>}
-              </div>
+              </div>}
 
               {/* Name Inputs - Side by Side */}
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -347,7 +406,7 @@ export default function SignUpClient() {
                 </div>
               </div>
 
-              {/* Email Input */}
+              {/* Email Input — locked/readonly in claim mode */}
               <div className="mb-4">
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -357,14 +416,16 @@ export default function SignUpClient() {
                     autoComplete="email"
                     placeholder="Email"
                     value={email}
-                    onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })) }}
-                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.email ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    readOnly={isClaimMode}
+                    onChange={(e) => { if (!isClaimMode) { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })) } }}
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 transition-all ${isClaimMode ? 'bg-[#7FA5A3]/10 border-[#7FA5A3]/30 text-[#5A7C7A] cursor-not-allowed' : `bg-gray-100 ${fieldErrors.email ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]`}`}
                   />
                 </div>
+                {isClaimMode && <p className="text-xs text-[#5A7C7A] mt-1 ml-1">This email is pre-filled from your guest record and cannot be changed.</p>}
                 {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
               </div>
 
-              {/* Mobile Number Input */}
+              {/* Mobile Number Input — optional in claim mode */}
               <div className="mb-4">
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -372,7 +433,7 @@ export default function SignUpClient() {
                     type="tel"
                     name="mobileNumber"
                     autoComplete="tel"
-                    placeholder="Mobile Number"
+                    placeholder={isClaimMode ? 'Mobile Number (optional)' : 'Mobile Number'}
                     value={mobileNumber}
                     onChange={(e) => { setMobileNumber(e.target.value); setFieldErrors(prev => ({ ...prev, mobileNumber: '' })) }}
                     className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.mobileNumber ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
@@ -429,41 +490,44 @@ export default function SignUpClient() {
                 {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.confirmPassword}</p>}
               </div>
 
-              {/* Sign Up Button */}
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full py-4 bg-[#7FA5A3] text-white rounded-xl hover:bg-[#6B9290] transition-colors mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating Account...' : 'Sign Up'}
+                {loading
+                  ? (isClaimMode ? 'Claiming Account...' : 'Creating Account...')
+                  : (isClaimMode ? 'Claim My Records' : 'Sign Up')}
               </button>
 
-              {/* Divider */}
-              <div className="flex items-center mb-6">
-                <div className="flex-1 border-t border-gray-300"></div>
-                <span className="px-4 text-gray-500 text-sm">or continue with</span>
-                <div className="flex-1 border-t border-gray-300"></div>
-              </div>
+              {/* Divider + Google — hidden in claim mode */}
+              {!isClaimMode && <>
+                <div className="flex items-center mb-6">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-4 text-gray-500 text-sm">or continue with</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
 
-              {/* Google Sign Up */}
-              <button
-                type="button"
-                onClick={() => handleGoogleSignIn()}
-                disabled={googleLoading}
-                className="w-full py-4 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {googleLoading ? (
-                  <span className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                )}
-                {googleLoading ? 'Signing up...' : 'Sign up with Google'}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleGoogleSignIn()}
+                  disabled={googleLoading}
+                  className="w-full py-4 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {googleLoading ? (
+                    <span className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
+                  )}
+                  {googleLoading ? 'Signing up...' : 'Sign up with Google'}
+                </button>
+              </>}
 
               {/* Login Link */}
               <p className="text-center mt-6 text-[#4F4F4F]">

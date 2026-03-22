@@ -9,6 +9,9 @@ import {
   getClinicAppointments,
   getAvailableSlots,
   createClinicAppointment,
+  createGuestIntakeAppointment,
+  sendGuestClaimInvite,
+  updateGuestEmail,
   searchPetOwners,
   getPetsForOwner,
   cancelAppointment,
@@ -42,6 +45,9 @@ import {
   Building2,
   LogIn,
   Smartphone,
+  UserPlus,
+  Mail,
+  Send,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -56,6 +62,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DatePicker } from '@/components/ui/date-picker'
+import { BreedCombobox } from '@/components/ui/breed-combobox'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
 
 // ==================== CONSTANTS ====================
@@ -828,6 +835,13 @@ export default function ClinicAdminAppointmentsPage() {
   // Reschedule modal
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
 
+  // Guest claim invite / update email
+  const [guestInviteTarget, setGuestInviteTarget] = useState<Appointment | null>(null)
+  const [guestEmailModalOpen, setGuestEmailModalOpen] = useState(false)
+  const [guestEmailValue, setGuestEmailValue] = useState('')
+  const [guestEmailSendInvite, setGuestEmailSendInvite] = useState(true)
+  const [guestEmailSubmitting, setGuestEmailSubmitting] = useState(false)
+
   // Check-in functionality
   const [appointmentToCheckIn, setAppointmentToCheckIn] = useState<string | null>(null)
   const [checkInSubmitting, setCheckInSubmitting] = useState(false)
@@ -1330,6 +1344,52 @@ export default function ClinicAdminAppointmentsPage() {
       toast.error('An error occurred')
     } finally {
       setCheckInSubmitting(false)
+    }
+  }
+
+  // ── Guest invite actions ───────────────────────────────────────────────────
+  const handleSendGuestInvite = async (appt: Appointment) => {
+    const ownerId = appt.ownerId?._id || (typeof appt.ownerId === 'string' ? appt.ownerId : '')
+    if (!ownerId) return
+    try {
+      const res = await sendGuestClaimInvite(ownerId, token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success('Claim invite sent to pet owner')
+        loadAppointments()
+      } else {
+        toast.error(res.message || 'Failed to send invite')
+      }
+    } catch {
+      toast.error('An error occurred while sending the invite')
+    }
+  }
+
+  const handleOpenGuestEmailModal = (appt: Appointment) => {
+    setGuestInviteTarget(appt)
+    setGuestEmailValue('')
+    setGuestEmailSendInvite(true)
+    setGuestEmailModalOpen(true)
+  }
+
+  const handleSubmitGuestEmail = async () => {
+    if (!guestInviteTarget) return
+    const ownerId = guestInviteTarget.ownerId?._id || (typeof guestInviteTarget.ownerId === 'string' ? guestInviteTarget.ownerId : '')
+    if (!ownerId || !guestEmailValue.trim()) return
+    setGuestEmailSubmitting(true)
+    try {
+      const res = await updateGuestEmail(ownerId, { email: guestEmailValue.trim(), sendInvite: guestEmailSendInvite }, token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success(res.message || 'Email updated')
+        setGuestEmailModalOpen(false)
+        setGuestInviteTarget(null)
+        loadAppointments()
+      } else {
+        toast.error(res.message || 'Failed to update email')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setGuestEmailSubmitting(false)
     }
   }
 
@@ -1929,6 +1989,25 @@ export default function ClinicAdminAppointmentsPage() {
                       {appt.isWalkIn && !appt.isEmergency && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
                       )}
+                      {appt.ownerId?.isGuest && (
+                        appt.ownerId?.claimStatus === 'unclaimable' ? (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-500 flex items-center gap-1">
+                            <UserPlus className="w-3 h-3" /> Unclaimable
+                          </span>
+                        ) : appt.ownerId?.claimStatus === 'invited' ? (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-600 flex items-center gap-1">
+                            <Mail className="w-3 h-3" /> Invite Sent
+                          </span>
+                        ) : appt.ownerId?.claimStatus === 'claimed' ? (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Claimed
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 flex items-center gap-1">
+                            <UserPlus className="w-3 h-3" /> Guest
+                          </span>
+                        )
+                      )}
                       {appt.types.map((t) => (
                         <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
                       ))}
@@ -1980,7 +2059,7 @@ export default function ClinicAdminAppointmentsPage() {
                         </div>
                       ) : (
                         (appt.status === 'confirmed' || appt.status === 'pending') && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap justify-end">
                             <button
                               onClick={() => handleCheckIn(appt._id)}
                               className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
@@ -1999,6 +2078,23 @@ export default function ClinicAdminAppointmentsPage() {
                             >
                               Cancel
                             </button>
+                            {appt.ownerId?.isGuest && appt.ownerId?.claimStatus !== 'claimed' && (
+                              appt.ownerId?.claimStatus === 'unclaimable' ? (
+                                <button
+                                  onClick={() => handleOpenGuestEmailModal(appt)}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-500 transition-all duration-200 flex items-center gap-1"
+                                >
+                                  <Mail className="w-3 h-3" /> Add Email
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleSendGuestInvite(appt)}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-500 transition-all duration-200 flex items-center gap-1"
+                                >
+                                  <Send className="w-3 h-3" /> Send Invite
+                                </button>
+                              )
+                            )}
                           </div>
                         )
                       )
@@ -2219,6 +2315,65 @@ export default function ClinicAdminAppointmentsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Update Guest Email + Send Invite Modal */}
+      <Dialog open={guestEmailModalOpen} onOpenChange={(open) => { if (!open) { setGuestEmailModalOpen(false); setGuestInviteTarget(null) } }}>
+        <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+          <div className="p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <Mail className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-xl font-bold text-center text-[#2C3E2D] mb-1">Update Email & Send Invite</DialogTitle>
+            <p className="text-sm text-gray-500 text-center mb-5">
+              Add an email for <strong>{guestInviteTarget?.ownerId?.firstName} {guestInviteTarget?.ownerId?.lastName}</strong> so they can claim their records.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-[#2C3E2D] block mb-1.5">Email address</label>
+                <input
+                  type="email"
+                  value={guestEmailValue}
+                  onChange={(e) => setGuestEmailValue(e.target.value)}
+                  placeholder="owner@example.com"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] transition-colors"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={guestEmailSendInvite}
+                  onClick={() => setGuestEmailSendInvite((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${guestEmailSendInvite ? 'bg-purple-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${guestEmailSendInvite ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+                <span className="text-sm text-[#4F4F4F]">Send claim invite email immediately</span>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setGuestEmailModalOpen(false); setGuestInviteTarget(null) }}
+                disabled={guestEmailSubmitting}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-[#2C3E2D] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitGuestEmail}
+                disabled={guestEmailSubmitting || !guestEmailValue.trim()}
+                className="flex-1 px-4 py-2.5 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {guestEmailSubmitting ? (
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>
+                ) : guestEmailSendInvite ? 'Save & Send Invite' : 'Save Email'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
@@ -2255,7 +2410,7 @@ function ClinicScheduleModal({
   const [selectedPetId, setSelectedPetId] = useState('')
   const [selectedBranchId, setSelectedBranchId] = useState('')
   const [selectedVetId, setSelectedVetId] = useState('')
-  const [mode, setMode] = useState('')
+  const [mode, setMode] = useState('face-to-face')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState(() => {
     const tomorrow = new Date()
@@ -2272,6 +2427,20 @@ function ClinicScheduleModal({
   const [isWalkIn, setIsWalkIn] = useState(false)
   const [isEmergency, setIsEmergency] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  // Guest intake mode
+  const [isGuestMode, setIsGuestMode] = useState(false)
+  const [guestFirstName, setGuestFirstName] = useState('')
+  const [guestLastName, setGuestLastName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestContact, setGuestContact] = useState('')
+  const [guestPetName, setGuestPetName] = useState('')
+  const [guestPetSpecies, setGuestPetSpecies] = useState<'canine' | 'feline' | ''>('')
+  const [guestPetBreed, setGuestPetBreed] = useState('')
+  const [guestPetSex, setGuestPetSex] = useState<'male' | 'female' | ''>('')
+  const [guestPetDob, setGuestPetDob] = useState('')
+  const [guestPetWeight, setGuestPetWeight] = useState('')
+  const [guestPetSterilization, setGuestPetSterilization] = useState('')
 
   const groomingTypeValues = new Set([
     'basic-grooming',
@@ -2497,7 +2666,7 @@ function ClinicScheduleModal({
       setSelectedPetId('')
       setSelectedBranchId('')
       setSelectedVetId('')
-      setMode('')
+      setMode('face-to-face')
       setSelectedTypes([])
       setSelectedSlot(null)
       setSlots([])
@@ -2564,6 +2733,116 @@ function ClinicScheduleModal({
   }
 
   const handleSubmit = async () => {
+    // ── Guest intake path ────────────────────────────────────────────────────
+    if (isGuestMode) {
+      if (!guestFirstName.trim()) return toast.error('Owner first name is required')
+      if (!guestLastName.trim()) return toast.error('Owner last name is required')
+      if (!guestPetName.trim()) return toast.error('Pet name is required')
+      if (!guestPetSpecies) return toast.error('Pet species is required')
+      if (!guestPetBreed.trim()) return toast.error('Pet breed is required')
+      if (!guestPetSex) return toast.error('Pet sex is required')
+      if (!guestPetDob) return toast.error('Pet date of birth is required')
+      if (!guestPetWeight || Number(guestPetWeight) <= 0) return toast.error('Pet weight is required')
+      if (!guestPetSterilization) return toast.error('Pet sterilization status is required')
+      if (!selectedBranchId) return toast.error('Please select a clinic branch')
+      if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
+      if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+      if (!selectedSlot) return toast.error('Please select a time slot')
+
+      setSubmitting(true)
+      try {
+        const normalizedTypes = selectedTypes.map(normalizeAppointmentType)
+        const guestData: any = {
+          ownerFirstName: guestFirstName.trim(),
+          ownerLastName: guestLastName.trim(),
+          ownerEmail: guestEmail.trim() || undefined,
+          ownerContact: guestContact.trim() || undefined,
+          petName: guestPetName.trim(),
+          petSpecies: guestPetSpecies,
+          petBreed: guestPetBreed.trim(),
+          petSex: guestPetSex,
+          petDateOfBirth: guestPetDob,
+          petWeight: Number(guestPetWeight),
+          petSterilization: guestPetSterilization,
+          clinicBranchId: selectedBranchId,
+          mode: 'face-to-face',
+          types: normalizedTypes,
+          date: selectedDate,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          isWalkIn: isEmergency ? true : isWalkIn,
+          isEmergency,
+          notes: undefined,
+        }
+        if (selectedVetId) guestData.vetId = selectedVetId
+
+        const res = await createGuestIntakeAppointment(guestData, token || undefined)
+
+        if (res.status === 'SUCCESS') {
+          const branch = branches.find(b => b._id === selectedBranchId)
+          const branchName = branch?.name || 'the clinic'
+          const appointmentDate = new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          const claimStatus = res.data?.guestOwner?.claimStatus
+          const inviteSent = res.data?.inviteSent
+
+          toast(
+            <div className="flex gap-2">
+              <UserPlus className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium">Guest Appointment Created</p>
+                <p className="text-sm text-gray-600">
+                  {guestPetName} ({guestFirstName} {guestLastName}) — {branchName} on {appointmentDate}.
+                  {inviteSent
+                    ? ' Claim invite sent to owner\'s email.'
+                    : claimStatus === 'unclaimable'
+                      ? ' No email provided — use "Add Email" to send an invite later.'
+                      : ' Owner can be invited to claim records.'}
+                </p>
+              </div>
+            </div>,
+            { duration: 7000 }
+          )
+
+          if (res.data?.nameDuplicateWarning) {
+            toast(
+              <div className="flex gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-amber-800">Duplicate name warning</p>
+                  <p className="text-sm text-amber-700">{res.data.nameDuplicateWarning}</p>
+                </div>
+              </div>,
+              { duration: 8000 }
+            )
+          }
+
+          const rescheduled: any[] = res.data?.rescheduledAppointments ?? []
+          if (isEmergency && rescheduled.length > 0) {
+            toast(
+              <div className="flex gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-amber-800">Appointments rescheduled</p>
+                  <p className="text-sm text-amber-700">{rescheduled.length} appointment{rescheduled.length > 1 ? 's were' : ' was'} rescheduled for the emergency. Owners have been notified.</p>
+                </div>
+              </div>,
+              { duration: 10000 }
+            )
+          }
+
+          onBooked(selectedDate)
+        } else {
+          toast.error(res.message || 'Failed to create guest appointment')
+        }
+      } catch {
+        toast.error('An error occurred')
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    // ── Regular (existing owner) path ────────────────────────────────────────
     if (!selectedOwner) return toast.error('Please select a pet owner')
     if (!selectedPetId) return toast.error('Please select a pet')
     if (selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased')) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
@@ -2581,7 +2860,7 @@ function ClinicScheduleModal({
     try {
       // Normalize types to valid enum values
       const normalizedTypes = selectedTypes.map(normalizeAppointmentType)
-      
+
       // For grooming-only, don't send vetId; backend will set it to null
       const appointmentData: any = {
         ownerId: selectedOwner._id,
@@ -2596,7 +2875,7 @@ function ClinicScheduleModal({
         isWalkIn,
         isEmergency,
       }
-      
+
       // Only include vetId if it has a value (medical appointments)
       if (selectedVetId) {
         appointmentData.vetId = selectedVetId
@@ -2697,81 +2976,183 @@ function ClinicScheduleModal({
           </button>
         </div>
 
+        {/* Mode toggle: Regular vs Guest Intake */}
+        <div className="px-8 pb-1 pt-2 shrink-0">
+          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 gap-0.5">
+            <button
+              type="button"
+              onClick={() => setIsGuestMode(false)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${!isGuestMode ? 'bg-white shadow-sm text-[#2C3E2D]' : 'text-gray-500 hover:text-[#2C3E2D]'}`}
+            >
+              <Users className="w-4 h-4" />
+              Existing Owner
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsGuestMode(true); setIsWalkIn(true) }}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${isGuestMode ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-[#2C3E2D]'}`}
+            >
+              <UserPlus className="w-4 h-4" />
+              Guest Intake
+            </button>
+          </div>
+          {isGuestMode && (
+            <p className="text-xs text-purple-600 mt-1.5">Walk-in or emergency patient with no PawSync account. Records will be marked as Guest/Unclaimed.</p>
+          )}
+        </div>
+
         <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
-            {selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased') && (
+            {!isGuestMode && selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased') && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-sm text-amber-800 font-medium">⚠️ This pet is marked as deceased</p>
                 <p className="text-xs text-amber-700 mt-1">Appointments cannot be scheduled for deceased pets.</p>
               </div>
             )}
 
-            {selectedPet?.isLost && (
+            {!isGuestMode && selectedPet?.isLost && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-800 font-medium">⚠️ This pet is marked as lost</p>
                 <p className="text-xs text-yellow-700 mt-1">Appointments cannot be scheduled for lost pets. Please update their status once they are found.</p>
               </div>
             )}
 
-            {/* Owner Search (full width) */}
-            <OwnerSearch
-              value={selectedOwner}
-              onSelect={setSelectedOwner}
-              token={token}
-            />
-
-            {/* Row 1: Pet + Mode */}
-            <div className="grid grid-cols-2 gap-4">
-              {!selectedOwner ? (
+            {/* ── Guest Intake Form ─────────────────────────────────────────── */}
+            {isGuestMode ? (
+              <div className="space-y-4">
+                {/* Owner Info */}
                 <div>
-                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
-                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
-                    Select an owner first
+                  <p className="text-sm font-bold text-[#2C3E2D] mb-2 flex items-center gap-1.5">
+                    <Users className="w-4 h-4" /> Owner Information
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">First Name <span className="text-red-500">*</span></label>
+                      <input type="text" value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Last Name <span className="text-red-500">*</span></label>
+                      <input type="text" value={guestLastName} onChange={e => setGuestLastName(e.target.value)} placeholder="Last name" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Email <span className="text-gray-400 font-normal">(optional — needed to send invite)</span></label>
+                      <input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="owner@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Contact Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                      <input type="tel" value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="09xxxxxxxxx" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
                   </div>
-                </div>
-              ) : loadingPets ? (
-                <div>
-                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
-                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
-                    <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
-                    Loading pets...
-                  </div>
-                </div>
-              ) : ownerPets.length === 0 ? (
-                <div>
-                  <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
-                  <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
-                    No pets found for this owner
-                  </div>
-                </div>
-              ) : (
-                <Dropdown
-                  label="Select pet"
-                  value={selectedPetId}
-                  placeholder="Choose a pet"
-                  options={ownerPets.map((p) => ({ value: p._id, label: p.name }))}
-                  disabledOptions={ownerPets.filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased').map((pet) => pet._id)}
-                  disabledReasonByValue={Object.fromEntries(
-                    ownerPets
-                      .filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased')
-                      .map((pet) => [
-                        pet._id,
-                        !pet.isAlive || pet.status === 'deceased' ? 'Deceased Pet' : 'Lost Pet',
-                      ])
+                  {!guestEmail.trim() && (
+                    <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Without email, owner status will be <strong>Unclaimable</strong> until updated later.
+                    </p>
                   )}
-                  onSelect={setSelectedPetId}
-                />
-              )}
-              <Dropdown
-                label="Mode of Appointment"
-                value={mode}
-                placeholder="Select mode"
-                options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
-                disabled={isEmergency}
-                onSelect={setMode}
+                </div>
+
+                {/* Pet Info */}
+                <div>
+                  <p className="text-sm font-bold text-[#2C3E2D] mb-2 flex items-center gap-1.5">
+                    <PawPrint className="w-4 h-4" /> Pet Information
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Pet Name <span className="text-red-500">*</span></label>
+                      <input type="text" value={guestPetName} onChange={e => setGuestPetName(e.target.value)} placeholder="e.g. Buddy" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
+                    <Dropdown label="Species *" value={guestPetSpecies} placeholder="Select species" options={[{ value: 'canine', label: 'Canine (Dog)' }, { value: 'feline', label: 'Feline (Cat)' }]} onSelect={(v) => { setGuestPetSpecies(v as 'canine' | 'feline'); setGuestPetBreed('') }} />
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Breed <span className="text-red-500">*</span></label>
+                      <BreedCombobox species={guestPetSpecies || null} value={guestPetBreed} onChange={setGuestPetBreed} placeholder="Select Breed *" />
+                    </div>
+                    <Dropdown label="Sex *" value={guestPetSex} placeholder="Select sex" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} onSelect={(v) => { setGuestPetSex(v as 'male' | 'female'); setGuestPetSterilization('') }} />
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Date of Birth <span className="text-red-500">*</span></label>
+                      <input type="date" value={guestPetDob} onChange={e => setGuestPetDob(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Weight (kg) <span className="text-red-500">*</span></label>
+                      <input type="number" min="0.1" step="0.1" value={guestPetWeight} onChange={e => setGuestPetWeight(e.target.value)} placeholder="e.g. 5.5" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
+                    </div>
+                    <Dropdown
+                      label="Sterilization *"
+                      value={guestPetSterilization}
+                      placeholder={guestPetSex ? 'Select status' : 'Select sex first'}
+                      options={
+                        guestPetSex === 'female'
+                          ? [{ value: 'spayed', label: 'Spayed' }, { value: 'unspayed', label: 'Unspayed' }]
+                          : guestPetSex === 'male'
+                          ? [{ value: 'neutered', label: 'Neutered' }, { value: 'unneutered', label: 'Unneutered' }]
+                          : []
+                      }
+                      onSelect={setGuestPetSterilization}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Owner Search (full width) — regular mode */
+              <OwnerSearch
+                value={selectedOwner}
+                onSelect={setSelectedOwner}
+                token={token}
               />
-            </div>
+            )}
+
+            {/* Row 1: Pet + Mode — only shown for regular (non-guest) mode */}
+            {!isGuestMode && (
+              <div className="grid grid-cols-2 gap-4">
+                {!selectedOwner ? (
+                  <div>
+                    <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
+                    <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                      Select an owner first
+                    </div>
+                  </div>
+                ) : loadingPets ? (
+                  <div>
+                    <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
+                    <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                      <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                      Loading pets...
+                    </div>
+                  </div>
+                ) : ownerPets.length === 0 ? (
+                  <div>
+                    <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
+                    <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                      No pets found for this owner
+                    </div>
+                  </div>
+                ) : (
+                  <Dropdown
+                    label="Select pet"
+                    value={selectedPetId}
+                    placeholder="Choose a pet"
+                    options={ownerPets.map((p) => ({ value: p._id, label: p.name }))}
+                    disabledOptions={ownerPets.filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased').map((pet) => pet._id)}
+                    disabledReasonByValue={Object.fromEntries(
+                      ownerPets
+                        .filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased')
+                        .map((pet) => [
+                          pet._id,
+                          !pet.isAlive || pet.status === 'deceased' ? 'Deceased Pet' : 'Lost Pet',
+                        ])
+                    )}
+                    onSelect={setSelectedPetId}
+                  />
+                )}
+                <Dropdown
+                  label="Mode of Appointment"
+                  value={mode}
+                  placeholder="Select mode"
+                  options={appointmentModes.map((m) => ({ value: m.value, label: m.label }))}
+                  disabled={isEmergency}
+                  onSelect={setMode}
+                />
+              </div>
+            )}
 
             {/* Row 2: Branch + Vet */}
             <div className="grid grid-cols-2 gap-4">
@@ -3056,10 +3437,10 @@ function ClinicScheduleModal({
         <div className="flex items-center justify-center gap-4 px-8 py-4 shrink-0 border-t border-gray-100">
           <button
             onClick={handleSubmit}
-            disabled={submitting || Boolean(selectedPet?.isLost) || Boolean(selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased'))}
-            className="px-8 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
+            disabled={submitting || (!isGuestMode && (Boolean(selectedPet?.isLost) || Boolean(selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased'))))}
+            className={`px-8 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${isGuestMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#7FA5A3] hover:bg-[#6b9391]'}`}
           >
-            {submitting ? 'Booking...' : 'Set an appointment'}
+            {submitting ? (isGuestMode ? 'Creating...' : 'Booking...') : isGuestMode ? 'Create Guest Appointment' : 'Set an appointment'}
           </button>
           <button
             onClick={onClose}

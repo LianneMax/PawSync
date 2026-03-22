@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail, activateInvitation } from '../controllers/authController';
+import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail, activateInvitation, claimGuestAccount } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -78,5 +78,12 @@ router.post('/resend-verification', resendVerificationEmail);
  * Body: { token, firstName, lastName, password }
  */
 router.post('/activate-invitation', activateInvitation);
+
+/**
+ * POST /api/auth/claim-guest
+ * Upgrade a guest User record into a full account (no new User created).
+ * Body: { claimToken, firstName, lastName, password, contactNumber? }
+ */
+router.post('/claim-guest', claimGuestAccount);
 
 export default router;

@@ -17,6 +17,9 @@ import {
   getAppointmentById,
   getClinicBranches,
   getVetsByBranchId,
+  createGuestIntakeAppointment,
+  sendGuestClaimInvite,
+  updateGuestEmail,
 } from '../controllers/appointmentController';
 import { authMiddleware, veterinarianOnly, petOwnerOnly, clinicAdminOnly } from '../middleware/auth';
 
@@ -96,6 +99,24 @@ router.get('/clinic/owner-pets', authMiddleware, clinicAdminOnly, getPetsForOwne
  * Create appointment on behalf of a pet owner (clinic admin)
  */
 router.post('/clinic', authMiddleware, clinicAdminOnly, createClinicAppointment);
+
+/**
+ * POST /api/appointments/clinic/guest-intake
+ * Create a guest owner + pet + appointment in one step (walk-in/emergency without account)
+ */
+router.post('/clinic/guest-intake', authMiddleware, clinicAdminOnly, createGuestIntakeAppointment);
+
+/**
+ * POST /api/appointments/clinic/guest/:ownerId/send-claim-invite
+ * Send a claim invite email to a guest owner
+ */
+router.post('/clinic/guest/:ownerId/send-claim-invite', authMiddleware, clinicAdminOnly, sendGuestClaimInvite);
+
+/**
+ * PATCH /api/appointments/clinic/guest/:ownerId/update-email
+ * Update a guest owner's email (and optionally send claim invite)
+ */
+router.patch('/clinic/guest/:ownerId/update-email', authMiddleware, clinicAdminOnly, updateGuestEmail);
 
 /**
  * GET /api/appointments/clinic?date=...&branchId=...&filter=upcoming|previous

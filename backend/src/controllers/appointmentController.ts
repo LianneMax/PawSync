@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import Appointment from '../models/Appointment';
 import Pet from '../models/Pet';
 import User from '../models/User';
@@ -11,7 +12,8 @@ import Vaccination from '../models/Vaccination';
 import MedicalRecord from '../models/MedicalRecord';
 import Billing from '../models/Billing';
 import ProductService from '../models/ProductService';
-import { sendAppointmentBooked, sendAppointmentCancelled } from '../services/emailService';
+import AuditTrail from '../models/AuditTrail';
+import { sendAppointmentBooked, sendAppointmentCancelled, sendGuestClaimInviteEmail } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { getClinicForAdmin } from './clinicController';
@@ -1678,7 +1680,7 @@ export const getClinicAppointments = async (req: Request, res: Response) => {
 
     const appointments = await Appointment.find(query)
       .populate('petId', 'name species breed photo')
-      .populate('ownerId', 'firstName lastName email')
+      .populate('ownerId', 'firstName lastName email isGuest claimStatus claimInviteSentAt')
       .populate('vetId', 'firstName lastName email')
       .populate('clinicBranchId', 'name address')
       .sort({ date: 1, startTime: 1 });
@@ -1934,5 +1936,602 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get vets by branch error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching vets' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GUEST INTAKE ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Placeholder email domain used for guests with no real email. */
+const GUEST_EMAIL_DOMAIN = 'pawsync.gs';
+
+function isGuestPlaceholderEmail(email: string): boolean {
+  return email.endsWith(`@${GUEST_EMAIL_DOMAIN}`);
+}
+
+/**
+ * POST /api/appointments/clinic/guest-intake
+ * Create a guest owner + pet + appointment in one transaction (clinic admin only).
+ */
+export const createGuestIntakeAppointment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const {
+      // Owner fields
+      ownerFirstName, ownerLastName, ownerEmail, ownerContact,
+      // Pet fields
+      petName, petSpecies, petBreed, petSex, petDateOfBirth, petWeight, petSterilization,
+      // Appointment fields
+      vetId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn, isEmergency,
+    } = req.body;
+
+    // ── Validate required owner fields ────────────────────────────────────────
+    if (!ownerFirstName || !ownerLastName) {
+      return res.status(400).json({ status: 'ERROR', message: 'Owner first name and last name are required' });
+    }
+
+    // ── Validate required pet fields ──────────────────────────────────────────
+    if (!petName || !petSpecies || !petBreed || !petSex || !petDateOfBirth || petWeight == null || !petSterilization) {
+      return res.status(400).json({ status: 'ERROR', message: 'Pet name, species, breed, sex, date of birth, weight, and sterilization are required' });
+    }
+    if (!['canine', 'feline'].includes(petSpecies)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Pet species must be canine or feline' });
+    }
+    if (!['male', 'female'].includes(petSex)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Pet sex must be male or female' });
+    }
+    if (!['spayed', 'unspayed', 'neutered', 'unneutered', 'unknown'].includes(petSterilization)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid sterilization status' });
+    }
+
+    // ── Resolve clinic for this admin ─────────────────────────────────────────
+    let clinicId: string | null = null;
+    if (req.user.clinicId) {
+      clinicId = req.user.clinicId.toString();
+    } else if (req.user.clinicBranchId) {
+      const branch = await ClinicBranch.findById(req.user.clinicBranchId).select('clinicId');
+      clinicId = branch?.clinicId?.toString() || null;
+    }
+    if (!clinicId) {
+      const dbUser = await User.findById(req.user.userId).select('clinicId clinicBranchId');
+      if (dbUser?.clinicId) {
+        clinicId = dbUser.clinicId.toString();
+      } else if (dbUser?.clinicBranchId) {
+        const branch = await ClinicBranch.findById(dbUser.clinicBranchId).select('clinicId');
+        clinicId = branch?.clinicId?.toString() || null;
+      }
+    }
+    if (!clinicId) {
+      return res.status(403).json({ status: 'ERROR', message: 'No clinic associated with this admin account' });
+    }
+
+    // ── Duplicate owner check ─────────────────────────────────────────────────
+    // Normalise email and contact number the same way the schema + pre-save hook will.
+    const trimmedEmail = ownerEmail ? String(ownerEmail).trim().toLowerCase() : '';
+    if (trimmedEmail) {
+      const existingUser = await User.findOne({ email: trimmedEmail });
+      if (existingUser) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: existingUser.isGuest
+            ? 'A guest record with this email already exists. Please search for the existing owner.'
+            : 'A pet owner account with this email already exists. Please search for them instead.',
+          existingOwnerId: existingUser._id,
+        });
+      }
+    }
+
+    // Check contact-number uniqueness before creation so the client gets a
+    // targeted message (not the generic 11000 handler which used to say "email").
+    const normalizedContact = ownerContact ? String(ownerContact).trim().replace(/\D/g, '') : '';
+    if (normalizedContact) {
+      const existingByContact = await User.findOne({ contactNumberNormalized: normalizedContact });
+      if (existingByContact) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: existingByContact.isGuest
+            ? 'A guest record with this contact number already exists. Please search for the existing owner.'
+            : 'A pet owner account with this contact number already exists. Please use their existing account.',
+          existingOwnerId: existingByContact._id,
+        });
+      }
+    }
+
+    // Soft duplicate check by name for same clinic (warn, not block — different pets possible)
+    const nameConflict = await User.findOne({
+      firstName: { $regex: new RegExp(`^${ownerFirstName.trim()}$`, 'i') },
+      lastName: { $regex: new RegExp(`^${ownerLastName.trim()}$`, 'i') },
+      isGuest: true,
+      guestClinicId: clinicId,
+    });
+
+    // ── Validate appointment date/time ────────────────────────────────────────
+    const appointmentDate = new Date(date);
+    if (Number.isNaN(appointmentDate.getTime())) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment date' });
+    }
+    const appointmentStartDateTime = getAppointmentStartDateTime(appointmentDate, startTime);
+    if (!appointmentStartDateTime) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment start time' });
+    }
+    if (appointmentStartDateTime.getTime() < Date.now()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot book an appointment in the past' });
+    }
+
+    // ── Validate appointment types / mode ────────────────────────────────────
+    if (!Array.isArray(types) || types.length === 0) {
+      return res.status(400).json({ status: 'ERROR', message: 'At least one appointment type is required' });
+    }
+    if (mode === 'online') {
+      return res.status(400).json({ status: 'ERROR', message: 'Guest walk-in/emergency appointments must be face-to-face' });
+    }
+    const hasGuestGrooming = types.some((t: string) => t === 'basic-grooming' || t === 'full-grooming');
+    const hasGuestMedical = types.some((t: string) => t !== 'basic-grooming' && t !== 'full-grooming');
+    if (hasGuestGrooming && hasGuestMedical) {
+      return res.status(400).json({ status: 'ERROR', message: 'Grooming services cannot be combined with medical services' });
+    }
+    if (hasGuestMedical && !vetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'A veterinarian must be selected for medical appointments' });
+    }
+    if (hasGuestMedical && vetId) {
+      const vet = await User.findById(vetId).select('userType resignation');
+      if (!vet || vet.userType !== 'veterinarian') {
+        return res.status(400).json({ status: 'ERROR', message: 'Selected veterinarian is not available' });
+      }
+      const cutoff = getVetBookingCutoffDate(vet.resignation as any);
+      if (cutoff && new Date(date) > cutoff) {
+        return res.status(400).json({ status: 'ERROR', message: `Vet unavailable after ${cutoff.toLocaleDateString('en-US')}` });
+      }
+    }
+
+    // ── Slot availability (skip for emergency) ────────────────────────────────
+    if (!isEmergency) {
+      if (hasGuestMedical && vetId) {
+        const slotTaken = await Appointment.findOne({
+          vetId,
+          date: new Date(date),
+          startTime,
+          status: { $in: ['pending', 'confirmed', 'rescheduled'] },
+        });
+        if (slotTaken) {
+          return res.status(409).json({ status: 'ERROR', message: 'This time slot is no longer available' });
+        }
+      }
+    }
+
+    // ── Create guest owner ────────────────────────────────────────────────────
+    const hasRealEmail = !!trimmedEmail;
+    const placeholderEmail = hasRealEmail
+      ? trimmedEmail
+      : `__guest_${crypto.randomBytes(8).toString('hex')}@${GUEST_EMAIL_DOMAIN}`;
+
+    const guestOwner = (await User.create({
+      email: placeholderEmail,
+      firstName: ownerFirstName.trim(),
+      lastName: ownerLastName.trim(),
+      contactNumber: ownerContact ? String(ownerContact).trim() : (null as any),
+      userType: 'pet-owner' as const,
+      isGuest: true,
+      claimStatus: hasRealEmail ? 'unclaimed' : 'unclaimable',
+      guestClinicId: clinicId,
+      emailVerified: false,
+      isVerified: false,
+    } as any)) as any;
+
+    // ── Create guest pet ──────────────────────────────────────────────────────
+    const guestPet = (await Pet.create({
+      ownerId: guestOwner._id,
+      name: petName.trim(),
+      species: petSpecies,
+      breed: petBreed.trim(),
+      sex: petSex,
+      dateOfBirth: new Date(petDateOfBirth),
+      weight: Number(petWeight),
+      sterilization: petSterilization,
+      status: 'alive',
+      isAlive: true,
+    } as any)) as any;
+
+    // ── Emergency cascade (same logic as createClinicAppointment) ────────────
+    let rescheduledAppointments: any[] = [];
+    if (isEmergency && vetId) {
+      let schedSlotStart = '07:00';
+      let schedSlotEnd = '17:00';
+      let schedBreakStart: string | null = null;
+      let schedBreakEnd: string | null = null;
+      let vetSchedDoc: any = null;
+      let branchFallbackDoc: any = null;
+
+      const vetSched = await VetSchedule.findOne({ vetId, branchId: clinicBranchId });
+      if (vetSched) {
+        vetSchedDoc = vetSched;
+        schedSlotStart = vetSched.startTime;
+        schedSlotEnd = vetSched.endTime;
+        schedBreakStart = vetSched.breakStart ?? null;
+        schedBreakEnd = vetSched.breakEnd ?? null;
+      } else {
+        const branch = await ClinicBranch.findById(clinicBranchId);
+        branchFallbackDoc = branch;
+        if (branch?.openingTime) schedSlotStart = branch.openingTime;
+        if (branch?.closingTime) schedSlotEnd = branch.closingTime;
+      }
+
+      const emergencyDayStart = new Date(date); emergencyDayStart.setUTCHours(0, 0, 0, 0);
+      const emergencyDayEnd = new Date(date); emergencyDayEnd.setUTCHours(23, 59, 59, 999);
+      const sameDay = await Appointment.find({
+        vetId,
+        date: { $gte: emergencyDayStart, $lte: emergencyDayEnd },
+        startTime: { $gte: startTime },
+        status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] },
+      }).sort({ startTime: 1 });
+
+      let pushTo = endTime;
+      for (const appt of sameDay) {
+        if (appt.startTime >= pushTo) break;
+        const newStart = pushTo;
+        const newEnd = addMinutes(pushTo, 30);
+        if (newEnd <= schedSlotEnd) {
+          appt.startTime = newStart;
+          appt.endTime = newEnd;
+          await appt.save();
+          pushTo = newEnd;
+          rescheduledAppointments.push(appt);
+        } else {
+          const apptYear = (appt.date as Date).getUTCFullYear();
+          const apptMonth = (appt.date as Date).getUTCMonth();
+          const apptDay = (appt.date as Date).getUTCDate();
+          let nextDate: Date | null = null;
+          let nextStart: string | null = null;
+          let nextEnd: string | null = null;
+          for (let i = 1; i <= 14; i++) {
+            const candidate = new Date(Date.UTC(apptYear, apptMonth, apptDay + i));
+            const candidateDayName = DAY_NAMES[candidate.getUTCDay()];
+            if (vetSchedDoc) {
+              if (!vetSchedDoc.workingDays.includes(candidateDayName)) continue;
+            } else if (branchFallbackDoc) {
+              if (branchFallbackDoc.operatingDays.length > 0 && !branchFallbackDoc.operatingDays.includes(candidateDayName)) continue;
+            }
+            const candidateSlots = generateTimeSlots(schedSlotStart, schedSlotEnd, schedBreakStart, schedBreakEnd);
+            const candidateDayStart = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate(), 0, 0, 0));
+            const candidateDayEnd = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate(), 23, 59, 59, 999));
+            const bookedOnDay = await Appointment.find({
+              vetId,
+              date: { $gte: candidateDayStart, $lte: candidateDayEnd },
+              status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] },
+              _id: { $ne: appt._id },
+            }).select('startTime');
+            const bookedTimes = new Set(bookedOnDay.map((b: any) => b.startTime));
+            const freeSlot = candidateSlots.find(s => !bookedTimes.has(s.startTime));
+            if (freeSlot) { nextDate = candidate; nextStart = freeSlot.startTime; nextEnd = freeSlot.endTime; break; }
+          }
+          if (nextDate && nextStart && nextEnd) {
+            appt.date = nextDate; appt.startTime = nextStart; appt.endTime = nextEnd;
+            await appt.save();
+            rescheduledAppointments.push(appt);
+          }
+        }
+      }
+    }
+
+    // ── Create appointment ────────────────────────────────────────────────────
+    const resolvedVetId = hasGuestGrooming && !hasGuestMedical ? null : vetId || null;
+    const appointment = await Appointment.create({
+      petId: guestPet._id,
+      ownerId: guestOwner._id,
+      vetId: resolvedVetId,
+      clinicId,
+      clinicBranchId,
+      mode: mode || 'face-to-face',
+      types,
+      date: new Date(date),
+      startTime,
+      endTime,
+      notes: notes || null,
+      isWalkIn: isEmergency ? true : isWalkIn === true,
+      isEmergency: isEmergency === true,
+      status: 'confirmed',
+    });
+
+    // ── Audit log ─────────────────────────────────────────────────────────────
+    await AuditTrail.create({
+      action: 'guest_intake_created',
+      actorUserId: req.user.userId,
+      targetUserId: guestOwner._id,
+      clinicId,
+      clinicBranchId,
+      metadata: {
+        appointmentId: appointment._id,
+        petId: guestPet._id,
+        guestOwnerName: `${guestOwner.firstName} ${guestOwner.lastName}`,
+        petName: guestPet.name,
+        claimStatus: guestOwner.claimStatus,
+        hasRealEmail,
+        isWalkIn: appointment.isWalkIn,
+        isEmergency: appointment.isEmergency,
+        nameDuplicateWarning: nameConflict ? nameConflict._id.toString() : null,
+      },
+    });
+
+    // ── Auto-send claim invite if a real email was provided ───────────────────
+    // Non-blocking: a failure here never rolls back the appointment creation.
+    let inviteSent = false;
+    if (hasRealEmail) {
+      try {
+        const claimToken = crypto.randomBytes(32).toString('hex');
+        const claimTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await User.findByIdAndUpdate(guestOwner._id, {
+          claimToken,
+          claimTokenExpires,
+          claimStatus: 'invited',
+          claimInviteSentAt: new Date(),
+        });
+
+        let clinicName = 'the clinic';
+        const clinicDoc = await Clinic.findById(clinicId).select('name');
+        if (clinicDoc) clinicName = clinicDoc.name;
+
+        await sendGuestClaimInviteEmail({
+          ownerEmail: guestOwner.email,
+          ownerFirstName: guestOwner.firstName,
+          clinicName,
+          claimToken,
+        });
+
+        await AuditTrail.create({
+          action: 'guest_claim_invite_sent',
+          actorUserId: req.user.userId,
+          targetUserId: guestOwner._id,
+          clinicId,
+          clinicBranchId,
+          metadata: {
+            ownerName: `${guestOwner.firstName} ${guestOwner.lastName}`,
+            email: guestOwner.email,
+            expiresAt: claimTokenExpires,
+            autoSentOnCreation: true,
+          },
+        });
+
+        inviteSent = true;
+      } catch (emailErr) {
+        console.error('[Guest intake] Auto-invite email failed (non-blocking):', emailErr);
+      }
+    }
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: 'Guest intake appointment created successfully',
+      data: {
+        appointment,
+        guestOwner: {
+          _id: guestOwner._id,
+          firstName: guestOwner.firstName,
+          lastName: guestOwner.lastName,
+          email: hasRealEmail ? guestOwner.email : null,
+          contactNumber: guestOwner.contactNumber,
+          isGuest: true,
+          claimStatus: inviteSent ? 'invited' : guestOwner.claimStatus,
+        },
+        guestPet: {
+          _id: guestPet._id,
+          name: guestPet.name,
+          species: guestPet.species,
+          breed: guestPet.breed,
+          sex: guestPet.sex,
+        },
+        rescheduledAppointments,
+        nameDuplicateWarning: nameConflict
+          ? `A guest named "${nameConflict.firstName} ${nameConflict.lastName}" already exists at this clinic. Please confirm this is a different person.`
+          : null,
+        inviteSent,
+      },
+    });
+  } catch (error: any) {
+    console.error('Create guest intake error:', error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
+    }
+    if (error.code === 11000) {
+      // Identify which unique field caused the violation so the message is accurate.
+      const conflictField = Object.keys(error.keyPattern || {})[0] || '';
+      if (conflictField.includes('contactNumber')) {
+        return res.status(409).json({ status: 'ERROR', message: 'A user with this contact number already exists' });
+      }
+      return res.status(409).json({ status: 'ERROR', message: 'A user with this email already exists' });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the guest intake' });
+  }
+};
+
+/**
+ * POST /api/appointments/clinic/guest/:ownerId/send-claim-invite
+ * Send a claim invite email to a guest owner (clinic admin only).
+ */
+export const sendGuestClaimInvite = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId } = req.params;
+    const guestOwner = await User.findById(ownerId).select('+claimToken +claimTokenExpires');
+    if (!guestOwner || !guestOwner.isGuest) {
+      return res.status(404).json({ status: 'ERROR', message: 'Guest owner not found' });
+    }
+
+    // Require real email before sending invite
+    if (!guestOwner.email || isGuestPlaceholderEmail(guestOwner.email)) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Cannot send claim invite — no email address on file. Please add an email first.',
+        claimStatus: 'unclaimable',
+      });
+    }
+
+    if (guestOwner.claimStatus === 'claimed') {
+      return res.status(400).json({ status: 'ERROR', message: 'This guest account has already been claimed' });
+    }
+
+    // Generate claim token (expires in 7 days)
+    const claimToken = crypto.randomBytes(32).toString('hex');
+    const claimTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    guestOwner.claimToken = claimToken;
+    guestOwner.claimTokenExpires = claimTokenExpires;
+    guestOwner.claimStatus = 'invited';
+    guestOwner.claimInviteSentAt = new Date();
+    await guestOwner.save();
+
+    // Resolve clinic name for the email
+    let clinicName = 'the clinic';
+    if (guestOwner.guestClinicId) {
+      const clinic = await Clinic.findById(guestOwner.guestClinicId).select('name');
+      if (clinic) clinicName = clinic.name;
+    }
+
+    await sendGuestClaimInviteEmail({
+      ownerEmail: guestOwner.email,
+      ownerFirstName: guestOwner.firstName,
+      clinicName,
+      claimToken,
+    });
+
+    // Audit log
+    await AuditTrail.create({
+      action: 'guest_claim_invite_sent',
+      actorUserId: req.user.userId,
+      targetUserId: guestOwner._id,
+      clinicId: guestOwner.guestClinicId || null,
+      clinicBranchId: null,
+      metadata: {
+        ownerName: `${guestOwner.firstName} ${guestOwner.lastName}`,
+        email: guestOwner.email,
+        expiresAt: claimTokenExpires,
+      },
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: `Claim invite sent to ${guestOwner.email}`,
+      data: { claimStatus: 'invited', claimInviteSentAt: guestOwner.claimInviteSentAt },
+    });
+  } catch (error) {
+    console.error('Send guest claim invite error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while sending the claim invite' });
+  }
+};
+
+/**
+ * PATCH /api/appointments/clinic/guest/:ownerId/update-email
+ * Update a guest owner's email address (and optionally trigger a claim invite).
+ * Body: { email: string, sendInvite?: boolean }
+ */
+export const updateGuestEmail = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId } = req.params;
+    const { email, sendInvite } = req.body;
+
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Email is required' });
+    }
+
+    const trimmedEmail = String(email).trim().toLowerCase();
+    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide a valid email address' });
+    }
+
+    const guestOwner = await User.findById(ownerId).select('+claimToken +claimTokenExpires');
+    if (!guestOwner || !guestOwner.isGuest) {
+      return res.status(404).json({ status: 'ERROR', message: 'Guest owner not found' });
+    }
+
+    if (guestOwner.claimStatus === 'claimed') {
+      return res.status(400).json({ status: 'ERROR', message: 'This guest account has already been claimed' });
+    }
+
+    // Check email uniqueness against other users
+    const conflict = await User.findOne({ email: trimmedEmail, _id: { $ne: guestOwner._id } });
+    if (conflict) {
+      return res.status(409).json({
+        status: 'ERROR',
+        message: conflict.isGuest
+          ? 'Another guest already uses this email.'
+          : 'A registered account already uses this email. The pet owner should log in and use the existing account.',
+      });
+    }
+
+    const oldEmail = guestOwner.email;
+    guestOwner.email = trimmedEmail;
+    if (guestOwner.claimStatus === 'unclaimable') {
+      guestOwner.claimStatus = 'unclaimed';
+    }
+    await guestOwner.save();
+
+    // Audit log
+    await AuditTrail.create({
+      action: 'guest_email_updated',
+      actorUserId: req.user.userId,
+      targetUserId: guestOwner._id,
+      clinicId: guestOwner.guestClinicId || null,
+      clinicBranchId: null,
+      metadata: { oldEmail, newEmail: trimmedEmail, ownerName: `${guestOwner.firstName} ${guestOwner.lastName}` },
+    });
+
+    // Optionally send claim invite immediately
+    if (sendInvite) {
+      const claimToken = crypto.randomBytes(32).toString('hex');
+      const claimTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      guestOwner.claimToken = claimToken;
+      guestOwner.claimTokenExpires = claimTokenExpires;
+      guestOwner.claimStatus = 'invited';
+      guestOwner.claimInviteSentAt = new Date();
+      await guestOwner.save();
+
+      let clinicName = 'the clinic';
+      if (guestOwner.guestClinicId) {
+        const clinic = await Clinic.findById(guestOwner.guestClinicId).select('name');
+        if (clinic) clinicName = clinic.name;
+      }
+
+      await sendGuestClaimInviteEmail({
+        ownerEmail: trimmedEmail,
+        ownerFirstName: guestOwner.firstName,
+        clinicName,
+        claimToken,
+      });
+
+      await AuditTrail.create({
+        action: 'guest_claim_invite_sent',
+        actorUserId: req.user.userId,
+        targetUserId: guestOwner._id,
+        clinicId: guestOwner.guestClinicId || null,
+        clinicBranchId: null,
+        metadata: { email: trimmedEmail, expiresAt: claimTokenExpires },
+      });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: sendInvite ? `Email updated and claim invite sent to ${trimmedEmail}` : `Email updated to ${trimmedEmail}`,
+      data: {
+        claimStatus: guestOwner.claimStatus,
+        email: trimmedEmail,
+        claimInviteSentAt: guestOwner.claimInviteSentAt,
+      },
+    });
+  } catch (error: any) {
+    console.error('Update guest email error:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({ status: 'ERROR', message: 'This email is already in use' });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating the guest email' });
   }
 };

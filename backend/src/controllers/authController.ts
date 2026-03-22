@@ -698,6 +698,99 @@ export const verifyEmail = async (req: Request, res: Response) => {
 };
 
 /**
+ * Claim a guest account — upgrade a guest User record into a full account.
+ * POST /api/auth/claim-guest
+ * Body: { claimToken, firstName, lastName, password, contactNumber }
+ *
+ * Design: the guest User document (with all its pet/appointment/record links)
+ * is upgraded in-place.  No new User is created, so every existing reference
+ * to the guest's _id stays valid.
+ */
+export const claimGuestAccount = async (req: Request, res: Response) => {
+  try {
+    const { claimToken, firstName, lastName, password, contactNumber } = req.body;
+
+    if (!claimToken || !firstName?.trim() || !lastName?.trim() || !password) {
+      return res.status(400).json({ status: 'ERROR', message: 'claimToken, first name, last name, and password are required.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ status: 'ERROR', message: 'Password must be at least 6 characters.' });
+    }
+
+    // claimToken is stored as-is (not hashed, unlike emailVerificationToken).
+    const guestUser = await User.findOne({
+      claimToken,
+      claimTokenExpires: { $gt: new Date() },
+      isGuest: true,
+      claimStatus: { $in: ['unclaimed', 'invited'] },
+    }).select('+claimToken +claimTokenExpires');
+
+    if (!guestUser) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'This claim link is invalid or has expired. Please ask the clinic to resend your invite.',
+      });
+    }
+
+    // Validate contact number uniqueness if provided.
+    const normalizedContact = normalizeContactNumber(contactNumber);
+    if (normalizedContact) {
+      const existingContact = await User.findOne({
+        contactNumberNormalized: normalizedContact,
+        _id: { $ne: guestUser._id },
+      });
+      if (existingContact) {
+        return res.status(409).json({ status: 'ERROR', message: 'This mobile number is already registered to another account.' });
+      }
+    }
+
+    // Upgrade guest → full account in-place so all associated data (_id refs) stays intact.
+    guestUser.firstName = firstName.trim();
+    guestUser.lastName = lastName.trim();
+    guestUser.password = password;           // pre-save hook hashes this
+    guestUser.isGuest = false;
+    guestUser.claimStatus = 'claimed';
+    guestUser.emailVerified = true;          // claim link proves email ownership
+    guestUser.claimToken = null;
+    guestUser.claimTokenExpires = null;
+    if (normalizedContact) {
+      guestUser.contactNumber = normalizedContact as any;
+    }
+    await guestUser.save();
+
+    const token = generateToken(guestUser);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Account claimed successfully. Welcome to PawSync!',
+      data: {
+        user: {
+          id: guestUser._id,
+          firstName: guestUser.firstName,
+          lastName: guestUser.lastName,
+          email: guestUser.email,
+          userType: guestUser.userType,
+          isVerified: guestUser.isVerified,
+          emailVerified: guestUser.emailVerified,
+        },
+        token,
+      },
+    });
+  } catch (error: any) {
+    console.error('Claim guest account error:', error);
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || '';
+      if (field.includes('contactNumber')) {
+        return res.status(409).json({ status: 'ERROR', message: 'This mobile number is already registered.' });
+      }
+      return res.status(409).json({ status: 'ERROR', message: 'This email is already registered.' });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while claiming the account.' });
+  }
+};
+
+/**
  * Activate a transfer invitation — set name + password for an invited pet-owner account.
  * POST /api/auth/activate-invitation
  * Body: { token, firstName, lastName, password }

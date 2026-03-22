@@ -1,30 +1,7 @@
-import express, { Request, Response } from 'express';
 import http from 'http';
 import dotenv from 'dotenv';
-import cors from 'cors';
-import helmet from 'helmet';
 import { connectDatabase } from './config/database';
-import authRoutes from './routes/authRoutes';
-import petRoutes from './routes/petRoutes';
-import userRoutes from './routes/userRoutes';
-import nfcRoutes from './routes/nfcRoutes';
-import clinicRoutes from './routes/clinicRoutes';
-import verificationRoutes from './routes/verificationRoutes';
-import vetApplicationRoutes from './routes/vetApplicationRoutes';
-import medicalRecordRoutes from './routes/medicalRecordRoutes';
-import appointmentRoutes from './routes/appointmentRoutes';
-import vetScheduleRoutes from './routes/vetScheduleRoutes';
-import vaccinationRoutes from './routes/vaccinationRoutes';
-import vaccineTypeRoutes from './routes/vaccineTypeRoutes';
-import confinementRoutes from './routes/confinementRoutes';
-import billingRoutes from './routes/billingRoutes';
-import productServiceRoutes from './routes/productServiceRoutes';
-import paymentQRRoutes from './routes/paymentQRRoutes';
-import notificationRoutes from './routes/notificationRoutes';
-import petNotesRoutes from './routes/petNotesRoutes';
-import vetReportRoutes from './routes/vetReportRoutes';
-import resignationRoutes from './routes/resignationRoutes';
-import referralRoutes from './routes/referralRoutes';
+import { createApp } from './app';
 import { nfcService } from './services/nfcService';
 import { initNfcWebSocket } from './websocket/nfcWebSocket';
 import { startScheduler } from './utils/scheduler';
@@ -34,98 +11,8 @@ import { ensureNfcTagProduct } from './utils/seedSystemProducts';
 // Load environment variables
 dotenv.config();
 
-const app = express();
+const app = createApp();
 const PORT = process.env.PORT || 5001;
-
-// Simple CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
-  credentials: false
-}));
-
-// Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: false,
-}));
-
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// Health check route
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'OK', message: 'PawSync API is running' });
-});
-
-// Auth routes
-app.use('/api/auth', authRoutes);
-
-// User routes
-app.use('/api/users', userRoutes);
-
-// Pet routes
-app.use('/api/pets', petRoutes);
-
-// Clinic routes
-app.use('/api/clinics', clinicRoutes);
-
-// Verification routes
-app.use('/api/verifications', verificationRoutes);
-
-// Vet application routes
-app.use('/api/vet-applications', vetApplicationRoutes);
-
-// Medical record routes
-app.use('/api/medical-records', medicalRecordRoutes);
-
-// Appointment routes
-app.use('/api/appointments', appointmentRoutes);
-
-// Vet schedule routes
-app.use('/api/vet-schedule', vetScheduleRoutes);
-
-// Vaccination routes
-app.use('/api/vaccinations', vaccinationRoutes);
-
-// Vaccine type routes
-app.use('/api/vaccine-types', vaccineTypeRoutes);
-
-// Confinement / surgery record routes
-app.use('/api/confinement', confinementRoutes);
-
-// Billing routes
-app.use('/api/billings', billingRoutes);
-
-// Product/service catalog routes
-app.use('/api/product-services', productServiceRoutes);
-
-// Payment QR code routes
-app.use('/api/payment-qr', paymentQRRoutes);
-
-// Notification routes
-app.use('/api/notifications', notificationRoutes);
-
-// Pet notes (vet notepad) routes
-app.use('/api/pet-notes', petNotesRoutes);
-
-// Vet report routes
-app.use('/api/vet-reports', vetReportRoutes);
-
-// Resignation routes
-app.use('/api/resignations', resignationRoutes);
-
-// Referral routes
-app.use('/api/referrals', referralRoutes);
-
-// NFC routes
-app.use('/api/nfc', nfcRoutes);
-
-// 404 handler - must be after all routes
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ 
-    status: 'ERROR', 
-    message: `Route ${req.method} ${req.url} not found` 
-  });
-});
 
 // Connect to database and start server
 const startServer = async () => {

@@ -1152,3 +1152,58 @@ export async function sendNewBranchNotification(params: {
     console.error('[Email] sendNewBranchNotification error:', err);
   }
 }
+
+// ─── Guest Claim Invite ────────────────────────────────────────────────────────
+
+export async function sendGuestClaimInviteEmail(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  clinicName: string;
+  claimToken: string;
+}) {
+  try {
+    // Point to the existing /signup page with claim context in query params.
+    // The signup page detects claimToken and enters "claim mode" instead of
+    // the standard registration flow.
+    const claimUrl =
+      `${FRONTEND_URL}/signup` +
+      `?claimToken=${encodeURIComponent(params.claimToken)}` +
+      `&claimEmail=${encodeURIComponent(params.ownerEmail)}` +
+      `&claimFirstName=${encodeURIComponent(params.ownerFirstName)}`;
+
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'PawSync – Claim Your Guest Appointment Records',
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Your Pet's Records Are Waiting!</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p><strong>${params.clinicName}</strong> recorded your pet's information during a recent visit and created a guest profile on your behalf.</p>
+          <p>To access your pet's appointments, medical records, and billing history, create a free PawSync account — or sign in if you already have one.</p>
+          <div style="background:#f3f4f6;border-radius:10px;padding:14px 18px;margin:20px 0;">
+            <p style="margin:0;font-size:14px;color:#374151;">
+              <strong>Important:</strong> You must sign up or sign in using this exact email address:<br/>
+              <span style="color:#5A7C7A;font-weight:600;">${params.ownerEmail}</span><br/>
+              <span style="font-size:12px;color:#6b7280;">Using a different email will not link your guest records.</span>
+            </p>
+          </div>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${claimUrl}" style="background:#5A7C7A;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;">
+              Sign In or Create Account to Claim Records
+            </a>
+          </div>
+          <p style="color:#666;font-size:13px;">
+            Or copy this link into your browser:<br/>
+            <span style="color:#5A7C7A;word-break:break-all;">${claimUrl}</span>
+          </p>
+          <p style="color:#666;font-size:13px;">This link expires in 7 days. If you did not visit ${params.clinicName} recently, you can safely ignore this email.</p>
+          <p style="color:#999;font-size:12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendGuestClaimInviteEmail error:', err);
+  }
+}
+

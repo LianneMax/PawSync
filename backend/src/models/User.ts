@@ -10,6 +10,12 @@ export interface IUser extends Document {
   contactNumberNormalized?: string | null;
   photo?: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
+  isGuest?: boolean;
+  claimStatus?: 'unclaimed' | 'unclaimable' | 'invited' | 'claimed' | null;
+  guestClinicId?: mongoose.Types.ObjectId | null;
+  claimToken?: string | null;
+  claimTokenExpires?: Date | null;
+  claimInviteSentAt?: Date | null;
   resignation?: {
     status: 'none' | 'pending' | 'approved' | 'rejected' | 'completed';
     submittedAt: Date | null;
@@ -42,8 +48,9 @@ const UserSchema = new Schema(
   {
     email: {
       type: String,
-      required: [true, 'Please provide an email'],
+      required: false,   // Guest users may use a placeholder; non-guests validated at application level
       unique: true,
+      sparse: true,      // Allows multiple null values (future-proof; guests always get a placeholder)
       lowercase: true,
       match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email'],
       index: true
@@ -176,6 +183,36 @@ const UserSchema = new Schema(
       type: Date,
       default: null,
       select: false
+    },
+    // ── Guest / Walk-in intake fields ─────────────────────────────────────────
+    isGuest: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    claimStatus: {
+      type: String,
+      enum: ['unclaimed', 'unclaimable', 'invited', 'claimed', null],
+      default: null
+    },
+    guestClinicId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null
+    },
+    claimToken: {
+      type: String,
+      default: null,
+      select: false
+    },
+    claimTokenExpires: {
+      type: Date,
+      default: null,
+      select: false
+    },
+    claimInviteSentAt: {
+      type: Date,
+      default: null
     }
   },
   {

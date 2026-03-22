@@ -9,7 +9,16 @@ export interface TimeSlot {
 export interface Appointment {
   _id: string;
   petId: any;
-  ownerId: any;
+  ownerId: {
+    _id?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    isGuest?: boolean;
+    claimStatus?: 'unclaimed' | 'unclaimable' | 'invited' | 'claimed' | null;
+    claimInviteSentAt?: string | null;
+    [key: string]: any;
+  };
   vetId: any;
   clinicId: any;
   clinicBranchId: any;
@@ -128,6 +137,9 @@ export interface PetOwner {
   firstName: string;
   lastName: string;
   email: string;
+  isGuest?: boolean;
+  claimStatus?: 'unclaimed' | 'unclaimable' | 'invited' | 'claimed' | null;
+  claimInviteSentAt?: string | null;
 }
 
 /**
@@ -234,6 +246,77 @@ export const getAppointmentById = async (id: string, token?: string): Promise<{ 
  */
 export const rescheduleAppointment = async (id: string, data: { date: string; startTime: string; endTime: string }, token?: string) => {
   return authenticatedFetch(`/appointments/${id}/reschedule`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  }, token);
+};
+
+// ==================== GUEST INTAKE ====================
+
+export interface GuestOwnerData {
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail?: string;
+  ownerContact?: string;
+}
+
+export interface GuestPetData {
+  petName: string;
+  petSpecies: 'canine' | 'feline';
+  petBreed: string;
+  petSex: 'male' | 'female';
+  petDateOfBirth: string;
+  petWeight: number;
+  petSterilization: 'spayed' | 'unspayed' | 'neutered' | 'unneutered' | 'unknown';
+}
+
+/**
+ * Create a guest intake appointment (no existing owner account required)
+ */
+export const createGuestIntakeAppointment = async (data: GuestOwnerData & GuestPetData & {
+  vetId?: string;
+  clinicBranchId: string;
+  mode: 'face-to-face';
+  types: string[];
+  date: string;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+  isWalkIn?: boolean;
+  isEmergency?: boolean;
+}, token?: string) => {
+  return authenticatedFetch('/appointments/clinic/guest-intake', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }, token);
+};
+
+/**
+ * Send a claim invite email to a guest owner (clinic admin)
+ */
+export const sendGuestClaimInvite = async (ownerId: string, token?: string): Promise<{
+  status: string;
+  message?: string;
+  data?: { claimStatus: string; claimInviteSentAt: string };
+}> => {
+  return authenticatedFetch(`/appointments/clinic/guest/${ownerId}/send-claim-invite`, {
+    method: 'POST'
+  }, token);
+};
+
+/**
+ * Update a guest owner's email (and optionally send claim invite) (clinic admin)
+ */
+export const updateGuestEmail = async (
+  ownerId: string,
+  data: { email: string; sendInvite?: boolean },
+  token?: string
+): Promise<{
+  status: string;
+  message?: string;
+  data?: { claimStatus: string; email: string; claimInviteSentAt: string | null };
+}> => {
+  return authenticatedFetch(`/appointments/clinic/guest/${ownerId}/update-email`, {
     method: 'PATCH',
     body: JSON.stringify(data)
   }, token);

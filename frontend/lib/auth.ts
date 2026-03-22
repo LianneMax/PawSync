@@ -232,6 +232,25 @@ export const resendVerificationEmail = async (
 };
 
 /**
+ * Claim a guest account — upgrade the guest User record into a full account.
+ * Called from the signup page when it detects a claimToken query param.
+ */
+export const claimGuestAccount = async (data: {
+  claimToken: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+  contactNumber?: string;
+}): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/auth/claim-guest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return await response.json();
+};
+
+/**
  * Make authenticated API request
  */
 export const authenticatedFetch = async (
@@ -257,3 +276,4 @@ export const authenticatedFetch = async (
 
   return await response.json();
 };
+
