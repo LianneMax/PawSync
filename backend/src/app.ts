@@ -31,8 +31,19 @@ import referralRoutes from './routes/referralRoutes';
 export function createApp() {
   const app = express();
 
+  const allowedOrigins = new Set<string>([
+    process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ]);
+
   app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://pawsync.onrender.com',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: false,
   }));
 

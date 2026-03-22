@@ -34,6 +34,32 @@ const POPULATE_BILLING = [
   { path: 'confinementRecordId', select: 'status admissionDate dischargeDate' },
 ];
 
+const getMedicalRecordIdFromBilling = (billing: any): string | null => {
+  if (!billing?.medicalRecordId) return null;
+  if (typeof billing.medicalRecordId === 'string') return billing.medicalRecordId;
+  if (billing.medicalRecordId?._id) return billing.medicalRecordId._id.toString();
+  return billing.medicalRecordId.toString();
+};
+
+const refreshBillingIfNeeded = async (billing: any) => {
+  try {
+    if (!billing || billing.status === 'paid') return billing;
+
+    const medicalRecordId = getMedicalRecordIdFromBilling(billing);
+    if (!medicalRecordId) return billing;
+
+    await syncBillingFromRecord(medicalRecordId);
+    const refreshed = await Billing.findById(billing._id).populate(POPULATE_BILLING);
+    return refreshed || billing;
+  } catch (error) {
+    console.error('[Billing] Auto-refresh on read failed:', error);
+    return billing;
+  }
+};
+
+const refreshBillingsIfNeeded = async (billings: any[] = []) =>
+  Promise.all(billings.map((billing) => refreshBillingIfNeeded(billing)));
+
 /**
  * POST /api/billings
  * Clinic admin / branch admin — create a new billing record.
@@ -198,9 +224,11 @@ export const listBillingsForClinic = async (req: Request, res: Response) => {
     ]);
     console.log('[listBillingsForClinic] found:', total, 'total,', billings.length, 'returned');
 
+    const refreshedBillings = await refreshBillingsIfNeeded(billings as any[]);
+
     // Apply search filter on populated fields (client/patient name)
     const filtered = search
-      ? billings.filter((b) => {
+      ? refreshedBillings.filter((b) => {
           const q = (search as string).toLowerCase();
           const owner = b.ownerId as any;
           const pet = b.petId as any;
@@ -209,7 +237,7 @@ export const listBillingsForClinic = async (req: Request, res: Response) => {
             pet?.name?.toLowerCase().includes(q)
           );
         })
-      : billings;
+      : refreshedBillings;
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -241,8 +269,10 @@ export const listMyInvoices = async (req: Request, res: Response) => {
       .populate(POPULATE_BILLING)
       .sort({ createdAt: -1 });
 
+    const refreshedBillings = await refreshBillingsIfNeeded(billings as any[]);
+
     const filtered = search
-      ? billings.filter((b) => {
+      ? refreshedBillings.filter((b) => {
           const q = (search as string).toLowerCase();
           const pet = b.petId as any;
           return (
@@ -250,7 +280,7 @@ export const listMyInvoices = async (req: Request, res: Response) => {
             b.serviceLabel?.toLowerCase().includes(q)
           );
         })
-      : billings;
+      : refreshedBillings;
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -282,8 +312,10 @@ export const listBillingsForVet = async (req: Request, res: Response) => {
       .populate(POPULATE_BILLING)
       .sort({ createdAt: -1 });
 
+    const refreshedBillings = await refreshBillingsIfNeeded(billings as any[]);
+
     const filtered = search
-      ? billings.filter((b) => {
+      ? refreshedBillings.filter((b) => {
           const q = (search as string).toLowerCase();
           const owner = b.ownerId as any;
           const pet = b.petId as any;
@@ -293,7 +325,7 @@ export const listBillingsForVet = async (req: Request, res: Response) => {
             b.serviceLabel?.toLowerCase().includes(q)
           );
         })
-      : billings;
+      : refreshedBillings;
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -322,9 +354,11 @@ export const getBillingByMedicalRecord = async (req: Request, res: Response) => 
       return res.status(404).json({ status: 'ERROR', message: 'No billing record found for this medical record' });
     }
 
+    const refreshedBilling = await refreshBillingIfNeeded(billing);
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { billing },
+      data: { billing: refreshedBilling },
     });
   } catch (error) {
     console.error('Get billing by medical record error:', error);
@@ -346,9 +380,11 @@ export const getBillingsByConfinementRecord = async (req: Request, res: Response
       .populate(POPULATE_BILLING)
       .sort({ createdAt: -1 });
 
+    const refreshedBillings = await refreshBillingsIfNeeded(billings as any[]);
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { billings, total: billings.length },
+      data: { billings: refreshedBillings, total: refreshedBillings.length },
     });
   } catch (error) {
     console.error('Get billings by confinement record error:', error);
@@ -381,9 +417,11 @@ export const getBillingById = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
     }
 
+    const refreshedBilling = await refreshBillingIfNeeded(billing);
+
     return res.status(200).json({
       status: 'SUCCESS',
-      data: { billing },
+      data: { billing: refreshedBilling },
     });
   } catch (error) {
     console.error('Get billing by id error:', error);
