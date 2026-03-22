@@ -35,7 +35,9 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5001/api/clinics/mine/branches)",
       "Bash(grep -n \"medication\\\\|Medication\" /Users/juliannalammoglia/Desktop/PawSync/frontend/app/dashboard/medical-records/[id]/page.tsx)",
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync -type f -name *.env*)",
-      "Bash(find /Users/juliannalammoglia/Desktop/PawSync -name database* -o -name seed* -o -name migration*)"
+      "Bash(find /Users/juliannalammoglia/Desktop/PawSync -name database* -o -name seed* -o -name migration*)",
+      "Bash(xargs ls:*)",
+      "Bash(grep -r \"export.*function\\\\|export.*const.*=\\\\|class.*extends\" /Users/juliannalammoglia/Desktop/PawSync/backend/src/controllers/*.ts)"
     ]
   }
 }
