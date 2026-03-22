@@ -259,6 +259,59 @@ html {
   animation: slide-down 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+@keyframes toast-slide-in-right {
+  from {
+    transform: var(--y) translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: var(--y) translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out-right {
+  from {
+    transform: var(--y) translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: var(--y) translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Sonner toast UX fixes: keep stacked toasts readable, unclipped, and animated from right */
+[data-sonner-toaster] {
+  overflow: visible !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  overflow: visible;
+  opacity: 1;
+  z-index: max(1000, var(--z-index));
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-expanded='false'][data-front='false'][data-styled='true'] > * {
+  opacity: 1 !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-content],
+[data-sonner-toaster] [data-sonner-toast] [data-title],
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  opacity: 1 !important;
+}
+
+[data-sonner-toaster][data-x-position='right'] [data-sonner-toast][data-mounted='true'][data-removed='false'] {
+  animation: toast-slide-in-right 0.3s ease-out !important;
+}
+
+[data-sonner-toaster][data-x-position='right'] [data-sonner-toast][data-removed='true'][data-swipe-out='false'] {
+  animation: toast-slide-out-right 0.2s ease-in forwards !important;
+}
+
 /*---break---*/
 @layer base {
   * {

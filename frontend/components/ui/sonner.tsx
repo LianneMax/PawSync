@@ -37,6 +37,9 @@ const Toaster = ({
       position={position}
       offset={offset}
       mobileOffset={mobileOffset}
+      expand
+      gap={8}
+      visibleToasts={6}
       className={cn("toaster group pointer-events-none", className)}
       closeButton
       duration={30000}
