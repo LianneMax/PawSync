@@ -61,6 +61,11 @@ export interface ClinicPatient {
   };
   recordCount: number;
   lastVisit: string;
+  status?: string;
+  isAlive?: boolean;
+  isLost?: boolean;
+  isConfined?: boolean;
+  removedByOwner?: boolean;
 }
 
 export interface ClinicPatientsResponse {

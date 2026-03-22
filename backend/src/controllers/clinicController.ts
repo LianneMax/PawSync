@@ -918,6 +918,11 @@ export const getClinicPatients = async (req: Request, res: Response) => {
         return {
           _id: pet._id,
           name: pet.name,
+          status: pet.status,
+          isAlive: pet.isAlive,
+          isLost: pet.isLost,
+          isConfined: pet.isConfined,
+          removedByOwner: pet.removedByOwner,
           species: pet.species,
           breed: pet.breed,
           sex: pet.sex,

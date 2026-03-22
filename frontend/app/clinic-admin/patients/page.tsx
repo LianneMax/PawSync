@@ -406,6 +406,11 @@ function FilesTab() {
 interface NfcPetData {
   _id: string
   name: string
+  status?: string
+  isAlive?: boolean
+  isLost?: boolean
+  isConfined?: boolean
+  removedByOwner?: boolean
   species: string
   breed: string
   sex: string
@@ -1042,7 +1047,13 @@ export default function PatientManagementPage() {
       filtered = filtered.filter((p) => p.species === species)
     }
     if (status !== 'All') {
-      filtered = filtered.filter((p) => getNormalizedPatientStatus(p) === status)
+      filtered = filtered.filter((p) => {
+        const normalized = getNormalizedPatientStatus(p)
+        if (status === 'Alive') {
+          return ['Alive', 'Confined', 'Lost', 'Relocated'].includes(normalized)
+        }
+        return normalized === status
+      })
     }
     if (query.trim()) {
       const q = query.toLowerCase()
@@ -1100,6 +1111,11 @@ export default function PatientManagementPage() {
         photo: petData.photo,
         microchipNumber: petData.microchipNumber,
         bloodType: null,
+        status: petData.status,
+        isAlive: petData.isAlive,
+        isLost: petData.isLost,
+        isConfined: petData.isConfined,
+        removedByOwner: petData.removedByOwner,
         owner: {
           _id: petData.owner._id,
           firstName: petData.owner.firstName,
@@ -1268,6 +1284,9 @@ export default function PatientManagementPage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {filteredPatients.map((patient) => (
+                  (() => {
+                    const petStatus = getNormalizedPatientStatus(patient)
+                    return (
                   <button
                     key={patient._id}
                     onClick={() => setSelectedPatient(patient)}
@@ -1275,14 +1294,16 @@ export default function PatientManagementPage() {
                       selectedPatient?._id === patient._id ? 'bg-[#7FA5A3]/5 border-l-2 border-[#4A8A87]' : 'bg-white'
                     }`}
                   >
-                    <Badge
-                      className={`absolute top-4 right-6 inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide border-0 ${
-                        getStatusBadgeClasses(getNormalizedPatientStatus(patient))
-                      }`}
-                      style={getNormalizedPatientStatus(patient) === 'Lost' ? { backgroundColor: '#FEE2E2' } : undefined}
-                    >
-                      {getNormalizedPatientStatus(patient)}
-                    </Badge>
+                    {petStatus && (
+                      <Badge
+                        className={`absolute top-4 right-6 inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide border-0 ${
+                          getStatusBadgeClasses(petStatus)
+                        }`}
+                        style={petStatus === 'Lost' ? { backgroundColor: '#FEE2E2' } : undefined}
+                      >
+                        {petStatus}
+                      </Badge>
+                    )}
 
                     <div className="flex items-center justify-between gap-4 pr-24">
                       <div className="flex gap-4 flex-1">
@@ -1346,6 +1367,8 @@ export default function PatientManagementPage() {
                       <ChevronRight className="w-5 h-5 text-gray-300 shrink-0" />
                     </div>
                   </button>
+                    )
+                  })()
                 ))}
               </div>
             )}
