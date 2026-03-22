@@ -415,7 +415,7 @@ export default function DashboardLayout({
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-full sm:w-[190px] h-10 px-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between text-sm text-[#4F4F4F]">
+                  <button className="w-full sm:w-47.5 h-10 px-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between text-sm text-[#4F4F4F]">
                     <span>{selectedCategory === 'All' ? 'All Categories' : selectedCategory}</span>
                     <ChevronDown className="w-4 h-4 text-gray-500" />
                   </button>
@@ -433,7 +433,7 @@ export default function DashboardLayout({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-full sm:w-[130px] h-10 px-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between text-sm text-[#4F4F4F]">
+                  <button className="w-full sm:w-32.5 h-10 px-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between text-sm text-[#4F4F4F]">
                     <span>{selectedReadFilter}</span>
                     <ChevronDown className="w-4 h-4 text-gray-500" />
                   </button>

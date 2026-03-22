@@ -244,14 +244,14 @@ export default function AILoadingState() {
                 <div className="relative">
                     <div
                         ref={codeContainerRef}
-                        className="font-mono text-xs overflow-hidden w-full h-[84px] relative rounded-lg"
+                        className="font-mono text-xs overflow-hidden w-full h-21 relative rounded-lg"
                         style={{ scrollBehavior: "smooth" }}
                     >
                         <div>
                             {visibleLines.map((line, index) => (
                                 <div
                                     key={`${line.number}-${line.text}`}
-                                    className="flex h-[28px] items-center px-2"
+                                    className="flex h-7 items-center px-2"
                                 >
                                     <div className="text-gray-400 dark:text-gray-500 pr-3 select-none w-6 text-right">
                                         {line.number}

@@ -268,7 +268,7 @@ export default function ProgressUpload({
             <div key={fileItem.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-start gap-2.5">
                 {/* File Icon */}
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {fileItem.preview && fileItem.file.type.startsWith('image/') ? (
                     <img
                       src={fileItem.preview}

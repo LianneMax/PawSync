@@ -1881,7 +1881,7 @@ export default function PetProfilePage() {
                   removeReason === r.value ? 'border-[#7FA5A3] bg-[#F8F6F2]' : 'border-gray-200 hover:bg-gray-50'
                 }`}
               >
-                <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${removeReason === r.value ? 'border-[#7FA5A3]' : 'border-gray-300'}`}>
+                <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${removeReason === r.value ? 'border-[#7FA5A3]' : 'border-gray-300'}`}>
                   {removeReason === r.value && <span className="w-2 h-2 rounded-full bg-[#7FA5A3]" />}
                 </span>
                 <span className="text-sm text-[#4F4F4F]">{r.label}</span>

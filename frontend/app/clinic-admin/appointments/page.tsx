@@ -2989,7 +2989,7 @@ function ClinicScheduleModal({
                     {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
                       <div key={hour} className="flex gap-2">
                         <div className="w-10 shrink-0 text-right pt-1">
-                          <span className="-ml-[3px] text-[10px] font-medium text-gray-400">
+                          <span className="-ml-0.75 text-[10px] font-medium text-gray-400">
                             {parseInt(hour) > 12 ? parseInt(hour) - 12 : parseInt(hour)}{parseInt(hour) >= 12 ? 'PM' : 'AM'}
                           </span>
                         </div>
