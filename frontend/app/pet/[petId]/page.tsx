@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
@@ -164,7 +163,7 @@ export default function PetProfilePage() {
         setPet(json.data.pet)
         setOwner(json.data.owner)
         setVitals(json.data.vitals)
-        setVaccinations(json.data.vaccinations)
+        setVaccinations(json.data.vaccinations.filter((v) => v.status !== 'pending' && v.status !== 'declined' && !(v.vaccineName || '').toLowerCase().startsWith('pending') && !(v.vaccineName || '').toLowerCase().includes('to be filled by vet')))
         setVaccinationStatus(json.data.vaccinationStatus)
         setError(null)
       } catch (err) {
@@ -674,7 +673,9 @@ export default function PetProfilePage() {
               <div>
                 <div className="mx-5 mt-4 rounded-[19px] overflow-hidden bg-[#EFEFEF]">
                   <div className="divide-y divide-gray-200">
-                    {vaccinations.map((vax) => {
+                    {vaccinations
+                      .filter((item, index, arr) => arr.findIndex((v) => v.vaccineName === item.vaccineName) === index)
+                      .map((vax) => {
                       const dateToShow = vax.expiryDate ?? vax.nextDueDate
                       const isNegative = vax.status === 'overdue' || vax.status === 'expired'
 
