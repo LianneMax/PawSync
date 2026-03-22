@@ -48,7 +48,7 @@ interface Veterinarian {
   role: 'ADMIN' | 'VET' | 'STAFF'
   branch: string
   prcLicense: string
-  status: 'Active' | 'On Leave'
+  status: 'Active' | 'On Leave' | 'Resigned'
   activePatients: number
 }
 
@@ -78,9 +78,22 @@ const emptyVets: Veterinarian[] = []
 const emptyBranches: Branch[] = []
 
 function StatusBadge({ status }: { status: Veterinarian['status'] }) {
+  const statusStyles =
+    status === 'Active'
+      ? 'text-green-600'
+      : status === 'On Leave'
+        ? 'text-red-500'
+        : 'text-gray-500'
+  const dotStyles =
+    status === 'Active'
+      ? 'bg-green-500'
+      : status === 'On Leave'
+        ? 'bg-red-500'
+        : 'bg-gray-400'
+
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-medium ${status === 'Active' ? 'text-green-600' : 'text-red-500'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`} />
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${statusStyles}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dotStyles}`} />
       {status}
     </span>
   )
@@ -299,7 +312,7 @@ export default function ClinicManagementPage() {
               role: 'VET' as const,
               branch: v.branch,
               prcLicense: v.prcLicense,
-              status: (v.status || 'Active') as 'Active' | 'On Leave',
+              status: (v.status || 'Active') as 'Active' | 'On Leave' | 'Resigned',
               activePatients: 0,
             }))
             setVets(apiVets)
@@ -784,7 +797,15 @@ export default function ClinicManagementPage() {
                             <div>
                               <p className="font-medium text-[#4F4F4F] text-sm">{vet.name}</p>
                               <div className="flex items-center gap-1">
-                                <span className={`w-1.5 h-1.5 rounded-full ${vet.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    vet.status === 'Active'
+                                      ? 'bg-green-500'
+                                      : vet.status === 'On Leave'
+                                        ? 'bg-red-500'
+                                        : 'bg-gray-400'
+                                  }`}
+                                />
                                 <p className="text-xs text-gray-500">{vet.email}</p>
                               </div>
                             </div>

@@ -783,7 +783,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
     }
 
     const activeAssignments = await AssignedVet.find(assignmentFilter)
-      .populate('vetId', 'firstName lastName email')
+      .populate('vetId', 'firstName lastName email userType resignation')
       .populate('clinicBranchId', 'name')
       .sort({ assignedAt: -1 });
 
@@ -820,6 +820,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
         const branch = a.clinicBranchId as any;
         const app = appByVetId.get(vet._id.toString());
         const verification = (app?.verificationId) as any;
+        const isResigned = vet.userType === 'inactive' || vet?.resignation?.status === 'completed';
         const isOnLeave = onLeaveVetIds.has(vet._id.toString());
 
         return {
@@ -831,7 +832,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
           initials: `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}`,
           branch: branch?.name || a.clinicName || 'Unassigned',
           prcLicense: verification?.prcLicenseNumber || '-',
-          status: isOnLeave ? 'On Leave' : 'Active',
+          status: isResigned ? 'Resigned' : (isOnLeave ? 'On Leave' : 'Active'),
         };
       });
 
