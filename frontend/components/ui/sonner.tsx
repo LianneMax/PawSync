@@ -43,7 +43,13 @@ const Toaster = ({
       className={cn("toaster group pointer-events-none", className)}
       closeButton
       duration={30000}
-      style={{ fontFamily: 'var(--font-outfit), sans-serif', zIndex: TOASTER_Z_INDEX }}
+      style={{
+        fontFamily: 'var(--font-outfit), sans-serif',
+        zIndex: TOASTER_Z_INDEX,
+        '--normal-bg': '#ffffff',
+        '--normal-border': 'hsl(var(--border))',
+        '--normal-text': 'hsl(var(--foreground))',
+      } as React.CSSProperties}
       toastOptions={{
         ...toastOptions,
         style: {

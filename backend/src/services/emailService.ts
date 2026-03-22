@@ -307,9 +307,9 @@ export async function sendAppointmentDisplacedByEmergency(params: {
           <h2 style="color: #5A7C7A;">Appointment Rescheduled – Emergency Override</h2>
           <p>Hi ${params.ownerFirstName},</p>
           <p>We sincerely apologize for the inconvenience. Your appointment for <strong>${params.petName}</strong> with <strong>Dr. ${params.vetName}</strong> at <strong>${params.clinicName}</strong> has been moved due to an emergency patient that required immediate attention.</p>
-          <div style="background: #fff7ed; border: 1px solid #fdba74; padding: 16px; border-radius: 12px; margin: 20px 0;">
-            <p style="margin: 4px 0; color: #9a3412;"><strong>Original Schedule</strong></p>
-            <p style="margin: 4px 0; text-decoration: line-through; color: #9a3412;">${formatDate(params.originalDate)} at ${params.originalTime}</p>
+          <div style="background: #fef2f2; border: 1px solid #fca5a5; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0; color: #900B09;"><strong>Original Schedule</strong></p>
+            <p style="margin: 4px 0; text-decoration: line-through; color: #900B09;">${formatDate(params.originalDate)} at ${params.originalTime}</p>
           </div>
           <div style="background: #f0fdf4; border: 1px solid #86efac; padding: 16px; border-radius: 12px; margin: 20px 0;">
             <p style="margin: 4px 0; color: #166534;"><strong>New Schedule</strong></p>
@@ -319,7 +319,7 @@ export async function sendAppointmentDisplacedByEmergency(params: {
           </div>
           <p style="color: #444;">If this new schedule does not work for you, you may cancel and book a new appointment at a time that suits you best.</p>
           <div style="display: flex; gap: 12px; margin: 24px 0;">
-            <a href="${cancelUrl}" style="background: #ef4444; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-right: 12px;">Cancel Appointment</a>
+            <a href="${cancelUrl}" style="background: #900B09; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-right: 12px;">Cancel Appointment</a>
             <a href="${rescheduleUrl}" style="background: #5A7C7A; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold;">Reschedule Instead</a>
           </div>
           <p style="color: #999; font-size: 12px;">We appreciate your understanding and patience. – PawSync Team</p>
