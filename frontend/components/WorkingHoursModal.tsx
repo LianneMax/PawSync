@@ -435,7 +435,7 @@ export default function WorkingHoursModal({ open, onClose, token }: WorkingHours
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl [&>button]:hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <DialogTitle className="text-lg font-semibold text-[#2C3E2D]">Working Hours</DialogTitle>
           <button
             onClick={onClose}
@@ -446,7 +446,7 @@ export default function WorkingHoursModal({ open, onClose, token }: WorkingHours
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+        <div className="px-4 py-4 max-h-[70vh] overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-10">
               <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />

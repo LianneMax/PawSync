@@ -27,6 +27,7 @@ import petNotesRoutes from './routes/petNotesRoutes';
 import vetReportRoutes from './routes/vetReportRoutes';
 import resignationRoutes from './routes/resignationRoutes';
 import referralRoutes from './routes/referralRoutes';
+import vetLeaveRoutes from './routes/vetLeaveRoutes';
 
 export function createApp() {
   const app = express();
@@ -75,6 +76,7 @@ export function createApp() {
   app.use('/api/vet-reports', vetReportRoutes);
   app.use('/api/resignations', resignationRoutes);
   app.use('/api/referrals', referralRoutes);
+  app.use('/api/vet-leave', vetLeaveRoutes);
   app.use('/api/nfc', nfcRoutes);
 
   app.use((req: Request, res: Response) => {

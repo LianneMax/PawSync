@@ -14,6 +14,7 @@ import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
 import { updateBranchStatus } from '../services/branchStatusService';
 import { sendVetInvitation, sendBranchOTP, sendNewBranchNotification } from '../services/emailService';
+import VetLeave from '../models/VetLeave';
 
 // ─── In-memory OTP store (email → { otp, expiresAt }) ────────────────────────
 const branchOtpStore = new Map<string, { otp: string; expiresAt: number }>();
@@ -798,6 +799,20 @@ export const getClinicVets = async (req: Request, res: Response) => {
       approvedApplications.map((app) => [app.vetId.toString(), app])
     );
 
+    // Check which vets are on approved leave today (show On Leave only on the actual day)
+    const todayUTCStart = new Date();
+    todayUTCStart.setUTCHours(0, 0, 0, 0);
+    const todayUTCEnd = new Date();
+    todayUTCEnd.setUTCHours(23, 59, 59, 999);
+
+    const todayLeaves = await VetLeave.find({
+      vetId: { $in: vetIds },
+      date: { $gte: todayUTCStart, $lte: todayUTCEnd },
+      status: 'active',
+    }).select('vetId');
+
+    const onLeaveVetIds = new Set(todayLeaves.map((l) => l.vetId.toString()));
+
     const vets = activeAssignments
       .filter((a) => a.vetId)
       .map((a) => {
@@ -805,6 +820,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
         const branch = a.clinicBranchId as any;
         const app = appByVetId.get(vet._id.toString());
         const verification = (app?.verificationId) as any;
+        const isOnLeave = onLeaveVetIds.has(vet._id.toString());
 
         return {
           _id: app?._id || a._id,
@@ -815,7 +831,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
           initials: `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}`,
           branch: branch?.name || a.clinicName || 'Unassigned',
           prcLicense: verification?.prcLicenseNumber || '-',
-          status: 'Active',
+          status: isOnLeave ? 'On Leave' : 'Active',
         };
       });
 

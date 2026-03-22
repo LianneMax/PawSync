@@ -14,6 +14,7 @@ import Billing from '../models/Billing';
 import ProductService from '../models/ProductService';
 import AuditTrail from '../models/AuditTrail';
 import { sendAppointmentBooked, sendAppointmentCancelled, sendAppointmentDisplacedByEmergency, sendGuestClaimInviteEmail } from '../services/emailService';
+import VetLeave from '../models/VetLeave';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { getClinicForAdmin } from './clinicController';
@@ -302,6 +303,21 @@ export const createAppointment = async (req: Request, res: Response) => {
       }
     }
 
+    // ─── Vet leave check ──────────────────────────────────────────────────────────────
+    if (hasOtherServices && vetId) {
+      const [apptY, apptM, apptD] = (date as string).split('-').map(Number);
+      const leaveStart = new Date(Date.UTC(apptY, apptM - 1, apptD, 0, 0, 0, 0));
+      const leaveEnd = new Date(Date.UTC(apptY, apptM - 1, apptD, 23, 59, 59, 999));
+      const vetOnLeave = await VetLeave.findOne({
+        vetId,
+        date: { $gte: leaveStart, $lte: leaveEnd },
+        status: 'active',
+      });
+      if (vetOnLeave) {
+        return res.status(400).json({ status: 'ERROR', message: 'This veterinarian is on approved leave on the selected date.' });
+      }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────────
     // Pet-specific conflict validation
     // ─────────────────────────────────────────────────────────────────────────────────
@@ -542,6 +558,16 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     const [qy, qm, qd] = (date as string).split('-').map(Number);
     const dayStart = new Date(Date.UTC(qy, qm - 1, qd, 0, 0, 0, 0));
     const dayEnd = new Date(Date.UTC(qy, qm - 1, qd, 23, 59, 59, 999));
+
+    // Check if vet is on approved leave on this date
+    const vetLeave = await VetLeave.findOne({
+      vetId: vetId as string,
+      date: { $gte: dayStart, $lte: dayEnd },
+      status: 'active',
+    });
+    if (vetLeave) {
+      return res.status(200).json({ status: 'SUCCESS', data: { slots: [], isClosed: true, isOnLeave: true } });
+    }
 
     // Get all booked/confirmed slots for that vet on that date
     const booked = await Appointment.find({
@@ -1386,6 +1412,21 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     // For grooming-only appointments, clear vetId to null
     if (hasClinicGrooming && !hasClinicMedical) {
       vetId = null;
+    }
+
+    // ─── Vet leave check ──────────────────────────────────────────────────────────────
+    if (hasClinicMedical && vetId && !isEmergency) {
+      const [clinicApptY, clinicApptM, clinicApptD] = (date as string).split('-').map(Number);
+      const clinicLeaveStart = new Date(Date.UTC(clinicApptY, clinicApptM - 1, clinicApptD, 0, 0, 0, 0));
+      const clinicLeaveEnd = new Date(Date.UTC(clinicApptY, clinicApptM - 1, clinicApptD, 23, 59, 59, 999));
+      const vetOnLeaveForClinic = await VetLeave.findOne({
+        vetId,
+        date: { $gte: clinicLeaveStart, $lte: clinicLeaveEnd },
+        status: 'active',
+      });
+      if (vetOnLeaveForClinic) {
+        return res.status(400).json({ status: 'ERROR', message: 'This veterinarian is on approved leave on the selected date.' });
+      }
     }
 
     // Check if the slot is already taken (skip for emergency appointments)

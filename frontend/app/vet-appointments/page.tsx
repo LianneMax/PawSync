@@ -16,6 +16,7 @@ import { getRecordByAppointment } from '@/lib/medicalRecords'
 import dynamic from 'next/dynamic'
 const MedicalRecordStagedModal = dynamic(() => import('@/components/MedicalRecordStagedModal'), { ssr: false })
 const WorkingHoursModal = dynamic(() => import('@/components/WorkingHoursModal'), { ssr: false })
+const VetLeaveModal = dynamic(() => import('@/components/VetLeaveModal'), { ssr: false })
 import {
   Calendar,
   Clock,
@@ -32,7 +33,11 @@ import {
   CheckCircle,
   Coffee,
   Syringe,
+  CalendarX,
+  Plus,
+  Trash2,
 } from 'lucide-react'
+import { getMyLeaves, cancelLeave as cancelVetLeave, type VetLeave } from '@/lib/vetLeave'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -170,6 +175,10 @@ export default function VetAppointmentsPage() {
   // Working hours modal state
   const [workingHoursOpen, setWorkingHoursOpen] = useState(false)
 
+  // Leave state
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false)
+  const [cancellingLeaveId, setCancellingLeaveId] = useState<string | null>(null)
+
   // Staged modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
@@ -200,6 +209,36 @@ export default function VetAppointmentsPage() {
     () => authenticatedFetch('/vet-schedule/mine', { method: 'GET' }, token!),
   )
   const schedules: BranchSchedule[] = scheduleData?.data?.schedules ?? []
+
+  const { data: leavesData, mutate: refreshLeaves } = useSWR(
+    token ? '/vet-leave/mine' : null,
+    () => getMyLeaves(token!),
+  )
+  const leaves: VetLeave[] = leavesData?.data?.leaves ?? []
+
+  // Set of YYYY-MM-DD strings for leave dates (for mini-calendar highlighting)
+  const leaveDateSet = new Set(
+    leaves.map((l) => {
+      const d = new Date(l.date)
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+    })
+  )
+
+  const handleCancelLeave = async (leaveId: string) => {
+    if (!token) return
+    setCancellingLeaveId(leaveId)
+    try {
+      const res = await cancelVetLeave(leaveId, token)
+      if (res.status === 'SUCCESS') {
+        toast.success('Leave cancelled')
+        refreshLeaves()
+      } else {
+        toast.error(res.message || 'Failed to cancel leave')
+      }
+    } finally {
+      setCancellingLeaveId(null)
+    }
+  }
 
   // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
@@ -694,15 +733,16 @@ export default function VetAppointmentsPage() {
                     const isSelected = dateStr === calendarDate
                     const isToday = dateStr === today
                     const hasDot = datesWithAppointments.has(dateStr)
+                    const isLeave = leaveDateSet.has(dateStr)
                     return (
                       <div key={day} className="flex flex-col items-center py-0.5">
                         <button
-                          onClick={() => {
-                            setCalendarDate(dateStr)
-                          }}
+                          onClick={() => setCalendarDate(dateStr)}
                           className={`w-8 h-8 rounded-full text-xs font-medium transition-all flex items-center justify-center
                             ${isSelected
-                              ? 'bg-[#7FA5A3] text-white'
+                              ? isLeave ? 'bg-red-400 text-white' : 'bg-[#7FA5A3] text-white'
+                              : isLeave
+                              ? 'bg-red-50 text-red-500 ring-1 ring-red-200'
                               : isToday
                               ? 'bg-[#7FA5A3]/15 text-[#476B6B] font-bold'
                               : 'text-[#4F4F4F] hover:bg-gray-100'
@@ -710,8 +750,11 @@ export default function VetAppointmentsPage() {
                         >
                           {day}
                         </button>
-                        {hasDot && !isSelected && (
+                        {hasDot && !isSelected && !isLeave && (
                           <div className="w-1 h-1 rounded-full bg-[#7FA5A3] mt-0.5" />
+                        )}
+                        {isLeave && !isSelected && (
+                          <div className="w-1 h-1 rounded-full bg-red-400 mt-0.5" />
                         )}
                       </div>
                     )
@@ -743,57 +786,108 @@ export default function VetAppointmentsPage() {
               </div>
 
               {/* Working Hours */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-[#4F4F4F]">Working Hours</h3>
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-[#4F4F4F]">Working Hours</h3>
                   <button
                     onClick={() => setWorkingHoursOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 text-[11px] font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="w-3 h-3" />
                     Edit
                   </button>
                 </div>
                 {schedulesLoading ? (
-                  <div className="flex justify-center py-4">
-                    <div className="w-5 h-5 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                  <div className="flex justify-center py-3">
+                    <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : schedules.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-gray-200 rounded-xl">
-                    <Building2 className="w-8 h-8 text-gray-300 mx-auto mb-1.5" />
-                    <p className="text-xs text-gray-400">No clinic assignments yet</p>
+                  <div className="text-center py-3 border border-dashed border-gray-200 rounded-xl">
+                    <Building2 className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+                    <p className="text-[11px] text-gray-400">No clinic assignments yet</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {schedules.map((s) => (
-                      <div key={s.branchId} className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="text-sm font-medium text-[#2C3E2D]">{s.branchName}</p>
-                          {s.schedule && (
-                            <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                          )}
+                      <div key={s.branchId} className="pb-2 border-b border-gray-100 last:border-b-0 last:pb-0">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <p className="text-xs font-medium text-[#2C3E2D]">{s.branchName}</p>
+                          {s.schedule && <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />}
                         </div>
-                        {s.branchAddress && (
-                          <p className="text-xs text-gray-400 mb-1">{s.branchAddress}</p>
-                        )}
                         {s.schedule ? (
                           <div className="space-y-0.5">
-                            <p className="text-xs text-gray-600">
+                            <p className="text-[11px] text-gray-500">
                               {formatScheduleTime(s.schedule.startTime)} – {formatScheduleTime(s.schedule.endTime)}
                               {' · '}{s.schedule.workingDays.join(', ')}
                             </p>
                             {s.schedule.breakStart && s.schedule.breakEnd && (
-                              <p className="text-xs text-gray-400 flex items-center gap-1">
+                              <p className="text-[11px] text-gray-400 flex items-center gap-1">
                                 <Coffee className="w-3 h-3" />
                                 Break: {formatScheduleTime(s.schedule.breakStart)} – {formatScheduleTime(s.schedule.breakEnd)}
                               </p>
                             )}
                           </div>
                         ) : (
-                          <p className="text-xs text-amber-500">No schedule set</p>
+                          <p className="text-[11px] text-amber-500">No schedule set</p>
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Leave */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-[#4F4F4F]">Leave</h3>
+                  <button
+                    onClick={() => setLeaveModalOpen(true)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 text-[11px] font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    File Leave
+                  </button>
+                </div>
+
+                {leaves.length === 0 ? (
+                  <div className="text-center py-3 border border-dashed border-gray-200 rounded-xl">
+                    <CalendarX className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+                    <p className="text-[11px] text-gray-400">No upcoming leave</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {leaves.map((leave) => {
+                      const leaveDate = new Date(leave.date)
+                      const dateLabel = leaveDate.toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+                      })
+                      return (
+                        <div key={leave._id} className="flex items-start justify-between gap-2 pb-2 border-b border-gray-100 last:border-b-0 last:pb-0">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                              <p className="text-xs font-medium text-[#4F4F4F] truncate">{dateLabel}</p>
+                            </div>
+                            {leave.affectedAppointmentCount > 0 && (
+                              <p className="text-[11px] text-gray-400 ml-3">
+                                {leave.affectedAppointmentCount} appt{leave.affectedAppointmentCount > 1 ? 's' : ''} affected
+                              </p>
+                            )}
+                            {leave.reason && (
+                              <p className="text-[11px] text-gray-400 ml-3 truncate">{leave.reason}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleCancelLeave(leave._id)}
+                            disabled={cancellingLeaveId === leave._id}
+                            className="shrink-0 p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                            title="Cancel leave"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -888,6 +982,16 @@ export default function VetAppointmentsPage() {
           open={workingHoursOpen}
           onClose={() => { setWorkingHoursOpen(false); refreshSchedules() }}
           token={token}
+        />
+      )}
+
+      {/* Leave Modal */}
+      {token && (
+        <VetLeaveModal
+          open={leaveModalOpen}
+          onClose={() => setLeaveModalOpen(false)}
+          token={token}
+          onSuccess={() => refreshLeaves()}
         />
       )}
 
