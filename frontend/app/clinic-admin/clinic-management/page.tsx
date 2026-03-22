@@ -166,6 +166,7 @@ export default function ClinicManagementPage() {
   const [invitingVetId, setInvitingVetId] = useState<string | null>(null)
   const [inviteSuccessVetId, setInviteSuccessVetId] = useState<string | null>(null)
   const [inviteErrorMsg, setInviteErrorMsg] = useState<string | null>(null)
+  const [inviteTargetBranchId, setInviteTargetBranchId] = useState<string>('')
 
   // Modal states
   const [removeVetOpen, setRemoveVetOpen] = useState(false)
@@ -773,6 +774,7 @@ export default function ClinicManagementPage() {
     setInviteVetSearch('')
     setInviteSuccessVetId(null)
     setInviteErrorMsg(null)
+    setInviteTargetBranchId(user?.clinicBranchId || (branches[0]?.id ?? ''))
     setLoadingAllVets(true)
     try {
       const res = await authenticatedFetch('/clinics/mine/registered-vets', {}, token ?? undefined)
@@ -787,9 +789,9 @@ export default function ClinicManagementPage() {
   }
 
   const handleInviteVet = async (vetId: string) => {
-    const branchId = user?.clinicBranchId
+    const branchId = inviteTargetBranchId
     if (!branchId) {
-      setInviteErrorMsg('Could not determine your current branch. Please refresh and try again.')
+      setInviteErrorMsg('Please select a branch to invite this vet to.')
       return
     }
     setInvitingVetId(vetId)
@@ -1283,14 +1285,26 @@ export default function ClinicManagementPage() {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Read-only current branch display */}
+          {/* Branch selector */}
           <div className="mt-2 flex items-center gap-3 bg-[#F8F6F2] px-4 py-3 rounded-xl">
             <Building2 className="w-4 h-4 text-[#7FA5A3] shrink-0" />
-            <div>
-              <p className="text-xs text-gray-500">Inviting to Branch</p>
-              <p className="text-sm font-semibold text-[#4F4F4F]">
-                {branches.find(b => b.id === user?.clinicBranchId)?.name || 'Current Branch'}
-              </p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-500 mb-1">Inviting to Branch</p>
+              {branches.length <= 1 ? (
+                <p className="text-sm font-semibold text-[#4F4F4F]">
+                  {branches[0]?.name || 'Current Branch'}
+                </p>
+              ) : (
+                <select
+                  value={inviteTargetBranchId}
+                  onChange={(e) => { setInviteTargetBranchId(e.target.value); setInviteSuccessVetId(null) }}
+                  className="w-full text-sm font-semibold text-[#4F4F4F] bg-transparent border-none outline-none cursor-pointer"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

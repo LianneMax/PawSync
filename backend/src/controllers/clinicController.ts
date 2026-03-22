@@ -1058,8 +1058,8 @@ export const inviteVet = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Veterinarian not found' });
     }
 
-    // Cancel any existing pending invitation for this vet to this branch
-    await VetInvitation.deleteMany({ vetId, branchId, status: 'pending' });
+    // Cancel ALL existing pending invitations for this vet (any branch) before creating a new one
+    await VetInvitation.deleteMany({ vetId, status: 'pending' });
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
