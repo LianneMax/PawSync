@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -148,8 +149,6 @@ function dateOnly(dateValue: string) {
 
 export default function VetAppointmentsPage() {
   const { token } = useAuthStore()
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [loading, setLoading] = useState(true)
   const [calendarDate, setCalendarDate] = useState(() => {
     const today = new Date()
     const year = today.getFullYear()
@@ -170,8 +169,6 @@ export default function VetAppointmentsPage() {
 
   // Working hours modal state
   const [workingHoursOpen, setWorkingHoursOpen] = useState(false)
-  const [schedules, setSchedules] = useState<BranchSchedule[]>([])
-  const [schedulesLoading, setSchedulesLoading] = useState(true)
 
   // Staged modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -181,29 +178,13 @@ export default function VetAppointmentsPage() {
   const [activeAppointmentTypes, setActiveAppointmentTypes] = useState<string[]>([])
   const [activeAppointmentDate, setActiveAppointmentDate] = useState<string | null>(null)
 
-  const loadAppointments = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    try {
-      const res = await authenticatedFetch('/appointments/vet', { method: 'GET' }, token)
-      if (res.status === 'SUCCESS' && res.data?.appointments) {
-        // Filter out grooming appointments - vets should not see grooming bookings
-        const filtered = res.data.appointments.filter((a: Appointment) => {
-          const hasGrooming = a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
-          return !hasGrooming
-        })
-        setAppointments(filtered)
-      }
-    } catch (err) {
-      console.error('Failed to load appointments:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    loadAppointments()
-  }, [loadAppointments])
+  const { data: apptData, isLoading: loading, mutate: refreshAppointments } = useSWR(
+    token ? '/appointments/vet' : null,
+    () => authenticatedFetch('/appointments/vet', { method: 'GET' }, token!),
+  )
+  const appointments: Appointment[] = (apptData?.data?.appointments ?? []).filter((a: Appointment) =>
+    !a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
+  )
 
   // Update current time every minute
   useEffect(() => {
@@ -214,24 +195,11 @@ export default function VetAppointmentsPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const loadSchedules = useCallback(async () => {
-    if (!token) return
-    setSchedulesLoading(true)
-    try {
-      const res = await authenticatedFetch('/vet-schedule/mine', { method: 'GET' }, token)
-      if (res.status === 'SUCCESS' && res.data?.schedules) {
-        setSchedules(res.data.schedules)
-      }
-    } catch {
-      /* silent */
-    } finally {
-      setSchedulesLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    loadSchedules()
-  }, [loadSchedules])
+  const { data: scheduleData, isLoading: schedulesLoading, mutate: refreshSchedules } = useSWR(
+    token ? '/vet-schedule/mine' : null,
+    () => authenticatedFetch('/vet-schedule/mine', { method: 'GET' }, token!),
+  )
+  const schedules: BranchSchedule[] = scheduleData?.data?.schedules ?? []
 
   // Filter confirmed + in_progress appointments for the selected calendar date
   const confirmedForDate = appointments.filter((a) => {
@@ -303,7 +271,7 @@ export default function VetAppointmentsPage() {
           setActiveAppointmentTypes(appt.types || [])
           setActiveAppointmentDate(appt.date || null)
           setModalOpen(true)
-          loadAppointments()
+          refreshAppointments()
         }
       } else {
         toast.error(res.message || 'Failed to check in patient')
@@ -341,7 +309,7 @@ export default function VetAppointmentsPage() {
     setActivePetId(null)
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
-    loadAppointments()
+    refreshAppointments()
   }
 
   const handleModalClose = () => {
@@ -351,7 +319,7 @@ export default function VetAppointmentsPage() {
     setActivePetId(null)
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
-    loadAppointments()
+    refreshAppointments()
   }
 
   const handleCancel = (id: string) => {
@@ -380,7 +348,7 @@ export default function VetAppointmentsPage() {
           </div>,
           { duration: 5000 }
         )
-        loadAppointments()
+        refreshAppointments()
         setAppointmentToCancel(null)
       } else {
         toast.error(res.message || 'Failed to cancel')
@@ -918,7 +886,7 @@ export default function VetAppointmentsPage() {
       {token && (
         <WorkingHoursModal
           open={workingHoursOpen}
-          onClose={() => { setWorkingHoursOpen(false); loadSchedules() }}
+          onClose={() => { setWorkingHoursOpen(false); refreshSchedules() }}
           token={token}
         />
       )}

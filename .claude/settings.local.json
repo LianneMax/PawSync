@@ -6,7 +6,8 @@
       "Bash(npx shadcn@latest:*)",
       "Bash(dir:*)",
       "Bash(test:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(grep '\"\"swr\"\"' package.json)"
     ]
   }
 }
