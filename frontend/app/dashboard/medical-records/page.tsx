@@ -420,10 +420,10 @@ function MedicalRecordsPageContent() {
                     <div className="grid grid-cols-2 gap-3">
                       {viewRecord.images.map((img, idx) => (
                         <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
-                          {img.data ? (
+                          {img.url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={`data:${img.contentType};base64,${img.data}`}
+                              src={img.url}
                               alt={img.description || `Image ${idx + 1}`}
                               className="w-full h-40 object-cover"
                             />

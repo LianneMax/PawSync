@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { createMedicalRecord, getSurgeryServices, type ProductService } from '@/lib/medicalRecords'
+import { uploadImage } from '@/lib/upload'
 import { toast } from 'sonner'
 import { Upload, X, Check, Loader2, ChevronDown } from 'lucide-react'
 import {
@@ -85,21 +86,15 @@ export default function SurgeryMedicalRecordModal({
       return
     }
 
-    const reader = new FileReader()
-    reader.onloadend = () => {
+    uploadImage(file, 'medical-records').then((url) => {
       setImages((prev) =>
         prev.map((img) =>
           img.type === type
-            ? {
-                ...img,
-                file,
-                preview: reader.result as string,
-              }
+            ? { ...img, file, preview: url }
             : img
         )
       )
-    }
-    reader.readAsDataURL(file)
+    }).catch(console.error)
   }
 
   const removeImage = (type: 'before' | 'during' | 'after') => {
@@ -126,16 +121,10 @@ export default function SurgeryMedicalRecordModal({
 
     setSubmitting(true)
     try {
-      // Convert images to base64
-      const imageData: { data: string; contentType: string; description: string }[] = []
-      
+      const imageData: { url: string; description: string }[] = []
       for (const img of images) {
         if (img.preview) {
-          imageData.push({
-            data: img.preview,
-            contentType: 'image/jpeg',
-            description: `${img.type} surgery image`,
-          })
+          imageData.push({ url: img.preview, description: `${img.type} surgery image` })
         }
       }
 

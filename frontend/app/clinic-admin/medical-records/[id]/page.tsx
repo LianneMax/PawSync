@@ -662,10 +662,10 @@ export default function ClinicAdminMedicalRecordViewPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {record.images.map((img, index) => (
                       <div key={img._id || index} className="border border-gray-200 rounded-xl overflow-hidden">
-                        {img.data && (
+                        {img.url && (
                           <div className="aspect-video bg-gray-50">
                             <img
-                              src={`data:${img.contentType};base64,${img.data}`}
+                              src={img.url}
                               alt={img.description || `Observation ${index + 1}`}
                               className="w-full h-full object-cover"
                             />

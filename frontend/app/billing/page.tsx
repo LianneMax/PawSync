@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { refreshBillingPrices } from '@/lib/billingSync'
+import { uploadImage } from '@/lib/upload'
 import {
   Search,
 
@@ -1006,13 +1007,10 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
     if (!file) return
     if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return }
     setError('')
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      setEditImageData(result)
-      setEditPreview(result)
-    }
-    reader.readAsDataURL(file)
+    uploadImage(file, 'payment-qr').then((url) => {
+      setEditImageData(url)
+      setEditPreview(url)
+    }).catch(() => setError('Failed to upload image.'))
   }
 
   const handleSaveEdit = async (id: string) => {
@@ -1316,13 +1314,10 @@ function UploadQRModal({ onClose }: { onClose: () => void }) {
       return
     }
     setError('')
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      setImageData(result)
-      setPreview(result)
-    }
-    reader.readAsDataURL(file)
+    uploadImage(file, 'payment-qr').then((url) => {
+      setImageData(url)
+      setPreview(url)
+    }).catch(() => setError('Failed to upload image.'))
   }
 
   const handleSave = async () => {
@@ -1733,13 +1728,10 @@ function PayNowModal({
     if (!file) return
     if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return }
     setError('')
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      setScreenshot(result)
-      setScreenshotPreview(result)
-    }
-    reader.readAsDataURL(file)
+    uploadImage(file, 'payment-screenshots').then((url) => {
+      setScreenshot(url)
+      setScreenshotPreview(url)
+    }).catch(() => setError('Failed to upload screenshot.'))
   }
 
   const handleSubmit = async () => {

@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import { uploadImage } from '@/lib/upload'
 import {
   createMedicalRecord,
   createFollowUp,
@@ -1505,15 +1506,9 @@ function CreateRecordModal({
     if (!files) return
 
     Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64 = (reader.result as string).split(',')[1]
-        setImages((prev) => [
-          ...prev,
-          { data: base64, contentType: file.type, description: file.name },
-        ])
-      }
-      reader.readAsDataURL(file)
+      uploadImage(file, 'medical-records').then((url) => {
+        setImages((prev) => [...prev, { url, description: file.name }])
+      }).catch(console.error)
     })
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -2116,13 +2111,13 @@ function ViewRecordModal({
                                     </p>
                                     <div className="grid grid-cols-5 gap-1">
                                       {fu.media.map((m, mi) => {
-                                        const isVideo = m.contentType.startsWith('video/')
-                                        const src = m.data ? `data:${m.contentType};base64,${m.data}` : ''
+                                        const isVideo = m.url?.includes('/video/') || false
+                                        const src = m.url || ''
                                         return (
                                           <button
                                             key={m._id || mi}
                                             type="button"
-                                            onClick={() => setLightboxMedia({ src, contentType: m.contentType, description: m.description })}
+                                            onClick={() => setLightboxMedia({ src, contentType: isVideo ? 'video/mp4' : 'image/*', description: m.description })}
                                             className="relative aspect-square rounded overflow-hidden border border-gray-200 bg-gray-100 hover:opacity-75 transition-opacity"
                                             title={m.description || (isVideo ? `Video ${mi + 1}` : `Image ${mi + 1}`)}
                                           >
@@ -2518,13 +2513,13 @@ function ViewRecordModal({
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                               {test.images.map((img, imgIdx) => (
                                 <div key={img._id || imgIdx} className="relative rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                  {img.data ? (
+                                  {img.url ? (
                                     <>
                                       <img
-                                        src={`data:${img.contentType};base64,${img.data}`}
+                                        src={img.url}
                                         alt={img.description || `Diagnostic test image ${imgIdx + 1}`}
                                         className="w-full h-24 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                        onClick={() => setLightboxMedia({ src: `data:${img.contentType};base64,${img.data}`, contentType: img.contentType, description: img.description })}
+                                        onClick={() => setLightboxMedia({ src: img.url, contentType: 'image/*', description: img.description })}
                                       />
                                       {img.description && (
                                         <div className="absolute bottom-0 left-0 right-0 bg-black/65 text-white text-[10px] px-2 py-1 truncate">
@@ -2735,13 +2730,13 @@ function ViewRecordModal({
                         <div className="grid grid-cols-3 gap-2">
                           {record.surgeryRecord.images.map((img, idx) => (
                             <div key={idx} className="relative rounded-lg overflow-hidden border border-amber-100">
-                              {img.data ? (
+                              {img.url ? (
                                 <>
                                   <img
-                                    src={`data:${img.contentType};base64,${img.data}`}
+                                    src={img.url}
                                     alt={img.description || `Surgery image ${idx + 1}`}
                                     className="w-full h-32 object-cover cursor-pointer hover:opacity-75 transition-opacity"
-                                    onClick={() => setLightboxMedia({ src: `data:${img.contentType};base64,${img.data}`, contentType: img.contentType, description: img.description })}
+                                    onClick={() => setLightboxMedia({ src: img.url, contentType: 'image/*', description: img.description })}
                                   />
                                   {img.description && (
                                     <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-2 py-1 truncate">
@@ -2901,9 +2896,9 @@ function ViewRecordModal({
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {record.images.map((img, idx) => (
                         <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
-                          {img.data ? (
+                          {img.url ? (
                             <img
-                              src={`data:${img.contentType};base64,${img.data}`}
+                              src={img.url}
                               alt={img.description || `Image ${idx + 1}`}
                               className="w-full h-36 object-cover"
                             />
@@ -3187,7 +3182,7 @@ function ViewRecordModal({
             >
               <X className="w-5 h-5" />
             </button>
-            {lightboxMedia.contentType.startsWith('video/') ? (
+            {lightboxMedia.contentType?.startsWith('video/') ? (
               <video
                 src={lightboxMedia.src}
                 controls
@@ -3313,12 +3308,9 @@ function FollowUpRecordModal({
     const files = e.target.files
     if (!files) return
     Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64 = (reader.result as string).split(',')[1]
-        setMedia((prev) => [...prev, { data: base64, contentType: file.type, description: file.name }])
-      }
-      reader.readAsDataURL(file)
+      uploadImage(file, 'medical-records').then((url) => {
+        setMedia((prev) => [...prev, { url, description: file.name }])
+      }).catch(console.error)
     })
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -3696,7 +3688,7 @@ function FollowUpRecordModal({
             {media.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4">
                 {media.map((item, idx) => {
-                  const isVideo = item.contentType.startsWith('video/')
+                  const isVideo = /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(item.url || '')
                   return (
                     <div key={idx} className="relative bg-gray-50 rounded-lg px-3 py-2 pr-8 text-xs text-gray-600 border border-gray-200 flex items-center gap-2">
                       {isVideo

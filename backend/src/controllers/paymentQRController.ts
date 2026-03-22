@@ -33,9 +33,6 @@ export const createPaymentQR = async (req: Request, res: Response) => {
     if (!imageData) {
       return res.status(400).json({ status: 'ERROR', message: 'Image data is required' });
     }
-    if (!imageData.startsWith('data:image/')) {
-      return res.status(400).json({ status: 'ERROR', message: 'Invalid image format' });
-    }
 
     const clinicId = (req.user as any).clinicId || null;
 
@@ -81,9 +78,6 @@ export const updatePaymentQR = async (req: Request, res: Response) => {
     }
 
     if (imageData !== undefined) {
-      if (!imageData.startsWith('data:image/')) {
-        return res.status(400).json({ status: 'ERROR', message: 'Invalid image format' });
-      }
       item.imageData = imageData;
     }
 

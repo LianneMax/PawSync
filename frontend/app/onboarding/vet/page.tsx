@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { DatePicker } from '@/components/ui/date-picker'
 import ProgressUpload from '@/components/progress-upload'
 import AvatarUpload from '@/components/avatar-upload'
+import { uploadImage } from '@/lib/upload'
 
 interface ApiBranch {
   _id: string
@@ -381,11 +382,7 @@ export default function VetOnboardingPage() {
                   maxSize={5 * 1024 * 1024}
                   onFileChange={(file) => {
                     if (file?.file instanceof File) {
-                      const reader = new FileReader()
-                      reader.onloadend = () => {
-                        setProfilePhotoBase64(reader.result as string)
-                      }
-                      reader.readAsDataURL(file.file)
+                      uploadImage(file.file, 'profiles').then(setProfilePhotoBase64).catch(console.error)
                     } else {
                       setProfilePhotoBase64('')
                     }
@@ -539,13 +536,10 @@ export default function VetOnboardingPage() {
                   onFilesChange={(files) => {
                     if (files.length > 0 && files[0].file instanceof File) {
                       setFileName(files[0].file.name)
-                      // Convert file to base64 for storage
-                      const reader = new FileReader()
-                      reader.onloadend = () => {
-                        setPrcIdPhotoBase64(reader.result as string)
+                      uploadImage(files[0].file, 'prc-ids').then((url) => {
+                        setPrcIdPhotoBase64(url)
                         setErrors(prev => ({ ...prev, prcIdPhoto: false }))
-                      }
-                      reader.readAsDataURL(files[0].file)
+                      }).catch(console.error)
                     } else {
                       setFileName('')
                       setPrcIdPhotoBase64('')

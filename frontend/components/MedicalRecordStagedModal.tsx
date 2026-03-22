@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import { uploadImage } from '@/lib/upload'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
 import { getPetById, updatePetConfinement, updatePetPregnancyStatus, markPetDeceased } from '@/lib/pets'
@@ -1337,10 +1338,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setSurgeryImages((prev) =>
           prev.map((slot) => {
             const saved = r.images.find(
-              (img) => img.description === `${slot.type} surgery image` && !!img.data
+              (img) => img.description === `${slot.type} surgery image` && !!img.url
             )
             if (!saved) return slot
-            return { ...slot, preview: `data:${saved.contentType};base64,${saved.data}`, file: null }
+            return { ...slot, preview: saved.url, file: null }
           })
         )
       }
@@ -2473,30 +2474,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string
-        const base64 = result.split(',')[1]
-        setImages((prev) => [...prev, { data: base64, contentType: file.type, description: file.name }])
-      }
-      reader.readAsDataURL(file)
+      uploadImage(file, 'medical-records').then((url) => {
+        setImages((prev) => [...prev, { url, description: file.name }])
+      }).catch(console.error)
     })
   }
 
   const handleTiterImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string
-        const base64 = result.split(',')[1]
-        setTiterImages((prev) => [...prev, {
-          data: base64,
-          contentType: file.type,
-          description: `Titer cassette - ${file.name}`,
-        }])
-      }
-      reader.readAsDataURL(file)
+      uploadImage(file, 'medical-records').then((url) => {
+        setTiterImages((prev) => [...prev, { url, description: `Titer cassette - ${file.name}` }])
+      }).catch(console.error)
     })
     e.target.value = ''
   }
@@ -2504,26 +2493,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const handleDiagnosticTestImageUpload = (testIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string
-        const base64 = result.split(',')[1]
+      uploadImage(file, 'medical-records').then((url) => {
         setDiagnosticTests((prev) => {
           const updated = [...prev]
           if (!updated[testIndex].images) {
             updated[testIndex].images = []
           }
-          // Check if image already exists to prevent duplicates
-          const isDuplicate = updated[testIndex].images!.some((img) => img.description === file.name && img.data === base64)
+          const isDuplicate = updated[testIndex].images!.some((img) => img.description === file.name && img.url === url)
           if (!isDuplicate) {
-            updated[testIndex].images!.push({ data: base64, contentType: file.type, description: file.name })
+            updated[testIndex].images!.push({ url, description: file.name })
           }
           return updated
         })
-      }
-      reader.readAsDataURL(file)
+      }).catch(console.error)
     })
-    // Clear the input so the same file can be uploaded again if needed
     e.target.value = ''
   }
 
@@ -4475,16 +4458,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                   const file = e.target.files?.[0]
                                   if (!file) return
                                   if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
-                                  const reader = new FileReader()
-                                  reader.onloadend = () => {
+                                  uploadImage(file, 'medical-records').then((url) => {
                                     setSurgeryImages((prev) =>
                                       prev.map((i) => i.type === img.type
-                                        ? { type: img.type, file, preview: reader.result as string }
+                                        ? { type: img.type, file, preview: url }
                                         : i
                                       )
                                     )
-                                  }
-                                  reader.readAsDataURL(file)
+                                  }).catch(console.error)
                                 }}
                                 className="hidden"
                               />

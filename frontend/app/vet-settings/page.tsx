@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import AvatarUpload from '@/components/avatar-upload'
+import { uploadImage } from '@/lib/upload'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { Mail, Phone, Lock, Camera } from 'lucide-react'
@@ -225,11 +226,7 @@ export default function VetSettingsPage() {
                       maxSize={5 * 1024 * 1024}
                       onFileChange={(file) => {
                         if (file?.file instanceof File) {
-                          const reader = new FileReader()
-                          reader.onloadend = () => {
-                            setProfilePhoto(reader.result as string)
-                          }
-                          reader.readAsDataURL(file.file)
+                          uploadImage(file.file, 'profiles').then(setProfilePhoto).catch(console.error)
                         } else {
                           setProfilePhoto(null)
                         }

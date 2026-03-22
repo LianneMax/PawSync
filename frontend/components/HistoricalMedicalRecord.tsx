@@ -331,7 +331,7 @@ export function HistoricalMedicalRecord({
                       {entry.images.map((img, imgIndex) => (
                         <img
                           key={imgIndex}
-                          src={`data:${img.contentType};base64,${img.data}`}
+                          src={img.url}
                           alt={img.description || `${entry.testName} image ${imgIndex + 1}`}
                           className="w-full h-24 object-cover rounded-lg border border-blue-100"
                         />
@@ -469,7 +469,7 @@ export function HistoricalMedicalRecord({
                       {op.images.map((img, imgIndex) => (
                         <img
                           key={imgIndex}
-                          src={`data:${img.contentType};base64,${img.data}`}
+                          src={img.url}
                           alt={img.description || `Surgery image ${imgIndex + 1}`}
                           className="w-full h-24 object-cover rounded-lg border border-blue-100"
                         />

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
 import AvatarUpload from '@/components/avatar-upload'
+import { uploadImage } from '@/lib/upload'
 import { PawPrint } from 'lucide-react'
 
 type PetSpecies = 'dog' | 'cat' | null
@@ -61,7 +62,6 @@ function PetOnboardingContent() {
   // Pet Profile state (Step 2)
   const [species, setSpecies] = useState<PetSpecies>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   // Pet Details state (Step 3)
   const [fullName, setFullName] = useState('')
@@ -316,15 +316,9 @@ function PetOnboardingContent() {
                 placeholderIcon={<PawPrint className="size-6 text-muted-foreground" />}
                 onFileChange={(file) => {
                   if (file?.file instanceof File) {
-                    const reader = new FileReader()
-                    reader.onloadend = () => {
-                      setPhotoPreview(reader.result as string)
-                    }
-                    reader.readAsDataURL(file.file)
-                    setPhotoFile(file.file)
+                    uploadImage(file.file, 'pets').then(setPhotoPreview).catch(console.error)
                   } else {
                     setPhotoPreview(null)
-                    setPhotoFile(null)
                   }
                 }}
               >

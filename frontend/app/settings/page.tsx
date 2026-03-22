@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { Eye, EyeOff, Lock, Mail, Phone, User, X, ChevronDown } from 'lucide-react'
 import AvatarUpload from '@/components/avatar-upload'
+import { uploadImage } from '@/lib/upload'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useRef } from 'react'
@@ -622,9 +623,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                 defaultAvatar={pendingPhoto || currentPhoto || authUser?.avatar}
                 onFileChange={(file) => {
                   if (file?.file instanceof File) {
-                    const reader = new FileReader()
-                    reader.onloadend = () => setPendingPhoto(reader.result as string)
-                    reader.readAsDataURL(file.file)
+                    uploadImage(file.file, 'profiles').then(setPendingPhoto).catch(console.error)
                   } else {
                     setPendingPhoto(null)
                   }

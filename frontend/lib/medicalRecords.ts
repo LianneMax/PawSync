@@ -33,8 +33,7 @@ export const emptyVitals = (): Vitals => ({
 
 export interface ImageFragment {
   _id?: string;
-  data?: string; // base64
-  contentType: string;
+  url: string;
   description: string;
 }
 

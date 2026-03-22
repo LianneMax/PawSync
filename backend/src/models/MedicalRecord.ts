@@ -27,7 +27,7 @@ export interface IDiagnosticTest {
   result: string;
   normalRange: string;
   notes: string;
-  images?: { data: Buffer; contentType: string; description: string }[];
+  images?: { url: string; description: string }[];
 }
 
 export interface IPreventiveCare {
@@ -72,7 +72,7 @@ export interface IPregnancyLoss {
 export interface ISurgeryRecord {
   surgeryType: string;
   vetRemarks: string;
-  images?: { data: Buffer; contentType: string; description: string }[];
+  images?: { url: string; description: string }[];
 }
 
 export interface IImmunityTesting {
@@ -100,7 +100,7 @@ export interface IFollowUp {
   ownerObservations: string;
   vetNotes: string;
   sharedWithOwner: boolean;
-  media: { data: Buffer; contentType: string; description: string }[];
+  media: { url: string; description: string }[];
   createdAt: Date;
 }
 
@@ -135,8 +135,7 @@ export interface IMedicalRecord extends Document {
     vaccinated: IVitalEntry;
   };
   images: {
-    data: Buffer;
-    contentType: string;
+    url: string;
     description: string;
   }[];
   visitSummary: string;
@@ -187,13 +186,9 @@ const VitalEntrySchema = new Schema(
 
 const ImageFragmentSchema = new Schema(
   {
-    data: {
-      type: Buffer,
-      required: [true, 'Image data is required']
-    },
-    contentType: {
+    url: {
       type: String,
-      required: [true, 'Content type is required']
+      required: [true, 'Image URL is required']
     },
     description: {
       type: String,

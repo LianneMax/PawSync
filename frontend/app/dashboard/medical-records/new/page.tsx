@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getMyPets, type Pet } from '@/lib/pets'
 import { createMedicalRecord, type Vitals } from '@/lib/medicalRecords'
+import { uploadImage } from '@/lib/upload'
 import {
   ArrowLeft,
   Save,
@@ -137,19 +138,17 @@ function NewMedicalRecordPage() {
 
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith('image/')) return
-      const reader = new FileReader()
-      reader.onload = () => {
+      uploadImage(file, 'medical-records').then((url) => {
         setImages((prev) => [
           ...prev,
           {
             id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             file,
-            preview: reader.result as string,
+            preview: url,
             description: '',
           },
         ])
-      }
-      reader.readAsDataURL(file)
+      }).catch(console.error)
     })
 
     // Reset input so the same file can be re-selected
@@ -193,17 +192,10 @@ function NewMedicalRecordPage() {
         }
       })
 
-      // Convert images to base64 payloads
-      const imagePayloads = await Promise.all(
-        images.map(async (img) => {
-          const base64 = img.preview.split(',')[1] // strip data:image/...;base64,
-          return {
-            data: base64,
-            contentType: img.file.type,
-            description: img.description,
-          }
-        })
-      )
+      const imagePayloads = images.map((img) => ({
+        url: img.preview,
+        description: img.description,
+      }))
 
       const res = await createMedicalRecord(
         {

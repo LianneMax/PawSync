@@ -16,6 +16,7 @@ import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinic
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
+import { uploadImage } from '@/lib/upload'
 import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Cross, Skull, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -849,16 +850,13 @@ export default function PetProfilePage() {
                 defaultAvatar={pet.photo || undefined}
                 onFileChange={(file) => {
                   if (file?.file instanceof File) {
-                    const reader = new FileReader()
-                    reader.onloadend = () => {
-                      const base64 = reader.result as string
+                    uploadImage(file.file, 'pets').then((url) => {
                       if (editing) {
-                        setEditPhoto(base64)
+                        setEditPhoto(url)
                       } else {
-                        handlePhotoChange(base64)
+                        handlePhotoChange(url)
                       }
-                    }
-                    reader.readAsDataURL(file.file)
+                    }).catch(console.error)
                   }
                 }}
               >
@@ -1613,9 +1611,9 @@ export default function PetProfilePage() {
                     <div className="grid grid-cols-2 gap-3">
                       {viewRecord.images.map((img, idx) => (
                         <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
-                          {img.data ? (
+                          {img.url ? (
                             <Image
-                              src={`data:${img.contentType};base64,${img.data}`}
+                              src={img.url}
                               alt={img.description || `Image ${idx + 1}`}
                               width={400}
                               height={160}

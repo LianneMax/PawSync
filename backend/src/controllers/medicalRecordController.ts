@@ -41,19 +41,10 @@ function addMinutesToTime(time: string, minutes: number): string {
   const total = h * 60 + m + minutes;
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
 }
-function toImageBufferArray(images?: Array<{ data: string; contentType: string; description?: string }>) {
+function normalizeImageArray(images?: Array<{ url: string; description?: string }>) {
   return (images || []).map((img) => ({
-    data: Buffer.from(img.data, 'base64'),
-    contentType: img.contentType,
+    url: img.url,
     description: img.description || '',
-  }));
-}
-function serializeImageArray(images?: Array<{ _id?: any; data?: Buffer; contentType: string; description: string }>) {
-  return (images || []).map((img: any) => ({
-    _id: img._id,
-    data: img.data ? img.data.toString('base64') : null,
-    contentType: img.contentType,
-    description: img.description,
   }));
 }
 
@@ -520,12 +511,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       { isCurrent: false }
     );
 
-    // Parse base64 images into Buffers
-    const parsedImages = (images || []).map((img: { data: string; contentType: string; description?: string }) => ({
-      data: Buffer.from(img.data, 'base64'),
-      contentType: img.contentType,
-      description: img.description || ''
-    }));
+    const parsedImages = normalizeImageArray(images);
 
     const record = await MedicalRecord.create({
       petId,
@@ -897,28 +883,14 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     const recordObj = record.toObject() as any;
-    recordObj.images = serializeImageArray(recordObj.images);
-
-    recordObj.diagnosticTests = (recordObj.diagnosticTests || []).map((test: any) => ({
-      ...test,
-      images: serializeImageArray(test.images),
-    }));
-
-    if (recordObj.surgeryRecord) {
-      recordObj.surgeryRecord = {
-        ...recordObj.surgeryRecord,
-        images: serializeImageArray(recordObj.surgeryRecord.images),
-      };
-    }
 
     recordObj.followUps = (recordObj.followUps || []).map((fu: any) => ({
       ...fu,
       media: (fu.media || []).map((m: any) => ({
         _id: m._id,
-        data: m.data ? m.data.toString('base64') : null,
-        contentType: m.contentType,
-        description: m.description
-      }))
+        url: m.url || null,
+        description: m.description,
+      })),
     }));
 
     if (isOwner && !isRecordVet && !isAdmin) {
@@ -1143,7 +1115,7 @@ export const updateRecord = async (req: Request, res: Response) => {
       (record as any).surgeryRecord = surgeryRecord
         ? {
             ...surgeryRecord,
-            images: toImageBufferArray((surgeryRecord as any).images),
+            images: normalizeImageArray((surgeryRecord as any).images),
           }
         : surgeryRecord;
     }
@@ -1161,7 +1133,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (diagnosticTests !== undefined) {
       record.diagnosticTests = (diagnosticTests || []).map((test: any) => ({
         ...test,
-        images: toImageBufferArray(test.images),
+        images: normalizeImageArray(test.images),
       }));
     }
     if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
@@ -1257,7 +1229,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     }
 
     if (images) {
-      record.images = toImageBufferArray(images);
+      record.images = normalizeImageArray(images);
     }
 
     // If marking the record as completed and it's a sterilization appointment, update the pet's sterilization status
@@ -1583,17 +1555,9 @@ export const updateRecord = async (req: Request, res: Response) => {
       data: {
         record: {
           ...record.toObject(),
-          images: serializeImageArray((record.toObject() as any).images),
-          diagnosticTests: ((record.toObject() as any).diagnosticTests || []).map((test: any) => ({
-            ...test,
-            images: serializeImageArray(test.images),
-          })),
-          surgeryRecord: (record.toObject() as any).surgeryRecord
-            ? {
-                ...(record.toObject() as any).surgeryRecord,
-                images: serializeImageArray((record.toObject() as any).surgeryRecord.images),
-              }
-            : null,
+          images: (record.toObject() as any).images,
+          diagnosticTests: (record.toObject() as any).diagnosticTests,
+          surgeryRecord: (record.toObject() as any).surgeryRecord,
         },
         petPregnancy: {
           status: pregnancy.status,
@@ -1677,11 +1641,7 @@ export const createFollowUp = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Owner observations are required' });
     }
 
-    const parsedMedia = (media || []).map((m: { data: string; contentType: string; description?: string }) => ({
-      data: Buffer.from(m.data, 'base64'),
-      contentType: m.contentType,
-      description: m.description || ''
-    }));
+    const parsedMedia = normalizeImageArray(media);
 
     (record.followUps as any[]).push({
       vetId: req.user.userId,
@@ -1696,15 +1656,13 @@ export const createFollowUp = async (req: Request, res: Response) => {
     // Populate vetId on the follow-ups before returning
     await record.populate('followUps.vetId', 'firstName lastName');
 
-    // Serialize media buffers to base64 for the response
     const serializedFollowUps = (record.followUps as any[]).map((fu) => ({
       ...fu.toObject(),
       media: (fu.media || []).map((m: any) => ({
         _id: m._id,
-        data: m.data ? m.data.toString('base64') : null,
-        contentType: m.contentType,
-        description: m.description
-      }))
+        url: m.url || null,
+        description: m.description,
+      })),
     }));
 
     return res.status(201).json({
@@ -1986,11 +1944,10 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
     };
 
     const serializeImage = (img: any) => {
-      if (!img || !img.data) return null;
+      if (!img || !img.url) return null;
       return {
-        contentType: img.contentType,
+        url: img.url,
         description: img.description || '',
-        data: Buffer.isBuffer(img.data) ? img.data.toString('base64') : img.data,
       };
     };
 

@@ -6,6 +6,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
 import authRoutes from './routes/authRoutes';
 import petRoutes from './routes/petRoutes';
 import userRoutes from './routes/userRoutes';
@@ -28,6 +29,7 @@ import vetReportRoutes from './routes/vetReportRoutes';
 import resignationRoutes from './routes/resignationRoutes';
 import referralRoutes from './routes/referralRoutes';
 import vetLeaveRoutes from './routes/vetLeaveRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 
 export function createApp() {
   const app = express();
@@ -52,10 +54,14 @@ export function createApp() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // Serve uploaded files as static assets
+  app.use('/uploads', express.static(path.resolve('uploads')));
+
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ status: 'OK', message: 'PawSync API is running' });
   });
 
+  app.use('/api/upload', uploadRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/pets', petRoutes);
