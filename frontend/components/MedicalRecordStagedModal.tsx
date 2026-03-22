@@ -2849,9 +2849,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       { key: 'dentalScore' as const, label: 'Dental Score', unit: '1–3', min: 1, max: 3, step: 1 },
                       { key: 'crt' as const, label: 'CRT', unit: 'sec', min: 0, max: undefined, step: 'any' },
                     ] as const).map(({ key, label, unit, min, max, step }) => {
-                      const hidePreviousForKey = key === 'bodyConditionScore' || key === 'dentalScore'
                       const prevVal = previousRecord?.vitals?.[key]?.value
                       const prevNum = prevVal != null && prevVal !== '' ? Number(prevVal) : null
+                      const prevDisplayUnit = (key === 'bodyConditionScore' || key === 'dentalScore') ? '' : ` ${unit}`
                       const currNum = vitals[key]?.value != null && vitals[key].value !== '' ? Number(vitals[key].value) : null
                       const pct = prevNum != null && currNum != null && prevNum !== 0
                         ? ((currNum - prevNum) / prevNum) * 100
@@ -2876,13 +2876,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${vitalsErrors[key] ? 'border-[#900B09] focus:ring-[#900B09]' : showRequiredErrors && !vitals[key]?.value && vitals[key]?.value !== 0 ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                               placeholder={unit}
                             />
-                            {!hidePreviousForKey && prevNum != null && (
+                            {prevNum != null && (
                               <div className="flex items-center gap-1 mt-0.5">
                                 {trend === 'up' && <TrendingUp className="w-3 h-3 text-gray-400 shrink-0" />}
                                 {trend === 'down' && <TrendingDown className="w-3 h-3 text-gray-400 shrink-0" />}
                                 {trend === 'stable' && <Minus className="w-3 h-3 text-gray-400 shrink-0" />}
                                 <span className="text-[10px] text-gray-400">
-                                  Prev: {prevNum} {unit}
+                                  Prev: {prevNum}{prevDisplayUnit}
                                   {pct != null && Math.abs(pct) >= 5 && (
                                     <span className="text-gray-400 ml-1">
                                       ({pct > 0 ? '+' : ''}{pct.toFixed(0)}%)
