@@ -24,6 +24,7 @@ export interface BranchVet {
   resignationStatus?: 'pending' | 'approved' | 'rejected' | 'withdrawn' | null;
   resignationEndDate?: string | null;
   unavailableAfter?: string | null;
+  isOnLeaveToday?: boolean;
 }
 
 /**

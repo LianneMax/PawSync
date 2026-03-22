@@ -1076,18 +1076,23 @@ export default function ClinicAdminAppointmentsPage() {
           // Fetch vets assigned to the specific selected branch
           const res = await getVetsForBranch(selectedBranchFilter, token || undefined)
           if (res.status === 'SUCCESS' && res.data?.vets) {
-            setAllVets(res.data.vets)
+            // Exclude resigned and on-leave vets from the calendar column headers
+            setAllVets(res.data.vets.filter((v) => !v.isOnLeaveToday))
           }
         } else {
           // Fetch all vets across the clinic
           const res = await authenticatedFetch('/clinics/mine/vets', {}, token || undefined)
           if (res.status === 'SUCCESS' && res.data?.vets) {
-            setAllVets(res.data.vets.map((v: { vetId?: string; _id?: string; name?: string; email?: string }) => ({
-              _id: v.vetId || v._id,
-              firstName: v.name?.replace('Dr. ', '').split(' ')[0] || '',
-              lastName: v.name?.replace('Dr. ', '').split(' ').slice(1).join(' ') || '',
-              email: v.email || '',
-            })))
+            setAllVets(
+              res.data.vets
+                .filter((v: { status?: string }) => v.status === 'Active')
+                .map((v: { vetId?: string; _id?: string; name?: string; email?: string }) => ({
+                  _id: v.vetId || v._id,
+                  firstName: v.name?.replace('Dr. ', '').split(' ')[0] || '',
+                  lastName: v.name?.replace('Dr. ', '').split(' ').slice(1).join(' ') || '',
+                  email: v.email || '',
+                }))
+            )
           }
         }
       } catch { /* silent */ }

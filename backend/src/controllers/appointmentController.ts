@@ -1251,21 +1251,42 @@ export const getVetsForBranch = async (req: Request, res: Response) => {
       petId: null,
     }).populate('vetId', 'firstName lastName email userType resignation');
 
-    const vets = activeAssignments
-      .filter((a) => a.vetId && (a.vetId as any).userType === 'veterinarian')
-      .map((a) => {
-        const vet = a.vetId as any;
-        const unavailableAfter = getVetBookingCutoffDate(vet?.resignation || null);
-        return {
-          _id: vet._id,
-          firstName: vet.firstName,
-          lastName: vet.lastName,
-          email: vet.email,
-          resignationStatus: vet?.resignation?.status || null,
-          resignationEndDate: vet?.resignation?.endDate || null,
-          unavailableAfter,
-        };
-      });
+    // Filter out resigned vets
+    const activeVetAssignments = activeAssignments.filter((a) => {
+      const vet = a.vetId as any;
+      if (!vet || vet.userType !== 'veterinarian') return false;
+      const resignStatus = vet?.resignation?.status;
+      if (resignStatus === 'approved' || resignStatus === 'completed') return false;
+      return true;
+    });
+
+    // Check which vets are on leave today
+    const vetIds = activeVetAssignments.map((a) => (a.vetId as any)._id);
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setUTCHours(23, 59, 59, 999);
+    const todayLeaves = await VetLeave.find({
+      vetId: { $in: vetIds },
+      date: { $gte: todayStart, $lte: todayEnd },
+      status: 'active',
+    }).select('vetId');
+    const onLeaveVetIds = new Set(todayLeaves.map((l) => l.vetId.toString()));
+
+    const vets = activeVetAssignments.map((a) => {
+      const vet = a.vetId as any;
+      const unavailableAfter = getVetBookingCutoffDate(vet?.resignation || null);
+      return {
+        _id: vet._id,
+        firstName: vet.firstName,
+        lastName: vet.lastName,
+        email: vet.email,
+        resignationStatus: vet?.resignation?.status || null,
+        resignationEndDate: vet?.resignation?.endDate || null,
+        unavailableAfter,
+        isOnLeaveToday: onLeaveVetIds.has(vet._id.toString()),
+      };
+    });
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -2040,21 +2061,42 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
       petId: null,
     }).populate('vetId', 'firstName lastName email userType resignation');
 
-    const vets = activeAssignments
-      .filter((a) => a.vetId && (a.vetId as any).userType === 'veterinarian')
-      .map((a) => {
-        const vet = a.vetId as any;
-        const unavailableAfter = getVetBookingCutoffDate(vet?.resignation || null);
-        return {
-          _id: vet._id,
-          firstName: vet.firstName,
-          lastName: vet.lastName,
-          email: vet.email,
-          resignationStatus: vet?.resignation?.status || null,
-          resignationEndDate: vet?.resignation?.endDate || null,
-          unavailableAfter,
-        };
-      });
+    // Filter out resigned vets
+    const activeVetAssignments = activeAssignments.filter((a) => {
+      const vet = a.vetId as any;
+      if (!vet || vet.userType !== 'veterinarian') return false;
+      const resignStatus = vet?.resignation?.status;
+      if (resignStatus === 'approved' || resignStatus === 'completed') return false;
+      return true;
+    });
+
+    // Check which vets are on leave today
+    const vetIds = activeVetAssignments.map((a) => (a.vetId as any)._id);
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setUTCHours(23, 59, 59, 999);
+    const todayLeaves = await VetLeave.find({
+      vetId: { $in: vetIds },
+      date: { $gte: todayStart, $lte: todayEnd },
+      status: 'active',
+    }).select('vetId');
+    const onLeaveVetIds = new Set(todayLeaves.map((l) => l.vetId.toString()));
+
+    const vets = activeVetAssignments.map((a) => {
+      const vet = a.vetId as any;
+      const unavailableAfter = getVetBookingCutoffDate(vet?.resignation || null);
+      return {
+        _id: vet._id,
+        firstName: vet.firstName,
+        lastName: vet.lastName,
+        email: vet.email,
+        resignationStatus: vet?.resignation?.status || null,
+        resignationEndDate: vet?.resignation?.endDate || null,
+        unavailableAfter,
+        isOnLeaveToday: onLeaveVetIds.has(vet._id.toString()),
+      };
+    });
 
     return res.status(200).json({
       status: 'SUCCESS',
