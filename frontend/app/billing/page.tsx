@@ -219,7 +219,19 @@ function PetOwnerBilling() {
                 const status = mapOwnerStatus(b)
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4 text-sm font-medium text-[#4F4F4F]">{b.petId?.name || '-'}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setViewingBilling(b)}
+                          className="text-gray-400 hover:text-[#476B6B] transition-colors cursor-pointer"
+                          title="View Invoice"
+                          aria-label={`View invoice for ${b.petId?.name || 'pet'}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <span className="text-sm font-medium text-[#4F4F4F]">{b.petId?.name || '-'}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.serviceLabel || '-'}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.clinicId?.name || '-'}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{formatDate(b.serviceDate)}</td>
@@ -244,13 +256,6 @@ function PetOwnerBilling() {
                             Pay Now
                           </button>
                         )}
-                        <button
-                          onClick={() => setViewingBilling(b)}
-                          className="text-gray-400 hover:text-[#476B6B] transition-colors"
-                          title="View billing details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -373,13 +378,12 @@ function VetBilling() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
+                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
                 </tr>
               )}
               {!loading && filtered.map((b) => {
@@ -387,9 +391,19 @@ function VetBilling() {
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4">
-                      <span className="text-sm text-[#7FA5A3] hover:text-[#6A8E8C] cursor-pointer underline">
-                        {b.ownerId?.firstName} {b.ownerId?.lastName}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setViewingBilling(b)}
+                          className="text-gray-400 hover:text-[#476B6B] transition-colors cursor-pointer"
+                          title="View Invoice"
+                          aria-label={`View invoice for ${b.ownerId?.firstName || ''} ${b.ownerId?.lastName || ''}`.trim() || 'client'}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <span className="text-sm text-[#7FA5A3] hover:text-[#6A8E8C] cursor-pointer underline">
+                          {b.ownerId?.firstName} {b.ownerId?.lastName}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.petId?.name || '-'}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.serviceLabel || '-'}</td>
@@ -399,15 +413,6 @@ function VetBilling() {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAdminStatusStyle(adminStatus)}`}>
                         {adminStatus}
                       </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <button
-                        onClick={() => setViewingBilling(b)}
-                        className="text-gray-400 hover:text-[#476B6B] transition-colors"
-                        title="View billing details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
                     </td>
                   </tr>
                 )
@@ -719,10 +724,10 @@ function CreateBillingModal({
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service ↓</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type ↓</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price ↓</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Action ↓</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Type</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Price</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -2328,7 +2333,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                 </th>
                 {['View', 'Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Service', 'Date', 'Amount Due', 'Status', 'Action'].map((col) => (
                   <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-1">{col} <ChevronDown className="w-3 h-3" /></div>
+                    <div className="flex items-center gap-1">{col}</div>
                   </th>
                 ))}
               </tr>
