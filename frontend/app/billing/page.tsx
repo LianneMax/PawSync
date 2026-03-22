@@ -919,12 +919,54 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
   const [qrItems, setQrItems] = useState<PaymentQRItem[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [previewItem, setPreviewItem] = useState<PaymentQRItem | null>(null)
+  const [previewZoom, setPreviewZoom] = useState(1)
+  const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const [editLabel, setEditLabel] = useState('')
   const [editImageData, setEditImageData] = useState<string | null>(null)
   const [editPreview, setEditPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!previewItem) return
+    setPreviewZoom(1)
+    setPreviewPan({ x: 0, y: 0 })
+    setIsPanning(false)
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewItem(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [previewItem])
+
+  const handlePreviewPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (previewZoom <= 1) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setIsPanning(true)
+    setPanStart({ x: e.clientX - previewPan.x, y: e.clientY - previewPan.y })
+  }
+
+  const handlePreviewPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning || previewZoom <= 1) return
+    e.preventDefault()
+    setPreviewPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y })
+  }
+
+  const handlePreviewPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPanning) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // Ignore if pointer capture was already released.
+      }
+    }
+    setIsPanning(false)
+  }
 
   const fetchQRs = async () => {
     setLoading(true)
@@ -1120,16 +1162,37 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
                   ) : (
                     /* ---- View mode ---- */
                     <div className="flex items-center gap-4 p-4">
-                      <div className="w-20 h-20 shrink-0 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewItem(item)}
+                        className="w-20 h-20 shrink-0 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden cursor-pointer hover:border-[#7FA5A3] transition-colors"
+                        title="View QR"
+                        aria-label={`View ${item.label} QR code`}
+                      >
                         <img src={item.imageData} alt={item.label} className="w-full h-full object-contain" />
-                      </div>
+                      </button>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[#4F4F4F] text-sm truncate">{item.label}</p>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewItem(item)}
+                          className="font-semibold text-[#4F4F4F] text-sm truncate text-left hover:text-[#3D5E5C] transition-colors"
+                          title="View QR"
+                        >
+                          {item.label}
+                        </button>
                         <p className="text-xs text-gray-400 mt-0.5">
                           Added {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => setPreviewItem(item)}
+                          className="p-2 text-gray-400 hover:text-[#3D5E5C] hover:bg-[#f0f7f7] rounded-lg transition-colors"
+                          title="View"
+                          aria-label={`Open ${item.label} QR preview`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => startEdit(item)}
                           className="p-2 text-gray-400 hover:text-[#3D5E5C] hover:bg-[#f0f7f7] rounded-lg transition-colors"
@@ -1157,6 +1220,81 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
+
+      {previewItem && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewItem(null) }}
+        >
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6">
+            <button
+              onClick={() => setPreviewItem(null)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              aria-label="Close QR preview"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center mb-4 pr-10">
+              <p className="text-xs uppercase tracking-wide font-semibold text-[#476B6B]">QR Preview</p>
+              <h3 className="text-lg font-semibold text-[#4F4F4F] mt-1">{previewItem.label}</h3>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <button
+                onClick={() => {
+                  const next = Math.max(0.5, +(previewZoom - 0.25).toFixed(2))
+                  setPreviewZoom(next)
+                  if (next <= 1) setPreviewPan({ x: 0, y: 0 })
+                }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Zoom out"
+                title="Zoom out"
+              >
+                -
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewZoom(1)
+                  setPreviewPan({ x: 0, y: 0 })
+                }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Reset zoom"
+                title="Reset zoom"
+              >
+                {Math.round(previewZoom * 100)}%
+              </button>
+              <button
+                onClick={() => setPreviewZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Zoom in"
+                title="Zoom in"
+              >
+                +
+              </button>
+            </div>
+
+            <div
+              className={`w-full max-h-[75vh] rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center justify-center overflow-hidden touch-none ${
+                previewZoom > 1 ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+              }`}
+              onPointerDown={handlePreviewPointerDown}
+              onPointerMove={handlePreviewPointerMove}
+              onPointerUp={handlePreviewPointerEnd}
+              onPointerCancel={handlePreviewPointerEnd}
+              onPointerLeave={handlePreviewPointerEnd}
+            >
+              <img
+                src={previewItem.imageData}
+                alt={`${previewItem.label} enlarged QR`}
+                className={`max-w-full max-h-[68vh] object-contain ${isPanning ? '' : 'transition-transform duration-150'}`}
+                style={{ transform: `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom})` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1529,6 +1667,11 @@ function PayNowModal({
   const [qrItems, setQrItems] = useState<PaymentQRItem[]>([])
   const [loadingQRs, setLoadingQRs] = useState(true)
   const [selectedQR, setSelectedQR] = useState<PaymentQRItem | null>(null)
+  const [previewItem, setPreviewItem] = useState<PaymentQRItem | null>(null)
+  const [previewZoom, setPreviewZoom] = useState(1)
+  const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const [screenshot, setScreenshot] = useState<string | null>(null)
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -1547,6 +1690,43 @@ function PayNowModal({
       }
     })()
   }, [])
+
+  useEffect(() => {
+    if (!previewItem) return
+    setPreviewZoom(1)
+    setPreviewPan({ x: 0, y: 0 })
+    setIsPanning(false)
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewItem(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [previewItem])
+
+  const handlePreviewPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (previewZoom <= 1) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setIsPanning(true)
+    setPanStart({ x: e.clientX - previewPan.x, y: e.clientY - previewPan.y })
+  }
+
+  const handlePreviewPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning || previewZoom <= 1) return
+    e.preventDefault()
+    setPreviewPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y })
+  }
+
+  const handlePreviewPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPanning) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // Ignore if pointer capture was already released.
+      }
+    }
+    setIsPanning(false)
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -1586,11 +1766,12 @@ function PayNowModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget && step !== 'success' && !submitting) onClose() }}
-    >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 relative">
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget && step !== 'success' && !submitting) onClose() }}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 relative">
         {step !== 'success' && (
           <button
             onClick={onClose}
@@ -1630,22 +1811,61 @@ function PayNowModal({
             ) : (
               <div className="space-y-3 mb-6 max-h-72 overflow-y-auto pr-1">
                 {qrItems.map((item) => (
-                  <button
+                  <div
                     key={item._id}
                     onClick={() => setSelectedQR(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setSelectedQR(item)
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
                       selectedQR?._id === item._id
                         ? 'border-[#476B6B] bg-[#f0f7f7]'
                         : 'border-gray-200 hover:border-[#7FA5A3] hover:bg-gray-50'
                     }`}
                   >
-                    <div className="w-14 h-14 shrink-0 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPreviewItem(item)
+                      }}
+                      className="w-14 h-14 shrink-0 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden hover:border-[#7FA5A3] transition-colors"
+                      title={`View ${item.label} QR`}
+                      aria-label={`View ${item.label} QR code`}
+                    >
                       <img src={item.imageData} alt={item.label} className="w-full h-full object-contain" />
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#4F4F4F] text-sm">{item.label}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPreviewItem(item)
+                        }}
+                        className="font-semibold text-[#4F4F4F] text-sm hover:text-[#3D5E5C] transition-colors text-left"
+                        title={`View ${item.label} QR`}
+                      >
+                        {item.label}
+                      </button>
                       <p className="text-xs text-gray-400 mt-0.5">Scan to pay</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPreviewItem(item)
+                      }}
+                      className="p-2 text-gray-400 hover:text-[#3D5E5C] hover:bg-[#f0f7f7] rounded-lg transition-colors"
+                      title="View"
+                      aria-label={`Open ${item.label} QR preview`}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
                     {selectedQR?._id === item._id && (
                       <div className="w-5 h-5 rounded-full bg-[#476B6B] flex items-center justify-center shrink-0">
                         <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -1653,7 +1873,7 @@ function PayNowModal({
                         </svg>
                       </div>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -1773,8 +1993,84 @@ function PayNowModal({
             </button>
           </div>
         )}
+        </div>
       </div>
-    </div>
+
+      {previewItem && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewItem(null) }}
+        >
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6">
+            <button
+              onClick={() => setPreviewItem(null)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              aria-label="Close QR preview"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center mb-4 pr-10">
+              <p className="text-xs uppercase tracking-wide font-semibold text-[#476B6B]">QR Preview</p>
+              <h3 className="text-lg font-semibold text-[#4F4F4F] mt-1">{previewItem.label}</h3>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <button
+                onClick={() => {
+                  const next = Math.max(0.5, +(previewZoom - 0.25).toFixed(2))
+                  setPreviewZoom(next)
+                  if (next <= 1) setPreviewPan({ x: 0, y: 0 })
+                }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Zoom out"
+                title="Zoom out"
+              >
+                -
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewZoom(1)
+                  setPreviewPan({ x: 0, y: 0 })
+                }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Reset zoom"
+                title="Reset zoom"
+              >
+                {Math.round(previewZoom * 100)}%
+              </button>
+              <button
+                onClick={() => setPreviewZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Zoom in"
+                title="Zoom in"
+              >
+                +
+              </button>
+            </div>
+
+            <div
+              className={`w-full max-h-[75vh] rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center justify-center overflow-hidden touch-none ${
+                previewZoom > 1 ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+              }`}
+              onPointerDown={handlePreviewPointerDown}
+              onPointerMove={handlePreviewPointerMove}
+              onPointerUp={handlePreviewPointerEnd}
+              onPointerCancel={handlePreviewPointerEnd}
+              onPointerLeave={handlePreviewPointerEnd}
+            >
+              <img
+                src={previewItem.imageData}
+                alt={`${previewItem.label} enlarged QR`}
+                className={`max-w-full max-h-[68vh] object-contain ${isPanning ? '' : 'transition-transform duration-150'}`}
+                style={{ transform: `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom})` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
