@@ -19,18 +19,29 @@ import {
   Mail,
   MapPin,
   AlertTriangle,
+  ChevronDown,
+  Check,
 } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/phone-input'
+import { getCitiesByProvince, getPhilippineProvinces } from '@/lib/philippineLocations'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // ==================== TYPES ====================
 
 interface Veterinarian {
   id: string
+  branchId: string
   name: string
   email: string
   initials: string
@@ -46,6 +57,7 @@ interface Branch {
   name: string
   address: string
   isMain: boolean
+  isActive: boolean
   vets: number
   patients: number
   today: number
@@ -100,6 +112,7 @@ export default function ClinicManagementPage() {
   const [vets, setVets] = useState(emptyVets)
   const [branches, setBranches] = useState(emptyBranches)
   const [searchQuery, setSearchQuery] = useState('')
+  const [vetBranchFilter, setVetBranchFilter] = useState<string>('all')
   const [clinicId, setClinicId] = useState<string | null>(null)
   const [clinicEmail, setClinicEmail] = useState<string>('')
   const [loadingVets, setLoadingVets] = useState(true)
@@ -155,6 +168,17 @@ export default function ClinicManagementPage() {
 
   // Main branch email (fetched from branches list)
   const mainBranchEmail = branches.find(b => b.isMain)?.email ?? ''
+
+  const normalizePhoneToE164 = (phone?: string | null) => {
+    const raw = (phone || '').trim()
+    if (!raw) return ''
+    if (raw.startsWith('+63')) return raw
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) return ''
+    if (digits.startsWith('63')) return `+${digits}`
+    if (digits.startsWith('0')) return `+63${digits.slice(1)}`
+    return `+63${digits}`
+  }
 
   const validateAddField = (field: string, value: string | string[]): string => {
     switch (field) {
@@ -281,8 +305,9 @@ export default function ClinicManagementPage() {
           ])
 
           if (vetsRes.status === 'SUCCESS') {
-            const apiVets: Veterinarian[] = (vetsRes.data.vets || []).map((v: { _id: string; name: string; email: string; initials: string; branch: string; prcLicense: string; status: string }) => ({
+            const apiVets: Veterinarian[] = (vetsRes.data.vets || []).map((v: { _id: string; clinicBranchId?: string; name: string; email: string; initials: string; branch: string; prcLicense: string; status: string }) => ({
               id: v._id,
+              branchId: v.clinicBranchId || '',
               name: v.name,
               email: v.email,
               initials: v.initials,
@@ -296,18 +321,19 @@ export default function ClinicManagementPage() {
           }
 
           if (branchesRes.status === 'SUCCESS') {
-            const apiBranches: Branch[] = (branchesRes.data.branches || []).map((b: { _id: string; name: string; address: string; isMain: boolean; phone: string; email: string; city: string; province: string; openingTime: string; closingTime: string; operatingDays: string[] }) => ({
+            const apiBranches: Branch[] = (branchesRes.data.branches || []).map((b: { _id: string; name: string; address: string; isMain: boolean; isActive?: boolean; phone: string; email: string; city: string; province: string; openingTime: string; closingTime: string; operatingDays: string[] }) => ({
               id: b._id,
               name: b.name,
               address: b.address || '',
               isMain: b.isMain,
+              isActive: !!b.isActive,
               vets: 0,
               patients: 0,
               today: 0,
               phone: b.phone || '',
               hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
               email: b.email || (b.isMain ? (resolvedClinicEmail || user?.email || '') : ''),
-              isOpen: true,
+              isOpen: !!b.isActive,
               city: b.city || '',
               province: b.province || '',
               openingTime: b.openingTime || '',
@@ -353,8 +379,21 @@ export default function ClinicManagementPage() {
 
   const filteredVets = vets.filter(v => {
     const q = searchQuery.toLowerCase()
-    return v.name.toLowerCase().includes(q) || v.email.toLowerCase().includes(q)
+    const matchesSearch = v.name.toLowerCase().includes(q) || v.email.toLowerCase().includes(q)
+    const matchesBranch = !isMainBranch || vetBranchFilter === 'all' || v.branchId === vetBranchFilter
+    return matchesSearch && matchesBranch
   })
+
+  const activeBranchesCount = branches.filter((b) => b.isActive).length
+  const allProvinceOptions = getPhilippineProvinces()
+  const editProvinceOptions = editForm.province && !allProvinceOptions.includes(editForm.province)
+    ? [editForm.province, ...allProvinceOptions]
+    : allProvinceOptions
+  const editCityOptions = editForm.province ? getCitiesByProvince(editForm.province) : []
+  const addProvinceOptions = addForm.province && !allProvinceOptions.includes(addForm.province)
+    ? [addForm.province, ...allProvinceOptions]
+    : allProvinceOptions
+  const addCityOptions = addForm.province ? getCitiesByProvince(addForm.province) : []
 
   const openEditBranch = async (branch: Branch) => {
     setSelectedBranch(branch)
@@ -369,7 +408,7 @@ export default function ClinicManagementPage() {
       address: branch.address,
       city: branch.city,
       province: branch.province,
-      phone: branch.phone,
+      phone: normalizePhoneToE164(branch.phone),
       email: branch.email,
       openingTime: branch.openingTime,
       closingTime: branch.closingTime,
@@ -391,7 +430,7 @@ export default function ClinicManagementPage() {
           address: b.address || '',
           city: b.city || '',
           province: b.province || '',
-          phone: b.phone || '',
+          phone: normalizePhoneToE164(b.phone),
           email: freshEmail,
           openingTime: b.openingTime || '',
           closingTime: b.closingTime || '',
@@ -417,10 +456,6 @@ export default function ClinicManagementPage() {
         openingTime: editForm.openingTime || null,
         closingTime: editForm.closingTime || null,
         operatingDays: editForm.operatingDays,
-      }
-      // Do not allow changing the email for the main branch
-      if (!selectedBranch.isMain) {
-        payload.email = editForm.email || null
       }
       const res = await authenticatedFetch(`/clinics/${clinicId}/branches/${selectedBranch.id}`, {
         method: 'PUT',
@@ -535,13 +570,14 @@ export default function ClinicManagementPage() {
           name: b.name,
           address: b.address || '',
           isMain: b.isMain,
+          isActive: !!b.isActive,
           vets: 0,
           patients: 0,
           today: 0,
           phone: b.phone || '',
           hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
           email: b.email || '',
-          isOpen: true,
+          isOpen: !!b.isActive,
           city: b.city || '',
           province: b.province || '',
           openingTime: b.openingTime || '',
@@ -626,7 +662,7 @@ export default function ClinicManagementPage() {
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
               <Building2 className="w-5 h-5 text-blue-600" />
             </div>
-            <p className="text-3xl font-bold text-[#4F4F4F]">{branches.length}</p>
+            <p className="text-3xl font-bold text-[#4F4F4F]">{activeBranchesCount}</p>
             <p className="text-sm text-gray-500 mt-1">Active Branches</p>
           </div>
         </div>
@@ -663,7 +699,7 @@ export default function ClinicManagementPage() {
               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                 activeTab === 'branches' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                {branches.length}
+                {activeBranchesCount}
               </span>
             </button>
           )}
@@ -690,15 +726,53 @@ export default function ClinicManagementPage() {
               {/* Header */}
               <div className="p-6 flex items-center justify-between border-b border-gray-100">
                 <h3 className="font-semibold text-[#4F4F4F]">All Veterinarians</h3>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] w-64"
-                  />
+                <div className="flex items-center gap-2">
+                  {isMainBranch && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-between gap-2 min-w-[180px] px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                          aria-label="Filter vets by branch"
+                        >
+                          <span className="truncate">
+                            {vetBranchFilter === 'all'
+                              ? 'All Branches'
+                              : (branches.find((branch) => branch.id === vetBranchFilter)?.isMain
+                                  ? 'Main Branch'
+                                  : branches.find((branch) => branch.id === vetBranchFilter)?.name || 'All Branches')}
+                          </span>
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => setVetBranchFilter('all')} className="flex items-center justify-between">
+                          All Branches
+                          {vetBranchFilter === 'all' && <Check className="w-4 h-4 text-[#476B6B]" />}
+                        </DropdownMenuItem>
+                        {branches.filter((branch) => branch.isActive).map((branch) => (
+                          <DropdownMenuItem
+                            key={branch.id}
+                            onClick={() => setVetBranchFilter(branch.id)}
+                            className="flex items-center justify-between"
+                          >
+                            {branch.isMain ? 'Main Branch' : branch.name}
+                            {vetBranchFilter === branch.id && <Check className="w-4 h-4 text-[#476B6B]" />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] w-64"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1052,52 +1126,79 @@ export default function ClinicManagementPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City</label>
-                <input
-                  type="text"
-                  value={editForm.city}
-                  onChange={(e) => setEditForm({...editForm, city: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={!editForm.province}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center justify-between"
+                    >
+                      <span className="truncate">{editForm.city || 'Select city'}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {editCityOptions.map((city) => (
+                      <DropdownMenuItem key={city} onSelect={() => setEditForm({ ...editForm, city })} className="flex items-center justify-between">
+                        {city}
+                        {editForm.city === city && <Check className="w-4 h-4 text-[#476B6B]" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region</label>
-                <input
-                  type="text"
-                  value={editForm.province}
-                  onChange={(e) => setEditForm({...editForm, province: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                    >
+                      <span className="truncate">{editForm.province || 'Select province'}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {editProvinceOptions.map((province) => (
+                      <DropdownMenuItem
+                        key={province}
+                        onSelect={() => {
+                          const nextCities = getCitiesByProvince(province)
+                          setEditForm((prev) => ({
+                            ...prev,
+                            province,
+                            city: nextCities.includes(prev.city) ? prev.city : '',
+                          }))
+                        }}
+                        className="flex items-center justify-between"
+                      >
+                        {province}
+                        {editForm.province === province && <Check className="w-4 h-4 text-[#476B6B]" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number</label>
-              <input
-                type="text"
+              <PhoneInput
                 value={editForm.phone}
-                onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                onChange={(value) => setEditForm({ ...editForm, phone: value })}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
                 Branch Email Address
-                {selectedBranch?.isMain && (
-                  <span className="ml-2 text-xs font-normal text-gray-400">(read-only)</span>
-                )}
+                <span className="ml-2 text-xs font-normal text-gray-400">(read-only)</span>
               </label>
               <input
                 type="email"
-                value={selectedBranch?.isMain ? (editForm.email || clinicEmail || user?.email || '') : editForm.email}
-                readOnly={!!selectedBranch?.isMain}
-                disabled={!!selectedBranch?.isMain}
-                onChange={(e) => {
-                  if (!selectedBranch?.isMain) setEditForm({...editForm, email: e.target.value})
-                }}
-                className={`w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm ${
-                  selectedBranch?.isMain
-                    ? 'bg-gray-50 cursor-not-allowed text-gray-500'
-                    : 'focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]'
-                }`}
+                value={editForm.email || clinicEmail || user?.email || ''}
+                readOnly
+                disabled
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 cursor-not-allowed text-gray-500"
               />
             </div>
 
@@ -1232,32 +1333,70 @@ export default function ClinicManagementPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={addForm.city}
-                  onChange={(e) => {
-                    setAddForm({ ...addForm, city: e.target.value })
-                    if (addFormTouched.city) setAddFormErrors(prev => ({ ...prev, city: validateAddField('city', e.target.value) }))
-                  }}
-                  onBlur={() => touchAddField('city')}
-                  placeholder="e.g. Makati"
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.city && addFormErrors.city ? 'border-red-400' : 'border-gray-200'}`}
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={!addForm.province}
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between ${
+                        addFormTouched.city && addFormErrors.city ? 'border-red-400 text-[#4F4F4F]' : 'border-gray-200 text-[#4F4F4F]'
+                      } disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed`}
+                    >
+                      <span className="truncate">{addForm.city || 'Select city'}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {addCityOptions.map((city) => (
+                      <DropdownMenuItem
+                        key={city}
+                        onSelect={() => {
+                          setAddForm({ ...addForm, city })
+                          if (addFormTouched.city) setAddFormErrors(prev => ({ ...prev, city: validateAddField('city', city) }))
+                        }}
+                        className="flex items-center justify-between"
+                      >
+                        {city}
+                        {addForm.city === city && <Check className="w-4 h-4 text-[#476B6B]" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {addFormTouched.city && addFormErrors.city && <p className="text-xs text-red-500 mt-1">{addFormErrors.city}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={addForm.province}
-                  onChange={(e) => {
-                    setAddForm({ ...addForm, province: e.target.value })
-                    if (addFormTouched.province) setAddFormErrors(prev => ({ ...prev, province: validateAddField('province', e.target.value) }))
-                  }}
-                  onBlur={() => touchAddField('province')}
-                  placeholder="e.g. Metro Manila"
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.province && addFormErrors.province ? 'border-red-400' : 'border-gray-200'}`}
-                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between ${
+                        addFormTouched.province && addFormErrors.province ? 'border-red-400 text-[#4F4F4F]' : 'border-gray-200 text-[#4F4F4F]'
+                      }`}
+                    >
+                      <span className="truncate">{addForm.province || 'Select province'}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {addProvinceOptions.map((province) => (
+                      <DropdownMenuItem
+                        key={province}
+                        onSelect={() => {
+                          const nextCities = getCitiesByProvince(province)
+                          const nextCity = nextCities.includes(addForm.city) ? addForm.city : ''
+                          setAddForm({ ...addForm, province, city: nextCity })
+                          if (addFormTouched.province) setAddFormErrors(prev => ({ ...prev, province: validateAddField('province', province) }))
+                          if (addFormTouched.city) setAddFormErrors(prev => ({ ...prev, city: validateAddField('city', nextCity) }))
+                        }}
+                        className="flex items-center justify-between"
+                      >
+                        {province}
+                        {addForm.province === province && <Check className="w-4 h-4 text-[#476B6B]" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {addFormTouched.province && addFormErrors.province && <p className="text-xs text-red-500 mt-1">{addFormErrors.province}</p>}
               </div>
             </div>

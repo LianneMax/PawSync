@@ -703,22 +703,29 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const branchId = req.user.clinicBranchId;
+    const branchId = (!req.user.isMainBranch)
+      ? await getBranchIdForAdmin(req)
+      : undefined;
 
-    // Build branch-filtered query
-    const branchFilter = branchId ? { branchId } : {};
     const vetAppFilter: any = { clinicId: clinic._id };
-    if (branchId) {
-      vetAppFilter.branchId = branchId;
-    }
+    if (branchId) vetAppFilter.branchId = branchId;
 
-    const [branchCount, approvedVetCount, pendingApplicationCount] = await Promise.all([
+    const assignmentFilter: any = { clinicId: clinic._id, isActive: true, petId: null };
+    if (branchId) assignmentFilter.clinicBranchId = branchId;
+
+    const [branchCount, activeAssignments, pendingApplicationCount] = await Promise.all([
       branchId
         ? ClinicBranch.countDocuments({ _id: branchId, clinicId: clinic._id, isActive: true })
         : ClinicBranch.countDocuments({ clinicId: clinic._id, isActive: true }),
-      VetApplication.countDocuments({ ...vetAppFilter, status: 'approved' }),
+      AssignedVet.find(assignmentFilter).select('vetId').lean(),
       VetApplication.countDocuments({ ...vetAppFilter, status: 'pending' }),
     ]);
+
+    const uniqueVetIds = new Set(
+      activeAssignments
+        .map((assignment: any) => assignment?.vetId?.toString())
+        .filter(Boolean)
+    );
 
     // Get branch name if branch-specific
     let branchName = null;
@@ -736,7 +743,7 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
         },
         branch: branchId ? { _id: branchId, name: branchName } : null,
         stats: {
-          totalVeterinarians: approvedVetCount,
+          totalVeterinarians: uniqueVetIds.size,
           activeBranches: branchCount,
           pendingApplications: pendingApplicationCount,
         }
@@ -767,7 +774,9 @@ export const getClinicVets = async (req: Request, res: Response) => {
 
     // Query active clinic-level assignments (petId: null = clinic assignment, not pet assignment)
     const assignmentFilter: any = { clinicId: clinic._id, isActive: true, petId: null };
-    const branchId = await getBranchIdForAdmin(req);
+    const branchId = (!req.user.isMainBranch)
+      ? await getBranchIdForAdmin(req)
+      : undefined;
     if (branchId) {
       assignmentFilter.clinicBranchId = branchId;
     }
@@ -800,6 +809,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
         return {
           _id: app?._id || a._id,
           vetId: vet._id,
+          clinicBranchId: branch?._id || a.clinicBranchId || null,
           name: `Dr. ${vet.firstName} ${vet.lastName}`,
           email: vet.email || '',
           initials: `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}`,
@@ -1146,12 +1156,18 @@ export const getBranchStats = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
 
-    // Count approved vets for this branch
-    const vetCount = await VetApplication.countDocuments({
+    // Count unique active vets assigned to this branch (source of truth)
+    const assignedVets = await AssignedVet.find({
       clinicId: clinic._id,
-      branchId: branchId,
-      status: 'approved'
-    });
+      clinicBranchId: branchId,
+      isActive: true,
+      petId: null,
+    }).select('vetId').lean();
+    const vetCount = new Set(
+      assignedVets
+        .map((assignment: any) => assignment?.vetId?.toString())
+        .filter(Boolean)
+    ).size;
 
     // Count unique patients (pets) who have appointments at this branch
     const appointments = await Appointment.find({
