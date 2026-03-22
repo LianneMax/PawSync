@@ -768,6 +768,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Discharge is auto-derived: pet is sent home unless confined or euthanised.
   // Referral and scheduled surgery do not block discharge (they can coexist).
   const autoDischarge = !confined && !euthanasia
+  const billableFieldsLocked = !!appointmentId && recordStage === 'completed' && !confined
 
   // Load pet-level vet notes on mount
   useEffect(() => {
@@ -928,6 +929,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Tracks the vet's selected injection/medication service IDs per preventive care entry (index → serviceId)
   const [preventiveSelectedInjectionIds, setPreventiveSelectedInjectionIds] = useState<Record<number, string>>({})
   const [preventiveSelectedMedicationIds, setPreventiveSelectedMedicationIds] = useState<Record<number, string>>({})
+  const [originalBillableData, setOriginalBillableData] = useState<{
+    medications: Omit<Medication, '_id'>[]
+    diagnosticTests: (Omit<DiagnosticTest, '_id'> & { images?: any[] })[]
+    preventiveCare: Omit<PreventiveCare, '_id'>[]
+    preventiveAssociatedExclusions: string[]
+  } | null>(null)
 
   // Effective exclusion set = manual exclusions + all non-selected associated injections/medications.
   // Used when syncing billing so only the vet-selected items are billed.
@@ -1184,12 +1191,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setVisitSummary(r.visitSummary || '')
       setReferral(r.referral ?? false)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      setMedications((r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest))
+      const normalizedMedications = (r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      setDiagnosticTests((r.diagnosticTests || []).map(({ _id, ...rest }: Omit<DiagnosticTest, '_id'> & { _id?: string } & { images?: any[] }) => ({
+      const normalizedDiagnosticTests = (r.diagnosticTests || []).map(({ _id, ...rest }: Omit<DiagnosticTest, '_id'> & { _id?: string } & { images?: any[] }) => ({
         ...rest,
         images: rest.images || [],
-      })))
+      }))
+      setMedications(normalizedMedications)
+      setDiagnosticTests(normalizedDiagnosticTests)
       if (r.pregnancyRecord) {
         setUltrasoundPregnant(r.pregnancyRecord.isPregnant)
         setGestationDate(r.pregnancyRecord.gestationDate ? r.pregnancyRecord.gestationDate.split('T')[0] : '')
@@ -1238,7 +1247,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         prevCareServicesRes.status === 'SUCCESS' && prevCareServicesRes.data?.items ? prevCareServicesRes.data.items : [],
         appointmentDate,
       )
-      if ((!r.preventiveCare || r.preventiveCare.length === 0) && autoPreventiveCare.length > 0) {
+      const canAutoPopulatePreventive = r.stage !== 'completed' || !!petRes.data?.pet?.isConfined
+      if (canAutoPopulatePreventive && (!r.preventiveCare || r.preventiveCare.length === 0) && autoPreventiveCare.length > 0) {
         setPreventiveCare(autoPreventiveCare)
       } else {
         // Normalize old 'Flea and Tick Prevention' to new 'Flea & Tick Prevention'
@@ -1249,6 +1259,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         }))
         setPreventiveCare(normalizedCare)
       }
+      const normalizedPreventiveCareForSnapshot = (r.preventiveCare || []).map(({ _id, ...rest }: Omit<PreventiveCare, '_id'> & { _id?: string }) => ({
+        ...rest,
+        product: rest.product === 'Flea and Tick Prevention' ? 'Flea & Tick Prevention' : rest.product,
+      }))
+      setOriginalBillableData({
+        medications: normalizedMedications,
+        diagnosticTests: normalizedDiagnosticTests,
+        preventiveCare: normalizedPreventiveCareForSnapshot,
+        preventiveAssociatedExclusions: r.preventiveAssociatedExclusions || [],
+      })
       setSharedWithOwner(r.sharedWithOwner ?? true)
       if (r.preventiveAssociatedExclusions?.length) {
         setPreventiveAssociatedExclusions(new Set(r.preventiveAssociatedExclusions))
@@ -1890,6 +1910,24 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     return parts.join(' ')
   }
 
+  const getEffectiveBillablePayload = () => {
+    if (billableFieldsLocked && originalBillableData) {
+      return {
+        medications: originalBillableData.medications,
+        diagnosticTests: originalBillableData.diagnosticTests,
+        preventiveCare: originalBillableData.preventiveCare,
+        preventiveAssociatedExclusions: originalBillableData.preventiveAssociatedExclusions,
+      }
+    }
+
+    return {
+      medications,
+      diagnosticTests,
+      preventiveCare,
+      preventiveAssociatedExclusions: [...effectivePreventiveExclusions],
+    }
+  }
+
   const handleSaveAndClose = async () => {
     if (!token) return
     if (!validateDiagnosticTestResults()) return
@@ -1903,8 +1941,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
       // Keep generic/titer uploads in top-level images; keep per-test and surgery images in their sections
+      const effectiveBillablePayload = getEffectiveBillablePayload()
       const allImages = [...images, ...titerImages]
-      const diagnosticTestsToSend = diagnosticTests
+      const diagnosticTestsToSend = effectiveBillablePayload.diagnosticTests
       
       await updateMedicalRecord(recordId, {
         chiefComplaint,
@@ -1915,10 +1954,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         plan: effectivePlan,
         immunityTesting: immunityPayload,
         visitSummary,
-        medications,
+        medications: effectiveBillablePayload.medications,
         diagnosticTests: diagnosticTestsToSend,
-        preventiveCare,
-        preventiveAssociatedExclusions: [...effectivePreventiveExclusions],
+        preventiveCare: effectiveBillablePayload.preventiveCare,
+        preventiveAssociatedExclusions: effectiveBillablePayload.preventiveAssociatedExclusions,
         sharedWithOwner,
         confinementAction,
         confinementDays,
@@ -1939,9 +1978,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         syncBillingFromRecord({
           billingId,
           petId,
-          medications,
+          medications: effectiveBillablePayload.medications,
           diagnosticTests: diagnosticTestsToSend,
-          preventiveCare,
+          preventiveCare: effectiveBillablePayload.preventiveCare,
           recordCreatedAt,
           token,
           recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({ vaccineTypeId: v.vaccineTypeId, vaccineName: vaccineTypes.find(vt => vt._id === v.vaccineTypeId)?.name || '', _id: v.createdVaccineId })),
@@ -1950,7 +1989,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           appointmentTypes,
           petSpecies: pet?.species,
           petWeightKg: parseFloat(String(vitals?.weight?.value ?? '')) || undefined,
-          preventiveExclusions: [...effectivePreventiveExclusions],
+          preventiveExclusions: effectiveBillablePayload.preventiveAssociatedExclusions,
           euthanasiaEnabled: euthanasia,
         }).catch((e) => console.error('[BillingSync] Frontend billing sync error:', e))
       }
@@ -2158,8 +2197,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setSaving(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
+      const effectiveBillablePayload = getEffectiveBillablePayload()
       const allImages = [...images, ...titerImages]
-      const diagnosticTestsToSend = diagnosticTests
+      const diagnosticTestsToSend = effectiveBillablePayload.diagnosticTests
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       
       await updateMedicalRecord(recordId, {
@@ -2169,6 +2209,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         plan: effectivePlan,
         immunityTesting: immunityPayload,
         diagnosticTests: diagnosticTestsToSend,
+        medications: effectiveBillablePayload.medications,
+        preventiveCare: effectiveBillablePayload.preventiveCare,
+        preventiveAssociatedExclusions: effectiveBillablePayload.preventiveAssociatedExclusions,
         confinementAction,
         confinementDays,
         referral,
@@ -2388,9 +2431,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       // When the confined toggle is turned off on a previously-confined record the record
       // moves to 'completed' and the confinement period ends.
       const targetStage: 'confined' | 'completed' = confined ? 'confined' : 'completed'
+      const effectiveBillablePayload = getEffectiveBillablePayload()
 
       // Ensure preventiveCare items have correct careType mapping
-      const sanitizedPreventiveCare = preventiveCare.map((care) => ({
+      const sanitizedPreventiveCare = effectiveBillablePayload.preventiveCare.map((care) => ({
         careType: mapProductToCareType(care.product),
         product: care.product,
         dateAdministered: care.dateAdministered,
@@ -2398,7 +2442,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }))
 
       const allImages = [...images, ...titerImages]
-      const diagnosticTestsToSend = diagnosticTests
+      const diagnosticTestsToSend = effectiveBillablePayload.diagnosticTests
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
 
@@ -2407,7 +2451,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         visitSummary,
         plan: effectivePlan,
         immunityTesting: immunityPayload,
-        medications,
+        medications: effectiveBillablePayload.medications,
         diagnosticTests: diagnosticTestsToSend,
         preventiveCare: sanitizedPreventiveCare,
         sharedWithOwner,
@@ -2432,7 +2476,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           ? Math.max(1, Math.ceil((Date.now() - new Date(pet.confinedSince).getTime()) / 86_400_000))
           : confinementDays
         syncBillingFromRecord({
-          billingId, petId, medications, diagnosticTests: diagnosticTestsToSend,
+          billingId, petId, medications: effectiveBillablePayload.medications, diagnosticTests: diagnosticTestsToSend,
           preventiveCare: sanitizedPreventiveCare, recordCreatedAt, token,
           recordVaccinations: vaccines.filter(v => v.vaccineCreated && v.vaccineTypeId).map(v => ({
             vaccineTypeId: v.vaccineTypeId,
@@ -2445,7 +2489,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           confinementAction: confinementAction || 'none',
           confinementDays: liveConfinementDays,
           euthanasiaEnabled: euthanasia,
-          preventiveExclusions: [...effectivePreventiveExclusions],
+          preventiveExclusions: effectiveBillablePayload.preventiveAssociatedExclusions,
         }).catch(() => {})
       }
       if (euthanasia) {
@@ -3404,7 +3448,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {testsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {testsOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
+                  <fieldset disabled={billableFieldsLocked} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
+                    {billableFieldsLocked && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        Billable services are locked for completed appointments.
+                      </p>
+                    )}
                     {diagnosticTests.map((test, i) => (
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-3">
                         <div className="flex items-center justify-between">
@@ -3503,7 +3552,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <button onClick={() => setDiagnosticTests((prev) => [...prev, emptyDiagnosticTest()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add Test
                     </button>
-                  </div>
+                  </fieldset>
                 )}
               </div>
 
@@ -4715,7 +4764,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {medsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {medsOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
+                  <fieldset disabled={billableFieldsLocked} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
                     {/* Medication reconciliation from previous visit */}
                     {carryoverMeds.length > 0 && !carryoverApplied && medications.length === 0 && (
                       <div className="mt-3 border border-amber-200 rounded-xl overflow-hidden bg-amber-50/40">
@@ -5023,7 +5072,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <button onClick={() => setMedications((prev) => [...prev, emptyMedication()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add Medication
                     </button>
-                  </div>
+                  </fieldset>
                 )}
               </div>
 
@@ -5040,7 +5089,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {preventiveOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {preventiveOpen && (
-                  <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
+                  <fieldset disabled={billableFieldsLocked} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
                     {preventiveCare.map((care, i) => {
                       return (
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">
@@ -5349,7 +5398,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <button onClick={() => setPreventiveCare((prev) => [...prev, emptyPreventiveCare()])} className="flex items-center gap-1.5 text-xs text-[#476B6B] hover:text-[#3a5858] font-medium mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add Item
                     </button>
-                  </div>
+                  </fieldset>
                 )}
               </div>
 

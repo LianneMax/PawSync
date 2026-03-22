@@ -28,7 +28,8 @@ export type NotificationType =
   | 'vet_resignation_rejected'
   | 'vet_resigned'
   | 'clinic_vet_resignation_review'
-  | 'appointment_reassigned';
+  | 'appointment_reassigned'
+  | 'medical_record_shared';
 
 export interface Notification {
   _id: string;

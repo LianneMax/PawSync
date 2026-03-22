@@ -12,7 +12,7 @@ import ProductService from '../models/ProductService';
 import VaccineType from '../models/VaccineType';
 import Referral from '../models/Referral';
 import { createNotification } from '../services/notificationService';
-import { sendBillingPendingPayment, sendPrescriptionEmail } from '../services/emailService';
+import { sendBillingPendingPayment, sendPrescriptionEmail, sendMedicalRecordShared } from '../services/emailService';
 import { getPregnancySnapshot, syncPregnancyFromMedicalRecord, getPregnancyEpisodeHistory } from '../services/pregnancyDomainService';
 import type { PregnancyEvidenceSource } from '../models/PregnancyEvidence';
 import { calculateConfinementDailyPrice } from '../utils/confinementPricing';
@@ -1631,6 +1631,49 @@ export const toggleShareRecord = async (req: Request, res: Response) => {
     const { shared } = req.body;
     const newValue = typeof shared === 'boolean' ? shared : !record.sharedWithOwner;
     await MedicalRecord.updateOne({ _id: record._id }, { $set: { sharedWithOwner: newValue } });
+
+    // Notify the pet owner when a record is shared
+    if (newValue && record.ownerId) {
+      try {
+        const [owner, vet, pet, clinic] = await Promise.all([
+          User.findById(record.ownerId).select('firstName email').lean(),
+          User.findById(record.vetId).select('firstName lastName').lean(),
+          Pet.findById(record.petId).select('name').lean(),
+          record.clinicId
+            ? (await import('../models/Clinic')).default.findById(record.clinicId).select('name').lean()
+            : null,
+        ]);
+
+        const ownerData = owner as any;
+        const vetData = vet as any;
+        const petData = pet as any;
+        const clinicData = clinic as any;
+
+        if (ownerData?.email) {
+          sendMedicalRecordShared({
+            ownerEmail: ownerData.email,
+            ownerFirstName: ownerData.firstName || 'Pet Owner',
+            petName: petData?.name || 'your pet',
+            vetName: vetData ? `${vetData.firstName} ${vetData.lastName}` : 'the veterinarian',
+            clinicName: clinicData?.name || 'the clinic',
+            visitDate: (record as any).createdAt || new Date(),
+          });
+        }
+
+        if (ownerData?._id) {
+          await createNotification(
+            ownerData._id.toString(),
+            'medical_record_shared',
+            'Medical Record Available',
+            `Dr. ${vetData ? `${vetData.firstName} ${vetData.lastName}` : 'your veterinarian'} has shared a medical record for ${petData?.name || 'your pet'}.`,
+            { medicalRecordId: record._id },
+          );
+        }
+      } catch (notifyErr) {
+        console.error('[MedicalRecord] Share notification failed:', notifyErr);
+        // Non-fatal
+      }
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',

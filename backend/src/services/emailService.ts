@@ -1272,6 +1272,69 @@ export async function sendPrescriptionEmail(params: {
   }
 }
 
+// ─── Medical Record Shared Email ─────────────────────────────────────────────
+
+export async function sendMedicalRecordShared(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  clinicName: string;
+  visitDate: Date | string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Medical Record Available for ${params.petName}`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; background: #ffffff;">
+
+          <!-- Header -->
+          <div style="background: #5A7C7A; border-radius: 14px; padding: 24px 28px; margin-bottom: 24px;">
+            <h1 style="color: #ffffff; margin: 0 0 4px; font-size: 22px; letter-spacing: 0.5px;">Medical Record Shared</h1>
+            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 13px;">${params.clinicName}</p>
+          </div>
+
+          <p style="color: #374151; margin: 0 0 6px;">Hi ${params.ownerFirstName},</p>
+          <p style="color: #374151; margin: 0 0 20px;">
+            Dr. ${params.vetName} has shared a completed medical record for <strong>${params.petName}</strong>.
+            You can now view it in your PawSync account under <strong>Patient Records</strong>.
+          </p>
+
+          <!-- Visit Info -->
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px 16px; border-radius: 12px; margin-bottom: 24px;">
+            <p style="margin: 0 0 4px; font-size: 13px; color: #374151;"><strong>Patient:</strong> ${params.petName}</p>
+            <p style="margin: 0 0 4px; font-size: 13px; color: #374151;"><strong>Veterinarian:</strong> Dr. ${params.vetName}</p>
+            <p style="margin: 0; font-size: 13px; color: #374151;"><strong>Visit Date:</strong> ${formatDate(params.visitDate)}</p>
+          </div>
+
+          <!-- CTA -->
+          <div style="text-align: center; margin-bottom: 24px;">
+            <a href="${FRONTEND_URL}/patient-records"
+               style="display: inline-block; background: #5A7C7A; color: #ffffff; text-decoration: none;
+                      padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.3px;">
+              View Medical Record
+            </a>
+          </div>
+
+          <!-- Info note -->
+          <div style="background: #f3f4f6; border-radius: 12px; padding: 14px 16px; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+              This record includes clinical notes, diagnoses, and any treatment plans from the visit.
+              If you have questions about the record, please contact ${params.clinicName} directly.
+            </p>
+          </div>
+
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendMedicalRecordShared error:', err);
+  }
+}
+
 // ─── Pet Tag Ready Email ──────────────────────────────────────────────────────
 
 export async function sendPetTagReadyEmail(params: {
