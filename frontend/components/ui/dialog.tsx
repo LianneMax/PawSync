@@ -7,12 +7,13 @@ import { X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
 const dialogContentVariants = cva(
-  'flex flex-col fixed outline-0 z-50 border border-border bg-background p-6 shadow-lg shadow-black/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg',
+  'flex flex-col fixed outline-0 z-50 border border-border bg-background p-4 sm:p-6 shadow-lg shadow-black/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg',
   {
     variants: {
       variant: {
-        default: 'left-[50%] top-[50%] max-w-lg translate-x-[-50%] translate-y-[-50%] w-full',
-        fullscreen: 'inset-5',
+        default:
+          'left-[50%] top-[50%] w-[calc(100vw-1.5rem)] max-w-lg max-h-[calc(100vh-1.5rem)] translate-x-[-50%] translate-y-[-50%] overflow-x-hidden overflow-y-auto overscroll-contain sm:w-full sm:max-h-[90vh]',
+        fullscreen: 'inset-2 sm:inset-5 max-h-[calc(100vh-1rem)] overflow-x-hidden overflow-y-auto overscroll-contain',
       },
     },
     defaultVariants: {

@@ -965,8 +965,8 @@ export default function ClinicManagementPage() {
 
       {/* ==================== EDIT BRANCH MODAL ==================== */}
       <Dialog open={editBranchOpen} onOpenChange={(v) => { if (!v) { setEditIs24h(false); setEditBranchOpen(false) } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
             <DialogTitle className="text-[#4F4F4F]">Edit Branch</DialogTitle>
           </DialogHeader>
 
@@ -981,7 +981,7 @@ export default function ClinicManagementPage() {
             </div>
           )}
 
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0">
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
               <input
@@ -1105,7 +1105,7 @@ export default function ClinicManagementPage() {
             </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 px-6 py-4 border-t border-gray-100 bg-white">
             <button onClick={() => setEditBranchOpen(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
               Cancel
             </button>
@@ -1118,8 +1118,8 @@ export default function ClinicManagementPage() {
 
       {/* ==================== ADD BRANCH MODAL ==================== */}
       <Dialog open={addBranchOpen} onOpenChange={(v) => { if (!v) { setAddBranchOpen(false); resetAddForm() } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
             <DialogTitle className="text-[#4F4F4F]">Add New Branch</DialogTitle>
           </DialogHeader>
 
@@ -1131,7 +1131,7 @@ export default function ClinicManagementPage() {
             </div>
           )}
 
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0">
             {/* Branch Name */}
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
@@ -1356,7 +1356,7 @@ export default function ClinicManagementPage() {
             </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-3 px-6 py-4 border-t border-gray-100 bg-white">
             <button
               onClick={() => { setAddBranchOpen(false); resetAddForm() }}
               className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
