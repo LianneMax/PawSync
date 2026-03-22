@@ -27,6 +27,7 @@ export interface IDiagnosticTest {
   result: string;
   normalRange: string;
   notes: string;
+  images?: { data: Buffer; contentType: string; description: string }[];
 }
 
 export interface IPreventiveCare {
@@ -71,6 +72,26 @@ export interface IPregnancyLoss {
 export interface ISurgeryRecord {
   surgeryType: string;
   vetRemarks: string;
+  images?: { data: Buffer; contentType: string; description: string }[];
+}
+
+export interface IImmunityTesting {
+  enabled: boolean;
+  species: string;
+  kitName: string;
+  testDate: Date | null;
+  rows: { disease: string; score: number | null; status: string; action: string }[];
+  positiveCount?: number;
+  summary: string;
+  markdown: string;
+  tag: string;
+  linkedAppointmentId: mongoose.Types.ObjectId | null;
+  followUpAppointmentId: mongoose.Types.ObjectId | null;
+  followUpDate: Date | null;
+  skipSuggested: boolean;
+  antigenEnabled?: boolean;
+  antigenRows?: { disease: string; result: string }[];
+  antigenDate?: Date | null;
 }
 
 export interface IFollowUp {
@@ -140,6 +161,7 @@ export interface IMedicalRecord extends Document {
   pregnancyDelivery?: IPregnancyDelivery | null;
   pregnancyLoss?: IPregnancyLoss | null;
   surgeryRecord?: ISurgeryRecord | null;
+  immunityTesting?: IImmunityTesting | null;
   billingId: mongoose.Types.ObjectId | null;
   preventiveAssociatedExclusions: string[];
   followUps: IFollowUp[];
@@ -206,7 +228,11 @@ const DiagnosticTestSchema = new Schema(
     date: { type: Date, default: null },
     result: { type: String, default: '' },
     normalRange: { type: String, default: '' },
-    notes: { type: String, default: '' }
+    notes: { type: String, default: '' },
+    images: {
+      type: [ImageFragmentSchema],
+      default: []
+    }
   },
   { _id: true }
 );
@@ -278,6 +304,50 @@ const SurgeryRecordSchema = new Schema(
   {
     surgeryType: { type: String, default: '' },
     vetRemarks: { type: String, default: '' },
+    images: {
+      type: [ImageFragmentSchema],
+      default: []
+    }
+  },
+  { _id: false }
+);
+
+const ImmunityTestingRowSchema = new Schema(
+  {
+    disease: { type: String, default: '' },
+    score: { type: Number, default: null },
+    status: { type: String, default: '' },
+    action: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const ImmunityTestingAntigenRowSchema = new Schema(
+  {
+    disease: { type: String, default: '' },
+    result: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const ImmunityTestingSchema = new Schema(
+  {
+    enabled: { type: Boolean, default: false },
+    species: { type: String, default: '' },
+    kitName: { type: String, default: '' },
+    testDate: { type: Date, default: null },
+    rows: { type: [ImmunityTestingRowSchema], default: [] },
+    positiveCount: { type: Number, default: 0 },
+    summary: { type: String, default: '' },
+    markdown: { type: String, default: '' },
+    tag: { type: String, default: '' },
+    linkedAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
+    followUpAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', default: null },
+    followUpDate: { type: Date, default: null },
+    skipSuggested: { type: Boolean, default: false },
+    antigenEnabled: { type: Boolean, default: false },
+    antigenRows: { type: [ImmunityTestingAntigenRowSchema], default: [] },
+    antigenDate: { type: Date, default: null },
   },
   { _id: false }
 );
@@ -469,6 +539,10 @@ const MedicalRecordSchema = new Schema(
     },
     surgeryRecord: {
       type: SurgeryRecordSchema,
+      default: null,
+    },
+    immunityTesting: {
+      type: ImmunityTestingSchema,
       default: null,
     },
     billingId: {

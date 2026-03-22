@@ -62,6 +62,7 @@ export interface DiagnosticTest {
   result: string;
   normalRange: string;
   notes: string;
+  images?: ImageFragment[];
 }
 
 export interface PreventiveCare {

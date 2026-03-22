@@ -187,6 +187,22 @@ const checkboxVitalLabels: Record<string, string> = {
   vaccinated: 'Vaccinated',
 }
 
+const IMMUNITY_DISEASES_BY_SPECIES = {
+  canine: ['CPV', 'CDV', 'CAV-1'],
+  feline: ['FPV', 'FCV', 'FHV'],
+} as const
+
+type ImmunitySpecies = keyof typeof IMMUNITY_DISEASES_BY_SPECIES
+
+function resolveImmunitySpecies(species?: string): ImmunitySpecies {
+  return species === 'feline' ? 'feline' : 'canine'
+}
+
+function stripImmunityFromPlan(plan?: string): string {
+  if (!plan) return ''
+  return plan.replace(/\n*Immunity Testing[\s\S]*$/i, '').trim()
+}
+
 // Extra checkbox fields (stored in a separate state, not in vitals)
 const extraCheckboxKeys = ['ultrasound', 'availedProducts', 'others'] as const
 const extraCheckboxLabels: Record<string, string> = {
@@ -1778,6 +1794,27 @@ function ViewRecordModal({
   const currentOwnerName = `${pet?.ownerId?.firstName || ''} ${pet?.ownerId?.lastName || ''}`.trim()
   const ownerName = (record?.ownerAtTime?.name || currentOwnerName || 'Unknown Owner').trim()
   const ownerLabel = record?.ownerAtTime?.name ? 'Owner at Time' : 'Current Owner'
+  const soapPlan = stripImmunityFromPlan(record?.plan)
+
+  const immunitySpecies = resolveImmunitySpecies(record?.immunityTesting?.species)
+  const immunityDiseases = IMMUNITY_DISEASES_BY_SPECIES[immunitySpecies]
+  const vitalNotes = (Object.keys(vitalLabels) as (keyof Vitals)[])
+    .map((key) => {
+      const entry = record?.vitals?.[key]
+      const note = typeof entry?.notes === 'string' ? entry.notes.trim() : ''
+      if (!note) return null
+      return { key, label: vitalLabels[key].label, note }
+    })
+    .filter((item): item is { key: keyof Vitals; label: string; note: string } => item !== null)
+  const hasImmunityTesting = !!record?.immunityTesting && (
+    record.immunityTesting.enabled === true ||
+    (record.immunityTesting.rows?.length || 0) > 0
+  )
+  const hasAntigenTesting = !!record?.immunityTesting && (
+    record.immunityTesting.antigenEnabled === true ||
+    (record.immunityTesting.antigenRows?.length || 0) > 0
+  )
+  const hasDiagnosticTestsSection = (record?.diagnosticTests?.length || 0) > 0 || hasImmunityTesting || hasAntigenTesting
 
   const handlePrint = () => {
     if (!record) return
@@ -1790,15 +1827,17 @@ function ViewRecordModal({
       const { label, unit } = vitalLabels[key]
       const entry = record.vitals?.[key]
       const val = entry?.value || entry?.value === 0 ? `${entry.value}${unit ? ' ' + unit : ''}` : '—'
-      return `<tr><td>${label}</td><td><strong>${val}</strong></td><td>${entry?.notes || '—'}</td></tr>`
+      return `<tr><td>${label}</td><td><strong>${val}</strong></td></tr>`
     }).join('')
 
-    const checkboxRows = checkboxVitalKeys.map((key) => {
-      const label = checkboxVitalLabels[key]
-      const entry = record.vitals?.[key]
-      const val = entry?.value || '—'
-      return `<tr><td>${label}</td><td><strong>${val}</strong></td><td>${entry?.notes || '—'}</td></tr>`
-    }).join('')
+    const printVitalNotes = (Object.keys(vitalLabels) as (keyof Vitals)[])
+      .map((key) => {
+        const note = record.vitals?.[key]?.notes?.trim()
+        if (!note) return null
+        return `<tr><td>${vitalLabels[key].label}</td><td>${note}</td></tr>`
+      })
+      .filter(Boolean)
+      .join('')
 
     const medRows = (record.medications || []).map((m: Medication) =>
       `<tr><td>${m.name||'—'}</td><td>${m.dosage||'—'}</td><td>${m.route||'—'}</td><td>${m.frequency||'—'}</td><td>${m.duration||'—'}</td><td>${m.status||'—'}</td></tr>`
@@ -1808,18 +1847,64 @@ function ViewRecordModal({
       `<div class="test-card"><strong>${t.name||t.testType}</strong> <span class="sub">${(t.testType||'').replace('_',' ')}</span>${t.date ? `<br><span class="sub">${new Date(t.date).toLocaleDateString()}</span>` : ''}${t.result ? `<p>${t.result}</p>` : ''}${t.normalRange ? `<span class="sub">Normal: ${t.normalRange}</span>` : ''}</div>`
     ).join('')
 
+    const printImmunitySpecies = resolveImmunitySpecies(record.immunityTesting?.species)
+    const printImmunityDiseases = IMMUNITY_DISEASES_BY_SPECIES[printImmunitySpecies]
+    const printImmunityRows = printImmunityDiseases.map((disease) => {
+      const row = record.immunityTesting?.rows?.find((item) => item.disease === disease)
+      return `<tr><td>${disease}</td><td>${row?.score ?? '—'}</td><td>${row?.status || '—'}</td><td>${row?.action || '—'}</td></tr>`
+    }).join('')
+    const printAntigenRows = printImmunityDiseases.map((disease) => {
+      const row = record.immunityTesting?.antigenRows?.find((item) => item.disease === disease)
+      return `<tr><td>${disease}</td><td>${row?.result || '—'}</td></tr>`
+    }).join('')
+    const printHasImmunityTesting = !!record.immunityTesting && (
+      record.immunityTesting.enabled === true ||
+      (record.immunityTesting.rows?.length || 0) > 0
+    )
+    const printHasAntigenTesting = !!record.immunityTesting && (
+      record.immunityTesting.antigenEnabled === true ||
+      (record.immunityTesting.antigenRows?.length || 0) > 0
+    )
+    const diagnosticSection = ((record.diagnosticTests || []).length > 0 || printHasImmunityTesting || printHasAntigenTesting) ? `
+      <div class="section">
+        <div class="section-header">🧪 Diagnostic Tests</div>
+        <div class="section-body">
+          ${(record.diagnosticTests || []).length > 0 ? testCards : ''}
+          ${printHasImmunityTesting ? `
+            <div style="margin-top:${(record.diagnosticTests || []).length > 0 ? '10px' : '0'}">
+              <p class="soap-label">Immunity Testing</p>
+              <table>
+                <thead><tr><th>Disease</th><th>Score</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>${printImmunityRows}</tbody>
+              </table>
+            </div>
+          ` : ''}
+          ${printHasAntigenTesting ? `
+            <div style="margin-top:10px">
+              <p class="soap-label">Antigen Testing</p>
+              <table>
+                <thead><tr><th>Disease</th><th>Result</th></tr></thead>
+                <tbody>${printAntigenRows}</tbody>
+              </table>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    ` : ''
+
     const careRows = (record.preventiveCare || []).map((c: PreventiveCare) =>
       `<tr><td>${(c.careType||'—').replace('_',' ')}</td><td>${c.product||'—'}</td><td>${c.dateAdministered ? new Date(c.dateAdministered).toLocaleDateString() : '—'}</td><td>${c.nextDueDate ? new Date(c.nextDueDate).toLocaleDateString() : '—'}</td></tr>`
     ).join('')
 
-    const soapSection = (record.subjective || record.overallObservation || record.assessment || record.plan) ? `
+    const printSoapPlan = stripImmunityFromPlan(record.plan)
+    const soapSection = (record.subjective || record.overallObservation || record.assessment || printSoapPlan) ? `
       <div class="section">
         <div class="section-header">SOAP NOTES</div>
         <div class="section-body">
           ${record.subjective ? `<p class="soap-label">S — Subjective</p><p>${record.subjective}</p>` : ''}
           ${record.overallObservation ? `<p class="soap-label">O — Objective</p><p>${record.overallObservation}</p>` : ''}
           ${record.assessment ? `<p class="soap-label">A — Assessment</p><p>${record.assessment}</p>` : ''}
-          ${record.plan ? `<p class="soap-label">P — Plan</p><p>${record.plan}</p>` : ''}
+          ${printSoapPlan ? `<p class="soap-label">P — Plan</p><p>${printSoapPlan}</p>` : ''}
         </div>
       </div>` : ''
 
@@ -1889,20 +1974,30 @@ function ViewRecordModal({
             <div style="margin-bottom:10px"><div class="info-label">Date of Examination</div><div class="info-val" style="font-weight:600">${visitDate}</div></div>
             <div style="margin-bottom:10px"><div class="info-label">${ownerLabel}</div><div class="info-val" style="font-weight:600">${ownerName}</div></div>
             <div style="margin-bottom:10px"><div class="info-label">Attending Veterinarian</div><div class="info-val" style="font-weight:600">${vetName}</div></div>
-            <div><div class="info-label">Clinic / Branch</div><div class="info-val">${clinicName||'—'}</div></div>
+            <div>
+              <div class="info-label">Clinic / Branch</div>
+              <div class="info-val">${clinicName||'—'}</div>
+            </div>
+            <div>
+              <div class="info-label">Branch Phone</div>
+              <div class="info-val">${branch?.phone || '—'}</div>
+            </div>
           </div>
         </div>
       </div>
       ${record.chiefComplaint ? `<div class="section"><div class="section-header">Chief Complaint / Reason for Visit</div><div class="section-body"><p>${record.chiefComplaint}</p></div></div>` : ''}
       <div class="section">
         <div class="section-header">Physical Examination</div>
-        <div class="section-body"><table><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>${vitalRows}${checkboxRows}</tbody></table></div>
+        <div class="section-body">
+          <table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>${vitalRows}</tbody></table>
+          ${printVitalNotes ? `<div style="margin-top:10px"><p class="soap-label">Vital Notes</p><table><thead><tr><th>Vital</th><th>Notes</th></tr></thead><tbody>${printVitalNotes}</tbody></table></div>` : ''}
+        </div>
       </div>
       ${soapSection}
-      ${record.visitSummary ? `<div class="section"><div class="section-header">Visit Summary</div><div class="section-body"><p>${record.visitSummary}</p></div></div>` : ''}
       ${(record.medications||[]).length ? `<div class="section"><div class="section-header">💊 Medications</div><div class="section-body"><table><thead><tr><th>Name</th><th>Dosage</th><th>Route</th><th>Frequency</th><th>Duration</th><th>Status</th></tr></thead><tbody>${medRows}</tbody></table></div></div>` : ''}
-      ${(record.diagnosticTests||[]).length ? `<div class="section"><div class="section-header">🧪 Diagnostic Tests</div><div class="section-body">${testCards}</div></div>` : ''}
+      ${diagnosticSection}
       ${(record.preventiveCare||[]).length ? `<div class="section"><div class="section-header">🛡 Preventive Care</div><div class="section-body"><table><thead><tr><th>Type</th><th>Product</th><th>Administered</th><th>Next Due</th></tr></thead><tbody>${careRows}</tbody></table></div></div>` : ''}
+      ${record.visitSummary ? `<div class="section"><div class="section-header">Visit Summary</div><div class="section-body"><p>${record.visitSummary}</p></div></div>` : ''}
       <div class="footer">
         <div><div class="sig-line"></div><div class="sig-label">${vetName}</div><div class="sig-label">Attending Veterinarian</div></div>
         <div style="text-align:right"><div class="sig-label">${visitDate}</div><div class="sig-label">Date of Record</div></div>
@@ -2232,6 +2327,9 @@ function ViewRecordModal({
                         {clinic?.name || '—'}
                         {branch?.name ? ` — ${branch.name}` : ''}
                       </p>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Branch Phone: {branch?.phone || '—'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2258,9 +2356,8 @@ function ViewRecordModal({
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-100">
-                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 w-[35%]">Parameter</th>
-                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 w-[25%]">Value</th>
-                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Notes</th>
+                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 w-[45%]">Parameter</th>
+                        <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Value</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2280,37 +2377,37 @@ function ViewRecordModal({
                                 <span className="text-sm text-gray-300">—</span>
                               )}
                             </td>
-                            <td className="py-2 text-xs text-gray-500">{entry?.notes || '—'}</td>
-                          </tr>
-                        )
-                      })}
-                      {/* Checkbox vitals in view */}
-                      {checkboxVitalKeys.map((key) => {
-                        const label = checkboxVitalLabels[key]
-                        const entry = record.vitals?.[key]
-                        return (
-                          <tr key={key} className="border-b border-gray-50 last:border-0">
-                            <td className="py-2 text-sm text-[#4F4F4F] font-medium">{label}</td>
-                            <td className="py-2">
-                              {entry?.value ? (
-                                <span className={`text-sm font-semibold ${entry.value === 'Yes' ? 'text-green-600' : 'text-gray-400'}`}>
-                                  {entry.value}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-300">—</span>
-                              )}
-                            </td>
-                            <td className="py-2 text-xs text-gray-500">{entry?.notes || '—'}</td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
+                  {vitalNotes.length > 0 && (
+                    <div className="mt-4 border-t border-gray-100 pt-3">
+                      <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-2">Vital Notes</p>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100">
+                            <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 w-[35%]">Vital</th>
+                            <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {vitalNotes.map((item) => (
+                            <tr key={item.key} className="border-b border-gray-50 last:border-0">
+                              <td className="py-2 text-sm text-[#4F4F4F] font-medium">{item.label}</td>
+                              <td className="py-2 text-sm text-[#4F4F4F] whitespace-pre-wrap">{item.note}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* ===== SOAP NOTES ===== */}
-              {(record.subjective || record.overallObservation || record.assessment || record.plan) && (
+              {(record.subjective || record.overallObservation || record.assessment || soapPlan) && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                     <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">SOAP Notes</h2>
@@ -2334,24 +2431,12 @@ function ViewRecordModal({
                         <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.assessment}</p>
                       </div>
                     )}
-                    {record.plan && (
+                    {soapPlan && (
                       <div>
                         <p className="text-[10px] font-semibold text-[#476B6B] uppercase tracking-wider mb-1">P — Plan</p>
-                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.plan}</p>
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{soapPlan}</p>
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {/* ===== VISIT SUMMARY ===== */}
-              {record.visitSummary && (
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Visit Summary</h2>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.visitSummary}</p>
                   </div>
                 </div>
               )}
@@ -2398,16 +2483,16 @@ function ViewRecordModal({
               )}
 
               {/* ===== DIAGNOSTIC TESTS ===== */}
-              {record.diagnosticTests && record.diagnosticTests.length > 0 && (
+              {hasDiagnosticTestsSection && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                     <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-2">
                       <FlaskConical className="w-3.5 h-3.5" />
-                      Diagnostic Tests ({record.diagnosticTests.length})
+                      Diagnostic Tests
                     </h2>
                   </div>
                   <div className="p-4 space-y-3">
-                    {record.diagnosticTests.map((test: DiagnosticTest, i: number) => (
+                    {record.diagnosticTests?.map((test: DiagnosticTest, i: number) => (
                       <div key={test._id || i} className="bg-gray-50 rounded-xl p-3">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-semibold text-[#4F4F4F]">{test.name || test.testType}</span>
@@ -2422,8 +2507,100 @@ function ViewRecordModal({
                         )}
                         {test.normalRange && <p className="text-xs text-gray-400 mt-1">Normal: {test.normalRange}</p>}
                         {test.notes && <p className="text-xs text-gray-500 mt-1 italic">{test.notes}</p>}
+                        {Array.isArray(test.images) && test.images.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Test Images</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {test.images.map((img, imgIdx) => (
+                                <div key={img._id || imgIdx} className="relative rounded-lg overflow-hidden border border-gray-200 bg-white">
+                                  {img.data ? (
+                                    <>
+                                      <img
+                                        src={`data:${img.contentType};base64,${img.data}`}
+                                        alt={img.description || `Diagnostic test image ${imgIdx + 1}`}
+                                        className="w-full h-24 object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                        onClick={() => setLightboxMedia({ src: `data:${img.contentType};base64,${img.data}`, contentType: img.contentType, description: img.description })}
+                                      />
+                                      {img.description && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/65 text-white text-[10px] px-2 py-1 truncate">
+                                          {img.description}
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <div className="w-full h-24 bg-gray-100 flex items-center justify-center">
+                                      <ImageIcon className="w-5 h-5 text-gray-300" />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
+
+                    {hasImmunityTesting && (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                          <h3 className="text-[11px] font-semibold text-[#476B6B] uppercase tracking-wider">Immunity Testing</h3>
+                        </div>
+                        <div className="p-3">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-gray-100">
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Disease</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Score</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Status</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {immunityDiseases.map((disease) => {
+                                const row = record.immunityTesting?.rows?.find((item) => item.disease === disease)
+                                return (
+                                  <tr key={disease} className="border-b border-gray-50 last:border-0">
+                                    <td className="py-2 text-[#4F4F4F] font-medium pr-3">{disease}</td>
+                                    <td className="py-2 text-gray-600 pr-3">{row?.score ?? '—'}</td>
+                                    <td className="py-2 text-gray-600 pr-3">{row?.status || '—'}</td>
+                                    <td className="py-2 text-gray-600">{row?.action || '—'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {hasAntigenTesting && (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                          <h3 className="text-[11px] font-semibold text-[#476B6B] uppercase tracking-wider">Antigen Testing</h3>
+                        </div>
+                        <div className="p-3">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-gray-100">
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Disease</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Result</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {immunityDiseases.map((disease) => {
+                                const row = record.immunityTesting?.antigenRows?.find((item) => item.disease === disease)
+                                return (
+                                  <tr key={disease} className="border-b border-gray-50 last:border-0">
+                                    <td className="py-2 text-[#4F4F4F] font-medium pr-3">{disease}</td>
+                                    <td className="py-2 text-gray-600">{row?.result || '—'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2684,6 +2861,29 @@ function ViewRecordModal({
                 </div>
               )}
 
+              {Array.isArray(record.preventiveAssociatedExclusions) && record.preventiveAssociatedExclusions.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">
+                      Preventive Exclusions ({record.preventiveAssociatedExclusions.length})
+                    </h2>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex flex-wrap gap-2">
+                      {record.preventiveAssociatedExclusions.map((item, i) => (
+                        <span
+                          key={`${item}-${i}`}
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
+                          title={item}
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ===== DIAGNOSTIC IMAGES ===== */}
               {record.images && record.images.length > 0 && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -2740,6 +2940,18 @@ function ViewRecordModal({
                   confinementRecordId={record.confinementRecordId}
                   isActive
                 />
+              )}
+
+              {/* ===== VISIT SUMMARY ===== */}
+              {record.visitSummary && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider">Visit Summary</h2>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{record.visitSummary}</p>
+                  </div>
+                </div>
               )}
 
               {/* ===== REFERRAL, DISCHARGE & SCHEDULED SURGERY ===== */}

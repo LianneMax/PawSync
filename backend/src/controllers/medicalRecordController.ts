@@ -41,6 +41,56 @@ function addMinutesToTime(time: string, minutes: number): string {
   const total = h * 60 + m + minutes;
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
 }
+function toImageBufferArray(images?: Array<{ data: string; contentType: string; description?: string }>) {
+  return (images || []).map((img) => ({
+    data: Buffer.from(img.data, 'base64'),
+    contentType: img.contentType,
+    description: img.description || '',
+  }));
+}
+function serializeImageArray(images?: Array<{ _id?: any; data?: Buffer; contentType: string; description: string }>) {
+  return (images || []).map((img: any) => ({
+    _id: img._id,
+    data: img.data ? img.data.toString('base64') : null,
+    contentType: img.contentType,
+    description: img.description,
+  }));
+}
+
+function normalizeImmunityTestingPayload(immunityTesting: any) {
+  if (immunityTesting === undefined) return undefined;
+  if (immunityTesting === null) return null;
+  return {
+    enabled: immunityTesting.enabled === true,
+    species: immunityTesting.species || '',
+    kitName: immunityTesting.kitName || '',
+    testDate: immunityTesting.testDate || null,
+    rows: Array.isArray(immunityTesting.rows)
+      ? immunityTesting.rows.map((row: any) => ({
+          disease: row?.disease || '',
+          score: row?.score === '' || row?.score === undefined ? null : row?.score,
+          status: row?.status || '',
+          action: row?.action || '',
+        }))
+      : [],
+    positiveCount: typeof immunityTesting.positiveCount === 'number' ? immunityTesting.positiveCount : 0,
+    summary: immunityTesting.summary || '',
+    markdown: immunityTesting.markdown || '',
+    tag: immunityTesting.tag || '',
+    linkedAppointmentId: immunityTesting.linkedAppointmentId || null,
+    followUpAppointmentId: immunityTesting.followUpAppointmentId || null,
+    followUpDate: immunityTesting.followUpDate || null,
+    skipSuggested: immunityTesting.skipSuggested === true,
+    antigenEnabled: immunityTesting.antigenEnabled === true,
+    antigenRows: Array.isArray(immunityTesting.antigenRows)
+      ? immunityTesting.antigenRows.map((row: any) => ({
+          disease: row?.disease || '',
+          result: row?.result || '',
+        }))
+      : [],
+    antigenDate: immunityTesting.antigenDate || null,
+  };
+}
 
 
 /**
@@ -597,14 +647,14 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
     }
 
     const currentRecord = await MedicalRecord.findOne({ ...query, isCurrent: true })
-      .select('-images.data -vetNotes')
+      .select('-images.data -diagnosticTests.images.data -surgeryRecord.images.data -vetNotes')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
       .populate('appointmentId', 'date startTime types status');
 
     const historicalRecords = await MedicalRecord.find({ ...query, isCurrent: false })
-      .select('-images.data')
+      .select('-images.data -diagnosticTests.images.data -surgeryRecord.images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
@@ -677,7 +727,7 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
     }
 
     const record = await MedicalRecord.findOne(query)
-      .select('-images.data')
+      .select('-images.data -diagnosticTests.images.data -surgeryRecord.images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
@@ -758,7 +808,7 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
     }
 
     const records = await MedicalRecord.find(query)
-      .select('-images.data')
+      .select('-images.data -diagnosticTests.images.data -surgeryRecord.images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
@@ -809,11 +859,35 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     const pet = record.petId as any;
-    const isOwner = pet.ownerId?.toString() === req.user.userId;
+    const ownerId = typeof pet.ownerId === 'object' && pet.ownerId ? (pet.ownerId as any)._id : pet.ownerId;
+    const isOwner = ownerId?.toString() === req.user.userId;
     const isRecordVet = record.vetId && (record.vetId as any)._id?.toString() === req.user.userId;
+    let isAuthorizedVet = false;
+
+    if (req.user.userType === 'veterinarian') {
+      const assignment = await AssignedVet.findOne({ vetId: req.user.userId, petId: pet._id, isActive: true });
+      if (assignment) {
+        isAuthorizedVet = true;
+      } else {
+        const hasRecords = await MedicalRecord.exists({ vetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!hasRecords;
+      }
+      if (!isAuthorizedVet) {
+        const referral = await Referral.exists({ referredVetId: req.user.userId, petId: pet._id });
+        isAuthorizedVet = !!referral;
+      }
+      if (!isAuthorizedVet) {
+        const hasAppointment = await Appointment.exists({
+          vetId: req.user.userId,
+          petId: pet._id,
+          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+        });
+        isAuthorizedVet = !!hasAppointment;
+      }
+    }
     const isAdmin = isClinicAdminUser(req);
 
-    if (!isOwner && !isRecordVet && !isAdmin) {
+    if (!isOwner && !isRecordVet && !isAuthorizedVet && !isAdmin) {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this record' });
     }
 
@@ -823,12 +897,19 @@ export const getRecordById = async (req: Request, res: Response) => {
     }
 
     const recordObj = record.toObject() as any;
-    recordObj.images = recordObj.images.map((img: any) => ({
-      _id: img._id,
-      data: img.data ? img.data.toString('base64') : null,
-      contentType: img.contentType,
-      description: img.description
+    recordObj.images = serializeImageArray(recordObj.images);
+
+    recordObj.diagnosticTests = (recordObj.diagnosticTests || []).map((test: any) => ({
+      ...test,
+      images: serializeImageArray(test.images),
     }));
+
+    if (recordObj.surgeryRecord) {
+      recordObj.surgeryRecord = {
+        ...recordObj.surgeryRecord,
+        images: serializeImageArray(recordObj.surgeryRecord.images),
+      };
+    }
 
     recordObj.followUps = (recordObj.followUps || []).map((fu: any) => ({
       ...fu,
@@ -992,7 +1073,7 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
     if (petId) query.petId = petId;
 
     const records = await MedicalRecord.find(query)
-      .select('-images.data -vetNotes')
+      .select('-images.data -diagnosticTests.images.data -surgeryRecord.images.data -vetNotes')
       .populate({ path: 'petId', select: 'name species breed photo ownerId', populate: { path: 'ownerId', select: 'firstName lastName' } })
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
@@ -1048,6 +1129,7 @@ export const updateRecord = async (req: Request, res: Response) => {
       vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
       medications, diagnosticTests, preventiveCare, preventiveAssociatedExclusions,
+      immunityTesting,
       confinementAction, confinementDays, confinementRecordId,
       referral, discharge, scheduledSurgery,
       surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource
@@ -1057,7 +1139,14 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;
-    if (surgeryRecord !== undefined) (record as any).surgeryRecord = surgeryRecord;
+    if (surgeryRecord !== undefined) {
+      (record as any).surgeryRecord = surgeryRecord
+        ? {
+            ...surgeryRecord,
+            images: toImageBufferArray((surgeryRecord as any).images),
+          }
+        : surgeryRecord;
+    }
     if (pregnancyRecord !== undefined) (record as any).pregnancyRecord = pregnancyRecord;
     if (pregnancyDelivery !== undefined) (record as any).pregnancyDelivery = pregnancyDelivery;
     if (pregnancyLoss !== undefined) (record as any).pregnancyLoss = pregnancyLoss;
@@ -1067,8 +1156,14 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (subjective !== undefined) record.subjective = subjective;
     if (assessment !== undefined) record.assessment = assessment;
     if (plan !== undefined) record.plan = plan;
+    if (immunityTesting !== undefined) (record as any).immunityTesting = normalizeImmunityTestingPayload(immunityTesting);
     if (medications !== undefined) record.medications = medications;
-    if (diagnosticTests !== undefined) record.diagnosticTests = diagnosticTests;
+    if (diagnosticTests !== undefined) {
+      record.diagnosticTests = (diagnosticTests || []).map((test: any) => ({
+        ...test,
+        images: toImageBufferArray(test.images),
+      }));
+    }
     if (preventiveCare !== undefined) record.preventiveCare = preventiveCare;
     if (preventiveAssociatedExclusions !== undefined) (record as any).preventiveAssociatedExclusions = preventiveAssociatedExclusions;
     if (confinementAction !== undefined) record.confinementAction = confinementAction;
@@ -1162,11 +1257,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     }
 
     if (images) {
-      record.images = images.map((img: { data: string; contentType: string; description?: string }) => ({
-        data: Buffer.from(img.data, 'base64'),
-        contentType: img.contentType,
-        description: img.description || ''
-      }));
+      record.images = toImageBufferArray(images);
     }
 
     // If marking the record as completed and it's a sterilization appointment, update the pet's sterilization status
@@ -1492,11 +1583,17 @@ export const updateRecord = async (req: Request, res: Response) => {
       data: {
         record: {
           ...record.toObject(),
-          images: (record.toObject().images || []).map((img: any) => ({
-            _id: img._id,
-            contentType: img.contentType,
-            description: img.description
-          }))
+          images: serializeImageArray((record.toObject() as any).images),
+          diagnosticTests: ((record.toObject() as any).diagnosticTests || []).map((test: any) => ({
+            ...test,
+            images: serializeImageArray(test.images),
+          })),
+          surgeryRecord: (record.toObject() as any).surgeryRecord
+            ? {
+                ...(record.toObject() as any).surgeryRecord,
+                images: serializeImageArray((record.toObject() as any).surgeryRecord.images),
+              }
+            : null,
         },
         petPregnancy: {
           status: pregnancy.status,

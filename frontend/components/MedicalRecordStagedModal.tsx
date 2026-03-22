@@ -1661,22 +1661,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         description: `${img.type} surgery image`,
       }))
 
-  const buildDiagnosticTestImages = () => {
-    const diagImages: { data: string; contentType: string; description: string }[] = []
-    diagnosticTests.forEach((test, idx) => {
-      if (test.images && test.images.length > 0) {
-        test.images.forEach((img, imgIdx) => {
-          diagImages.push({
-            data: img.data,
-            contentType: img.contentType,
-            description: `${test.name ? test.name : 'Diagnostic Test'} #${idx + 1} - ${img.description || `Image ${imgIdx + 1}`}`,
-          })
-        })
-      }
-    })
-    return diagImages
-  }
-
   const buildExtraObservation = () => {
     const extras: string[] = []
     if (xray) extras.push('X-Ray')
@@ -1905,16 +1889,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
       const surgImgs = (isSurgeryAppt || emergencySurgery) ? buildSurgeryImagesPayload() : undefined
-      const diagImgs = buildDiagnosticTestImages()
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       const selectedSurgery = (isSurgeryAppt || emergencySurgery) ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
-      // Combine all images: diagnostic test images + general images
-      const allImages = [...diagImgs, ...images, ...titerImages, ...(surgImgs || [])]
-      
-      // Remove images from diagnostic tests before sending to API
-      const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      // Keep generic/titer uploads in top-level images; keep per-test and surgery images in their sections
+      const allImages = [...images, ...titerImages]
+      const diagnosticTestsToSend = diagnosticTests
       
       await updateMedicalRecord(recordId, {
         chiefComplaint,
@@ -1941,7 +1922,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           surgeryRecord: {
             surgeryType: selectedSurgery?.name || '',
             vetRemarks: surgeryVetRemarks,
-            images: surgImgs,
+            images: surgImgs || [],
           },
         } : {}),
       }, token)
@@ -2166,9 +2147,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setSaving(true)
     try {
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
-      const diagImgs = buildDiagnosticTestImages()
-      const allImages = [...diagImgs, ...images, ...titerImages]
-      const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      const allImages = [...images, ...titerImages]
+      const diagnosticTestsToSend = diagnosticTests
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
       
       await updateMedicalRecord(recordId, {
@@ -2317,18 +2297,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     try {
       const surgImageData = buildSurgeryImagesPayload()
       const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
-      // Populate images state so they're included if completing later
-      setImages(surgImageData)
       // Prefill visit summary with surgery name if not already set
       if (selectedSurgery && !visitSummary) {
         setVisitSummary(`Surgical procedure: ${selectedSurgery.name}`)
       }
       await updateMedicalRecord(recordId, {
         stage: 'post_procedure',
-        ...(surgImageData.length > 0 ? { images: surgImageData } : {}),
         surgeryRecord: {
           surgeryType: selectedSurgery?.name || '',
           vetRemarks: surgeryVetRemarks,
+          images: surgImageData,
         },
       }, token)
       setHistoryRefresh(prev => prev + 1)
@@ -2403,10 +2381,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         notes: care.notes,
       }))
 
-      // Extract diagnostic test images and combine with general images
-      const diagImgs = buildDiagnosticTestImages()
-      const allImages = [...diagImgs, ...images, ...titerImages]
-      const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
+      const allImages = [...images, ...titerImages]
+      const diagnosticTestsToSend = diagnosticTests
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
 
@@ -2430,6 +2406,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           surgeryRecord: {
             surgeryType: surgeryServices.find((s) => s._id === surgeryTypeId)?.name || '',
             vetRemarks: surgeryVetRemarks,
+            images: buildSurgeryImagesPayload(),
           },
         } : {}),
       }, token)
@@ -2618,8 +2595,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
                 const xImgs = buildSurgeryImagesPayload()
                 await updateMedicalRecord(recordId, {
-                  ...(xImgs.length > 0 ? { images: xImgs } : {}),
-                  surgeryRecord: { surgeryType: selectedSurgery?.name || '', vetRemarks: surgeryVetRemarks },
+                  surgeryRecord: { surgeryType: selectedSurgery?.name || '', vetRemarks: surgeryVetRemarks, images: xImgs },
                 }, token).catch(() => {})
               }
               onClose()
@@ -3374,7 +3350,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                   <span className="text-xs text-blue-700">{img.description}</span>
                                   <button onClick={() => setDiagnosticTests((prev) => {
                                     const updated = [...prev]
-                                    updated[i].images = updated[i].images!.filter((_, j) => j !== imgIdx)
+                                    updated[i].images = (updated[i].images || []).filter((_, j) => j !== imgIdx) as any
                                     return updated
                                   })} className="text-blue-400 hover:text-red-500">
                                     <X className="w-3 h-3" />
