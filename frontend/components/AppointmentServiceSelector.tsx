@@ -69,31 +69,42 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
 function CheckboxOption({
   item,
   selected,
+  disabled,
+  disabledReason,
   onToggle,
 }: {
   item: ServiceItem
   selected: boolean
+  disabled?: boolean
+  disabledReason?: string
   onToggle: (value: string) => void
 }) {
   return (
     <button
       type="button"
-      onClick={() => onToggle(item.value)}
+      disabled={disabled}
+      onClick={() => {
+        if (!disabled) onToggle(item.value)
+      }}
       className={`w-full px-3 py-2 rounded-lg text-sm text-left flex items-center gap-2.5 transition-colors ${
-        selected
+        disabled
+          ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+          : selected
           ? 'bg-[#7FA5A3]/10 text-[#5A7C7A]'
           : 'text-[#4F4F4F] hover:bg-gray-100'
       }`}
+      title={disabled ? (disabledReason || 'Unavailable') : undefined}
     >
       {/* Checkbox */}
       <span
         className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-          selected ? 'border-[#5A7C7A] bg-[#7FA5A3]' : 'border-gray-300'
+          selected && !disabled ? 'border-[#5A7C7A] bg-[#7FA5A3]' : 'border-gray-300'
         }`}
       >
-        {selected && <Check className="w-3 h-3 text-white" />}
+        {selected && !disabled && <Check className="w-3 h-3 text-white" />}
       </span>
-      {item.label}
+      <span>{item.label}</span>
+      {disabled && <span className="text-xs text-gray-400">({disabledReason || 'Unavailable'})</span>}
     </button>
   )
 }
@@ -107,12 +118,18 @@ interface AppointmentServiceSelectorProps {
   onChange: (values: string[]) => void
   /** Optional dynamic categories from database. Falls back to defaults if not provided. */
   categories?: ServiceCategory[]
+  /** Optional disabled service values. */
+  disabledValues?: string[]
+  /** Optional disabled reason map keyed by service value. */
+  disabledReasonByValue?: Record<string, string>
 }
 
 export default function AppointmentServiceSelector({
   values,
   onChange,
   categories,
+  disabledValues = [],
+  disabledReasonByValue = {},
 }: AppointmentServiceSelectorProps) {
   // "general" is expanded by default as it's the most common booking.
   const [openCategory, setOpenCategory] = useState<string>('general')
@@ -135,6 +152,7 @@ export default function AppointmentServiceSelector({
 
   // Toggle a service value
   const toggleService = (serviceValue: string) => {
+    if (disabledValues.includes(serviceValue)) return
     const isGroomingOption = groomingOptions.has(serviceValue)
 
     if (values.includes(serviceValue)) {
@@ -222,6 +240,8 @@ export default function AppointmentServiceSelector({
                           key={item.value}
                           item={item}
                           selected={values.includes(item.value)}
+                          disabled={disabledValues.includes(item.value)}
+                          disabledReason={disabledReasonByValue[item.value]}
                           onToggle={toggleService}
                         />
                       ))}
@@ -234,6 +254,8 @@ export default function AppointmentServiceSelector({
                       key={item.value}
                       item={item}
                       selected={values.includes(item.value)}
+                      disabled={disabledValues.includes(item.value)}
+                      disabledReason={disabledReasonByValue[item.value]}
                       onToggle={toggleService}
                     />
                   ))

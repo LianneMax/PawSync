@@ -931,6 +931,10 @@ function ScheduleModal({
   const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
   const selectedPet = pets.find((pet) => pet._id === selectedPetId) || null
+  const sterilizationDisabledForPet = selectedPet?.sterilization === 'spayed' || selectedPet?.sterilization === 'neutered'
+  const sterilizationDisabledReason = selectedPet
+    ? `Pet is already ${selectedPet.sterilization}`
+    : 'Unavailable'
   const selectedVet = branchVets.find((vet) => vet._id === selectedVetId) || null
   const selectedVetUnavailableAfter = selectedVet?.unavailableAfter ? new Date(selectedVet.unavailableAfter) : null
   const selectedDateObj = selectedDate ? new Date(selectedDate) : null
@@ -1245,8 +1249,19 @@ function ScheduleModal({
   const selectedBranchOption = branchOptions.find((b) => b.value === selectedBranchId)
 
   const handleTypeChange = (types: string[]) => {
-    setSelectedTypes(types.map(normalizeAppointmentType))
+    const normalized = types.map(normalizeAppointmentType)
+    if (sterilizationDisabledForPet) {
+      setSelectedTypes(normalized.filter((type) => normalizeAppointmentType(type) !== 'Sterilization'))
+      return
+    }
+    setSelectedTypes(normalized)
   }
+
+  useEffect(() => {
+    if (!sterilizationDisabledForPet) return
+    if (!selectedTypes.some((type) => normalizeAppointmentType(type) === 'Sterilization')) return
+    setSelectedTypes((prev) => prev.filter((type) => normalizeAppointmentType(type) !== 'Sterilization'))
+  }, [sterilizationDisabledForPet, selectedTypes])
 
   // Check for conflicting appointments for the same pet
   const checkForConflicts = async (): Promise<{ hasConflict: boolean; message?: string }> => {
@@ -1321,6 +1336,9 @@ function ScheduleModal({
     }
     if (!mode) return toast.error('Please select a mode of appointment')
     if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+    if (sterilizationDisabledForPet && selectedTypes.some((type) => normalizeAppointmentType(type) === 'Sterilization')) {
+      return toast.error(`Cannot book sterilization for pets already marked as ${selectedPet?.sterilization}.`)
+    }
     if (!chiefComplaint.trim()) return toast.error('Chief Complaint is required')
     if (!selectedSlot) return toast.error('Please select a time slot')
 
@@ -1557,6 +1575,8 @@ function ScheduleModal({
                 <AppointmentServiceSelector
                   values={selectedTypes}
                   onChange={handleTypeChange}
+                  disabledValues={sterilizationDisabledForPet ? ['Sterilization'] : []}
+                  disabledReasonByValue={sterilizationDisabledForPet ? { Sterilization: sterilizationDisabledReason } : {}}
                   categories={serviceCategories.map((cat) => ({
                     ...cat,
                     services: cat.services?.filter((svc: any) =>

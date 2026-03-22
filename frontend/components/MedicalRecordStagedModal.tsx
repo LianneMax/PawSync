@@ -709,6 +709,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [surgery, setSurgery] = useState(false)
   const [euthanasia, setEuthanasia] = useState(false)
   const [showSurgeryModal, setShowSurgeryModal] = useState(false)
+  const [showEmergencySurgeryModal, setShowEmergencySurgeryModal] = useState(false)
+  const [savingEmergencySurgery, setSavingEmergencySurgery] = useState(false)
   // Tracks the appointment ID created via the Care Plan → Schedule Surgery flow
   // so it can be cancelled if the vet unchecks the surgery toggle.
   const [carePlanSurgeryAppointmentId, setCarePlanSurgeryAppointmentId] = useState<string | null>(null)
@@ -894,6 +896,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [visitSummaryError, setVisitSummaryError] = useState(false)
   const [medications, setMedications] = useState<Omit<Medication, '_id'>[]>([])
   const [diagnosticTests, setDiagnosticTests] = useState<(Omit<DiagnosticTest, '_id'> & { images?: { data: string; contentType: string; description: string }[] })[]>([])
+  const [diagnosticFieldErrors, setDiagnosticFieldErrors] = useState<Record<number, Partial<Record<'name' | 'result', boolean>>>>({})
+  const [surgeryTypeError, setSurgeryTypeError] = useState(false)
+  const [surgeryVetRemarksError, setSurgeryVetRemarksError] = useState(false)
 
   // Derived: which specialty panels to show in During Procedure (must be after diagnosticTests state)
   const titerInCatalog = diagnosticTestServices.some((s) => isTiterTestingService(s.name))
@@ -1331,10 +1336,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       // 'confined' records have already had their appointment closed — treat them the same
       // as 'completed' for the purpose of not re-closing the appointment on subsequent saves.
       setAlreadyCompleted(r.stage === 'completed' || r.stage === 'confined')
-      if (isSurgeryAppt && r.surgeryRecord) {
+      if ((isSurgeryAppt || !!r.surgeryRecord) && r.surgeryRecord) {
+        if (!isSurgeryAppt) setEmergencySurgery(true)
         setSurgeryVetRemarks(r.surgeryRecord.vetRemarks || '')
       }
-      if (isSurgeryAppt && r.images && r.images.length > 0) {
+      if ((isSurgeryAppt || !!r.surgeryRecord) && r.images && r.images.length > 0) {
         setSurgeryImages((prev) =>
           prev.map((slot) => {
             const saved = r.images.find(
@@ -1366,7 +1372,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setVaccineTypes(activeVts)
 
       }
-      if (isSurgeryAppt) {
+      if (isSurgeryAppt || !!recordRes.data?.record?.surgeryRecord) {
         setSurgeryServicesLoading(true)
         const sres = await getSurgeryServices(token as string)
         if (sres.status === 'SUCCESS' && sres.data?.items) {
@@ -1886,14 +1892,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleSaveAndClose = async () => {
     if (!token) return
+    if (!validateDiagnosticTestResults()) return
     setSaving(true)
     try {
       if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
       const { action: confinementAction, days: confinementDays } = await syncConfinement()
-      const surgImgs = (isSurgeryAppt || emergencySurgery) ? buildSurgeryImagesPayload() : undefined
+      const surgImgs = isSurgeryAppt ? buildSurgeryImagesPayload() : undefined
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
-      const selectedSurgery = (isSurgeryAppt || emergencySurgery) ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
+      const selectedSurgery = isSurgeryAppt ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
       // Keep generic/titer uploads in top-level images; keep per-test and surgery images in their sections
       const allImages = [...images, ...titerImages]
@@ -2141,6 +2148,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }
     }
 
+    if (!validateDiagnosticTestResults()) return
+
     const positiveAntigenDiseases = antigenEnabled
       ? antigenRows.filter((r) => r.result === 'Positive').map((r) => r.disease)
       : []
@@ -2169,13 +2178,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         ...buildPregnancyPayload(),
         // Only advance stage to post_procedure if not a vaccination, surgery, or emergency surgery appointment
         // (those have an intermediate step 3)
-        ...(!isVaccinationAppt && !isSurgeryAppt && !emergencySurgery ? { stage: 'post_procedure' } : {}),
+        ...(!isVaccinationAppt && !isSurgeryAppt ? { stage: 'post_procedure' } : {}),
       }, token)
       await syncPregnancyStatus()
       await handleSaveNotes()
       setHistoryRefresh(prev => prev + 1)
       if (emergencySurgery && emergencySurgeryNotes.trim() && !surgeryVetRemarks.trim()) {
         setSurgeryVetRemarks(emergencySurgeryNotes.trim())
+      }
+      if (emergencySurgery) {
+        setShowEmergencySurgeryModal(true)
       }
       if (isVaccinationAppt && antigenSkipsVaccination) {
         setVaccinationSkippedDue(positiveAntigenDiseases)
@@ -2295,6 +2307,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleProceedStep3Surgery = async () => {
     if (!token) return
+    if (!validateSurgeryStepFields()) return
     setSaving(true)
     try {
       const surgImageData = buildSurgeryImagesPayload()
@@ -2322,6 +2335,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const handleCompleteRecord = async () => {
     if (!token) return
+    if (!validateDiagnosticTestResults()) return
 
     if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
       toast.error('Please select a pregnancy confirmation method')
@@ -2471,11 +2485,94 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setShowCompleteConfirm(true)
   }
 
+  const clearDiagnosticFieldError = (index: number, field: 'name' | 'result') => {
+    setDiagnosticFieldErrors((prev) => {
+      const row = prev[index]
+      if (!row?.[field]) return prev
+      const nextRow = { ...row }
+      delete nextRow[field]
+      if (Object.keys(nextRow).length === 0) {
+        const next = { ...prev }
+        delete next[index]
+        return next
+      }
+      return { ...prev, [index]: nextRow }
+    })
+  }
+
+  const validateSurgeryStepFields = (showToast = true): boolean => {
+    const missingType = !surgeryTypeId
+    const missingRemarks = !surgeryVetRemarks.trim()
+    setSurgeryTypeError(missingType)
+    setSurgeryVetRemarksError(missingRemarks)
+    if (missingType || missingRemarks) {
+      if (showToast) {
+        toast.error('Please fill in required surgery fields before proceeding')
+      }
+      return false
+    }
+    return true
+  }
+
+  const validateDiagnosticTestResults = (): boolean => {
+    const missingByIndex = diagnosticTests.reduce<Record<number, Partial<Record<'name' | 'result', boolean>>>>((acc, test, index) => {
+      const hasContent = Boolean(
+        (test.name || '').trim() ||
+        (test.result || '').trim() ||
+        (test.normalRange || '').trim() ||
+        String(test.date || '').trim() ||
+        (test.notes || '').trim() ||
+        ((test.images?.length || 0) > 0)
+      )
+      if (!hasContent) return acc
+
+      const rowErrors: Partial<Record<'name' | 'result', boolean>> = {}
+      if (!(test.name || '').trim()) rowErrors.name = true
+      if (!(test.result || '').trim()) rowErrors.result = true
+      if (Object.keys(rowErrors).length > 0) {
+        acc[index] = rowErrors
+      }
+      return acc
+    }, {})
+
+    setDiagnosticFieldErrors(missingByIndex)
+    if (Object.keys(missingByIndex).length > 0) {
+      toast.error('Please complete required diagnostic test fields (service and result).')
+      setTestsOpen(true)
+      return false
+    }
+    return true
+  }
+
+  const handleSaveEmergencySurgeryStep = async () => {
+    if (!token) return
+    if (!validateSurgeryStepFields()) return
+
+    setSavingEmergencySurgery(true)
+    try {
+      const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
+      await updateMedicalRecord(recordId, {
+        surgeryRecord: {
+          surgeryType: selectedSurgery?.name || '',
+          vetRemarks: surgeryVetRemarks,
+          images: buildSurgeryImagesPayload(),
+        },
+      }, token)
+      setHistoryRefresh(prev => prev + 1)
+      setShowEmergencySurgeryModal(false)
+      toast.success('Emergency surgery step saved')
+    } catch {
+      toast.error('Failed to save emergency surgery step')
+    } finally {
+      setSavingEmergencySurgery(false)
+    }
+  }
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     files.forEach((file) => {
       uploadImage(file, 'medical-records').then((url) => {
-        setImages((prev) => [...prev, { url, description: file.name }])
+        setImages((prev) => [...prev, { url, description: file.name } as any])
       }).catch(console.error)
     })
   }
@@ -2484,7 +2581,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     const files = Array.from(e.target.files || [])
     files.forEach((file) => {
       uploadImage(file, 'medical-records').then((url) => {
-        setTiterImages((prev) => [...prev, { url, description: `Titer cassette - ${file.name}` }])
+        setTiterImages((prev) => [...prev, { url, description: `Titer cassette - ${file.name}` } as any])
       }).catch(console.error)
     })
     e.target.value = ''
@@ -2511,7 +2608,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
-    let nextValue = val
+    const nextValue = val
     if (field === 'value') {
       // Block non-integer input for pulse/BCS/dental and enforce allowed score sets.
       if (key === 'pulseRate' || key === 'bodyConditionScore' || key === 'dentalScore') {
@@ -2588,7 +2685,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           <button
             onClick={async () => {
               if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
-              if ((isSurgeryAppt || emergencySurgery) && token) {
+              if (isSurgeryAppt && token && surgeryTypeId && surgeryVetRemarks.trim()) {
                 const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
                 const xImgs = buildSurgeryImagesPayload()
                 await updateMedicalRecord(recordId, {
@@ -2606,9 +2703,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         {/* Step progress */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
-            {((isVaccinationAppt || isSurgeryAppt || emergencySurgery) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
-              const labels = isVaccinationAppt ? VACC_STEP_LABELS : (isSurgeryAppt || emergencySurgery) ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
-              const icons = isVaccinationAppt ? VACC_STEP_ICONS : (isSurgeryAppt || emergencySurgery) ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
+            {((isVaccinationAppt || isSurgeryAppt) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
+              const labels = isVaccinationAppt ? VACC_STEP_LABELS : isSurgeryAppt ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
+              const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
                   {(() => {
@@ -3053,6 +3150,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                         Proceeding will add an Emergency Surgery step to this visit. Document the surgery details before completing the record.
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowEmergencySurgeryModal(true)}
+                        className="text-xs font-medium text-[#476B6B] border border-[#7FA5A3]/50 rounded-lg px-3 py-1.5 hover:bg-[#f0f7f7] transition-colors"
+                      >
+                        Open Emergency Surgery Step Window
+                      </button>
                     </div>
                   )}
                 </div>
@@ -3305,7 +3409,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-500">Test {i + 1}</span>
-                          <button onClick={() => setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))} className="text-[#900B09] hover:text-red-600">
+                          <button onClick={() => {
+                            setDiagnosticTests((prev) => prev.filter((_, j) => j !== i))
+                            setDiagnosticFieldErrors((prev) => {
+                              const next: Record<number, Partial<Record<'name' | 'result', boolean>>> = {}
+                              Object.entries(prev).forEach(([k, v]) => {
+                                const index = Number(k)
+                                if (index < i) next[index] = v
+                                if (index > i) next[index - 1] = v
+                              })
+                              return next
+                            })
+                          }} className="text-[#900B09] hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -3315,9 +3430,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             onValueChange={(name) => {
                               const isUltrasound = name.toLowerCase().includes('ultrasound')
                               setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name, testType: isUltrasound ? 'ultrasound' : 'other' } : t))
+                              if (name.trim()) {
+                                clearDiagnosticFieldError(i, 'name')
+                              }
                             }}
                             placeholder="Select a diagnostic test service"
-                            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
+                            className={`border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 w-full ${diagnosticFieldErrors[i]?.name ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                             options={[
                               { value: '', label: 'Select a diagnostic test service' },
                               ...diagnosticTestServices
@@ -3331,8 +3449,25 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 })),
                             ]}
                           />
+                          {diagnosticFieldErrors[i]?.name && (
+                            <p className="text-[10px] text-[#900B09]">Diagnostic test service is required</p>
+                          )}
                         </div>
-                        <textarea rows={2} placeholder="Reason for test" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
+                        <textarea
+                          rows={2}
+                          placeholder="Test result"
+                          value={test.result}
+                          onChange={(e) => {
+                            setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))
+                            if (e.target.value.trim()) {
+                              clearDiagnosticFieldError(i, 'result')
+                            }
+                          }}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 resize-none ${diagnosticFieldErrors[i]?.result ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                        />
+                        {diagnosticFieldErrors[i]?.result && (
+                          <p className="text-[10px] text-[#900B09]">Result is required</p>
+                        )}
                         <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                         
                         {/* Image Upload for Diagnostic Test */}
@@ -3374,9 +3509,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
               {/* ── PREGNANCY ASSESSMENT ── */}
               {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && (
-                <div id="pregnancy-assessment-section" className="border border-green-100 rounded-2xl overflow-hidden bg-green-50/30">
-                  <div className="px-4 py-3 flex items-center gap-2 border-b border-green-100">
-                    <span className="text-sm font-semibold text-green-700">Pregnancy Assessment</span>
+                <div id="pregnancy-assessment-section" className="border border-gray-100 rounded-2xl overflow-hidden bg-[#f0f7f7]">
+                  <div className="px-4 py-3 flex items-center gap-2 border-b border-[#7FA5A3]/20">
+                    <span className="text-sm font-semibold text-[#476B6B]">Pregnancy Assessment</span>
                   </div>
                   <div className="px-4 py-3 space-y-3">
                     {pet?.pregnancyStatus === 'pregnant' && (
@@ -3390,7 +3525,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         checked={ultrasoundPregnant}
                         onChange={(e) => { if (pet?.pregnancyStatus !== 'pregnant') setUltrasoundPregnant(e.target.checked) }}
                         disabled={pet?.pregnancyStatus === 'pregnant'}
-                        className="w-4 h-4 accent-green-600 disabled:cursor-not-allowed"
+                        className="w-4 h-4 accent-[#476B6B] disabled:cursor-not-allowed"
                       />
                       <span className="text-sm text-gray-700 font-medium">Pet is Pregnant</span>
                     </label>
@@ -3451,7 +3586,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 }
                               }}
                               placeholder="Select method"
-                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${pregMethodError ? 'border-red-400' : 'border-gray-200'}`}
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${pregMethodError ? 'border-red-400' : 'border-gray-200'}`}
                               options={[
                                 { value: 'unknown', label: 'Unknown / Not specified' },
                                 { value: 'ultrasound', label: 'Ultrasound' },
@@ -3471,7 +3606,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 if (value !== 'unknown') setPregSourceError('')
                               }}
                               placeholder="Select source"
-                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${pregSourceError ? 'border-red-400' : 'border-gray-200'}`}
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${pregSourceError ? 'border-red-400' : 'border-gray-200'}`}
                               options={[
                                 { value: 'this_clinic', label: 'This Clinic' },
                                 { value: 'external_clinic', label: 'External Clinic' },
@@ -3538,7 +3673,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               setLitterNumberError('')
                             }}
                             placeholder={litterNumberNA ? 'N/A' : 'e.g. 1'}
-                            className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 ${litterNumberError ? 'border-red-400' : 'border-gray-200'} ${litterNumberNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                            className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${litterNumberError ? 'border-red-400' : 'border-gray-200'} ${litterNumberNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                           />
                           {litterNumberNAAllowed && (
                             <label className="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
@@ -3569,7 +3704,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             value={pregnancyNotes}
                             onChange={(e) => setPregnancyNotes(e.target.value)}
                             placeholder="Supporting findings, signs, or provenance details…"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 resize-none"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
                           />
                         </div>
                       </div>
@@ -3668,16 +3803,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
 
               {/* ── PREGNANCY DELIVERY ── */}
-              {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && <div id="pregnancy-delivery-section" className="border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
-                <div className="px-4 py-3 border-b border-blue-100">
+              {pet?.sex === 'female' && pet?.sterilization !== 'spayed' && <div id="pregnancy-delivery-section" className="border border-gray-100 rounded-2xl overflow-hidden bg-[#f0f7f7]">
+                <div className="px-4 py-3 border-b border-[#7FA5A3]/20">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={pregnancyDelivery}
                       onChange={(e) => setPregnancyDelivery(e.target.checked)}
-                      className="w-4 h-4 accent-blue-600"
+                      className="w-4 h-4 accent-[#476B6B]"
                     />
-                    <span className="text-sm font-semibold text-blue-700">Pregnancy Delivery Performed</span>
+                    <span className="text-sm font-semibold text-[#476B6B]">Pregnancy Delivery Performed</span>
                   </label>
                 </div>
                 {pregnancyDelivery && (
@@ -3711,7 +3846,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             if (v) setDeliveryTypeError('')
                           }}
                           placeholder="Select delivery type"
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${deliveryTypeError ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${deliveryTypeError ? 'border-red-400' : 'border-gray-200'}`}
                           options={pregnancyDeliveryServices.map(s => ({ value: s._id, label: s.name }))}
                         />
                         {deliveryTypeError && <p className="text-xs text-red-600 mt-1">{deliveryTypeError}</p>}
@@ -3727,7 +3862,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             if (e.target.value !== '') setLiveBirthsError('')
                           }}
                           placeholder="0"
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${liveBirthsError ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${liveBirthsError ? 'border-red-400' : 'border-gray-200'}`}
                         />
                         {liveBirthsError && <p className="text-xs text-red-600 mt-1">{liveBirthsError}</p>}
                       </div>
@@ -3742,7 +3877,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             if (e.target.value !== '') setStillBirthsError('')
                           }}
                           placeholder="0"
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${stillBirthsError ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${stillBirthsError ? 'border-red-400' : 'border-gray-200'}`}
                         />
                         {stillBirthsError && <p className="text-xs text-red-600 mt-1">{stillBirthsError}</p>}
                       </div>
@@ -3760,7 +3895,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             setLaborDurationError('')
                           }}
                           placeholder={laborDurationNA ? 'N/A' : 'e.g. 3'}
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${laborDurationError ? 'border-red-400' : 'border-gray-200'} ${laborDurationNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${laborDurationError ? 'border-red-400' : 'border-gray-200'} ${laborDurationNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                         />
                         {laborDurationNAAllowed && (
                           <label className="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
@@ -3798,7 +3933,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             }
                           }}
                           placeholder="Select location"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                           options={[
                             { value: 'in_clinic', label: 'In Clinic' },
                             { value: 'outside_clinic', label: 'Outside Clinic' },
@@ -3812,7 +3947,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           value={deliveryReportedBy}
                           onValueChange={(value) => setDeliveryReportedBy(value as 'vet' | 'owner' | 'external_vet' | 'unknown')}
                           placeholder="Select reporter"
-                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                           options={[
                             { value: 'vet', label: 'Veterinarian' },
                             { value: 'owner', label: 'Owner' },
@@ -3829,7 +3964,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         value={deliveryVetRemarks}
                         onChange={(e) => setDeliveryVetRemarks(e.target.value)}
                         placeholder="Post-delivery observations, complications, instructions…"
-                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
                       />
                     </div>
                     {(() => {
@@ -3845,7 +3980,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         </p>
                       )
                     })()}
-                    <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <p className="text-xs text-[#476B6B] bg-[#f0f7f7] border border-[#7FA5A3]/30 rounded-lg px-3 py-2">
                       Completing this visit will automatically update the pet&apos;s pregnancy status to <strong>Not Pregnant</strong>.
                     </p>
                   </div>
@@ -4342,8 +4477,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             </div>
           )}
 
-          {/* ── STEP 3: SURGERY (surgery appointments or emergency surgery) ── */}
-          {step === 3 && (isSurgeryAppt || emergencySurgery) && (
+          {/* ── STEP 3: SURGERY (surgery appointments only) ── */}
+          {step === 3 && isSurgeryAppt && (
             <div className="space-y-5">
               {/* Patient card */}
               {pet && (
@@ -4396,7 +4531,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             </div>
                             <button
                               type="button"
-                              onClick={() => setSurgeryTypeId('')}
+                              onClick={() => {
+                                setSurgeryTypeId('')
+                                setSurgeryTypeError(true)
+                              }}
                               className="px-3 py-2.5 text-sm text-gray-600 hover:text-red-600 transition-colors"
                               title="Clear selection"
                             >
@@ -4406,9 +4544,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         ) : (
                           <DropdownField
                             value={surgeryTypeId}
-                            onValueChange={setSurgeryTypeId}
+                            onValueChange={(value) => {
+                              setSurgeryTypeId(value)
+                              if (value) {
+                                setSurgeryTypeError(false)
+                              }
+                            }}
                             placeholder="Select surgery type…"
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+                            className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 bg-white ${surgeryTypeError ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                             options={[
                               { value: '', label: 'Select surgery type…' },
                               ...surgeryServices.map((s) => ({ value: s._id, label: `${s.name}${s.price ? ` — ₱${s.price}` : ''}` })),
@@ -4417,6 +4560,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         )}
                       </div>
                     )}
+                      {surgeryTypeError && (
+                        <p className="text-xs text-[#900B09] mt-1">Surgery type is required</p>
+                      )}
                   </div>
 
                   {/* Surgery Images */}
@@ -4478,22 +4624,32 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
                   {/* Vet Remarks */}
                   <div>
-                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Vet Remarks</label>
+                    <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
+                      Vet Remarks <span className="text-red-500">*</span>
+                    </label>
                     <textarea
                       value={surgeryVetRemarks}
-                      onChange={(e) => setSurgeryVetRemarks(e.target.value)}
+                      onChange={(e) => {
+                        setSurgeryVetRemarks(e.target.value)
+                        if (e.target.value.trim()) {
+                          setSurgeryVetRemarksError(false)
+                        }
+                      }}
                       rows={4}
                       placeholder="Observations, surgical findings, post-operative instructions…"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 resize-none ${surgeryVetRemarksError ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                     />
+                    {surgeryVetRemarksError && (
+                      <p className="text-xs text-[#900B09] mt-1">Vet remarks are required</p>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── STEP 3 (regular) / STEP 4 (vaccination, surgery, or emergency surgery): POST-PROCEDURE ── */}
-          {((step === 3 && !isVaccinationAppt && !isSurgeryAppt && !emergencySurgery) || step === 4) && (
+          {/* ── STEP 3 (regular) / STEP 4 (vaccination or surgery): POST-PROCEDURE ── */}
+          {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
             <>
               {/* Vaccination skipped notice */}
               {isVaccinationAppt && vaccinationSkippedDue.length > 0 && (
@@ -5382,7 +5538,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isVaccinationAppt ? 'Proceed to Vaccination' : (isSurgeryAppt || emergencySurgery) ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}
+                {isVaccinationAppt ? 'Proceed to Vaccination' : isSurgeryAppt ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
@@ -5411,11 +5567,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </button>
               )
             })()}
-            {step === 3 && (isSurgeryAppt || emergencySurgery) && (
+            {step === 3 && isSurgeryAppt && (
               <button
                 onClick={handleProceedStep3Surgery}
-                disabled={saving || !surgeryTypeId}
-                title={!surgeryTypeId ? 'Please select a surgery type' : undefined}
+                disabled={saving || !surgeryTypeId || !surgeryVetRemarks.trim()}
+                title={!surgeryTypeId ? 'Please select a surgery type' : !surgeryVetRemarks.trim() ? 'Please enter vet remarks' : undefined}
                 className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -5423,7 +5579,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
-            {((step === 3 && !isVaccinationAppt && !isSurgeryAppt && !emergencySurgery) || step === 4) && (
+            {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
               <button
                 onClick={handleCompleteClick}
                 disabled={completing}
@@ -5473,6 +5629,139 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             >
               {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
               Continue
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEmergencySurgeryModal} onOpenChange={setShowEmergencySurgeryModal}>
+        <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
+          <DialogHeader className="px-6 py-4 border-b border-gray-200">
+            <DialogTitle className="text-lg text-[#4F4F4F] flex items-center gap-2">
+              <Scissors className="w-5 h-5 text-[#476B6B]" />
+              Emergency Surgery Step
+            </DialogTitle>
+            <DialogDescription>
+              Record emergency surgery details in this separate step window.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div>
+              <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
+                Surgery Type <span className="text-red-500">*</span>
+              </label>
+              {surgeryServicesLoading ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading surgery types…
+                </div>
+              ) : (
+                <DropdownField
+                  value={surgeryTypeId}
+                  onValueChange={(value) => {
+                    setSurgeryTypeId(value)
+                    if (value) {
+                      setSurgeryTypeError(false)
+                    }
+                  }}
+                  placeholder="Select surgery type…"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 bg-white ${surgeryTypeError ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                  options={[
+                    { value: '', label: 'Select surgery type…' },
+                    ...surgeryServices.map((s) => ({ value: s._id, label: `${s.name}${s.price ? ` — ₱${s.price}` : ''}` })),
+                  ]}
+                />
+              )}
+              {surgeryTypeError && (
+                <p className="text-xs text-[#900B09] mt-1">Surgery type is required</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#4F4F4F] mb-3">Surgery Images</label>
+              <div className="grid grid-cols-3 gap-4">
+                {surgeryImages.map((img) => (
+                  <div key={img.type} className="flex flex-col gap-2">
+                    <p className="text-xs font-medium text-gray-600 capitalize">{img.type} Surgery</p>
+                    {img.preview ? (
+                      <div className="relative rounded-xl overflow-hidden border-2 border-[#7FA5A3] bg-gray-50">
+                        <img src={img.preview} alt={`${img.type} surgery`} className="w-full h-28 object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setSurgeryImages((prev) => prev.map((i) => i.type === img.type ? { type: img.type, file: null, preview: null } : i))}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-full h-28 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#7FA5A3] bg-gray-50 hover:bg-[#7FA5A3]/5 transition-colors flex flex-col items-center justify-center cursor-pointer gap-1.5">
+                        <Upload className="w-5 h-5 text-gray-400" />
+                        <span className="text-xs text-gray-500">Upload image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+                            uploadImage(file, 'medical-records').then((url) => {
+                              setSurgeryImages((prev) =>
+                                prev.map((i) => i.type === img.type
+                                  ? { type: img.type, file, preview: url }
+                                  : i
+                                )
+                              )
+                            }).catch(console.error)
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
+                Vet Remarks <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={surgeryVetRemarks}
+                onChange={(e) => {
+                  setSurgeryVetRemarks(e.target.value)
+                  if (e.target.value.trim()) {
+                    setSurgeryVetRemarksError(false)
+                  }
+                }}
+                rows={4}
+                placeholder="Observations, surgical findings, post-operative instructions…"
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 resize-none ${surgeryVetRemarksError ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+              />
+              {surgeryVetRemarksError && (
+                <p className="text-xs text-[#900B09] mt-1">Vet remarks are required</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowEmergencySurgeryModal(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEmergencySurgeryStep}
+              disabled={savingEmergencySurgery || !surgeryTypeId || !surgeryVetRemarks.trim()}
+              className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white rounded-lg hover:bg-[#3a5858] transition-colors disabled:opacity-60"
+            >
+              {savingEmergencySurgery ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Save Surgery Step
             </button>
           </DialogFooter>
         </DialogContent>

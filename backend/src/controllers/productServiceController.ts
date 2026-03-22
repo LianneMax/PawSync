@@ -20,7 +20,7 @@ export const listProductServices = async (req: Request, res: Response) => {
 
     const query: any = { isActive: true };
     if (type) query.type = type;
-    if (category) query.category = category;
+    if (category) query.category = { $regex: `^${String(category)}$`, $options: 'i' };
     if (search) query.name = { $regex: search, $options: 'i' };
 
     const items = await ProductService.find(query)

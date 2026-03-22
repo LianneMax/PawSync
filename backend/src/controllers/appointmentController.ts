@@ -117,50 +117,22 @@ function getVetBookingCutoffDate(
   return cutoff;
 }
 
-function getUtcDayBounds(dateInput: string | Date): { dayStart: Date; dayEnd: Date } | null {
-  const d = new Date(dateInput);
-  if (Number.isNaN(d.getTime())) return null;
-
-  const dayStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
-  const dayEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
-  return { dayStart, dayEnd };
+function normalizeAppointmentTypeToken(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
-function getBranchClosureStateOnDate(
-  branch: { isActive?: boolean; closureDates?: { startDate: Date; endDate: Date }[] } | null,
-  dateInput: string | Date,
-): { isClosed: boolean; reopensOn?: string } {
-  if (!branch || !branch.isActive) {
-    return { isClosed: true };
-  }
-
-  const dayBounds = getUtcDayBounds(dateInput);
-  if (!dayBounds) return { isClosed: false };
-
-  const overlappingClosure = (branch.closureDates || []).find((closure) => {
-    const closureStart = new Date(closure.startDate);
-    const closureEnd = new Date(closure.endDate);
-    return closureStart <= dayBounds.dayEnd && closureEnd >= dayBounds.dayStart;
+function includesSterilizationType(types: string[] = []): boolean {
+  return (types || []).some((type) => {
+    const token = normalizeAppointmentTypeToken(type);
+    return token === 'sterilization' || token.includes('sterilization');
   });
-
-  if (!overlappingClosure) {
-    return { isClosed: false };
-  }
-
-  const reopenDate = new Date(overlappingClosure.endDate);
-  reopenDate.setUTCDate(reopenDate.getUTCDate() + 1);
-
-  return {
-    isClosed: true,
-    reopensOn: reopenDate.toISOString().slice(0, 10),
-  };
 }
 
-function getBranchClosedMessage(reopensOn?: string): string {
-  if (!reopensOn) {
-    return 'This branch is currently closed and cannot accept appointments.';
-  }
-  return `This branch is currently closed and cannot accept appointments. It will reopen on ${reopensOn}.`;
+function isAlreadySterilizedStatus(status: string | null | undefined): boolean {
+  const value = String(status || '').toLowerCase();
+  return value === 'spayed' || value === 'neutered';
 }
 
 /**
@@ -293,6 +265,13 @@ export const createAppointment = async (req: Request, res: Response) => {
       });
     }
 
+    if (includesSterilizationType(types) && isAlreadySterilizedStatus((pet as any).sterilization)) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: `Cannot schedule Sterilization for ${pet.name} because the pet is already ${pet.sterilization}.`,
+      });
+    }
+
     // Validate types based on mode
     if (mode === 'online') {
       if (types.length !== 1 || types[0] !== 'consultation') {
@@ -314,23 +293,6 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Cannot book an appointment in the past'
-      });
-    }
-
-    const targetBranch = await ClinicBranch.findOne({
-      _id: clinicBranchId,
-      clinicId,
-    }).select('isActive closureDates');
-
-    if (!targetBranch) {
-      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
-    }
-
-    const branchClosureState = getBranchClosureStateOnDate(targetBranch as any, date as string);
-    if (branchClosureState.isClosed) {
-      return res.status(403).json({
-        status: 'ERROR',
-        message: getBranchClosedMessage(branchClosureState.reopensOn),
       });
     }
 
@@ -585,22 +547,6 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     let isClosed = false;
 
     if (branchId) {
-      const branch = await ClinicBranch.findById(branchId as string).select('isActive closureDates openingTime closingTime operatingDays');
-      if (branch) {
-        const closureState = getBranchClosureStateOnDate(branch as any, date as string);
-        if (closureState.isClosed) {
-          return res.status(200).json({
-            status: 'SUCCESS',
-            data: {
-              slots: [],
-              isClosed: true,
-              closureMessage: getBranchClosedMessage(closureState.reopensOn),
-              reopensOn: closureState.reopensOn || null,
-            },
-          });
-        }
-      }
-
       const vetSchedule = await VetSchedule.findOne({
         vetId: vetId as string,
         branchId: branchId as string
@@ -698,24 +644,7 @@ export const getGroomingSlots = async (req: Request, res: Response) => {
     let slotEnd = '17:00';
     let isClosed = false;
 
-    const branch = await ClinicBranch.findById(branchId as string).select('isActive closureDates openingTime closingTime operatingDays');
-    if (!branch) {
-      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
-    }
-
-    const closureState = getBranchClosureStateOnDate(branch as any, date as string);
-    if (closureState.isClosed) {
-      return res.status(200).json({
-        status: 'SUCCESS',
-        data: {
-          slots: [],
-          isClosed: true,
-          closureMessage: getBranchClosedMessage(closureState.reopensOn),
-          reopensOn: closureState.reopensOn || null,
-        },
-      });
-    }
-
+    const branch = await ClinicBranch.findById(branchId as string);
     if (branch) {
       if (branch.operatingDays.length > 0 && !branch.operatingDays.includes(dayName)) {
         isClosed = true;
@@ -1119,6 +1048,26 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     appointment.status = status;
     await appointment.save();
 
+    // Auto-create a pending vaccination draft when appointment is completed
+    let vaccinationId: string | undefined;
+    if (status === 'completed' && appointment.types.includes('vaccination')) {
+      const existingVax = await Vaccination.findOne({ appointmentId: appointment._id });
+      if (!existingVax) {
+        const vax = await Vaccination.create({
+          petId: appointment.petId,
+          vetId: appointment.vetId,
+          clinicId: appointment.clinicId,
+          clinicBranchId: appointment.clinicBranchId,
+          appointmentId: appointment._id,
+          vaccineName: 'Pending — to be filled by vet',
+          status: 'pending',
+        });
+        vaccinationId = vax._id.toString();
+      } else {
+        vaccinationId = existingVax._id.toString();
+      }
+    }
+
     // When appointment is completed, update the pet's assigned vet
     if (status === 'completed' && appointment.vetId) {
       Pet.findByIdAndUpdate(appointment.petId, { assignedVetId: appointment.vetId }).catch((err) => {
@@ -1148,6 +1097,7 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       data: {
         appointment,
         ...(medicalRecordId ? { medicalRecordId } : {}),
+        ...(vaccinationId ? { vaccinationId } : {})
       }
     });
   } catch (error) {
@@ -1177,22 +1127,6 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
     const { date, startTime, endTime } = req.body;
     if (!date || !startTime || !endTime) {
       return res.status(400).json({ status: 'ERROR', message: 'Date, start time, and end time are required' });
-    }
-
-    const branch = await ClinicBranch.findOne({
-      _id: appointment.clinicBranchId,
-      clinicId: appointment.clinicId,
-    }).select('isActive closureDates');
-    if (!branch) {
-      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
-    }
-
-    const branchClosureState = getBranchClosureStateOnDate(branch as any, date as string);
-    if (branchClosureState.isClosed) {
-      return res.status(403).json({
-        status: 'ERROR',
-        message: getBranchClosedMessage(branchClosureState.reopensOn),
-      });
     }
 
     const oldDate = appointment.date;
@@ -1455,6 +1389,13 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       });
     }
 
+    if (includesSterilizationType(types) && isAlreadySterilizedStatus((pet as any).sterilization)) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: `Cannot schedule Sterilization for ${pet.name} because the pet is already ${pet.sterilization}.`,
+      });
+    }
+
     const clinicAppointmentDate = new Date(date);
     if (Number.isNaN(clinicAppointmentDate.getTime())) {
       return res.status(400).json({ status: 'ERROR', message: 'Invalid appointment date' });
@@ -1469,22 +1410,6 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Cannot book an appointment in the past'
-      });
-    }
-
-    const clinicTargetBranch = await ClinicBranch.findOne({
-      _id: clinicBranchId,
-      clinicId,
-    }).select('isActive closureDates');
-    if (!clinicTargetBranch) {
-      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
-    }
-
-    const clinicBranchClosureState = getBranchClosureStateOnDate(clinicTargetBranch as any, date as string);
-    if (clinicBranchClosureState.isClosed) {
-      return res.status(403).json({
-        status: 'ERROR',
-        message: getBranchClosedMessage(clinicBranchClosureState.reopensOn),
       });
     }
 
@@ -2264,28 +2189,18 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
       return res.status(400).json({ status: 'ERROR', message: 'Cannot book an appointment in the past' });
     }
 
-    const guestTargetBranch = await ClinicBranch.findOne({
-      _id: clinicBranchId,
-      clinicId,
-    }).select('isActive closureDates');
-    if (!guestTargetBranch) {
-      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
-    }
-
-    const guestBranchClosureState = getBranchClosureStateOnDate(guestTargetBranch as any, date as string);
-    if (guestBranchClosureState.isClosed) {
-      return res.status(403).json({
-        status: 'ERROR',
-        message: getBranchClosedMessage(guestBranchClosureState.reopensOn),
-      });
-    }
-
     // ── Validate appointment types / mode ────────────────────────────────────
     if (!Array.isArray(types) || types.length === 0) {
       return res.status(400).json({ status: 'ERROR', message: 'At least one appointment type is required' });
     }
     if (mode === 'online') {
       return res.status(400).json({ status: 'ERROR', message: 'Guest walk-in/emergency appointments must be face-to-face' });
+    }
+    if (includesSterilizationType(types) && isAlreadySterilizedStatus(petSterilization)) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: `Cannot schedule Sterilization for ${petName} because the pet is already ${petSterilization}.`,
+      });
     }
     const hasGuestGrooming = types.some((t: string) => t === 'basic-grooming' || t === 'full-grooming');
     const hasGuestMedical = types.some((t: string) => t !== 'basic-grooming' && t !== 'full-grooming');

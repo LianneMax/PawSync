@@ -64,11 +64,9 @@ export default function SurgeryMedicalRecordModal({
       try {
         const res = await getSurgeryServices(token as string)
         if (res.status === 'SUCCESS' && res.data?.items) {
-          // Filter to only Sterilization
-          const filtered = res.data.items.filter((item) => item.name === 'Sterilization')
-          setSurgeryServices(filtered)
-          if (filtered.length > 0) {
-            setSelectedSurgeryId(filtered[0]._id)
+          setSurgeryServices(res.data.items)
+          if (res.data.items.length > 0) {
+            setSelectedSurgeryId(res.data.items[0]._id)
           }
         }
       } catch {
@@ -137,7 +135,7 @@ export default function SurgeryMedicalRecordModal({
           overallObservation: `Pre-operative assessment for ${selectedSurgery.name}`,
           images: imageData,
           sharedWithOwner: false,
-        },
+        } as any,
         token as string
       )
 

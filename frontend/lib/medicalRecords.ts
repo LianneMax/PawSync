@@ -465,7 +465,13 @@ export const getPreventiveCareServices = async (token?: string): Promise<Product
  * Fetch surgery services from the product-services catalog
  */
 export const getSurgeryServices = async (token?: string): Promise<ProductServicesResponse> => {
-  return authenticatedFetch(`/product-services?type=Service&category=Surgeries`, { method: 'GET' }, token);
+  const res = await authenticatedFetch(`/product-services?type=Service`, { method: 'GET' }, token) as ProductServicesResponse;
+  if (res.status !== 'SUCCESS' || !res.data?.items) return res;
+  const items = res.data.items.filter((item) => {
+    const category = String(item.category || '').toLowerCase();
+    return category === 'surgeries' || category === 'surgery';
+  });
+  return { ...res, data: { items } };
 };
 
 /**

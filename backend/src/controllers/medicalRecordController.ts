@@ -42,7 +42,7 @@ function addMinutesToTime(time: string, minutes: number): string {
   return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
 }
 function normalizeImageArray(images?: Array<{ url: string; description?: string }>) {
-  return (images || []).map((img) => ({
+  return (images || []).filter((img) => img?.url).map((img) => ({
     url: img.url,
     description: img.description || '',
   }));
@@ -1112,6 +1112,16 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;
     if (surgeryRecord !== undefined) {
+      if (surgeryRecord) {
+        const missingSurgeryType = !String((surgeryRecord as any)?.surgeryType || '').trim();
+        const missingVetRemarks = !String((surgeryRecord as any)?.vetRemarks || '').trim();
+        if (missingSurgeryType || missingVetRemarks) {
+          return res.status(400).json({
+            status: 'ERROR',
+            message: 'Surgery type and vet remarks are required for surgery record',
+          });
+        }
+      }
       (record as any).surgeryRecord = surgeryRecord
         ? {
             ...surgeryRecord,
@@ -1131,6 +1141,27 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (immunityTesting !== undefined) (record as any).immunityTesting = normalizeImmunityTestingPayload(immunityTesting);
     if (medications !== undefined) record.medications = medications;
     if (diagnosticTests !== undefined) {
+      const missingRequiredDiagnosticField = (diagnosticTests || []).find((test: any) => {
+        const hasContent = Boolean(
+          String(test?.name || '').trim() ||
+          String(test?.result || '').trim() ||
+          String(test?.notes || '').trim() ||
+          String(test?.normalRange || '').trim() ||
+          test?.date ||
+          ((test?.images || []).length > 0)
+        );
+        if (!hasContent) return false;
+        const missingName = !String(test?.name || '').trim();
+        const missingResult = !String(test?.result || '').trim();
+        return missingName || missingResult;
+      });
+      if (missingRequiredDiagnosticField) {
+        return res.status(400).json({
+          status: 'ERROR',
+          message: 'Diagnostic test name and result are required for each recorded diagnostic test',
+        });
+      }
+
       record.diagnosticTests = (diagnosticTests || []).map((test: any) => ({
         ...test,
         images: normalizeImageArray(test.images),
@@ -1598,13 +1629,13 @@ export const toggleShareRecord = async (req: Request, res: Response) => {
     }
 
     const { shared } = req.body;
-    record.sharedWithOwner = typeof shared === 'boolean' ? shared : !record.sharedWithOwner;
-    await record.save();
+    const newValue = typeof shared === 'boolean' ? shared : !record.sharedWithOwner;
+    await MedicalRecord.updateOne({ _id: record._id }, { $set: { sharedWithOwner: newValue } });
 
     return res.status(200).json({
       status: 'SUCCESS',
-      message: record.sharedWithOwner ? 'Record shared with pet owner' : 'Record unshared',
-      data: { sharedWithOwner: record.sharedWithOwner }
+      message: newValue ? 'Record shared with pet owner' : 'Record unshared',
+      data: { sharedWithOwner: newValue }
     });
   } catch (error) {
     console.error('Toggle share error:', error);

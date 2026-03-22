@@ -1701,7 +1701,7 @@ function ViewRecordModal({
   const [record, setRecord] = useState<MedicalRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [expandedFollowUps, setExpandedFollowUps] = useState<Set<string>>(new Set())
-  const [followUpsMinimized, setFollowUpsMinimized] = useState(false)
+  const [followUpsMinimized, setFollowUpsMinimized] = useState(true)
   const [lightboxMedia, setLightboxMedia] = useState<{ src: string; contentType: string; description?: string } | null>(null)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
   const [viewBillingId, setViewBillingId] = useState<string | null>(null)
@@ -1710,7 +1710,7 @@ function ViewRecordModal({
   const [petNotesDraft, setPetNotesDraft] = useState('')
   const [petNotesSaving, setPetNotesSaving] = useState(false)
   const [petNotesSaved, setPetNotesSaved] = useState(false)
-  const [notesMinimized, setNotesMinimized] = useState(false)
+  const [notesMinimized, setNotesMinimized] = useState(true)
   const [historyMinimized, setHistoryMinimized] = useState(true)
   const [historyRefresh, setHistoryRefresh] = useState(0)
 
@@ -1722,9 +1722,13 @@ function ViewRecordModal({
     })
   }
 
-  // Reset index when modal opens
+  // Reset index and panel states when modal opens
   useEffect(() => {
-    if (open) setIndex(initialIndex)
+    if (open) {
+      setIndex(initialIndex)
+      setFollowUpsMinimized(true)
+      setNotesMinimized(true)
+    }
   }, [open, initialIndex])
 
   // Load record whenever index changes

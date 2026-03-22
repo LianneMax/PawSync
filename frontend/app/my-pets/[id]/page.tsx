@@ -11,7 +11,7 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, togglePetLost, requestConfinementRelease, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
-import { getRecordsByPet, getRecordById, type MedicalRecord, type VitalEntry } from '@/lib/medicalRecords'
+import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
@@ -91,8 +91,6 @@ export default function PetProfilePage() {
   const [, setLoadingClinics] = useState(false)
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
-  const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
-  const [viewLoading, setViewLoading] = useState(false)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [appointmentsLoading, setAppointmentsLoading] = useState(false)
   const [healthMetrics, setHealthMetrics] = useState<{ lastVisit: string; nextVisit: string; lastSpo2: string }>({ lastVisit: '-', nextVisit: '-', lastSpo2: '-' })
@@ -268,21 +266,8 @@ export default function PetProfilePage() {
     })
   }, [petId, appointments, medicalRecords])
 
-  const handleViewRecord = async (recordId: string) => {
-    if (!token) return
-    setViewLoading(true)
-    try {
-      const res = await getRecordById(recordId, token)
-      if (res.status === 'SUCCESS' && res.data?.record) {
-        setViewRecord(res.data.record)
-      } else {
-        toast.error('Failed to load record')
-      }
-    } catch (err) {
-      toast.error('An error occurred')
-    } finally {
-      setViewLoading(false)
-    }
+  const handleViewRecord = (recordId: string) => {
+    router.push(`/dashboard/medical-records/${recordId}`)
   }
 
   useEffect(() => {
@@ -1536,125 +1521,6 @@ export default function PetProfilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Medical Record Modal */}
-      <Dialog open={!!viewRecord || viewLoading} onOpenChange={(v) => { if (!v) setViewRecord(null) }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          {viewLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" />
-            </div>
-          ) : viewRecord ? (
-            <div>
-              <DialogHeader className="border-b pb-4">
-                <DialogTitle className="text-xl">Medical Record</DialogTitle>
-              </DialogHeader>
-              
-              <div className="mt-6 space-y-6">
-                {/* Record Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Date of Examination</p>
-                    <p className="text-sm font-medium text-[#4F4F4F] mt-1">
-                      {new Date(viewRecord.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Attending Veterinarian</p>
-                    <p className="text-sm font-medium text-[#4F4F4F] mt-1">
-                      Dr. {viewRecord.vetId?.firstName} {viewRecord.vetId?.lastName}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Clinic Info */}
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Clinic</p>
-                  <p className="text-sm font-medium text-[#4F4F4F] mt-1">
-                    {viewRecord.clinicId?.name}
-                    {viewRecord.clinicBranchId?.name && ` — ${viewRecord.clinicBranchId.name}`}
-                  </p>
-                  {viewRecord.clinicBranchId?.address && (
-                    <p className="text-xs text-gray-500 mt-1">{viewRecord.clinicBranchId.address}</p>
-                  )}
-                </div>
-
-                {/* Vitals */}
-                <div>
-                  <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Physical Examination</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {viewRecord.vitals && Object.entries(viewRecord.vitals).map(([key, vital]: [string, VitalEntry]) => (
-                      <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                        <p className="text-xs text-gray-500 uppercase font-semibold">{key.replace(/([A-Z])/g, ' $1')}</p>
-                        <p className="text-sm font-medium text-[#4F4F4F] mt-1">
-                          {vital.value || vital.value === 0 ? vital.value : '—'}
-                        </p>
-                        {vital.notes && <p className="text-xs text-gray-500 mt-1">{vital.notes}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Overall Observation */}
-                {viewRecord.overallObservation && (
-                  <div>
-                    <p className="text-sm font-semibold text-[#4F4F4F] mb-2">Clinical Assessment</p>
-                    <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-4 border border-gray-100 whitespace-pre-wrap">
-                      {viewRecord.overallObservation}
-                    </p>
-                  </div>
-                )}
-
-                {/* Images */}
-                {viewRecord.images && viewRecord.images.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-[#4F4F4F] mb-3">Diagnostic Images</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {viewRecord.images.map((img, idx) => (
-                        <div key={img._id || idx} className="rounded-lg overflow-hidden border border-gray-200">
-                          {img.url ? (
-                            <Image
-                              src={img.url}
-                              alt={img.description || `Image ${idx + 1}`}
-                              width={400}
-                              height={160}
-                              className="w-full h-40 object-cover"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
-                              <FileText className="w-8 h-8 text-gray-300" />
-                            </div>
-                          )}
-                          {img.description && (
-                            <p className="text-xs text-gray-500 px-3 py-2 bg-gray-50 border-t border-gray-100">
-                              {img.description}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-3 mt-8 border-t pt-4">
-                <button
-                  onClick={() => router.push(`/dashboard/medical-records/${viewRecord._id}`)}
-                  className="px-6 py-2 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b8f8d] transition-colors"
-                >
-                  View Full Report
-                </button>
-                <button
-                  onClick={() => setViewRecord(null)}
-                  className="px-6 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       {/* QR Code Modal */}
       <Dialog open={showQRCodeModal} onOpenChange={setShowQRCodeModal}>
