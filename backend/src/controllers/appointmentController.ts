@@ -1444,85 +1444,70 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
         status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] }
       }).sort({ startTime: 1 });
 
-      // pushTo: the earliest time that is occupied by the chain reaction.
-      // Starts at the emergency appointment's endTime.
+      // Phase 1: compute all new positions in memory (no saves yet).
+      // Saving eagerly caused transient duplicate-key errors when appointment A
+      // was moved into the slot still occupied by appointment B.
+      const cascadePlan: Array<{ appt: any; origDate: Date; origStartTime: string }> = [];
       let pushTo = endTime;
 
       for (const appt of sameDay) {
-        // Gap found — this appointment starts at or after the filled boundary, no cascade needed
         if (appt.startTime >= pushTo) break;
 
-        // Capture original schedule before mutation for notification
         const origDate = new Date(appt.date as Date);
         const origStartTime = appt.startTime;
-
         const newStart = pushTo;
         const newEnd = addMinutes(pushTo, 30);
 
         if (newEnd <= schedSlotEnd) {
-          // Still within working hours — shift to fill the gap left by the cascade
           appt.startTime = newStart;
           appt.endTime = newEnd;
-          await appt.save();
-          pushTo = newEnd; // advance the cascade pointer
-          rescheduledAppointments.push(appt);
+          pushTo = newEnd;
+          cascadePlan.push({ appt, origDate, origStartTime });
         } else {
-          // Exceeds working hours — find the next available working day slot
           const apptYear = (appt.date as Date).getUTCFullYear();
           const apptMonth = (appt.date as Date).getUTCMonth();
           const apptDay = (appt.date as Date).getUTCDate();
-
           let nextDate: Date | null = null;
           let nextStart: string | null = null;
           let nextEnd: string | null = null;
 
-          // Search up to 14 days ahead for a free slot on a working day
           for (let i = 1; i <= 14; i++) {
             const candidate = new Date(Date.UTC(apptYear, apptMonth, apptDay + i));
             const candidateDayName = DAY_NAMES[candidate.getUTCDay()];
-
-            // Check vet works on this day
             if (vetSchedDoc) {
               if (!vetSchedDoc.workingDays.includes(candidateDayName)) continue;
             } else if (branchFallbackDoc) {
               if (branchFallbackDoc.operatingDays.length > 0 && !branchFallbackDoc.operatingDays.includes(candidateDayName)) continue;
             }
-
-            // Generate all possible slots for this day
             const candidateSlots = generateTimeSlots(schedSlotStart, schedSlotEnd, schedBreakStart, schedBreakEnd);
-
-            // Get already-booked slots on this candidate day
             const candidateDayStart = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate(), 0, 0, 0));
             const candidateDayEnd = new Date(Date.UTC(candidate.getUTCFullYear(), candidate.getUTCMonth(), candidate.getUTCDate(), 23, 59, 59, 999));
-
             const bookedOnDay = await Appointment.find({
               vetId,
               date: { $gte: candidateDayStart, $lte: candidateDayEnd },
               status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] },
               _id: { $ne: appt._id }
             }).select('startTime');
-
             const bookedTimes = new Set(bookedOnDay.map((b: any) => b.startTime));
             const freeSlot = candidateSlots.find(s => !bookedTimes.has(s.startTime));
-
-            if (freeSlot) {
-              nextDate = candidate;
-              nextStart = freeSlot.startTime;
-              nextEnd = freeSlot.endTime;
-              break;
-            }
+            if (freeSlot) { nextDate = candidate; nextStart = freeSlot.startTime; nextEnd = freeSlot.endTime; break; }
           }
 
           if (nextDate && nextStart && nextEnd) {
             appt.date = nextDate;
             appt.startTime = nextStart;
             appt.endTime = nextEnd;
-            await appt.save();
-            rescheduledAppointments.push(appt);
+            cascadePlan.push({ appt, origDate, origStartTime });
           }
         }
+      }
 
-        // Notify the displaced appointment owner about the reschedule (fire-and-forget)
+      // Phase 2: save in reverse order so the furthest appointment is persisted first,
+      // preventing transient unique-index conflicts between consecutive slots.
+      for (const { appt, origDate, origStartTime } of [...cascadePlan].reverse()) {
+        await appt.save();
+        rescheduledAppointments.push(appt);
+
         const displacedApptId = (appt._id as any).toString();
         const displacedNewDate = new Date(appt.date as Date);
         const displacedNewTime = appt.startTime;
@@ -2231,22 +2216,21 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
         status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] },
       }).sort({ startTime: 1 });
 
+      // Phase 1: compute positions in memory
+      const cascadePlan2: Array<{ appt: any; origDate: Date; origStartTime: string }> = [];
       let pushTo = endTime;
       for (const appt of sameDay) {
         if (appt.startTime >= pushTo) break;
 
-        // Capture original schedule before mutation for notification
         const origDate = new Date(appt.date as Date);
         const origStartTime = appt.startTime;
-
         const newStart = pushTo;
         const newEnd = addMinutes(pushTo, 30);
         if (newEnd <= schedSlotEnd) {
           appt.startTime = newStart;
           appt.endTime = newEnd;
-          await appt.save();
           pushTo = newEnd;
-          rescheduledAppointments.push(appt);
+          cascadePlan2.push({ appt, origDate, origStartTime });
         } else {
           const apptYear = (appt.date as Date).getUTCFullYear();
           const apptMonth = (appt.date as Date).getUTCMonth();
@@ -2277,12 +2261,16 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
           }
           if (nextDate && nextStart && nextEnd) {
             appt.date = nextDate; appt.startTime = nextStart; appt.endTime = nextEnd;
-            await appt.save();
-            rescheduledAppointments.push(appt);
+            cascadePlan2.push({ appt, origDate, origStartTime });
           }
         }
+      }
 
-        // Notify the displaced appointment owner (fire-and-forget)
+      // Phase 2: save in reverse order to avoid transient duplicate-key errors
+      for (const { appt, origDate, origStartTime } of [...cascadePlan2].reverse()) {
+        await appt.save();
+        rescheduledAppointments.push(appt);
+
         const displacedApptId = (appt._id as any).toString();
         const displacedNewDate = new Date(appt.date as Date);
         const displacedNewTime = appt.startTime;

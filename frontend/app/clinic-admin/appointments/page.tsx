@@ -2785,12 +2785,12 @@ function ClinicScheduleModal({
       if (!guestPetSterilization) return toast.error('Pet sterilization status is required')
       if (!selectedBranchId) return toast.error('Please select a clinic branch')
       if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
-      if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+      if (!isEmergency && selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
       if (!selectedSlot) return toast.error('Please select a time slot')
 
       setSubmitting(true)
       try {
-        const normalizedTypes = selectedTypes.map(normalizeAppointmentType)
+        const normalizedTypes = isEmergency ? ['consultation'] : selectedTypes.map(normalizeAppointmentType)
         const guestData: any = {
           ownerFirstName: guestFirstName.trim(),
           ownerLastName: guestLastName.trim(),
@@ -2892,13 +2892,13 @@ function ClinicScheduleModal({
       return toast.error(`Vet unavailable after ${selectedVetUnavailableAfter.toLocaleDateString('en-US')}`)
     }
     if (!mode) return toast.error('Please select a mode of appointment')
-    if (selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+    if (!isEmergency && selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
     if (!selectedSlot) return toast.error('Please select a time slot')
 
     setSubmitting(true)
     try {
-      // Normalize types to valid enum values
-      const normalizedTypes = selectedTypes.map(normalizeAppointmentType)
+      // Normalize types to valid enum values; emergency defaults to consultation
+      const normalizedTypes = isEmergency ? ['consultation'] : selectedTypes.map(normalizeAppointmentType)
 
       // For grooming-only, don't send vetId; backend will set it to null
       const appointmentData: any = {
@@ -3303,9 +3303,10 @@ function ClinicScheduleModal({
                     if (next) {
                       setIsWalkIn(true)
                       setMode('face-to-face')
-                    }
-                    else if (selectedSlot && slots.find(s => s.startTime === selectedSlot.startTime)?.status !== 'available') {
-                      setSelectedSlot(null)
+                    } else {
+                      if (selectedSlot && slots.find(s => s.startTime === selectedSlot.startTime)?.status !== 'available') {
+                        setSelectedSlot(null)
+                      }
                     }
                   }}
                   className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isEmergency ? 'bg-red-500' : 'bg-gray-200'}`}
@@ -3332,7 +3333,12 @@ function ClinicScheduleModal({
             {/* Type of Appointment */}
             <div>
               <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Type of Appointment</p>
-              {!mode ? (
+              {isEmergency ? (
+                <div className="px-4 py-2.5 border border-red-300 rounded-xl bg-red-50 text-sm text-red-700 font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Emergency
+                </div>
+              ) : !mode ? (
                 <div className="px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
                   Select mode first
                 </div>
