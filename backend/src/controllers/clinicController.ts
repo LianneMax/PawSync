@@ -15,6 +15,8 @@ import Appointment from '../models/Appointment';
 import { updateBranchStatus } from '../services/branchStatusService';
 import {
   sendVetInvitation,
+  sendVetBranchAssigned,
+  sendVetBranchReassigned,
   sendBranchOTP,
   sendNewBranchNotification,
   sendClinicClosureCancellation,
@@ -629,6 +631,13 @@ export const assignVetToBranch = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Vet is already assigned to this branch' });
     }
 
+    // Check if vet is currently assigned to a different branch (re-assignment)
+    const previousAssignment = await AssignedVet.findOne({
+      vetId,
+      clinicBranchId: { $ne: branchId },
+      isActive: true,
+    }).populate<{ clinicBranchId: { _id: any; name: string } }>('clinicBranchId', 'name');
+
     const assignment = await AssignedVet.create({
       vetId,
       clinicId: clinic._id,
@@ -640,6 +649,32 @@ export const assignVetToBranch = async (req: Request, res: Response) => {
 
     // Update the branch status (mark as active if it has vets)
     await updateBranchStatus(branchId);
+
+    // Send email notification to the vet
+    const vet = await User.findById(vetId).select('email firstName lastName');
+    if (vet?.email) {
+      if (previousAssignment) {
+        const oldBranchName = (previousAssignment.clinicBranchId as any)?.name ?? 'Previous Branch';
+        sendVetBranchReassigned({
+          vetEmail: vet.email,
+          vetFirstName: vet.firstName,
+          vetLastName: vet.lastName,
+          oldBranchName,
+          newBranchName: branch.name,
+          clinicName: clinic.name,
+          newBranchAddress: branch.address ?? '',
+        }).catch(() => {});
+      } else {
+        sendVetBranchAssigned({
+          vetEmail: vet.email,
+          vetFirstName: vet.firstName,
+          vetLastName: vet.lastName,
+          branchName: branch.name,
+          clinicName: clinic.name,
+          branchAddress: branch.address ?? '',
+        }).catch(() => {});
+      }
+    }
 
     return res.status(201).json({
       status: 'SUCCESS',

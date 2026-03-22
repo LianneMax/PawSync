@@ -766,6 +766,77 @@ export async function sendVetInvitation(params: {
   }
 }
 
+// ─── Vet Branch Assignment ────────────────────────────────────────────────────
+
+export async function sendVetBranchAssigned(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  vetLastName: string;
+  branchName: string;
+  clinicName: string;
+  branchAddress: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `You've been assigned to ${params.branchName} — ${params.clinicName}`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Branch Assignment Confirmed</h2>
+          <p>Hello Dr. ${params.vetFirstName} ${params.vetLastName},</p>
+          <p>You have been assigned to a clinic branch on PawSync. Here are your assignment details:</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Branch:</strong> ${params.branchName}</p>
+            <p style="margin: 4px 0;"><strong>Address:</strong> ${params.branchAddress}</p>
+          </div>
+          <p>You can now manage appointments and patient records for this branch through your PawSync dashboard.</p>
+          <p style="color: #999; font-size: 12px;">If you believe this was done in error, please contact your clinic administrator.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendVetBranchAssigned error:', err);
+  }
+}
+
+export async function sendVetBranchReassigned(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  vetLastName: string;
+  oldBranchName: string;
+  newBranchName: string;
+  clinicName: string;
+  newBranchAddress: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `Your branch assignment has been updated — ${params.clinicName}`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Branch Re-assignment Notice</h2>
+          <p>Hello Dr. ${params.vetFirstName} ${params.vetLastName},</p>
+          <p>Your branch assignment at <strong>${params.clinicName}</strong> has been updated:</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Previous Branch:</strong> ${params.oldBranchName}</p>
+            <p style="margin: 8px 0 4px; color: #5A7C7A; font-weight: bold;">▸ New Branch:</strong> ${params.newBranchName}</p>
+            <p style="margin: 4px 0;"><strong>Address:</strong> ${params.newBranchAddress}</p>
+          </div>
+          <p>Your new assignment is now active. Please check your PawSync dashboard for any updated schedules or appointments.</p>
+          <p style="color: #999; font-size: 12px;">If you believe this was done in error, please contact your clinic administrator.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendVetBranchReassigned error:', err);
+  }
+}
+
 // ─── Billing – Payment Due (vet approved invoice) ─────────────────────────────
 
 export async function sendBillingPendingPayment(params: {
