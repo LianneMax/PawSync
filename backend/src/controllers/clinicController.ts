@@ -1125,15 +1125,20 @@ export const acceptVetInvitation = async (req: Request, res: Response) => {
     const oldAssignments = await AssignedVet.find({ vetId: invitation.vetId, petId: null }).select('clinicBranchId');
     const oldBranchIds = [...new Set(oldAssignments.map((a: any) => a.clinicBranchId?.toString()).filter(Boolean))];
 
-    // Create new AssignedVet record for the inviting branch
-    await AssignedVet.create({
-      vetId: invitation.vetId,
-      clinicId: invitation.clinicId,
-      clinicBranchId: invitation.branchId,
-      clinicName: clinic.name,
-      clinicAddress: branch.address,
-      assignedAt: new Date(),
-    });
+    // Upsert AssignedVet for the inviting branch (reactivates if a previous record exists)
+    await AssignedVet.findOneAndUpdate(
+      { vetId: invitation.vetId, clinicBranchId: invitation.branchId },
+      {
+        $set: {
+          clinicId: invitation.clinicId,
+          clinicName: clinic.name,
+          clinicAddress: branch.address,
+          assignedAt: new Date(),
+          isActive: true,
+        },
+      },
+      { upsert: true, new: true }
+    );
 
     // Update the vet's User record to reflect new branch
     await User.findByIdAndUpdate(invitation.vetId, {
