@@ -508,6 +508,15 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
             isAuthorizedVet = !!hasVaxRecords;
           }
         }
+        // Cross-branch sharing: grant access if the vet has any appointment with this pet
+        if (!isAuthorizedVet) {
+          const hasAppointment = await Appointment.exists({
+            vetId: req.user.userId,
+            petId: pet._id,
+            status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+          });
+          isAuthorizedVet = !!hasAppointment;
+        }
       }
 
       if (!isOwner && !isAuthorizedVet && !isClinicAdmin) {

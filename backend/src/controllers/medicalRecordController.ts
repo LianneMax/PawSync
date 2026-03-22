@@ -566,6 +566,16 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
         const referral = await Referral.exists({ referredVetId: req.user.userId, petId: pet._id });
         isAuthorizedVet = !!referral;
       }
+      // Cross-branch sharing: grant access if the vet has any appointment with this pet
+      // (covers walk-ins and scheduled visits at a different branch of the same clinic)
+      if (!isAuthorizedVet) {
+        const hasAppointment = await Appointment.exists({
+          vetId: req.user.userId,
+          petId: pet._id,
+          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+        });
+        isAuthorizedVet = !!hasAppointment;
+      }
     }
 
     const isAdmin = isClinicAdminUser(req);
@@ -720,6 +730,15 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       if (!isAuthorizedVet) {
         const referral = await Referral.exists({ referredVetId: req.user.userId, petId: pet._id });
         isAuthorizedVet = !!referral;
+      }
+      // Cross-branch sharing: grant access if the vet has any appointment with this pet
+      if (!isAuthorizedVet) {
+        const hasAppointment = await Appointment.exists({
+          vetId: req.user.userId,
+          petId: pet._id,
+          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+        });
+        isAuthorizedVet = !!hasAppointment;
       }
     }
 
@@ -1682,6 +1701,15 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
       if (!isAuthorizedVet) {
         const referral = await Referral.exists({ referredVetId: req.user.userId, petId });
         isAuthorizedVet = !!referral;
+      }
+      // Cross-branch sharing: grant access if the vet has any appointment with this pet
+      if (!isAuthorizedVet) {
+        const hasAppointment = await Appointment.exists({
+          vetId: req.user.userId,
+          petId,
+          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+        });
+        isAuthorizedVet = !!hasAppointment;
       }
     }
 

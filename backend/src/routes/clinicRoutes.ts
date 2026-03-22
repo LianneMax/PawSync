@@ -14,6 +14,7 @@ import {
   getClinicPatients,
   createClinicAdmin,
   getBranchStats,
+  getSingleBranch,
   getRegisteredVets,
   inviteVet,
   acceptVetInvitation,
@@ -113,6 +114,12 @@ router.put('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, upd
  * Delete a branch
  */
 router.delete('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, mainBranchOnly, deleteBranch);
+
+/**
+ * GET /api/clinics/:clinicId/branches/:branchId
+ * Get a single branch (fresh from DB)
+ */
+router.get('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, getSingleBranch);
 
 /**
  * GET /api/clinics/:clinicId/branches/:branchId/stats

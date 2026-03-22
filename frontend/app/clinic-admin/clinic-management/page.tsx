@@ -101,6 +101,7 @@ export default function ClinicManagementPage() {
   const [branches, setBranches] = useState(emptyBranches)
   const [searchQuery, setSearchQuery] = useState('')
   const [clinicId, setClinicId] = useState<string | null>(null)
+  const [clinicEmail, setClinicEmail] = useState<string>('')
   const [loadingVets, setLoadingVets] = useState(true)
   const [loadingBranches, setLoadingBranches] = useState(true)
   const [branchStats, setBranchStats] = useState<Record<string, { vets: number; patients: number; appointments: number }>>({})
@@ -266,6 +267,8 @@ export default function ClinicManagementPage() {
         if (clinicsRes.status === 'SUCCESS' && clinicsRes.data.clinics.length > 0) {
           const myClinic = clinicsRes.data.clinics[0]
           setClinicId(myClinic._id)
+          const resolvedClinicEmail: string = myClinic.email || ''
+          if (resolvedClinicEmail) setClinicEmail(resolvedClinicEmail)
 
           // Fetch vets and branches in parallel
           const [vetsRes, branchesRes] = await Promise.all([
@@ -299,7 +302,7 @@ export default function ClinicManagementPage() {
               today: 0,
               phone: b.phone || '',
               hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
-              email: b.email || '',
+              email: b.email || (b.isMain ? (resolvedClinicEmail || user?.email || '') : ''),
               isOpen: true,
               city: b.city || '',
               province: b.province || '',
@@ -349,11 +352,14 @@ export default function ClinicManagementPage() {
     return v.name.toLowerCase().includes(q) || v.email.toLowerCase().includes(q)
   })
 
-  const openEditBranch = (branch: Branch) => {
+  const openEditBranch = async (branch: Branch) => {
     setSelectedBranch(branch)
-    const days = branch.operatingDays ? branch.operatingDays.split(', ').filter(Boolean) : []
-    const is24h = branch.openingTime === '00:00' && branch.closingTime === '23:59' && days.length === 7
-    setEditIs24h(is24h)
+    setEditBranchOpen(true)
+
+    // Populate immediately from cached state so the modal opens fast
+    const cachedDays = branch.operatingDays ? branch.operatingDays.split(', ').filter(Boolean) : []
+    const cachedIs24h = branch.openingTime === '00:00' && branch.closingTime === '23:59' && cachedDays.length === 7
+    setEditIs24h(cachedIs24h)
     setEditForm({
       name: branch.name,
       address: branch.address,
@@ -363,27 +369,58 @@ export default function ClinicManagementPage() {
       email: branch.email,
       openingTime: branch.openingTime,
       closingTime: branch.closingTime,
-      operatingDays: days,
+      operatingDays: cachedDays,
     })
-    setEditBranchOpen(true)
+
+    // Then re-fetch the branch from the DB to get the latest values (especially email)
+    if (!clinicId || !token) return
+    try {
+      const res = await authenticatedFetch(`/clinics/${clinicId}/branches/${branch.id}`, {}, token)
+      if (res.status === 'SUCCESS' && res.data?.branch) {
+        const b = res.data.branch
+        const days = (b.operatingDays || []) as string[]
+        const is24h = b.openingTime === '00:00' && b.closingTime === '23:59' && days.length === 7
+        setEditIs24h(is24h)
+        const freshEmail = b.email || (b.isMain ? (clinicEmail || user?.email || '') : '') || ''
+        setEditForm({
+          name: b.name || '',
+          address: b.address || '',
+          city: b.city || '',
+          province: b.province || '',
+          phone: b.phone || '',
+          email: freshEmail,
+          openingTime: b.openingTime || '',
+          closingTime: b.closingTime || '',
+          operatingDays: days,
+        })
+        // Sync the selectedBranch with fresh isMain flag
+        setSelectedBranch(prev => prev ? { ...prev, isMain: b.isMain, email: freshEmail } : prev)
+      }
+    } catch (err) {
+      console.error('Failed to refresh branch data for edit:', err)
+    }
   }
 
   const handleSaveBranch = async () => {
     if (!selectedBranch || !clinicId || !token) return
     try {
+      const payload: Record<string, unknown> = {
+        name: editForm.name,
+        address: editForm.address,
+        city: editForm.city || null,
+        province: editForm.province || null,
+        phone: editForm.phone || null,
+        openingTime: editForm.openingTime || null,
+        closingTime: editForm.closingTime || null,
+        operatingDays: editForm.operatingDays,
+      }
+      // Do not allow changing the email for the main branch
+      if (!selectedBranch.isMain) {
+        payload.email = editForm.email || null
+      }
       const res = await authenticatedFetch(`/clinics/${clinicId}/branches/${selectedBranch.id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          name: editForm.name,
-          address: editForm.address,
-          city: editForm.city || null,
-          province: editForm.province || null,
-          phone: editForm.phone || null,
-          email: editForm.email || null,
-          openingTime: editForm.openingTime || null,
-          closingTime: editForm.closingTime || null,
-          operatingDays: editForm.operatingDays,
-        }),
+        body: JSON.stringify(payload),
       }, token)
       if (res.status === 'SUCCESS') {
         const daysStr = editForm.operatingDays.join(', ')
@@ -1030,12 +1067,25 @@ export default function ClinicManagementPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Email Address</label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
+                Branch Email Address
+                {selectedBranch?.isMain && (
+                  <span className="ml-2 text-xs font-normal text-gray-400">(read-only)</span>
+                )}
+              </label>
               <input
                 type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                value={selectedBranch?.isMain ? (editForm.email || clinicEmail || user?.email || '') : editForm.email}
+                readOnly={!!selectedBranch?.isMain}
+                disabled={!!selectedBranch?.isMain}
+                onChange={(e) => {
+                  if (!selectedBranch?.isMain) setEditForm({...editForm, email: e.target.value})
+                }}
+                className={`w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm ${
+                  selectedBranch?.isMain
+                    ? 'bg-gray-50 cursor-not-allowed text-gray-500'
+                    : 'focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]'
+                }`}
               />
             </div>
 

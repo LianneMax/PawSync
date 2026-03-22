@@ -984,6 +984,32 @@ export const acceptVetInvitation = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get a single branch by ID (fresh from DB)
+ */
+export const getSingleBranch = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: req.params.branchId, clinicId: clinic._id });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    return res.status(200).json({ status: 'SUCCESS', data: { branch } });
+  } catch (error) {
+    console.error('Get single branch error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the branch' });
+  }
+};
+
+/**
  * Get statistics for a specific branch (vets, patients, and appointments counts)
  */
 export const getBranchStats = async (req: Request, res: Response) => {
