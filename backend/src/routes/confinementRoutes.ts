@@ -6,6 +6,10 @@ import {
   getConfinementByPet,
   requestConfinementRelease,
   confirmConfinementRelease,
+  listConfinementMonitoringEntries,
+  createConfinementMonitoringEntry,
+  updateConfinementMonitoringEntry,
+  resolveConfinementMonitoringAlert,
 } from '../controllers/confinementController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -28,5 +32,11 @@ router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateConfinementRecord
 
 // Handling vet confirms release and discharges confinement
 router.patch('/:id/confirm-release', authMiddleware, confirmConfinementRelease);
+
+// Confinement monitoring entries
+router.get('/:id/monitoring', authMiddleware, vetOrClinicAdminOnly, listConfinementMonitoringEntries);
+router.post('/:id/monitoring', authMiddleware, vetOrClinicAdminOnly, createConfinementMonitoringEntry);
+router.patch('/:id/monitoring/:entryId', authMiddleware, vetOrClinicAdminOnly, updateConfinementMonitoringEntry);
+router.patch('/:id/monitoring/:entryId/resolve-alert', authMiddleware, vetOrClinicAdminOnly, resolveConfinementMonitoringAlert);
 
 export default router;

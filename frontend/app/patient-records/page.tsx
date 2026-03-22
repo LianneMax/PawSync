@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
@@ -68,6 +68,7 @@ import {
 import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
+import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 import { getReferredPets } from '@/lib/referrals'
 
@@ -199,7 +200,7 @@ function emptyExtraCheckboxes(): ExtraCheckboxState {
 
 // ==================== MAIN PAGE ====================
 
-export default function PatientRecordsPage() {
+function PatientRecordsPageContent() {
   const { token } = useAuthStore()
   const searchParams = useSearchParams()
   const [patients, setPatients] = useState<PatientPet[]>([])
@@ -453,6 +454,27 @@ export default function PatientRecordsPage() {
     if (!token) return
     setEditLoading(true)
     try {
+      const localRec = [currentRecord, ...historicalRecords].find((r) => r?._id === recordId)
+
+      if (localRec) {
+        setStagedEdit({
+          recordId: localRec._id,
+          appointmentId:
+            (typeof localRec.appointmentId === 'object' && localRec.appointmentId
+              ? (localRec.appointmentId as any)._id
+              : localRec.appointmentId) || undefined,
+          petId:
+            (typeof localRec.petId === 'object' && localRec.petId
+              ? (localRec.petId as any)._id
+              : localRec.petId) as string,
+          appointmentTypes:
+            (typeof localRec.appointmentId === 'object' && localRec.appointmentId
+              ? (localRec.appointmentId as any).types || []
+              : []),
+        })
+        return
+      }
+
       const res = await getRecordById(recordId, token)
       if (res.status === 'SUCCESS' && res.data?.record) {
         const rec = res.data.record
@@ -463,7 +485,7 @@ export default function PatientRecordsPage() {
           appointmentTypes: rec.appointmentId?.types || [],
         })
       } else {
-        toast.error('Failed to load record for editing')
+        toast.error(res.message || 'Failed to load record for editing')
       }
     } catch {
       toast.error('An error occurred')
@@ -1231,6 +1253,14 @@ export default function PatientRecordsPage() {
         existingBillingId={billingModalExistingId}
       />
     </DashboardLayout>
+  )
+}
+
+export default function PatientRecordsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-gray-500">Loading patient records…</div>}>
+      <PatientRecordsPageContent />
+    </Suspense>
   )
 }
 
@@ -2593,6 +2623,14 @@ function ViewRecordModal({
                     </p>
                   </div>
                 </div>
+              )}
+
+              {record.confinementAction === 'confined' && record.confinementRecordId && (
+                <ConfinementMonitoringPanel
+                  token={token}
+                  confinementRecordId={record.confinementRecordId}
+                  isActive
+                />
               )}
 
               {/* ===== REFERRAL, DISCHARGE & SCHEDULED SURGERY ===== */}

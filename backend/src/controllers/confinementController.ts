@@ -1,13 +1,329 @@
 import { Request, Response } from 'express';
 import ConfinementRecord from '../models/ConfinementRecord';
+import ConfinementMonitoringEntry from '../models/ConfinementMonitoringEntry';
 import User from '../models/User';
 import Pet from '../models/Pet';
 import MedicalRecord from '../models/MedicalRecord';
 import { createNotification } from '../services/notificationService';
+import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import {
   sendConfinementReleaseRequestToVet,
   sendConfinementReleaseConfirmedToOwner,
 } from '../services/emailService';
+
+const MONITORING_POPULATE = [
+  { path: 'recorderId', select: 'firstName lastName userType' },
+  { path: 'createdBy', select: 'firstName lastName userType' },
+  { path: 'updatedBy', select: 'firstName lastName userType' },
+  { path: 'alertResolvedBy', select: 'firstName lastName userType' },
+];
+
+const toDateOrNull = (value: unknown): Date | null => {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toNumberOrNull = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const metricOrNull = (value: unknown, unit: string) => {
+  const numberValue = toNumberOrNull(value);
+  if (numberValue === null) return null;
+  return { value: numberValue, unit };
+};
+
+async function getRequestingUserClinicId(req: Request): Promise<string | null> {
+  if (req.user?.clinicId) return req.user.clinicId;
+  if (!req.user?.userId) return null;
+  const dbUser = await User.findById(req.user.userId).select('clinicId').lean();
+  return (dbUser as any)?.clinicId?.toString() || null;
+}
+
+async function canAccessConfinementRecord(req: Request, record: any): Promise<boolean> {
+  if (!req.user) return false;
+  if (req.user.userType === 'veterinarian') {
+    return record.vetId?.toString() === req.user.userId;
+  }
+
+  if (req.user.userType === 'clinic-admin') {
+    const clinicId = await getRequestingUserClinicId(req);
+    return !!clinicId && record.clinicId?.toString() === clinicId;
+  }
+
+  return false;
+}
+
+/**
+ * GET /api/confinement/:id/monitoring
+ * Veterinarian/clinic admin — list monitoring entries by confinement record.
+ */
+export const listConfinementMonitoringEntries = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+
+    const record = await ConfinementRecord.findById(req.params.id).select('petId vetId clinicId status').lean();
+    if (!record) return res.status(404).json({ status: 'ERROR', message: 'Confinement record not found' });
+
+    const allowed = await canAccessConfinementRecord(req, record);
+    if (!allowed) return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
+
+    const { entryType, startDate, endDate, page = '1', limit = '20' } = req.query;
+    const query: any = { confinementRecordId: req.params.id };
+    if (entryType === 'daily' || entryType === 'spot') {
+      query.entryType = entryType;
+    }
+
+    const parsedStart = toDateOrNull(startDate);
+    const parsedEnd = toDateOrNull(endDate);
+    if (parsedStart || parsedEnd) {
+      query.recordedAt = {} as Record<string, Date>;
+      if (parsedStart) query.recordedAt.$gte = parsedStart;
+      if (parsedEnd) query.recordedAt.$lte = parsedEnd;
+    }
+
+    const skip = (Math.max(parseInt(String(page), 10), 1) - 1) * Math.max(parseInt(String(limit), 10), 1);
+
+    const [entries, total] = await Promise.all([
+      ConfinementMonitoringEntry.find(query)
+        .populate(MONITORING_POPULATE)
+        .sort({ recordedAt: -1 })
+        .skip(skip)
+        .limit(Math.max(parseInt(String(limit), 10), 1)),
+      ConfinementMonitoringEntry.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        entries,
+        total,
+        status: record.status,
+      },
+    });
+  } catch (error) {
+    console.error('List confinement monitoring entries error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * POST /api/confinement/:id/monitoring
+ * Veterinarian/clinic admin — create a monitoring entry for active confinement.
+ */
+export const createConfinementMonitoringEntry = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+
+    const record = await ConfinementRecord.findById(req.params.id).select('petId vetId clinicId status clinicBranchId').lean();
+    if (!record) return res.status(404).json({ status: 'ERROR', message: 'Confinement record not found' });
+
+    const allowed = await canAccessConfinementRecord(req, record);
+    if (!allowed) return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
+
+    if (record.status !== 'admitted') {
+      return res.status(400).json({ status: 'ERROR', message: 'Monitoring entries can only be added while confinement is admitted' });
+    }
+
+    const { entryType } = req.body;
+    if (req.user.userType === 'clinic-admin' && entryType !== 'spot') {
+      return res.status(403).json({ status: 'ERROR', message: 'Clinic admins can only add spot monitoring entries' });
+    }
+
+    if (entryType !== 'daily' && entryType !== 'spot') {
+      return res.status(400).json({ status: 'ERROR', message: 'entryType must be daily or spot' });
+    }
+
+    const recordingDate = toDateOrNull(req.body.recordedAt);
+    if (req.body.recordedAt && !recordingDate) {
+      return res.status(400).json({ status: 'ERROR', message: 'recordedAt is invalid' });
+    }
+
+    const entry = await ConfinementMonitoringEntry.create({
+      confinementRecordId: req.params.id,
+      petId: record.petId,
+      medicalRecordId: req.body.medicalRecordId || null,
+      recordedAt: recordingDate || new Date(),
+      entryType,
+      recorderId: req.user.userId,
+      recorderRole: req.user.userType,
+      temperature: { value: Number(req.body.temperature), unit: '°C' },
+      heartRate: { value: Number(req.body.heartRate), unit: 'bpm' },
+      respiratoryRate: { value: Number(req.body.respiratoryRate), unit: 'breaths/min' },
+      weight: { value: Number(req.body.weight), unit: 'kg' },
+      hydrationStatus: String(req.body.hydrationStatus || '').trim(),
+      appetite: String(req.body.appetite || '').trim(),
+      painScore: Number(req.body.painScore),
+      capillaryRefillTime: metricOrNull(req.body.capillaryRefillTime, 'sec'),
+      spo2: metricOrNull(req.body.spo2, '%'),
+      bloodGlucose: metricOrNull(req.body.bloodGlucose, 'mg/dL'),
+      bloodPressureSystolic: metricOrNull(req.body.bloodPressureSystolic, 'mmHg'),
+      bloodPressureDiastolic: metricOrNull(req.body.bloodPressureDiastolic, 'mmHg'),
+      clinicalNotes: String(req.body.clinicalNotes || '').trim(),
+      clinicalFlag: req.body.clinicalFlag || 'normal',
+      followUpAction: req.body.followUpAction,
+      followUpInHours: toNumberOrNull(req.body.followUpInHours),
+      requiresImmediateReview: Boolean(req.body.requiresImmediateReview) || req.body.clinicalFlag === 'critical',
+      alertResolved: false,
+      createdBy: req.user.userId,
+      updatedBy: req.user.userId,
+      editReason: String(req.body.editReason || '').trim(),
+    });
+
+    const populated = await ConfinementMonitoringEntry.findById(entry._id).populate(MONITORING_POPULATE);
+
+    const isCritical = populated?.clinicalFlag === 'critical' || populated?.requiresImmediateReview;
+    if (isCritical) {
+      if (record.vetId?.toString() !== req.user.userId) {
+        await createNotification(
+          record.vetId.toString(),
+          'confinement_monitoring_alert',
+          'Critical Confinement Monitoring Alert',
+          'A critical confinement monitoring entry needs your review.',
+          {
+            confinementRecordId: req.params.id,
+            monitoringEntryId: entry._id,
+            petId: record.petId,
+          },
+        );
+      }
+
+      await alertClinicAdmins({
+        clinicId: record.clinicId,
+        clinicBranchId: (record as any).clinicBranchId || null,
+        notificationType: 'confinement_monitoring_alert',
+        notificationTitle: 'Critical Confinement Monitoring Alert',
+        notificationMessage: 'A confined pet has a critical monitoring entry requiring immediate review.',
+        metadata: {
+          confinementRecordId: req.params.id,
+          monitoringEntryId: entry._id,
+          petId: record.petId,
+        },
+        emailSubject: 'PawSync – Critical Confinement Monitoring Alert',
+        emailHeadline: 'Critical Monitoring Entry Logged',
+        emailIntro: 'A critical confinement monitoring entry has been recorded and requires attention.',
+        emailDetails: {
+          'Confinement Record ID': req.params.id,
+          'Monitoring Entry ID': entry._id.toString(),
+          Flag: populated?.clinicalFlag || 'critical',
+          'Recorded At': new Date(populated?.recordedAt || new Date()).toLocaleString('en-US'),
+        },
+      });
+    }
+
+    return res.status(201).json({ status: 'SUCCESS', data: { entry: populated } });
+  } catch (error: any) {
+    console.error('Create confinement monitoring entry error:', error);
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({ status: 'ERROR', message: error.message });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * PATCH /api/confinement/:id/monitoring/:entryId
+ * Veterinarian/clinic admin — update monitoring entry with audit reason.
+ */
+export const updateConfinementMonitoringEntry = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+
+    const record = await ConfinementRecord.findById(req.params.id).select('vetId clinicId').lean();
+    if (!record) return res.status(404).json({ status: 'ERROR', message: 'Confinement record not found' });
+
+    const allowed = await canAccessConfinementRecord(req, record);
+    if (!allowed) return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
+
+    const entry = await ConfinementMonitoringEntry.findOne({ _id: req.params.entryId, confinementRecordId: req.params.id });
+    if (!entry) return res.status(404).json({ status: 'ERROR', message: 'Monitoring entry not found' });
+
+    const editReason = String(req.body.editReason || '').trim();
+    if (!editReason) {
+      return res.status(400).json({ status: 'ERROR', message: 'editReason is required when updating a monitoring entry' });
+    }
+
+    if (req.body.recordedAt !== undefined) {
+      const parsedDate = toDateOrNull(req.body.recordedAt);
+      if (!parsedDate) return res.status(400).json({ status: 'ERROR', message: 'recordedAt is invalid' });
+      entry.recordedAt = parsedDate;
+    }
+    if (req.body.entryType !== undefined) entry.entryType = req.body.entryType;
+    if (req.body.temperature !== undefined) entry.temperature = { value: Number(req.body.temperature), unit: '°C' };
+    if (req.body.heartRate !== undefined) entry.heartRate = { value: Number(req.body.heartRate), unit: 'bpm' };
+    if (req.body.respiratoryRate !== undefined) entry.respiratoryRate = { value: Number(req.body.respiratoryRate), unit: 'breaths/min' };
+    if (req.body.weight !== undefined) entry.weight = { value: Number(req.body.weight), unit: 'kg' };
+    if (req.body.hydrationStatus !== undefined) entry.hydrationStatus = String(req.body.hydrationStatus || '').trim();
+    if (req.body.appetite !== undefined) entry.appetite = String(req.body.appetite || '').trim();
+    if (req.body.painScore !== undefined) entry.painScore = Number(req.body.painScore);
+    if (req.body.capillaryRefillTime !== undefined) entry.capillaryRefillTime = metricOrNull(req.body.capillaryRefillTime, 'sec');
+    if (req.body.spo2 !== undefined) entry.spo2 = metricOrNull(req.body.spo2, '%');
+    if (req.body.bloodGlucose !== undefined) entry.bloodGlucose = metricOrNull(req.body.bloodGlucose, 'mg/dL');
+    if (req.body.bloodPressureSystolic !== undefined) entry.bloodPressureSystolic = metricOrNull(req.body.bloodPressureSystolic, 'mmHg');
+    if (req.body.bloodPressureDiastolic !== undefined) entry.bloodPressureDiastolic = metricOrNull(req.body.bloodPressureDiastolic, 'mmHg');
+    if (req.body.clinicalNotes !== undefined) entry.clinicalNotes = String(req.body.clinicalNotes || '').trim();
+    if (req.body.clinicalFlag !== undefined) entry.clinicalFlag = req.body.clinicalFlag;
+    if (req.body.followUpAction !== undefined) entry.followUpAction = req.body.followUpAction;
+    if (req.body.followUpInHours !== undefined) entry.followUpInHours = toNumberOrNull(req.body.followUpInHours);
+    if (req.body.requiresImmediateReview !== undefined) entry.requiresImmediateReview = Boolean(req.body.requiresImmediateReview);
+    entry.updatedBy = req.user.userId as any;
+    entry.editReason = editReason;
+
+    await entry.save();
+
+    const populated = await ConfinementMonitoringEntry.findById(entry._id).populate(MONITORING_POPULATE);
+
+    return res.status(200).json({ status: 'SUCCESS', data: { entry: populated } });
+  } catch (error: any) {
+    console.error('Update confinement monitoring entry error:', error);
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({ status: 'ERROR', message: error.message });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
+
+/**
+ * PATCH /api/confinement/:id/monitoring/:entryId/resolve-alert
+ * Veterinarian — resolve critical monitoring alert.
+ */
+export const resolveConfinementMonitoringAlert = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+
+    if (req.user.userType !== 'veterinarian') {
+      return res.status(403).json({ status: 'ERROR', message: 'Only veterinarians can resolve monitoring alerts' });
+    }
+
+    const record = await ConfinementRecord.findById(req.params.id).select('vetId clinicId').lean();
+    if (!record) return res.status(404).json({ status: 'ERROR', message: 'Confinement record not found' });
+    if (record.vetId?.toString() !== req.user.userId) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the handling veterinarian can resolve this alert' });
+    }
+
+    const entry = await ConfinementMonitoringEntry.findOne({ _id: req.params.entryId, confinementRecordId: req.params.id });
+    if (!entry) return res.status(404).json({ status: 'ERROR', message: 'Monitoring entry not found' });
+
+    entry.alertResolved = true;
+    entry.alertResolvedAt = new Date();
+    entry.alertResolvedBy = req.user.userId as any;
+    entry.updatedBy = req.user.userId as any;
+    entry.editReason = String(req.body.editReason || 'Alert reviewed and resolved by veterinarian').trim();
+    await entry.save();
+
+    const populated = await ConfinementMonitoringEntry.findById(entry._id).populate(MONITORING_POPULATE);
+    return res.status(200).json({ status: 'SUCCESS', data: { entry: populated } });
+  } catch (error: any) {
+    console.error('Resolve confinement monitoring alert error:', error);
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({ status: 'ERROR', message: error.message });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred' });
+  }
+};
 
 /**
  * GET /api/confinement

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
+import { authenticatedFetch } from '@/lib/auth'
 import { getRecordById, updateMedicalRecord, emptyVitals, getDiagnosticTestServices, getMedicationServices, getPreventiveCareServices, getSurgeryServices, getPregnancyDeliveryServices, getHistoricalRecords, type ProductService, type MedicalRecord as MedicalRecordFull } from '@/lib/medicalRecords'
 import { getMedicalHistory, type MedicalHistory } from '@/lib/medicalHistory'
 import { getPetById, updatePetConfinement, updatePetPregnancyStatus, markPetDeceased } from '@/lib/pets'
@@ -12,6 +13,7 @@ import type { Pet } from '@/lib/pets'
 import SurgeryAppointmentModal from './SurgeryAppointmentModal'
 import ReferralModal from './ReferralModal'
 import { HistoricalMedicalRecord } from './HistoricalMedicalRecord'
+import ConfinementMonitoringPanel from './ConfinementMonitoringPanel'
 import {
   X,
   ChevronRight,
@@ -699,6 +701,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   // Tracks the stage the record was in when first loaded (e.g. 'confined').
   const [recordStage, setRecordStage] = useState<string>('pre_procedure')
+  const [confinementRecordId, setConfinementRecordId] = useState<string | null>(null)
   const [confined, setConfined] = useState(false)
   const [referral, setReferral] = useState(false)
   const [surgery, setSurgery] = useState(false)
@@ -1251,6 +1254,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }
       setRecordCreatedAt(r.createdAt)
 
+      if (r.confinementRecordId) {
+        const confinementId =
+          typeof r.confinementRecordId === 'object'
+            ? (r.confinementRecordId as any)._id ?? String(r.confinementRecordId)
+            : String(r.confinementRecordId)
+        setConfinementRecordId(confinementId)
+      } else {
+        setConfinementRecordId(null)
+      }
+
       // Store clinic and vet info for surgery appointment modal
       if (r.clinicId?._id) setClinicId(r.clinicId._id)
       if (r.clinicBranchId?._id) setClinicBranchId(r.clinicBranchId._id)
@@ -1615,6 +1628,28 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       setPreventiveCare(autoPop)
     }
   }, [appointmentDate, appointmentTypes, preventiveCare.length, preventiveCareServices])
+
+  // Fallback: if the pet is currently confined but this staged record doesn't yet have
+  // a linked confinementRecordId, pull the active confinement record for this pet.
+  useEffect(() => {
+    const resolveActiveConfinementRecord = async () => {
+      if (!token || !petId) return
+      if (!confined || confinementRecordId) return
+
+      try {
+        const res = await authenticatedFetch(`/confinement/pet/${petId}`, { method: 'GET' }, token)
+        if (res?.status !== 'SUCCESS' || !Array.isArray(res?.data?.records)) return
+
+        const active = res.data.records.find((r: any) => r?.status === 'admitted')
+        const activeId = active?._id ? String(active._id) : null
+        if (activeId) setConfinementRecordId(activeId)
+      } catch {
+        // Non-blocking fallback only.
+      }
+    }
+
+    resolveActiveConfinementRecord()
+  }, [token, petId, confined, confinementRecordId])
 
   // Convert surgery images state into the base64 payload for updateMedicalRecord
   const buildSurgeryImagesPayload = () =>
@@ -4501,6 +4536,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </p>
                 )}
               </div>
+
+              {(recordStage === 'confined' || confined) && confinementRecordId && token && (
+                <ConfinementMonitoringPanel
+                  token={token}
+                  confinementRecordId={confinementRecordId}
+                  isActive
+                />
+              )}
+
+              {process.env.NODE_ENV !== 'production' && (
+                <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                  Debug · recordStage: <span className="font-semibold">{recordStage || '—'}</span> · confinementRecordId: <span className="font-semibold">{confinementRecordId || 'null'}</span> · confined toggle: <span className="font-semibold">{String(confined)}</span>
+                </div>
+              )}
 
               {/* Medications */}
               <div className="border border-gray-100 rounded-2xl overflow-hidden">
