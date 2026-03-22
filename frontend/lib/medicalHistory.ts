@@ -23,8 +23,15 @@ export interface Operation {
   date: string
   surgeryType: string
   vetRemarks: string
+  images?: MedicalHistoryImage[]
   clinicName: string
   clinicId: string
+}
+
+export interface MedicalHistoryImage {
+  data: string
+  contentType: string
+  description: string
 }
 
 export interface Medication {
@@ -73,6 +80,51 @@ export interface PregnancyRecord {
   motherCondition?: string
 }
 
+export interface WeightHistoryEntry {
+  weight: number
+  dateRecorded: string
+}
+
+export interface LatestAntigenTest {
+  species: 'canine' | 'feline'
+  testDate: string | null
+  rows: Array<{
+    virus: string
+    result: 'positive' | 'negative'
+  }>
+}
+
+export interface LatestTiterTest {
+  species: 'canine' | 'feline'
+  testDate: string | null
+  rows: Array<{
+    virus: string
+    score: number | null
+    result: 'positive' | 'negative' | null
+  }>
+  source?: 'plan'
+}
+
+export interface LatestPreventiveCareService {
+  service: string
+  careType: string
+  datePerformed: string | null
+  notes: string
+}
+
+export interface DiagnosticHistoryEntry {
+  kind: 'titer' | 'antigen' | 'other'
+  testName: string
+  datePerformed: string | null
+  vetRemarks: string
+  images: MedicalHistoryImage[]
+  rows?: Array<{
+    virus: string
+    score?: number | null
+    result: 'positive' | 'negative' | null
+  }>
+}
+
 export interface PregnancyEpisode {
   status: 'none' | 'suspected' | 'probable' | 'confirmed' | 'delivered' | 'ended_without_delivery' | 'outcome_unknown'
   startedAt: string | null
@@ -95,9 +147,18 @@ export interface MedicalHistory {
   medications: Medication[]
   chiefComplaint: string
   latestSOAP: LatestSOAP | null
+  weightHistory: WeightHistoryEntry[]
+  latestAntigenTest: LatestAntigenTest | null
+  latestTiterTest: LatestTiterTest | null
+  latestDiagnosticTests: DiagnosticHistoryEntry[]
+  latestPreventiveCare: LatestPreventiveCareService[]
   vaccinations: VaccinationRecord[]
   pregnancyRecords: PregnancyRecord[]
-  pregnancyEpisode: PregnancyEpisode
+  pregnancyEpisode?: PregnancyEpisode
+  petPregnancy?: {
+    status: PregnancyEpisode['status']
+    activeEpisode: PregnancyEpisode | null
+  }
 }
 
 export async function getMedicalHistory(petId: string, token: string): Promise<MedicalHistory> {

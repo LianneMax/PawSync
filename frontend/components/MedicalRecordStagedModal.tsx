@@ -197,7 +197,7 @@ const TITERS_BY_SPECIES: Record<TiterSpecies, string[]> = {
 }
 
 const ANTIGEN_DISEASES_BY_SPECIES: Record<TiterSpecies, string[]> = {
-  canine: ['CPV', 'CAV', 'CDV'],
+  canine: ['CPV', 'CDV', 'CAV-1'],
   feline: ['FPV', 'FCV', 'FHV'],
 }
 
@@ -1708,19 +1708,39 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       ? `Retest ${vaccinateFor.join(', ')} in 7 days.`
       : 'Cleared to vaccinate.'
     const summary = `# Positive: ${positiveCount}/3 | Vaccinate for: ${vaccinateFor.length > 0 ? vaccinateFor.join(', ') : 'None'}`
-    const markdown = [
-      `Titer: ${titerDate} (${speciesLabel} ${titerKitName || 'VCheck'})`,
-      '| Disease | Score | Status | Action |',
-      '|---------|-------|--------|--------|',
-      ...normalizedRows.map((row) => `| ${row.disease} | ${row.score ?? '-'} | ${row.status || '-'} | ${row.action || '-'} |`),
-      `Plan: ${planLine}`,
-    ].join('\n')
 
     const antigenDate = titerDate
     const antigenNormalizedRows = buildAntigenRows(lockedSpecies).map((row) => {
       const saved = antigenRows.find((r) => r.disease === row.disease)
       return { disease: row.disease, result: saved?.result || ('' as AntigenRow['result']) }
     })
+
+    const markdownSections: string[] = []
+
+    if (titerEnabled && !skipTiterSuggested) {
+      markdownSections.push(
+        [
+          `Titer: ${titerDate} (${speciesLabel} ${titerKitName || 'VCheck'})`,
+          '| Disease | Score | Status | Action |',
+          '|---------|-------|--------|--------|',
+          ...normalizedRows.map((row) => `| ${row.disease} | ${row.score ?? '-'} | ${row.status || '-'} | ${row.action || '-'} |`),
+          `Plan: ${planLine}`,
+        ].join('\n')
+      )
+    }
+
+    if (antigenEnabled) {
+      markdownSections.push(
+        [
+          `Antigen: ${antigenDate} (${speciesLabel} 3-in-1)`,
+          '| Disease | Result |',
+          '|---------|--------|',
+          ...antigenNormalizedRows.map((row) => `| ${row.disease} | ${row.result || '-'} |`),
+        ].join('\n')
+      )
+    }
+
+    const markdown = markdownSections.join('\n\n')
 
     return {
       enabled: titerEnabled,
@@ -1744,11 +1764,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   const mergePlanWithTiterMarkdown = (basePlan: string, immunityPayload: ReturnType<typeof buildImmunityTestingPayload>) => {
     const planText = (basePlan || '').trim()
-    const sanitized = planText.includes('Immunity Testing\nTiter:')
-      ? planText.split('Immunity Testing\nTiter:')[0].trimEnd()
+    const immunityMarkerIndex = planText.indexOf('Immunity Testing\n')
+    const sanitized = immunityMarkerIndex >= 0
+      ? planText.slice(0, immunityMarkerIndex).trimEnd()
       : planText
 
-    if (!immunityPayload || immunityPayload.enabled !== true || skipTiterSuggested) {
+    const shouldAppendImmunity = !!immunityPayload && (
+      (immunityPayload.enabled === true && !skipTiterSuggested) || immunityPayload.antigenEnabled === true
+    )
+
+    if (!shouldAppendImmunity || !immunityPayload?.markdown) {
       return sanitized
     }
 
@@ -1886,7 +1911,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       const selectedSurgery = (isSurgeryAppt || emergencySurgery) ? surgeryServices.find((s) => s._id === surgeryTypeId) : undefined
       
       // Combine all images: diagnostic test images + general images
-      const allImages = [...diagImgs, ...images, ...titerImages]
+      const allImages = [...diagImgs, ...images, ...titerImages, ...(surgImgs || [])]
       
       // Remove images from diagnostic tests before sending to API
       const diagnosticTestsToSend = diagnosticTests.map(({ images: _images, ...rest }) => rest)
@@ -1913,7 +1938,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         ...(allImages.length > 0 ? { images: allImages } : {}),
         ...buildPregnancyPayload(),
         ...(isSurgeryAppt ? {
-          ...(surgImgs && surgImgs.length > 0 ? { images: surgImgs } : {}),
           surgeryRecord: {
             surgeryType: selectedSurgery?.name || '',
             vetRemarks: surgeryVetRemarks,
@@ -3329,7 +3353,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             ]}
                           />
                         </div>
-                        <textarea rows={2} placeholder="Result" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
+                        <textarea rows={2} placeholder="Reason for test" value={test.result} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, result: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none" />
                         <input type="text" placeholder="Notes (optional)" value={test.notes} onChange={(e) => setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, notes: e.target.value } : t))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]" />
                         
                         {/* Image Upload for Diagnostic Test */}
@@ -4543,12 +4567,6 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   confinementRecordId={confinementRecordId}
                   isActive
                 />
-              )}
-
-              {process.env.NODE_ENV !== 'production' && (
-                <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
-                  Debug · recordStage: <span className="font-semibold">{recordStage || '—'}</span> · confinementRecordId: <span className="font-semibold">{confinementRecordId || 'null'}</span> · confined toggle: <span className="font-semibold">{String(confined)}</span>
-                </div>
               )}
 
               {/* Medications */}

@@ -1724,6 +1724,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
     // Get all medical records for this pet (sorted by date, most recent first)
     const allRecords = await MedicalRecord.find({ petId })
       .populate('surgeryRecord')
+      .populate('appointmentId', 'types')
       .sort({ createdAt: -1 });
 
     // Calculate pet age
@@ -1736,16 +1737,212 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
       return rem > 0 ? `${years}yr ${rem}mo` : `${years}yr`;
     };
 
+    const stripImmunityTestingFromPlan = (planText: string): string => {
+      if (!planText) return '';
+      const marker = 'Immunity Testing\n';
+      const markerIndex = planText.indexOf(marker);
+      if (markerIndex === -1) return planText;
+      return planText.slice(0, markerIndex).trimEnd();
+    };
+
+    const normalizeCanineVirusLabel = (virus: string): string => {
+      const normalized = String(virus || '').toUpperCase().replace(/\s+/g, '');
+      if (normalized === 'CAV' || normalized === 'CAV1' || normalized === 'CAV-1') return 'CAV-1';
+      return normalized;
+    };
+
+    const parseTiterFromPlan = (planText: string, fallbackSpecies: 'canine' | 'feline') => {
+      if (!planText || !planText.includes('Immunity Testing') || !planText.includes('Titer:')) return null;
+
+      const headerMatch = planText.match(/Titer:\s*(\d{4}-\d{2}-\d{2})\s*\((Canine|Feline)/i);
+      const species = (headerMatch?.[2]?.toLowerCase() === 'feline' ? 'feline' : 'canine') as 'canine' | 'feline';
+      const testDate = headerMatch?.[1] || null;
+      const expectedViruses = species === 'feline' ? ['FPV', 'FCV', 'FHV'] : ['CDV', 'CPV', 'CAV-1'];
+
+      const lineRows = planText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => /^\|\s*[A-Z]{3}(?:-1)?\s*\|/.test(line));
+
+      if (lineRows.length === 0) return null;
+
+      const parsedRows = lineRows
+        .map((line) => {
+          const cells = line
+            .split('|')
+            .map((cell) => cell.trim())
+            .filter((cell) => cell.length > 0);
+          if (cells.length < 4) return null;
+
+          const virus = species === 'canine'
+            ? normalizeCanineVirusLabel(cells[0])
+            : cells[0].toUpperCase();
+          if (!expectedViruses.includes(virus)) return null;
+
+          const parsedScore = Number(cells[1]);
+          const score = Number.isFinite(parsedScore) ? parsedScore : null;
+          const statusToken = (cells[2] || '').toLowerCase();
+          const result = statusToken === 'positive' ? 'positive' : statusToken === 'negative' ? 'negative' : null;
+
+          return {
+            virus,
+            score,
+            result,
+          };
+        })
+        .filter(Boolean) as Array<{ virus: string; score: number | null; result: 'positive' | 'negative' | null }>;
+
+      if (parsedRows.length === 0) return null;
+
+      const mapByVirus = new Map(parsedRows.map((row) => [row.virus, row]));
+      return {
+        species: species || fallbackSpecies,
+        testDate,
+        rows: expectedViruses
+          .filter((virus) => mapByVirus.has(virus))
+          .map((virus) => ({
+            virus,
+            score: mapByVirus.get(virus)?.score ?? null,
+            result: mapByVirus.get(virus)?.result ?? null,
+          })),
+      };
+    };
+
+    const virusPatternToken = (virus: string): string => {
+      if (virus === 'CAV-1') return '(?:CAV-1|CAV1|CAV)';
+      return virus;
+    };
+
+    const parsePositiveNegativeRows = (text: string, viruses: string[]) => {
+      if (!text) return [] as Array<{ virus: string; result: 'positive' | 'negative' }>;
+      const normalized = text.replace(/\r/g, ' ').replace(/\n/g, ' ');
+
+      return viruses
+        .map((virus) => {
+          const virusToken = virusPatternToken(virus);
+          const directPattern = new RegExp(`${virusToken}[^A-Za-z0-9]*(positive|negative)`, 'i');
+          const reversePattern = new RegExp(`(positive|negative)[^A-Za-z0-9]*${virusToken}`, 'i');
+          const directMatch = normalized.match(directPattern);
+          const reverseMatch = normalized.match(reversePattern);
+          const resultToken = (directMatch?.[1] || reverseMatch?.[1] || '').toLowerCase();
+          if (resultToken !== 'positive' && resultToken !== 'negative') return null;
+          return {
+            virus,
+            result: resultToken as 'positive' | 'negative',
+          };
+        })
+        .filter(Boolean) as Array<{ virus: string; result: 'positive' | 'negative' }>;
+    };
+
+    const parseAntigenFromPlan = (planText: string, fallbackSpecies: 'canine' | 'feline') => {
+      if (!planText || !planText.includes('Immunity Testing') || !planText.includes('Antigen:')) return null;
+
+      const headerMatch = planText.match(/Antigen:\s*(\d{4}-\d{2}-\d{2})\s*\((Canine|Feline)/i);
+      const species = (headerMatch?.[2]?.toLowerCase() === 'feline' ? 'feline' : 'canine') as 'canine' | 'feline';
+      const testDate = headerMatch?.[1] || null;
+      const expectedViruses = species === 'feline' ? ['FPV', 'FCV', 'FHV'] : ['CPV', 'CDV', 'CAV-1'];
+
+      const lineRows = planText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => /^\|\s*[A-Z]{3}(?:-1)?\s*\|/i.test(line));
+
+      if (lineRows.length === 0) return null;
+
+      const parsedRows = lineRows
+        .map((line) => {
+          const cells = line
+            .split('|')
+            .map((cell) => cell.trim())
+            .filter((cell) => cell.length > 0);
+
+          if (cells.length < 2) return null;
+
+          const virus = species === 'canine'
+            ? normalizeCanineVirusLabel(cells[0])
+            : cells[0].toUpperCase();
+          if (!expectedViruses.includes(virus)) return null;
+
+          const resultToken = (cells[1] || '').toLowerCase();
+          if (resultToken !== 'positive' && resultToken !== 'negative') return null;
+
+          return {
+            virus,
+            result: resultToken as 'positive' | 'negative',
+          };
+        })
+        .filter(Boolean) as Array<{ virus: string; result: 'positive' | 'negative' }>;
+
+      if (parsedRows.length === 0) return null;
+
+      const mapByVirus = new Map(parsedRows.map((row) => [row.virus, row]));
+      return {
+        species: species || fallbackSpecies,
+        testDate,
+        rows: expectedViruses
+          .filter((virus) => mapByVirus.has(virus))
+          .map((virus) => ({
+            virus,
+            result: mapByVirus.get(virus)?.result as 'positive' | 'negative',
+          })),
+      };
+    };
+
+    const serializeImage = (img: any) => {
+      if (!img || !img.data) return null;
+      return {
+        contentType: img.contentType,
+        description: img.description || '',
+        data: Buffer.isBuffer(img.data) ? img.data.toString('base64') : img.data,
+      };
+    };
+
+    const getImagesForRecord = (record: any, predicate: (description: string) => boolean) => {
+      const rawImages = Array.isArray(record?.images) ? record.images : [];
+      return rawImages
+        .filter((img: any) => predicate(String(img?.description || '').toLowerCase()))
+        .map((img: any) => serializeImage(img))
+        .filter(Boolean);
+    };
+
     // 1. Extract all operations (surgeries from all records)
     const operations = allRecords
-      .filter(r => r.surgeryRecord)
-      .map(r => ({
-        date: r.createdAt,
-        surgeryType: (r.surgeryRecord as any)?.surgeryType || '',
-        vetRemarks: (r.surgeryRecord as any)?.vetRemarks || '',
-        clinicName: '',
-        clinicId: r.clinicId.toString(),
-      }));
+      .map((record) => {
+        const explicitSurgeryName = String((record.surgeryRecord as any)?.surgeryType || '').trim();
+        const appointmentTypes = Array.isArray((record as any)?.appointmentId?.types)
+          ? (record as any).appointmentId.types as string[]
+          : [];
+        const surgeryFromAppointment = appointmentTypes.find((type) => {
+          const normalized = String(type || '').toLowerCase();
+          return normalized.includes('surgery') || normalized.includes('spay') || normalized.includes('neuter') || normalized.includes('c-section') || normalized.includes('cesarean');
+        });
+
+        const surgeryType = explicitSurgeryName || surgeryFromAppointment || (record.scheduledSurgery ? 'Surgery Procedure' : '');
+        if (!surgeryType) return null;
+
+        return {
+          date: record.createdAt,
+          surgeryType,
+          vetRemarks: (record.surgeryRecord as any)?.vetRemarks || '',
+          images: getImagesForRecord(record, (description) => description.includes('surgery image')),
+          clinicName: '',
+          clinicId: record.clinicId.toString(),
+        };
+      })
+      .filter(Boolean) as Array<{ date: Date; surgeryType: string; vetRemarks: string; images: Array<{ contentType: string; description: string; data: string }>; clinicName: string; clinicId: string }>;
+
+    // 1b. Weight history from all records with valid weight entries
+    const weightHistory = allRecords
+      .map((record) => {
+        const rawWeight = (record as any)?.vitals?.weight?.value;
+        const parsedWeight = Number(rawWeight);
+        if (!Number.isFinite(parsedWeight)) return null;
+        return {
+          weight: parsedWeight,
+          dateRecorded: record.createdAt,
+        };
+      })
+      .filter(Boolean) as Array<{ weight: number; dateRecorded: Date }>;
 
     // 2. Extract all unique medications (deduplicated by name, prioritize active status)
     const medicationMap = new Map<string, any>();
@@ -1803,8 +2000,204 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
       subjective: latestRecordWithSOAP.subjective || '',
       objective: latestRecordWithSOAP.overallObservation || '',
       assessment: latestRecordWithSOAP.assessment || '',
-      plan: latestRecordWithSOAP.plan || '',
+      plan: stripImmunityTestingFromPlan(latestRecordWithSOAP.plan || ''),
     } : null;
+
+    // 4b. Most recent species-specific immunity test summaries
+    const species = (pet.species === 'feline' ? 'feline' : 'canine') as 'canine' | 'feline';
+    const speciesAntigenViruses = species === 'feline' ? ['FPV', 'FCV', 'FHV'] : ['CPV', 'CDV', 'CAV-1'];
+
+    let latestTiterTest: {
+      species: 'canine' | 'feline';
+      testDate: Date | string | null;
+      rows: Array<{ virus: string; score: number | null; result: 'positive' | 'negative' | null }>;
+      source: 'plan';
+    } | null = null;
+    let latestTiterRecord: any = null;
+
+    for (const record of allRecords) {
+      const parsedTiter = parseTiterFromPlan(record.plan || '', species);
+      if (parsedTiter && parsedTiter.rows.length > 0) {
+        latestTiterTest = {
+          species: parsedTiter.species,
+          testDate: parsedTiter.testDate || record.createdAt,
+          rows: parsedTiter.rows,
+          source: 'plan',
+        };
+        latestTiterRecord = record;
+        break;
+      }
+    }
+
+    let latestAntigenTest: {
+      species: 'canine' | 'feline';
+      testDate: Date | null;
+      rows: Array<{ virus: string; result: 'positive' | 'negative' }>;
+    } | null = null;
+    let latestAntigenRecord: any = null;
+
+    for (const record of allRecords) {
+      const diagnosticTests = (record as any).diagnosticTests || [];
+      const matchedAntigenTest = diagnosticTests.find((test: any) => {
+        const name = String(test?.name || '').toLowerCase();
+        return name.includes('3-in-1') || name.includes('antigen');
+      });
+
+      if (!matchedAntigenTest) continue;
+
+      const combinedText = [matchedAntigenTest.result, matchedAntigenTest.notes, matchedAntigenTest.normalRange]
+        .filter(Boolean)
+        .join(' ');
+      const parsedRows = parsePositiveNegativeRows(combinedText, speciesAntigenViruses);
+      if (parsedRows.length === 0) continue;
+
+      latestAntigenTest = {
+        species,
+        testDate: matchedAntigenTest.date || record.createdAt || null,
+        rows: parsedRows,
+      };
+      latestAntigenRecord = record;
+      break;
+    }
+
+    if (!latestAntigenTest) {
+      for (const record of allRecords) {
+        const parsedAntigen = parseAntigenFromPlan(record.plan || '', species);
+        if (parsedAntigen && parsedAntigen.rows.length > 0) {
+          latestAntigenTest = {
+            species: parsedAntigen.species,
+            testDate: parsedAntigen.testDate ? new Date(parsedAntigen.testDate) : record.createdAt,
+            rows: parsedAntigen.rows,
+          };
+          latestAntigenRecord = record;
+          break;
+        }
+      }
+    }
+
+    const latestDiagnosticsByName = new Map<string, {
+      kind: 'other';
+      testName: string;
+      datePerformed: Date | null;
+      vetRemarks: string;
+      images: Array<{ contentType: string; description: string; data: string }>;
+    }>();
+
+    allRecords.forEach((record) => {
+      const diagnosticTests = (record as any).diagnosticTests || [];
+      diagnosticTests.forEach((test: any, idx: number) => {
+        const testName = String(test?.name || '').trim() || 'Diagnostic Test';
+        const normalizedName = normalizeName(testName);
+        const isImmunityEntry = normalizedName.includes('titer') || normalizedName.includes('3-in-1') || normalizedName.includes('antigen');
+        if (isImmunityEntry) return;
+
+        if (latestDiagnosticsByName.has(normalizedName)) return;
+
+        const remarksParts = [
+          test.result ? `Result: ${test.result}` : '',
+          test.notes ? `Vet Remarks: ${test.notes}` : '',
+          test.normalRange ? `Reference: ${test.normalRange}` : '',
+        ].filter(Boolean);
+
+        const testNameToken = normalizeName(testName);
+        const images = getImagesForRecord(record, (description) => {
+          const normalizedDescription = normalizeName(description);
+          return normalizedDescription.includes(testNameToken) || normalizedDescription.includes(`diagnostic test #${idx + 1}`);
+        });
+
+        latestDiagnosticsByName.set(normalizedName, {
+          kind: 'other',
+          testName,
+          datePerformed: test.date || record.createdAt || null,
+          vetRemarks: remarksParts.join('\n'),
+          images,
+        });
+      });
+    });
+
+    const latestDiagnosticTests: Array<{
+      kind: 'titer' | 'antigen' | 'other';
+      testName: string;
+      datePerformed: Date | string | null;
+      vetRemarks: string;
+      images: Array<{ contentType: string; description: string; data: string }>;
+      rows?: Array<{ virus: string; score?: number | null; result: 'positive' | 'negative' | null }>;
+    }> = [];
+
+    if (latestTiterTest) {
+      latestDiagnosticTests.push({
+        kind: 'titer',
+        testName: species === 'feline' ? 'Feline Titer Testing (FPV, FCV, FHV)' : 'Canine Titer Testing (CDV, CPV, CAV-1)',
+        datePerformed: latestTiterTest.testDate,
+        vetRemarks: '',
+        images: latestTiterRecord ? getImagesForRecord(latestTiterRecord, (description) => description.includes('titer')) : [],
+        rows: latestTiterTest.rows.map((row) => ({
+          virus: row.virus,
+          score: row.score,
+          result: row.result,
+        })),
+      });
+    }
+
+    if (latestAntigenTest) {
+      latestDiagnosticTests.push({
+        kind: 'antigen',
+        testName: species === 'feline' ? 'Feline 3-in-1 Antigen Test Kit (FPV, FCV, FHV)' : 'Canine 3-in-1 Antigen Test Kit (CPV, CDV, CAV-1)',
+        datePerformed: latestAntigenTest.testDate,
+        vetRemarks: '',
+        images: latestAntigenRecord ? getImagesForRecord(latestAntigenRecord, (description) => description.includes('antigen')) : [],
+        rows: latestAntigenTest.rows.map((row) => ({
+          virus: row.virus,
+          result: row.result,
+        })),
+      });
+    }
+
+    latestDiagnosticTests.push(...Array.from(latestDiagnosticsByName.values()));
+    latestDiagnosticTests.sort((a, b) => {
+      const aTime = a.datePerformed ? new Date(a.datePerformed).getTime() : 0;
+      const bTime = b.datePerformed ? new Date(b.datePerformed).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    // 4c. Latest preventive care per service type (exclude vaccine-like entries)
+    const isVaccineLike = (value: string) => {
+      const normalized = String(value || '').toLowerCase();
+      return normalized.includes('vaccine') || normalized.includes('vaccination') || normalized.includes('booster') || normalized.includes('rabies');
+    };
+
+    const preventiveByService = new Map<string, {
+      service: string;
+      careType: string;
+      datePerformed: Date | null;
+      notes: string;
+    }>();
+
+    allRecords.forEach((record) => {
+      (record.preventiveCare || []).forEach((care) => {
+        const serviceName = String(care.product || '').trim();
+        if (!serviceName || isVaccineLike(serviceName)) return;
+
+        const key = normalizeName(serviceName);
+        const datePerformed = care.dateAdministered || record.createdAt || null;
+        const existing = preventiveByService.get(key);
+
+        if (!existing || (datePerformed && existing.datePerformed && datePerformed > existing.datePerformed) || (!existing.datePerformed && !!datePerformed)) {
+          preventiveByService.set(key, {
+            service: serviceName,
+            careType: care.careType || 'other',
+            datePerformed,
+            notes: care.notes || '',
+          });
+        }
+      });
+    });
+
+    const latestPreventiveCare = Array.from(preventiveByService.values()).sort((a, b) => {
+      const aTime = a.datePerformed ? new Date(a.datePerformed).getTime() : 0;
+      const bTime = b.datePerformed ? new Date(b.datePerformed).getTime() : 0;
+      return bTime - aTime;
+    });
 
     // 5. All vaccinations
     const vaccinations = await Vaccination.find({ petId })
@@ -1827,6 +2220,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
       allRecords.forEach(r => {
         if (r.pregnancyRecord) {
           pregnancyRecords.push({
+            eventType: 'pregnancy_assessment',
             date: r.createdAt,
             isPregnant: r.pregnancyRecord.isPregnant,
             gestationDate: r.pregnancyRecord.gestationDate,
@@ -1836,6 +2230,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
         }
         if (r.pregnancyDelivery) {
           pregnancyRecords.push({
+            eventType: 'delivery',
             date: r.createdAt,
             deliveryDate: r.pregnancyDelivery.deliveryDate,
             deliveryType: r.pregnancyDelivery.deliveryType,
@@ -1872,6 +2267,11 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
         medications,
         chiefComplaint,
         latestSOAP,
+        weightHistory,
+        latestTiterTest,
+        latestAntigenTest,
+        latestDiagnosticTests,
+        latestPreventiveCare,
         vaccinations: formattedVaccinations,
         pregnancyRecords,
         petPregnancy: {

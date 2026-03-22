@@ -9,6 +9,8 @@ import {
   Scissors,
   Baby,
   Clock,
+  Scale,
+  Shield,
   AlertCircle,
   ChevronDown,
   ChevronUp,
@@ -26,15 +28,18 @@ export function HistoricalMedicalRecord({
   petId,
   token,
   refreshTrigger = 0,
-  isReadOnly = false,
+  isReadOnly: _isReadOnly = false,
 }: HistoricalMedicalRecordProps) {
   const { data, loading, error } = useHistoricalMedicalRecord(petId, token, refreshTrigger)
   const [expandedSections, setExpandedSections] = useState({
     petInfo: true,
-    operations: true,
-    medications: true,
     chiefComplaint: true,
     soap: true,
+    diagnostics: true,
+    weightHistory: true,
+    preventiveCare: true,
+    operations: true,
+    medications: true,
     vaccinations: true,
     pregnancy: false,
   })
@@ -73,6 +78,7 @@ export function HistoricalMedicalRecord({
   }
 
   const pet = data.pet
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'N/A'
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -82,14 +88,15 @@ export function HistoricalMedicalRecord({
     })
   }
 
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob)
-    const today = new Date()
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const m = today.getMonth() - birthDate.getMonth()
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
-    return age
+  const sanitizeSoapPlan = (plan: string) => {
+    if (!plan) return ''
+    const marker = 'Immunity Testing\n'
+    const markerIndex = plan.indexOf(marker)
+    if (markerIndex === -1) return plan
+    return plan.slice(0, markerIndex).trimEnd()
   }
+
+  const diagnosticEntries = data.latestDiagnosticTests || []
 
   return (
     <div className="space-y-4">
@@ -196,6 +203,236 @@ export function HistoricalMedicalRecord({
         </div>
       )}
 
+      {/* ─── LATEST SOAP NOTES ─── */}
+      {data.latestSOAP && (
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
+          <button
+            onClick={() => toggleSection('soap')}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600" />
+              <h3 className="font-semibold text-[#4F4F4F]">Most Recent SOAP Notes</h3>
+            </div>
+            {expandedSections.soap ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+
+          {expandedSections.soap && (
+            <div className="px-4 py-3 space-y-3 border-t border-blue-200">
+              <div>
+                <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Date</p>
+                <p className="text-sm text-gray-600">{formatDate(data.latestSOAP.date)}</p>
+              </div>
+              {data.latestSOAP.subjective && (
+                <div>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Subjective (S)</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.subjective}</p>
+                </div>
+              )}
+              {data.latestSOAP.objective && (
+                <div>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Objective (O)</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.objective}</p>
+                </div>
+              )}
+              {data.latestSOAP.assessment && (
+                <div>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Assessment (A)</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.assessment}</p>
+                </div>
+              )}
+              {sanitizeSoapPlan(data.latestSOAP.plan) && (
+                <div>
+                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Plan (P)</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sanitizeSoapPlan(data.latestSOAP.plan)}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── DIAGNOSTIC TESTS ─── */}
+      {diagnosticEntries.length > 0 && (
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
+          <button
+            onClick={() => toggleSection('diagnostics')}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600" />
+              <h3 className="font-semibold text-[#4F4F4F]">Diagnostic Tests ({diagnosticEntries.length})</h3>
+            </div>
+            {expandedSections.diagnostics ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+
+          {expandedSections.diagnostics && (
+            <div className="px-4 py-3 space-y-4 border-t border-blue-200">
+              {diagnosticEntries.map((entry, idx) => (
+                <div key={idx} className="pb-3 last:pb-0 border-b last:border-b-0 border-blue-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-blue-900">{entry.testName}</p>
+                    <span className="text-xs text-blue-600 font-medium">Performed: {formatDate(entry.datePerformed || '')}</span>
+                  </div>
+
+                  {(entry.kind === 'titer' || entry.kind === 'antigen') && entry.rows && entry.rows.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs uppercase tracking-wide text-blue-900">
+                            <th className="py-2 pr-3">Virus Tested</th>
+                            {entry.kind === 'titer' && <th className="py-2 pr-3">Score</th>}
+                            <th className="py-2">Result</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {entry.rows.map((row, rowIndex) => (
+                            <tr key={rowIndex} className="border-t border-blue-100">
+                              <td className="py-2 pr-3 font-medium text-[#4F4F4F]">{row.virus}</td>
+                              {entry.kind === 'titer' && (
+                                <td className="py-2 pr-3 text-gray-700">{row.score ?? 'N/A'}</td>
+                              )}
+                              <td className="py-2">
+                                {row.result ? (
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      entry.kind === 'titer'
+                                        ? (row.result === 'positive' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')
+                                        : (row.result === 'positive' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700')
+                                    }`}
+                                  >
+                                    {row.result === 'positive' ? 'Positive' : 'Negative'}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">N/A</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {entry.vetRemarks && (
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{entry.vetRemarks}</p>
+                  )}
+
+                  {entry.images && entry.images.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                      {entry.images.map((img, imgIndex) => (
+                        <img
+                          key={imgIndex}
+                          src={`data:${img.contentType};base64,${img.data}`}
+                          alt={img.description || `${entry.testName} image ${imgIndex + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border border-blue-100"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── WEIGHT HISTORY ─── */}
+      {data.weightHistory && data.weightHistory.length > 0 && (
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
+          <button
+            onClick={() => toggleSection('weightHistory')}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
+          >
+            <div className="flex items-center gap-2">
+              <Scale className="w-4 h-4 text-blue-600" />
+              <h3 className="font-semibold text-[#4F4F4F]">Weight History ({data.weightHistory.length})</h3>
+            </div>
+            {expandedSections.weightHistory ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+
+          {expandedSections.weightHistory && (
+            <div className="px-4 py-3 border-t border-blue-200">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-blue-900">
+                      <th className="py-2 pr-3">Weight</th>
+                      <th className="py-2">Date Recorded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.weightHistory.map((entry, i) => (
+                      <tr key={i} className="border-t border-blue-100">
+                        <td className="py-2 pr-3 font-medium text-[#4F4F4F]">{entry.weight} kg</td>
+                        <td className="py-2 text-gray-600">{formatDate(entry.dateRecorded)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── PREVENTIVE CARE (LATEST PER SERVICE) ─── */}
+      {data.latestPreventiveCare && data.latestPreventiveCare.length > 0 && (
+        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
+          <button
+            onClick={() => toggleSection('preventiveCare')}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-600" />
+              <h3 className="font-semibold text-[#4F4F4F]">Preventive Care ({data.latestPreventiveCare.length})</h3>
+            </div>
+            {expandedSections.preventiveCare ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+
+          {expandedSections.preventiveCare && (
+            <div className="px-4 py-3 border-t border-blue-200">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-blue-900">
+                      <th className="py-2 pr-3">Service</th>
+                      <th className="py-2 pr-3">Date Performed</th>
+                      <th className="py-2">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.latestPreventiveCare.map((item, i) => (
+                      <tr key={i} className="border-t border-blue-100">
+                        <td className="py-2 pr-3 font-medium text-[#4F4F4F]">{item.service}</td>
+                        <td className="py-2 pr-3 text-gray-600">{formatDate(item.datePerformed || '')}</td>
+                        <td className="py-2 text-gray-600">{item.notes || 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── OPERATIONS ─── */}
       {data.operations.length > 0 && (
         <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
@@ -221,11 +458,23 @@ export function HistoricalMedicalRecord({
               {data.operations.map((op, i) => (
                 <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-blue-100">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-blue-900">{op.surgeryType}</p>
-                    <span className="text-xs text-blue-600 font-medium">{formatDate(op.date)}</span>
+                    <p className="font-semibold text-blue-900">Surgery: {op.surgeryType || 'Surgery Procedure'}</p>
+                    <span className="text-xs text-blue-600 font-medium">Performed: {formatDate(op.date)}</span>
                   </div>
                   {op.vetRemarks && (
                     <p className="text-sm text-gray-600 mt-1">{op.vetRemarks}</p>
+                  )}
+                  {op.images && op.images.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                      {op.images.map((img, imgIndex) => (
+                        <img
+                          key={imgIndex}
+                          src={`data:${img.contentType};base64,${img.data}`}
+                          alt={img.description || `Surgery image ${imgIndex + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border border-blue-100"
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
               ))}
@@ -284,59 +533,6 @@ export function HistoricalMedicalRecord({
                   {med.notes && <p className="text-xs text-gray-600 mt-1 italic">{med.notes}</p>}
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── LATEST SOAP NOTES ─── */}
-      {data.latestSOAP && (
-        <div className="border border-blue-200 rounded-2xl overflow-hidden bg-blue-50/30">
-          <button
-            onClick={() => toggleSection('soap')}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 transition-colors border-b border-blue-200"
-          >
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-blue-600" />
-              <h3 className="font-semibold text-[#4F4F4F]">Most Recent SOAP Notes</h3>
-            </div>
-            {expandedSections.soap ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
-          </button>
-
-          {expandedSections.soap && (
-            <div className="px-4 py-3 space-y-3 border-t border-blue-200">
-              <div>
-                <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Date</p>
-                <p className="text-sm text-gray-600">{formatDate(data.latestSOAP.date)}</p>
-              </div>
-              {data.latestSOAP.subjective && (
-                <div>
-                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Subjective (S)</p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.subjective}</p>
-                </div>
-              )}
-              {data.latestSOAP.objective && (
-                <div>
-                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Objective (O)</p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.objective}</p>
-                </div>
-              )}
-              {data.latestSOAP.assessment && (
-                <div>
-                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Assessment (A)</p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.assessment}</p>
-                </div>
-              )}
-              {data.latestSOAP.plan && (
-                <div>
-                  <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Plan (P)</p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{data.latestSOAP.plan}</p>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -420,7 +616,7 @@ export function HistoricalMedicalRecord({
               {data.pregnancyRecords.map((preg, i) => (
                 <div key={i} className="pb-3 last:pb-0 last:border-b-0 border-b border-green-100">
                   <p className="text-xs font-semibold text-green-900 uppercase tracking-wide mb-2">
-                    {formatDate(preg.date || '')}
+                    {preg.eventType === 'delivery' ? 'Delivery' : 'Pregnancy Assessment'} · {formatDate(preg.date || '')}
                   </p>
                   {preg.isPregnant !== undefined && (
                     <p className="text-sm text-gray-600">
