@@ -15,6 +15,7 @@ import { createNotification } from '../services/notificationService';
 import { sendBillingPendingPayment, sendPrescriptionEmail } from '../services/emailService';
 import { getPregnancySnapshot, syncPregnancyFromMedicalRecord, getPregnancyEpisodeHistory } from '../services/pregnancyDomainService';
 import type { PregnancyEvidenceSource } from '../models/PregnancyEvidence';
+import { calculateConfinementDailyPrice } from '../utils/confinementPricing';
 
 /**
  * Helper — returns true if req.user is a clinic-admin or clinic-admin.
@@ -254,12 +255,15 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
         const confService = allProducts.find(
           (p: any) => p.type === 'Service' && normalizeName(p.name).includes('confinement'),
         );
+        const confinementUnitPrice = confService
+          ? calculateConfinementDailyPrice(confService.price, petWeightKg)
+          : 0;
         newItems.push({
           productServiceId: confService ? confService._id : null,
           vaccineTypeId: null,
           name: confService ? confService.name : 'Confinement',
           type: 'Service',
-          unitPrice: confService ? confService.price : 0,
+          unitPrice: confinementUnitPrice,
           quantity: confDays,
         });
       }
