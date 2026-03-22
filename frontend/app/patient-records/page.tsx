@@ -501,8 +501,8 @@ export default function PatientRecordsPage() {
   const totalPatients = patients.length
   const totalRecords = (currentRecord ? 1 : 0) + historicalRecords.length
   const selectedIsLost = selectedPatient?.isLost || selectedPatient?.status === 'lost'
-  const selectedIsDeceased = selectedPatient?.status === 'deceased' && selectedPatient?.isAlive === false
-  const selectedIsRelocated = Array.isArray(selectedPatient?.previousOwners) && selectedPatient.previousOwners.length > 0
+  const selectedIsDeceased = !selectedPatient?.isAlive || selectedPatient?.status === 'deceased'
+  const selectedIsRelocated = !!selectedPatient?.removedByOwner
 
   return (
     <DashboardLayout userType="veterinarian">
@@ -577,8 +577,8 @@ export default function PatientRecordsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredPatients.map((pet) => {
                   const isLost = pet.isLost || pet.status === 'lost'
-                  const isDeceased = pet.status === 'deceased' && pet.isAlive === false
-                  const isRelocated = Array.isArray(pet.previousOwners) && pet.previousOwners.length > 0
+                  const isDeceased = !pet.isAlive || pet.status === 'deceased'
+                  const isRelocated = !!pet.removedByOwner
 
                   return (
                   <button
