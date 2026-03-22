@@ -2527,8 +2527,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   const updateVital = (key: keyof Vitals, field: 'value' | 'notes', val: string) => {
+    let nextValue = val
+    if (field === 'value') {
+      // Block non-integer input for pulse/BCS/dental and enforce allowed score sets.
+      if (key === 'pulseRate' || key === 'bodyConditionScore' || key === 'dentalScore') {
+        if (nextValue !== '' && !/^\d+$/.test(nextValue)) return
+      }
+      if (key === 'bodyConditionScore' && nextValue !== '' && !['1', '2', '3', '4', '5'].includes(nextValue)) return
+      if (key === 'dentalScore' && nextValue !== '' && !['1', '2', '3'].includes(nextValue)) return
+    }
+
     setVitals((prev) => {
-      const updated = { ...prev, [key]: { ...prev[key], [field]: val } }
+      const updated = { ...prev, [key]: { ...prev[key], [field]: nextValue } }
       if (showRequiredErrors && field === 'value') {
         const allFilled = REQUIRED_VITAL_KEYS.every((k) => !!updated[k]?.value || updated[k]?.value === 0)
         if (allFilled && chiefComplaint.trim()) setShowRequiredErrors(false)
@@ -2536,8 +2546,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       return updated
     })
     if (field === 'value') {
-      const num = Number(val)
-      const isEmpty = val === ''
+      const num = Number(nextValue)
+      const isEmpty = nextValue === ''
       let error = ''
       if (key === 'bodyConditionScore') {
         if (!isEmpty && (isNaN(num) || num < 1 || num > 5 || !Number.isInteger(num)))
@@ -2548,7 +2558,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       } else if (key === 'spo2') {
         if (!isEmpty && (isNaN(num) || num < 0 || num > 100))
           error = 'Must be between 0 and 100'
-      } else if (['weight', 'temperature', 'pulseRate', 'crt'].includes(key)) {
+      } else if (key === 'pulseRate') {
+        if (!isEmpty && (isNaN(num) || num < 0 || !Number.isInteger(num)))
+          error = 'Must be a whole number'
+      } else if (['weight', 'temperature', 'crt'].includes(key)) {
         if (!isEmpty && (isNaN(num) || num < 0))
           error = 'Must be a valid number'
       }
@@ -2836,6 +2849,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       { key: 'dentalScore' as const, label: 'Dental Score', unit: '1–3', min: 1, max: 3, step: 1 },
                       { key: 'crt' as const, label: 'CRT', unit: 'sec', min: 0, max: undefined, step: 'any' },
                     ] as const).map(({ key, label, unit, min, max, step }) => {
+                      const hidePreviousForKey = key === 'bodyConditionScore' || key === 'dentalScore'
                       const prevVal = previousRecord?.vitals?.[key]?.value
                       const prevNum = prevVal != null && prevVal !== '' ? Number(prevVal) : null
                       const currNum = vitals[key]?.value != null && vitals[key].value !== '' ? Number(vitals[key].value) : null
@@ -2854,18 +2868,23 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               step={step}
                               value={String(vitals[key]?.value ?? '')}
                               onChange={(e) => updateVital(key, 'value', e.target.value)}
+                              onKeyDown={(e) => {
+                                if ((key === 'pulseRate' || key === 'bodyConditionScore' || key === 'dentalScore') && ['.', 'e', 'E', '+', '-'].includes(e.key)) {
+                                  e.preventDefault()
+                                }
+                              }}
                               className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${vitalsErrors[key] ? 'border-[#900B09] focus:ring-[#900B09]' : showRequiredErrors && !vitals[key]?.value && vitals[key]?.value !== 0 ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                               placeholder={unit}
                             />
-                            {prevNum != null && (
+                            {!hidePreviousForKey && prevNum != null && (
                               <div className="flex items-center gap-1 mt-0.5">
-                                {trend === 'up' && <TrendingUp className="w-3 h-3 text-amber-500 shrink-0" />}
-                                {trend === 'down' && <TrendingDown className="w-3 h-3 text-blue-400 shrink-0" />}
+                                {trend === 'up' && <TrendingUp className="w-3 h-3 text-gray-400 shrink-0" />}
+                                {trend === 'down' && <TrendingDown className="w-3 h-3 text-gray-400 shrink-0" />}
                                 {trend === 'stable' && <Minus className="w-3 h-3 text-gray-400 shrink-0" />}
                                 <span className="text-[10px] text-gray-400">
                                   Prev: {prevNum} {unit}
                                   {pct != null && Math.abs(pct) >= 5 && (
-                                    <span className={trend === 'up' ? 'text-amber-500 ml-1' : 'text-blue-400 ml-1'}>
+                                    <span className="text-gray-400 ml-1">
                                       ({pct > 0 ? '+' : ''}{pct.toFixed(0)}%)
                                     </span>
                                   )}
