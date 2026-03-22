@@ -17,6 +17,8 @@ import {
   getRegisteredVets,
   inviteVet,
   acceptVetInvitation,
+  sendBranchEmailOTP,
+  verifyBranchEmailOTP,
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -75,6 +77,18 @@ router.get('/mine/patients', authMiddleware, clinicAdminOnly, getClinicPatients)
  * Get all active branches for the authenticated admin's clinic (resolves clinic from JWT)
  */
 router.get('/mine/branches', authMiddleware, clinicAdminOnly, getMyBranches);
+
+/**
+ * POST /api/clinics/branch-otp/send
+ * Send an OTP to the given branch email address for verification
+ */
+router.post('/branch-otp/send', authMiddleware, clinicAdminOnly, sendBranchEmailOTP);
+
+/**
+ * POST /api/clinics/branch-otp/verify
+ * Verify the OTP entered by the user for the branch email
+ */
+router.post('/branch-otp/verify', authMiddleware, clinicAdminOnly, verifyBranchEmailOTP);
 
 /**
  * GET /api/clinics/:clinicId/branches

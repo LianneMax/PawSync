@@ -1086,3 +1086,70 @@ export async function sendPetTransferInvitation(params: {
     console.error('[Email] sendPetTransferInvitation error:', err);
   }
 }
+
+// ─── Branch Email OTP ─────────────────────────────────────────────────────────
+
+export async function sendBranchOTP(params: {
+  branchEmail: string;
+  otp: string;
+  branchName?: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.branchEmail,
+      subject: 'PawSync – Branch Email Verification Code',
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Verify Branch Email</h2>
+          <p>Hello,</p>
+          <p>You are receiving this email to verify the email address for ${params.branchName ? `<strong>${params.branchName}</strong>` : 'a new branch'} on PawSync.</p>
+          <div style="background: #f0fdf4; border: 2px solid #7FA5A3; padding: 24px; border-radius: 12px; margin: 24px 0; text-align: center;">
+            <p style="margin: 0 0 8px; color: #4F4F4F; font-size: 14px;">Your verification code is:</p>
+            <p style="margin: 0; font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #476B6B;">${params.otp}</p>
+          </div>
+          <p style="color: #666;">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
+          <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendBranchOTP error:', err);
+  }
+}
+
+// ─── New Branch Notification to Main Branch ───────────────────────────────────
+
+export async function sendNewBranchNotification(params: {
+  mainBranchEmail: string;
+  mainBranchName: string;
+  newBranchName: string;
+  newBranchAddress: string;
+  clinicName: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.mainBranchEmail,
+      subject: `PawSync – New Branch Added: ${params.newBranchName}`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">New Branch Added</h2>
+          <p>Hello,</p>
+          <p>A new branch has been added to <strong>${params.clinicName}</strong>.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Branch Name:</strong> ${params.newBranchName}</p>
+            <p style="margin: 4px 0;"><strong>Address:</strong> ${params.newBranchAddress}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+          </div>
+          <p style="color: #666;">You can review and manage this branch from the Clinic Management page in PawSync.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendNewBranchNotification error:', err);
+  }
+}
+}

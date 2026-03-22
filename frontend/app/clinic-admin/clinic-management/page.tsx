@@ -132,13 +132,24 @@ export default function ClinicManagementPage() {
     name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] as string[],
   })
 
-  // Add branch form
+  // Add branch form (simplified — no adminFirstName/adminLastName)
   const [addForm, setAddForm] = useState({
     name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [] as string[],
-    adminFirstName: '', adminLastName: '', adminPassword: '',
+    adminPassword: '',
   })
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({})
   const [addFormTouched, setAddFormTouched] = useState<Record<string, boolean>>({})
+
+  // OTP states
+  const [otpModalOpen, setOtpModalOpen] = useState(false)
+  const [otpValue, setOtpValue] = useState('')
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
+  const [otpError, setOtpError] = useState('')
+
+  // Main branch email (fetched from branches list)
+  const mainBranchEmail = branches.find(b => b.isMain)?.email ?? ''
 
   const validateAddField = (field: string, value: string | string[]): string => {
     switch (field) {
@@ -162,10 +173,6 @@ export default function ClinicManagementPage() {
         return (value as string).trim() ? '' : 'Closing time is required.'
       case 'operatingDays':
         return (value as string[]).length > 0 ? '' : 'Select at least one operating day.'
-      case 'adminFirstName':
-        return (value as string).trim() ? '' : 'Admin first name is required.'
-      case 'adminLastName':
-        return (value as string).trim() ? '' : 'Admin last name is required.'
       case 'adminPassword':
         if (!(value as string).trim()) return 'Password is required.'
         return (value as string).length >= 8 ? '' : 'Password must be at least 8 characters.'
@@ -181,7 +188,7 @@ export default function ClinicManagementPage() {
   }
 
   const validateAllAddFields = () => {
-    const requiredFields = ['name', 'address', 'city', 'province', 'phone', 'email', 'openingTime', 'closingTime', 'operatingDays', 'adminFirstName', 'adminLastName', 'adminPassword']
+    const requiredFields = ['name', 'address', 'city', 'province', 'phone', 'email', 'openingTime', 'closingTime', 'operatingDays', 'adminPassword']
     const errors: Record<string, string> = {}
     const touched: Record<string, boolean> = {}
     for (const field of requiredFields) {
@@ -192,6 +199,60 @@ export default function ClinicManagementPage() {
     setAddFormErrors(errors)
     setAddFormTouched(touched)
     return Object.values(errors).every(e => !e)
+  }
+
+  const handleSendOtp = async () => {
+    if (!token) return
+    const emailErr = validateAddField('email', addForm.email)
+    if (emailErr) {
+      setAddFormErrors(prev => ({ ...prev, email: emailErr }))
+      setAddFormTouched(prev => ({ ...prev, email: true }))
+      return
+    }
+    setSendingOtp(true)
+    setOtpError('')
+    try {
+      const res = await authenticatedFetch('/clinics/branch-otp/send', {
+        method: 'POST',
+        body: JSON.stringify({ email: addForm.email, branchName: addForm.name || undefined }),
+      }, token)
+      if (res.status === 'SUCCESS') {
+        setOtpModalOpen(true)
+        setOtpValue('')
+        setOtpError('')
+      } else {
+        setAddFormErrors(prev => ({ ...prev, email: res.message || 'Failed to send OTP.' }))
+        setAddFormTouched(prev => ({ ...prev, email: true }))
+      }
+    } catch {
+      setAddFormErrors(prev => ({ ...prev, email: 'Failed to send OTP. Please try again.' }))
+      setAddFormTouched(prev => ({ ...prev, email: true }))
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    if (!token) return
+    if (!otpValue.trim()) { setOtpError('Please enter the OTP.'); return }
+    setVerifyingOtp(true)
+    setOtpError('')
+    try {
+      const res = await authenticatedFetch('/clinics/branch-otp/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email: addForm.email, otp: otpValue.trim() }),
+      }, token)
+      if (res.status === 'SUCCESS') {
+        setOtpVerified(true)
+        setOtpModalOpen(false)
+      } else {
+        setOtpError(res.message || 'Incorrect OTP.')
+      }
+    } catch {
+      setOtpError('Failed to verify OTP. Please try again.')
+    } finally {
+      setVerifyingOtp(false)
+    }
   }
 
   // Fetch real clinic data
@@ -365,15 +426,25 @@ export default function ClinicManagementPage() {
   }
 
   const resetAddForm = () => {
-    setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [], adminFirstName: '', adminLastName: '', adminPassword: '' })
+    setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [], adminPassword: '' })
     setAddFormErrors({})
     setAddFormTouched({})
     setAddIs24h(false)
+    setOtpVerified(false)
+    setOtpModalOpen(false)
+    setOtpValue('')
+    setOtpError('')
   }
 
   const handleAddBranch = async () => {
     if (!clinicId || !token) return
     if (!validateAllAddFields()) return
+
+    if (!otpVerified) {
+      setAddFormErrors(prev => ({ ...prev, email: 'Please verify the branch email with an OTP before saving.' }))
+      setAddFormTouched(prev => ({ ...prev, email: true }))
+      return
+    }
 
     setAddingBranch(true)
     try {
@@ -396,13 +467,11 @@ export default function ClinicManagementPage() {
 
       if (res.status === 'SUCCESS' && res.data?.branch) {
         const b = res.data.branch
-        
-        // Step 2: Create the branch admin user for this new branch
+
+        // Step 2: Create the branch admin user using the branch email + password
         const adminRes = await authenticatedFetch('/clinics/clinic-admin', {
           method: 'POST',
           body: JSON.stringify({
-            firstName: addForm.adminFirstName,
-            lastName: addForm.adminLastName,
             email: addForm.email,
             password: addForm.adminPassword,
             branchId: b._id,
@@ -410,7 +479,6 @@ export default function ClinicManagementPage() {
         }, token)
 
         if (adminRes.status === 'SUCCESS') {
-          // Branch and admin created successfully
           setBranches(prev => [...prev, {
             id: b._id,
             name: b.name,
@@ -432,7 +500,6 @@ export default function ClinicManagementPage() {
           setAddBranchOpen(false)
           resetAddForm()
         } else {
-          // Branch created but admin creation failed
           console.error('Failed to create branch admin:', adminRes.message)
           alert(`Branch created but failed to create admin user: ${adminRes.message}`)
         }
@@ -897,41 +964,81 @@ export default function ClinicManagementPage() {
       </Dialog>
 
       {/* ==================== EDIT BRANCH MODAL ==================== */}
-      <Dialog open={editBranchOpen} onOpenChange={(v) => { if (!v) setEditIs24h(false); setEditBranchOpen(v) }}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={editBranchOpen} onOpenChange={(v) => { if (!v) { setEditIs24h(false); setEditBranchOpen(false) } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-[#4F4F4F]">Edit Branch</DialogTitle>
           </DialogHeader>
 
+          {/* Read-only main branch email */}
+          {mainBranchEmail && selectedBranch && !selectedBranch.isMain && (
+            <div className="mt-2 flex items-center gap-3 bg-[#F8F6F2] px-4 py-3 rounded-xl">
+              <Mail className="w-4 h-4 text-[#7FA5A3] shrink-0" />
+              <div>
+                <p className="text-xs text-gray-500">Main Branch Email (read-only)</p>
+                <p className="text-sm font-medium text-[#4F4F4F]">{mainBranchEmail}</p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4 mt-2">
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
-              <input type="text" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
+              <input
+                type="text"
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-red-500">*</span></label>
-              <input type="text" value={editForm.address} onChange={(e) => setEditForm({...editForm, address: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
+              <input
+                type="text"
+                value={editForm.address}
+                onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-red-500">*</span></label>
-                <input type="text" value={editForm.city} onChange={(e) => setEditForm({...editForm, city: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City</label>
+                <input
+                  type="text"
+                  value={editForm.city}
+                  onChange={(e) => setEditForm({...editForm, city: e.target.value})}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region <span className="text-red-500">*</span></label>
-                <input type="text" value={editForm.province} onChange={(e) => setEditForm({...editForm, province: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region</label>
+                <input
+                  type="text"
+                  value={editForm.province}
+                  onChange={(e) => setEditForm({...editForm, province: e.target.value})}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+                />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number <span className="text-red-500">*</span></label>
-                <input type="text" value={editForm.phone} onChange={(e) => setEditForm({...editForm, phone: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Email Address <span className="text-red-500">*</span></label>
-                <input type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number</label>
+              <input
+                type="text"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+              />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Email Address</label>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
+              />
+            </div>
+
             {/* Open 24/7 checkbox */}
             <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
               <input
@@ -1011,12 +1118,21 @@ export default function ClinicManagementPage() {
 
       {/* ==================== ADD BRANCH MODAL ==================== */}
       <Dialog open={addBranchOpen} onOpenChange={(v) => { if (!v) { setAddBranchOpen(false); resetAddForm() } }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-[#4F4F4F]">Add New Branch</DialogTitle>
           </DialogHeader>
 
+          {/* Main branch email notification info */}
+          {mainBranchEmail && (
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 px-4 py-3 rounded-xl mt-2 text-sm text-blue-700">
+              <Mail className="w-4 h-4 mt-0.5 shrink-0" />
+              <p>A notification will be sent to the main branch at <strong>{mainBranchEmail}</strong> when this branch is added.</p>
+            </div>
+          )}
+
           <div className="space-y-4 mt-2">
+            {/* Branch Name */}
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
               <input
@@ -1032,6 +1148,8 @@ export default function ClinicManagementPage() {
               />
               {addFormTouched.name && addFormErrors.name && <p className="text-xs text-red-500 mt-1">{addFormErrors.name}</p>}
             </div>
+
+            {/* Street Address */}
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-red-500">*</span></label>
               <input
@@ -1047,6 +1165,8 @@ export default function ClinicManagementPage() {
               />
               {addFormTouched.address && addFormErrors.address && <p className="text-xs text-red-500 mt-1">{addFormErrors.address}</p>}
             </div>
+
+            {/* City / Province */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-red-500">*</span></label>
@@ -1079,89 +1199,77 @@ export default function ClinicManagementPage() {
                 {addFormTouched.province && addFormErrors.province && <p className="text-xs text-red-500 mt-1">{addFormErrors.province}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={addForm.phone}
-                  onChange={(e) => {
-                    setAddForm({ ...addForm, phone: e.target.value })
-                    if (addFormTouched.phone) setAddFormErrors(prev => ({ ...prev, phone: validateAddField('phone', e.target.value) }))
-                  }}
-                  onBlur={() => touchAddField('phone')}
-                  placeholder="e.g. 0917-123-4567"
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.phone && addFormErrors.phone ? 'border-red-400' : 'border-gray-200'}`}
-                />
-                {addFormTouched.phone && addFormErrors.phone && <p className="text-xs text-red-500 mt-1">{addFormErrors.phone}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Email Address <span className="text-red-500">*</span></label>
+
+            {/* Phone Number */}
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={addForm.phone}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, phone: e.target.value })
+                  if (addFormTouched.phone) setAddFormErrors(prev => ({ ...prev, phone: validateAddField('phone', e.target.value) }))
+                }}
+                onBlur={() => touchAddField('phone')}
+                placeholder="e.g. 0917-123-4567"
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.phone && addFormErrors.phone ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              {addFormTouched.phone && addFormErrors.phone && <p className="text-xs text-red-500 mt-1">{addFormErrors.phone}</p>}
+            </div>
+
+            {/* Email Address + OTP */}
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Email Address <span className="text-red-500">*</span></label>
+              <div className="flex gap-2">
                 <input
                   type="email"
                   value={addForm.email}
                   onChange={(e) => {
                     setAddForm({ ...addForm, email: e.target.value })
+                    setOtpVerified(false)
                     if (addFormTouched.email) setAddFormErrors(prev => ({ ...prev, email: validateAddField('email', e.target.value) }))
                   }}
                   onBlur={() => touchAddField('email')}
                   placeholder="e.g. branch@clinic.com"
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.email && addFormErrors.email ? 'border-red-400' : 'border-gray-200'}`}
+                  className={`flex-1 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.email && addFormErrors.email ? 'border-red-400' : otpVerified ? 'border-green-400' : 'border-gray-200'}`}
                 />
-                {addFormTouched.email && addFormErrors.email && <p className="text-xs text-red-500 mt-1">{addFormErrors.email}</p>}
+                {otpVerified ? (
+                  <span className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl shrink-0">
+                    ✓ Verified
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={sendingOtp || !addForm.email.trim()}
+                    className="px-3 py-2 text-xs font-medium text-white bg-[#476B6B] hover:bg-[#3a5a5a] rounded-xl transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    {sendingOtp ? 'Sending...' : 'Send OTP'}
+                  </button>
+                )}
               </div>
+              {addFormTouched.email && addFormErrors.email && <p className="text-xs text-red-500 mt-1">{addFormErrors.email}</p>}
+              {!otpVerified && addForm.email && !addFormErrors.email && (
+                <p className="text-xs text-amber-600 mt-1">Click &quot;Send OTP&quot; to verify this email before saving.</p>
+              )}
             </div>
 
-            {/* Branch Admin Details Section */}
-            <div className="bg-gray-50 p-4 rounded-xl mt-4">
-              <h3 className="text-sm font-semibold text-[#4F4F4F] mb-4">Branch Admin Credentials</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin First Name <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={addForm.adminFirstName}
-                    onChange={(e) => {
-                      setAddForm({ ...addForm, adminFirstName: e.target.value })
-                      if (addFormTouched.adminFirstName) setAddFormErrors(prev => ({ ...prev, adminFirstName: validateAddField('adminFirstName', e.target.value) }))
-                    }}
-                    onBlur={() => touchAddField('adminFirstName')}
-                    placeholder="e.g. John"
-                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminFirstName && addFormErrors.adminFirstName ? 'border-red-400' : 'border-gray-200'}`}
-                  />
-                  {addFormTouched.adminFirstName && addFormErrors.adminFirstName && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminFirstName}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Last Name <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={addForm.adminLastName}
-                    onChange={(e) => {
-                      setAddForm({ ...addForm, adminLastName: e.target.value })
-                      if (addFormTouched.adminLastName) setAddFormErrors(prev => ({ ...prev, adminLastName: validateAddField('adminLastName', e.target.value) }))
-                    }}
-                    onBlur={() => touchAddField('adminLastName')}
-                    placeholder="e.g. Doe"
-                    className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminLastName && addFormErrors.adminLastName ? 'border-red-400' : 'border-gray-200'}`}
-                  />
-                  {addFormTouched.adminLastName && addFormErrors.adminLastName && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminLastName}</p>}
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Admin Password <span className="text-red-500">*</span></label>
-                <input
-                  type="password"
-                  value={addForm.adminPassword}
-                  onChange={(e) => {
-                    setAddForm({ ...addForm, adminPassword: e.target.value })
-                    if (addFormTouched.adminPassword) setAddFormErrors(prev => ({ ...prev, adminPassword: validateAddField('adminPassword', e.target.value) }))
-                  }}
-                  onBlur={() => touchAddField('adminPassword')}
-                  placeholder="Enter a secure password (min. 8 characters)"
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminPassword && addFormErrors.adminPassword ? 'border-red-400' : 'border-gray-200'}`}
-                />
-                {addFormTouched.adminPassword && addFormErrors.adminPassword && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminPassword}</p>}
-              </div>
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Password <span className="text-red-500">*</span></label>
+              <input
+                type="password"
+                value={addForm.adminPassword}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, adminPassword: e.target.value })
+                  if (addFormTouched.adminPassword) setAddFormErrors(prev => ({ ...prev, adminPassword: validateAddField('adminPassword', e.target.value) }))
+                }}
+                onBlur={() => touchAddField('adminPassword')}
+                placeholder="Min. 8 characters"
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminPassword && addFormErrors.adminPassword ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              {addFormTouched.adminPassword && addFormErrors.adminPassword && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminPassword}</p>}
+              <p className="text-xs text-gray-400 mt-1">This password will be used to log in as the branch admin.</p>
             </div>
 
             {/* Open 24/7 checkbox */}
@@ -1257,10 +1365,65 @@ export default function ClinicManagementPage() {
             </button>
             <button
               onClick={handleAddBranch}
-              disabled={addingBranch}
+              disabled={addingBranch || !otpVerified}
               className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
             >
               {addingBranch ? 'Adding...' : 'Add Branch'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== OTP VERIFICATION MODAL ==================== */}
+      <Dialog open={otpModalOpen} onOpenChange={(v) => { if (!v) { setOtpModalOpen(false); setOtpValue(''); setOtpError('') } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#4F4F4F]">
+              <Mail className="w-5 h-5 text-[#476B6B]" />
+              Verify Branch Email
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 space-y-4">
+            <p className="text-sm text-gray-500">
+              A 6-digit verification code was sent to <strong className="text-[#4F4F4F]">{addForm.email}</strong>. Enter it below to confirm the email address.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Verification Code</label>
+              <input
+                type="text"
+                value={otpValue}
+                onChange={(e) => { setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError('') }}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-lg tracking-widest text-center font-mono ${otpError ? 'border-red-400' : 'border-gray-200'}`}
+              />
+              {otpError && <p className="text-xs text-red-500 mt-1">{otpError}</p>}
+            </div>
+            <p className="text-xs text-gray-400">
+              Code expires in 10 minutes.{' '}
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={sendingOtp}
+                className="text-[#476B6B] underline disabled:opacity-50"
+              >
+                {sendingOtp ? 'Resending...' : 'Resend code'}
+              </button>
+            </p>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => { setOtpModalOpen(false); setOtpValue(''); setOtpError('') }}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleVerifyOtp}
+              disabled={verifyingOtp || otpValue.length < 6}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+            >
+              {verifyingOtp ? 'Verifying...' : 'Verify'}
             </button>
           </div>
         </DialogContent>

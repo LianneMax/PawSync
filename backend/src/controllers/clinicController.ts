@@ -12,7 +12,16 @@ import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
 import { updateBranchStatus } from '../services/branchStatusService';
-import { sendVetInvitation } from '../services/emailService';
+import { sendVetInvitation, sendBranchOTP, sendNewBranchNotification } from '../services/emailService';
+
+// ─── In-memory OTP store (email → { otp, expiresAt }) ────────────────────────
+const branchOtpStore = new Map<string, { otp: string; expiresAt: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of branchOtpStore.entries()) {
+    if (val.expiresAt < now) branchOtpStore.delete(key);
+  }
+}, 5 * 60 * 1000);
 
 /**
  * Helper: get clinic for the authenticated admin using clinicId from JWT.
@@ -269,6 +278,22 @@ export const addBranch = async (req: Request, res: Response) => {
     // New branches start inactive until a vet is assigned
     await updateBranchStatus(branch._id.toString());
 
+    // Notify the main branch about the newly added branch
+    try {
+      const mainBranch = await ClinicBranch.findOne({ clinicId: clinic._id, isMain: true }).select('name email');
+      if (mainBranch?.email) {
+        await sendNewBranchNotification({
+          mainBranchEmail: mainBranch.email,
+          mainBranchName: mainBranch.name,
+          newBranchName: branch.name,
+          newBranchAddress: `${branch.address}${branch.city ? ', ' + branch.city : ''}${branch.province ? ', ' + branch.province : ''}`,
+          clinicName: clinic.name,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[addBranch] Failed to send main branch notification:', emailErr);
+    }
+
     return res.status(201).json({
       status: 'SUCCESS',
       message: 'Branch added successfully',
@@ -394,11 +419,15 @@ export const createClinicAdmin = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const { email, password, firstName, lastName, branchId } = req.body;
+    const { email, password, firstName: rawFirstName, lastName: rawLastName, branchId } = req.body;
 
-    if (!email || !password || !firstName || !lastName || !branchId) {
-      return res.status(400).json({ status: 'ERROR', message: 'Please provide email, password, firstName, lastName, and branchId' });
+    if (!email || !password || !branchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please provide email, password, and branchId' });
     }
+
+    // firstName/lastName are optional; default to 'Branch' / 'Admin' if not supplied
+    const firstName = rawFirstName?.trim() || 'Branch';
+    const lastName = rawLastName?.trim() || 'Admin';
 
     // Verify the branch belongs to this clinic
     const branch = await ClinicBranch.findOne({ _id: branchId, clinicId: clinic._id });
@@ -1013,5 +1042,89 @@ export const getBranchStats = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get branch stats error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching branch stats' });
+  }
+};
+
+// ==================== BRANCH EMAIL OTP ====================
+
+/**
+ * POST /api/clinics/branch-otp/send
+ * Generate and send a 6-digit OTP to the given branch email address.
+ */
+export const sendBranchEmailOTP = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { email, branchName } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ status: 'ERROR', message: 'Email address is required' });
+    }
+
+    const trimmed = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Invalid email address format' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Store keyed by email (per-admin scoped with userId to avoid cross-account misuse)
+    const storeKey = `${req.user.userId}:${trimmed}`;
+    branchOtpStore.set(storeKey, { otp, expiresAt });
+
+    await sendBranchOTP({ branchEmail: trimmed, otp, branchName });
+
+    return res.status(200).json({ status: 'SUCCESS', message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Send branch OTP error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'Failed to send OTP' });
+  }
+};
+
+/**
+ * POST /api/clinics/branch-otp/verify
+ * Verify the OTP entered by the user.
+ */
+export const verifyBranchEmailOTP = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ status: 'ERROR', message: 'Email and OTP are required' });
+    }
+
+    const trimmed = email.trim().toLowerCase();
+    const storeKey = `${req.user.userId}:${trimmed}`;
+    const stored = branchOtpStore.get(storeKey);
+
+    if (!stored) {
+      return res.status(400).json({ status: 'ERROR', message: 'No OTP found for this email. Please request a new one.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      branchOtpStore.delete(storeKey);
+      return res.status(400).json({ status: 'ERROR', message: 'OTP has expired. Please request a new one.' });
+    }
+
+    if (stored.otp !== otp.toString().trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Incorrect OTP. Please try again.' });
+    }
+
+    // OTP verified — delete it so it cannot be reused
+    branchOtpStore.delete(storeKey);
+
+    return res.status(200).json({ status: 'SUCCESS', message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Verify branch OTP error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'Failed to verify OTP' });
   }
 };
