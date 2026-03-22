@@ -1152,4 +1152,3 @@ export async function sendNewBranchNotification(params: {
     console.error('[Email] sendNewBranchNotification error:', err);
   }
 }
-}
