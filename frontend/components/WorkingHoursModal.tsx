@@ -433,7 +433,7 @@ export default function WorkingHoursModal({ open, onClose, token }: WorkingHours
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
-      <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-lg p-0 sm:p-0 gap-0 rounded-2xl [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <DialogTitle className="text-lg font-semibold text-[#2C3E2D]">Working Hours</DialogTitle>

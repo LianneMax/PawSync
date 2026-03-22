@@ -124,7 +124,7 @@ export default function VetLeaveModal({ open, onClose, token, onSuccess }: Props
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl [&>button]:hidden">
+      <DialogContent className="max-w-lg p-0 sm:p-0 gap-0 rounded-2xl [&>button]:hidden">
         <DialogTitle className="sr-only">File Leave</DialogTitle>
 
         {/* Header */}
