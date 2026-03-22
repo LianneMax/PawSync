@@ -12,8 +12,9 @@ import {
   cancelAppointment,
 } from '@/lib/appointments'
 import { getRecordByAppointment } from '@/lib/medicalRecords'
-import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
-import WorkingHoursModal from '@/components/WorkingHoursModal'
+import dynamic from 'next/dynamic'
+const MedicalRecordStagedModal = dynamic(() => import('@/components/MedicalRecordStagedModal'), { ssr: false })
+const WorkingHoursModal = dynamic(() => import('@/components/WorkingHoursModal'), { ssr: false })
 import {
   Calendar,
   Clock,

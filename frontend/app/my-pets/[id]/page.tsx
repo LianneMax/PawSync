@@ -297,17 +297,6 @@ export default function PetProfilePage() {
     }
   }, [token, petId])
 
-  // Auto-refresh medical records every 15 seconds for dynamic updates
-  useEffect(() => {
-    if (!token || !petId) return
-    
-    const interval = setInterval(() => {
-      fetchMedicalRecords()
-    }, 15000) // 15 seconds
-    
-    return () => clearInterval(interval)
-  }, [token, petId, fetchMedicalRecords])
-
   useEffect(() => {
     if (activeTab === 'nfc' && tagRequests.length === 0 && !loadingTagRequests) {
       fetchTagRequests()
@@ -320,17 +309,6 @@ export default function PetProfilePage() {
       fetchAppointments()
     }
   }, [appointments.length, appointmentsLoading, fetchAppointments])
-
-  // Auto-refresh appointments every 15 seconds for dynamic updates
-  useEffect(() => {
-    if (!token) return
-    
-    const interval = setInterval(() => {
-      fetchAppointments()
-    }, 15000) // 15 seconds
-    
-    return () => clearInterval(interval)
-  }, [token, fetchAppointments])
 
   // Compute health metrics when appointments or medical records change
   useEffect(() => {

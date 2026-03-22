@@ -25,7 +25,8 @@ import {
 import { Html5Qrcode } from 'html5-qrcode'
 import MouseEffectBackground from '@/components/kokonutui/mouse-effect-background'
 import SmoothTab from '@/components/kokonutui/smooth-tab'
-import { NFCLinkModal } from '@/components/NFCLinkModal'
+import dynamic from 'next/dynamic'
+const NFCLinkModal = dynamic(() => import('@/components/NFCLinkModal').then(m => ({ default: m.NFCLinkModal })), { ssr: false })
 
 type RoleTab = 'pet-owners' | 'veterinarians' | 'clinics'
 

@@ -6,7 +6,8 @@ import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { checkInAppointment, getVetAppointments, type Appointment } from '@/lib/appointments'
 import { getRecordByAppointment } from '@/lib/medicalRecords'
-import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
+import dynamic from 'next/dynamic'
+const MedicalRecordStagedModal = dynamic(() => import('@/components/MedicalRecordStagedModal'), { ssr: false })
 import {
   Calendar,
   Clock,

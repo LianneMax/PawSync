@@ -5,7 +5,8 @@ import { useAuthStore } from '@/store/authStore'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
-import VaccineCardPreview from '@/components/VaccineCardPreview'
+import dynamic from 'next/dynamic'
+const VaccineCardPreview = dynamic(() => import('@/components/VaccineCardPreview'), { ssr: false })
 import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
 import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
 import {

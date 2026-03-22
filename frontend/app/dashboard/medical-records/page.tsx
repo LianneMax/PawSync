@@ -65,36 +65,7 @@ function MedicalRecordsPageContent() {
   const [viewRecord, setViewRecord] = useState<MedicalRecord | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
 
-  // Load pets
-  const loadPets = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    try {
-      const res = await getMyPets(token)
-      if (res.status === 'SUCCESS' && res.data?.pets) {
-        setPets(res.data.pets)
-        // Auto-select pet from query param
-        const petId = searchParams.get('petId')
-        if (petId) {
-          const match = res.data.pets.find((p: APIPet) => p._id === petId)
-          if (match) {
-            setSelectedPet(match)
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load pets:', err)
-      toast.error('Failed to load your pets')
-    } finally {
-      setLoading(false)
-    }
-  }, [token, searchParams])
-
-  useEffect(() => {
-    loadPets()
-  }, [loadPets])
-
-  // Load records when pet selected
+  // Load records for a given petId
   const loadRecords = useCallback(
     async (petId: string) => {
       if (!token) return
@@ -118,12 +89,53 @@ function MedicalRecordsPageContent() {
     [token]
   )
 
-  // Auto-load records when pet is selected (including from query param)
+  // Load pets — if petId query param is present, fetch pets and records in parallel
+  const loadPets = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      const petIdParam = searchParams.get('petId')
+      const petsPromise = getMyPets(token)
+      const recordsPromise = petIdParam ? getRecordsByPet(petIdParam, token) : null
+
+      const [petsRes, recordsRes] = await Promise.all([petsPromise, recordsPromise])
+
+      if (petsRes.status === 'SUCCESS' && petsRes.data?.pets) {
+        setPets(petsRes.data.pets)
+        if (petIdParam) {
+          const match = petsRes.data.pets.find((p: APIPet) => p._id === petIdParam)
+          if (match) setSelectedPet(match)
+        }
+      }
+
+      if (recordsRes && petIdParam) {
+        if (recordsRes.status === 'SUCCESS' && recordsRes.data) {
+          const current = recordsRes.data.currentRecord ? [recordsRes.data.currentRecord] : []
+          setRecords([...current, ...recordsRes.data.historicalRecords])
+        } else {
+          setRecords([])
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load pets:', err)
+      toast.error('Failed to load your pets')
+    } finally {
+      setLoading(false)
+      setLoadingRecords(false)
+    }
+  }, [token, searchParams])
+
   useEffect(() => {
-    if (selectedPet) {
+    loadPets()
+  }, [loadPets])
+
+  // Auto-load records when pet is selected — skip if records were already loaded
+  // in parallel with the pets fetch (i.e., when petId query param matches)
+  useEffect(() => {
+    if (selectedPet && selectedPet._id !== searchParams.get('petId')) {
       loadRecords(selectedPet._id)
     }
-  }, [selectedPet, loadRecords])
+  }, [selectedPet, loadRecords, searchParams])
 
   const handleSelectPet = (pet: Pet) => {
     setSelectedPet(pet)
