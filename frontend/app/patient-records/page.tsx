@@ -70,6 +70,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import BillingFromRecordModal from '@/components/BillingFromRecordModal'
+import BillingViewModal from '@/components/BillingViewModal'
 import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
@@ -245,6 +246,7 @@ function PatientRecordsPageContent() {
   const [billingModalOpen, setBillingModalOpen] = useState(false)
   const [billingModalMode, setBillingModalMode] = useState<'view'>('view')
   const [billingModalExistingId, setBillingModalExistingId] = useState<string | undefined>(undefined)
+  const [viewBillingId, setViewBillingId] = useState<string | null>(null)
 
   // Medical history modal
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
@@ -1119,7 +1121,7 @@ function PatientRecordsPageContent() {
                     {currentRecord.billingId && (
                       <div className="flex justify-end mt-4 pt-3 border-t border-[#7FA5A3]/20">
                         <button
-                          onClick={() => { setBillingModalMode('view'); setBillingModalExistingId(typeof currentRecord?.billingId === 'object' ? (currentRecord?.billingId as any)?._id : currentRecord?.billingId ?? undefined); setBillingModalOpen(true) }}
+                          onClick={() => { const id = typeof currentRecord?.billingId === 'object' ? (currentRecord?.billingId as any)?._id : currentRecord?.billingId ?? null; if (id) setViewBillingId(id) }}
                           className="flex items-center gap-2 px-4 py-2 border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#f0f7f7] transition-colors"
                         >
                           <Receipt className="w-4 h-4" />
@@ -1363,26 +1365,12 @@ function PatientRecordsPageContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Billing Modal */}
-      <BillingFromRecordModal
-        open={billingModalOpen}
-        mode={billingModalMode}
-        onClose={() => setBillingModalOpen(false)}
-        patientName={selectedPatient?.name ?? ''}
-        appointmentId={
-          typeof currentRecord?.appointmentId === 'object'
-            ? currentRecord?.appointmentId?._id ?? null
-            : currentRecord?.appointmentId ?? null
-        }
-        vetName={
-          typeof currentRecord?.vetId === 'object' && currentRecord?.vetId
-            ? `Dr. ${(currentRecord.vetId as any).firstName ?? ''} ${(currentRecord.vetId as any).lastName ?? ''}`.trim()
-            : '—'
-        }
-        record={currentRecord ?? undefined}
-        token={token || undefined}
-        existingBillingId={billingModalExistingId}
-      />
+      {viewBillingId && (
+        <BillingViewModal
+          billingId={viewBillingId}
+          onClose={() => setViewBillingId(null)}
+        />
+      )}
     </DashboardLayout>
   )
 }
@@ -1716,6 +1704,7 @@ function ViewRecordModal({
   const [followUpsMinimized, setFollowUpsMinimized] = useState(false)
   const [lightboxMedia, setLightboxMedia] = useState<{ src: string; contentType: string; description?: string } | null>(null)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
+  const [viewBillingId, setViewBillingId] = useState<string | null>(null)
 
   // Vet notepad (pet-level, same across all visits)
   const [petNotesDraft, setPetNotesDraft] = useState('')
@@ -2179,7 +2168,7 @@ function ViewRecordModal({
                   </div>
                   {record.billingId && (
                     <button
-                      onClick={() => { setBillingModalOpen(true) }}
+                      onClick={() => { const id = typeof record.billingId === 'object' ? (record.billingId as any)?._id : record.billingId; if (id) setViewBillingId(id) }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
                     >
                       <Receipt className="w-3.5 h-3.5" />
@@ -3141,33 +3130,12 @@ function ViewRecordModal({
       )}
 
       {/* ===== BILLING MODAL ===== */}
-      <BillingFromRecordModal
-        open={billingModalOpen}
-        mode='view'
-        onClose={() => setBillingModalOpen(false)}
-        patientName={typeof record?.petId === 'object' ? (record?.petId as any)?.name ?? '' : ''}
-        appointmentId={
-          record
-            ? typeof record.appointmentId === 'object'
-              ? (record.appointmentId as any)?._id ?? null
-              : record.appointmentId ?? null
-            : null
-        }
-        vetName={
-          record && typeof record.vetId === 'object' && record.vetId
-            ? `Dr. ${(record.vetId as any).firstName ?? ''} ${(record.vetId as any).lastName ?? ''}`.trim()
-            : '—'
-        }
-        record={record ?? undefined}
-        token={token}
-        existingBillingId={
-          record?.billingId
-            ? typeof record.billingId === 'object'
-              ? (record.billingId as any)?._id
-              : record.billingId
-            : undefined
-        }
-      />
+      {viewBillingId && (
+        <BillingViewModal
+          billingId={viewBillingId}
+          onClose={() => setViewBillingId(null)}
+        />
+      )}
 
       {/* ===== LIGHTBOX ===== */}
       {lightboxMedia && (

@@ -760,6 +760,53 @@ export const approveQrPayment = async (req: Request, res: Response) => {
 };
 
 /**
+ * POST /api/billings/:id/reject-qr-payment
+ * Clinic admin — reject a pet owner's QR payment submission and reset so they can re-submit.
+ */
+export const rejectQrPayment = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const billing = await Billing.findById(req.params.id);
+    if (!billing) {
+      return res.status(404).json({ status: 'ERROR', message: 'Billing record not found' });
+    }
+
+    if (!billing.pendingQrApproval) {
+      return res.status(400).json({ status: 'ERROR', message: 'No pending QR payment to reject' });
+    }
+
+    billing.pendingQrApproval = false;
+    billing.qrPaymentProof = null;
+    billing.qrPaymentSubmittedAt = null;
+    await billing.save();
+
+    const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
+
+    if (populated?.ownerId?._id && populated.petId?.name) {
+      await createNotification(
+        populated.ownerId._id.toString(),
+        'bill_paid',
+        'QR Payment Rejected',
+        `Your QR payment submission for ${populated.petId.name} was rejected. Please submit a new payment screenshot.`,
+        { billingId: billing._id }
+      );
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'QR payment rejected. Pet owner can re-submit.',
+      data: { billing: populated },
+    });
+  } catch (error) {
+    console.error('Reject QR payment error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while rejecting the payment' });
+  }
+};
+
+/**
  * DELETE /api/billings
  * Clinic admin / branch admin — bulk delete billing records by IDs.
  * Body: { ids: string[] }

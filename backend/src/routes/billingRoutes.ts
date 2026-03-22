@@ -11,6 +11,7 @@ import {
   markBillingAsPaid,
   submitQrPaymentProof,
   approveQrPayment,
+  rejectQrPayment,
   deleteBillings,
 } from '../controllers/billingController';
 import {
@@ -61,6 +62,10 @@ router.post('/:id/submit-qr-proof', authMiddleware, submitQrPaymentProof);
 // Clinic admin — approve QR payment and mark as paid
 // POST /api/billings/:id/approve-qr-payment
 router.post('/:id/approve-qr-payment', authMiddleware, clinicAdminOnly, approveQrPayment);
+
+// Clinic admin — reject QR payment so pet owner can re-submit
+// POST /api/billings/:id/reject-qr-payment
+router.post('/:id/reject-qr-payment', authMiddleware, clinicAdminOnly, rejectQrPayment);
 
 // Clinic admin — get single billing
 // GET /api/billings/:id

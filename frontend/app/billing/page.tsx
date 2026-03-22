@@ -2255,17 +2255,21 @@ function ApproveQRPaymentModal({
   billing,
   onClose,
   onApproved,
+  onRejected,
 }: {
   billing: ApiBilling
   onClose: () => void
   onApproved: () => void
+  onRejected: () => void
 }) {
   const [submitting, setSubmitting] = useState(false)
+  const [action, setAction] = useState<'approve' | 'reject' | null>(null)
   const [error, setError] = useState('')
 
   const handleApprove = async () => {
     setError('')
     setSubmitting(true)
+    setAction('approve')
     try {
       const res = await fetch(`${API_BASE}/billings/${billing._id}/approve-qr-payment`, {
         method: 'POST',
@@ -2282,6 +2286,31 @@ function ApproveQRPaymentModal({
       setError('Network error. Please try again.')
     } finally {
       setSubmitting(false)
+      setAction(null)
+    }
+  }
+
+  const handleReject = async () => {
+    setError('')
+    setSubmitting(true)
+    setAction('reject')
+    try {
+      const res = await fetch(`${API_BASE}/billings/${billing._id}/reject-qr-payment`, {
+        method: 'POST',
+        headers: authHeaders(),
+      })
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        onRejected()
+        onClose()
+      } else {
+        setError(data.message || 'Failed to reject payment.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+      setAction(null)
     }
   }
 
@@ -2342,7 +2371,14 @@ function ApproveQRPaymentModal({
               disabled={submitting}
               className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
             >
-              {submitting ? 'Approving…' : 'Approve Payment'}
+              {submitting && action === 'approve' ? 'Approving…' : 'Approve Payment'}
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={submitting}
+              className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+            >
+              {submitting && action === 'reject' ? 'Rejecting…' : 'Reject'}
             </button>
             <button
               onClick={onClose}
@@ -2759,6 +2795,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           billing={approvingQrBilling}
           onClose={() => setApprovingQrBilling(null)}
           onApproved={fetchBillings}
+          onRejected={fetchBillings}
         />
       )}
 
