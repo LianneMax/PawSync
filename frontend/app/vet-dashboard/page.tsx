@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -257,7 +258,7 @@ export default function VetDashboardPage() {
 
                     <div className="flex items-center gap-3">
                       {appt.petId?.photo ? (
-                        <img src={appt.petId.photo} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        <Image src={appt.petId.photo} alt="" width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover" />
                       ) : (
                         <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center">
                           <PawPrint className="w-4 h-4 text-white" />

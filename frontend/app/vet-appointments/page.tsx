@@ -586,7 +586,7 @@ export default function VetAppointmentsPage() {
                                     <div className="flex items-start justify-between">
                                       <div className="flex items-center gap-3">
                                         {appt.petId?.photo ? (
-                                          <Image src={appt.petId.photo} alt="" width={36} height={36} className="w-9 h-9 rounded-full object-cover" />
+                                          <Image src={appt.petId.photo} alt="" width={36} height={36} sizes="36px" className="w-9 h-9 rounded-full object-cover" />
                                         ) : (
                                           <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
                                             <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
@@ -776,9 +776,18 @@ export default function VetAppointmentsPage() {
                 ) : (
                   <div className="space-y-3 w-full">
                     {upcomingAppointments.slice(0, 3).map((appt) => (
-                      <div key={appt._id} className="border-b pb-3 last:border-b-0">
-                        <p className="text-sm font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                        <p className="text-xs text-gray-500">{formatDate(appt.date)} at {formatSlotTime(appt.startTime)}</p>
+                      <div key={appt._id} className="flex items-center gap-3 border-b pb-3 last:border-b-0">
+                        {appt.petId?.photo ? (
+                          <Image src={appt.petId.photo} alt="" width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center shrink-0">
+                            <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
+                          <p className="text-xs text-gray-500">{formatDate(appt.date)} at {formatSlotTime(appt.startTime)}</p>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useRef, useCallback, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -265,7 +266,7 @@ function NewMedicalRecordPage() {
               ) : selectedPet ? (
                 <div className="flex items-center gap-3">
                   {selectedPet.photo ? (
-                    <img src={selectedPet.photo} alt={selectedPet.name} className="w-8 h-8 rounded-full object-cover" />
+                    <Image src={selectedPet.photo} alt={selectedPet.name} width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover" />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
                       <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
@@ -299,7 +300,7 @@ function NewMedicalRecordPage() {
                       }`}
                     >
                       {pet.photo ? (
-                        <img src={pet.photo} alt={pet.name} className="w-8 h-8 rounded-full object-cover" />
+                        <Image src={pet.photo} alt={pet.name} width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
                           <PawPrint className="w-4 h-4 text-[#5A7C7A]" />

@@ -730,7 +730,7 @@ export const getVetAppointments = async (req: Request, res: Response) => {
     }
 
     const appointments = await Appointment.find(vetQuery)
-      .populate('petId', 'name species breed sex dateOfBirth color sterilization nfcTagId microchipNumber allergies status isAlive isLost removedByOwner')
+      .populate('petId', 'name species breed sex dateOfBirth color sterilization nfcTagId microchipNumber allergies status isAlive isLost removedByOwner photo')
       .populate('ownerId', 'firstName lastName email')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')

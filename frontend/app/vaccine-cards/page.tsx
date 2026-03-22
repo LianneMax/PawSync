@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -100,8 +101,7 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
           </div>
           <div className="w-22.5 h-22.5 rounded-xl overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center">
             {pet.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+              <Image src={pet.photo} alt={pet.name} width={90} height={90} sizes="90px" className="w-full h-full object-cover" />
             ) : (
               <PawIcon className="w-8 h-8 text-white/60" />
             )}
@@ -442,8 +442,7 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
               style={{ width: 130, height: 120 }}
             >
               {pet.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                <Image src={pet.photo} alt={pet.name} width={130} height={120} sizes="130px" className="w-full h-full object-cover" />
               ) : (
                 <PawIcon className="w-14 h-14 text-white/60" />
               )}

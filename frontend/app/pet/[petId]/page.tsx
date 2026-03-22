@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
@@ -656,7 +657,7 @@ export default function PetProfilePage() {
               </div>
               <div className="rounded-[19px] overflow-hidden bg-[#476B6B] shrink-0 flex items-center justify-center w-30 h-27.5">
                 {pet.photo ? (
-                  <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                  <Image src={pet.photo} alt={pet.name} width={120} height={110} sizes="120px" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-white/20" />
                 )}

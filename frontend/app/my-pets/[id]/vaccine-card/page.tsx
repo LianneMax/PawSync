@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -209,7 +210,7 @@ export default function VaccineCardPage() {
             {/* Card Header — clip rounded top separately */}
             <div className="rounded-t-3xl overflow-hidden">
               <div className="px-6 py-4 flex items-center justify-center bg-[#476B6B]">
-                <img src="/images/pawsync-logo-white.png" alt="PawSync" className="h-8" style={{ fontFamily: 'var(--font-outfit)' }} />
+                <Image src="/images/pawsync-logo-white.png" alt="PawSync" width={120} height={32} className="h-8 w-auto" style={{ fontFamily: 'var(--font-outfit)' }} />
               </div>
             </div>
 
@@ -223,8 +224,7 @@ export default function VaccineCardPage() {
               </div>
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#5A8A8A] shrink-0 flex items-center justify-center">
                 {pet?.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                  <Image src={pet.photo} alt={pet.name} width={64} height={64} sizes="64px" className="w-full h-full object-cover" />
                 ) : (
                   <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white/60" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 14.5c-2.5 0-4.5 1.5-4.5 3.5 0 1.1.9 2 2 2h5c1.1 0 2-.9 2-2 0-2-2-3.5-4.5-3.5z"/>

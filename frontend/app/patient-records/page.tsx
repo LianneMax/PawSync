@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -719,7 +720,7 @@ function PatientRecordsPageContent() {
                     >
                       <div className="flex items-center gap-3 mb-3">
                         {pet.photo ? (
-                          <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                          <Image src={pet.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover" />
                         ) : (
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                             pet.isConfined ? 'bg-blue-100'
@@ -804,7 +805,7 @@ function PatientRecordsPageContent() {
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-3">
                                   {pet.photo ? (
-                                    <img src={pet.photo} alt="" className="w-9 h-9 rounded-full object-cover" />
+                                    <Image src={pet.photo} alt="" width={36} height={36} sizes="36px" className="w-9 h-9 rounded-full object-cover" />
                                   ) : (
                                     <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
                                       <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
@@ -855,7 +856,7 @@ function PatientRecordsPageContent() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     {selectedPatient.photo ? (
-                      <img src={selectedPatient.photo} alt="" className="w-16 h-16 rounded-full object-cover" />
+                      <Image src={selectedPatient.photo} alt="" width={64} height={64} sizes="64px" className="w-16 h-16 rounded-full object-cover" />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
                         <PawPrint className="w-8 h-8 text-[#5A7C7A]" />
@@ -2238,7 +2239,7 @@ function ViewRecordModal({
                   <div className="px-4 py-3 space-y-2">
                     <div className="flex items-center gap-3">
                       {pet?.photo ? (
-                        <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-[#7FA5A3]/20" />
+                        <Image src={pet.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover border-2 border-[#7FA5A3]/20" />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
                           <PawPrint className="w-6 h-6 text-[#5A7C7A]" />

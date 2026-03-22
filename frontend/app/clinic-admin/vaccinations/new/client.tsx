@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
@@ -512,7 +513,7 @@ export default function ClinicVaccinationFormClient() {
             /* Pre-filled vet display */
             <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl px-4 py-3">
               {selectedVet.photo ? (
-                <img src={selectedVet.photo} alt={`${selectedVet.firstName} ${selectedVet.lastName}`} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                <Image src={selectedVet.photo} alt={`${selectedVet.firstName} ${selectedVet.lastName}`} width={36} height={36} sizes="36px" className="w-9 h-9 rounded-full object-cover shrink-0" />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
                   <User className="w-4 h-4 text-[#476B6B]" />
@@ -547,7 +548,7 @@ export default function ClinicVaccinationFormClient() {
               ) : selectedPet ? (
                 <>
                   {selectedPet.photo ? (
-                    <img src={selectedPet.photo} alt={selectedPet.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                    <Image src={selectedPet.photo} alt={selectedPet.name} width={36} height={36} sizes="36px" className="w-9 h-9 rounded-full object-cover shrink-0" />
                   ) : (
                     <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
                       <span className="text-[#476B6B] font-bold text-sm">{selectedPet.name.charAt(0)}</span>

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
@@ -369,8 +370,7 @@ export default function VerificationPage() {
                     <div className="flex items-center gap-4">
                       {req.prcIdPhoto ? (
                         <div className="w-32 h-24 bg-[#F1F0ED] rounded-xl flex items-center justify-center border border-gray-200 overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={req.prcIdPhoto} alt="PRC ID" className="w-full h-full object-cover" />
+                          <Image src={req.prcIdPhoto} alt="PRC ID" width={128} height={96} sizes="128px" className="w-full h-full object-cover" />
                         </div>
                       ) : (
                         <div className="w-32 h-24 bg-[#F1F0ED] rounded-xl flex items-center justify-center border border-gray-200">
@@ -451,8 +451,7 @@ export default function VerificationPage() {
             <DialogTitle className="text-[#4F4F4F]">PRC ID Photo</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {viewPhotoSrc && <img src={viewPhotoSrc} alt="PRC ID Full Size" className="max-w-full max-h-[70vh] rounded-xl" />}
+            {viewPhotoSrc && <Image src={viewPhotoSrc} alt="PRC ID Full Size" width={800} height={600} sizes="(max-width: 800px) 100vw, 800px" className="max-w-full max-h-[70vh] rounded-xl object-contain" />}
           </div>
         </DialogContent>
       </Dialog>

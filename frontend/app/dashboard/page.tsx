@@ -414,7 +414,7 @@ function PetDetailModal({
               <div className="bg-[#7FA5A3] rounded-2xl p-4 flex items-center gap-3 shadow-[0_8px_32px_rgba(71,107,107,0.35)]">
                 <div className="w-12 h-12 bg-white rounded-full shrink-0 overflow-hidden flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.18)]">
                   {pet.vet.photo ? (
-                    <img src={pet.vet.photo} alt="" className="w-full h-full object-cover" />
+                    <Image src={pet.vet.photo} alt="" width={48} height={48} sizes="48px" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-[#476B6B] font-bold text-base">{pet.vet.name.charAt(4)}</span>
                   )}

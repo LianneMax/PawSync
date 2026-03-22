@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -701,7 +702,7 @@ function MyAppointmentsPageContent() {
                 <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     {appt.petId?.photo ? (
-                      <img src={appt.petId.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                      <Image src={appt.petId.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
                         <PawPrint className="w-6 h-6 text-[#5A7C7A]" />

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { ChevronRight, Loader, ShieldCheck, Syringe } from 'lucide-react'
 import { getVaccinationsByPet, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
@@ -216,8 +217,7 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
                 style={{ width: 130, height: 120 }}
               >
                 {pet?.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                  <Image src={pet.photo} alt={pet.name} width={130} height={120} sizes="130px" className="w-full h-full object-cover" />
                 ) : (
                   <svg viewBox="0 0 24 24" className="w-14 h-14 fill-white/60" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 14.5c-2.5 0-4.5 1.5-4.5 3.5 0 1.1.9 2 2 2h5c1.1 0 2-.9 2-2 0-2-2-3.5-4.5-3.5z" />
@@ -352,8 +352,7 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
               </div>
               <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#E8F0EF] shrink-0 border-2 border-[#C8DADA] flex items-center justify-center">
                 {pet?.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                  <Image src={pet.photo} alt={pet.name} width={64} height={64} sizes="64px" className="w-full h-full object-cover" />
                 ) : (
                   <svg viewBox="0 0 24 24" className="w-8 h-8 fill-[#7FA5A3]" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 14.5c-2.5 0-4.5 1.5-4.5 3.5 0 1.1.9 2 2 2h5c1.1 0 2-.9 2-2 0-2-2-3.5-4.5-3.5z" />

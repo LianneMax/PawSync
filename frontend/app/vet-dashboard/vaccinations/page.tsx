@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -497,7 +498,7 @@ export default function VetVaccinationsPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             {getPetPhoto(v) ? (
-                              <img src={getPetPhoto(v)!} alt={getPetName(v)} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                              <Image src={getPetPhoto(v)!} alt={getPetName(v)} width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover shrink-0" />
                             ) : (
                               <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
                                 {getPetInitial(v)}
@@ -522,7 +523,7 @@ export default function VetVaccinationsPage() {
                       <div className="hidden md:grid grid-cols-[40px_1fr_1fr_140px_140px_140px_120px_36px] gap-4 items-center px-5 py-3.5">
                         <button onClick={() => router.push(`/vet-dashboard/vaccinations/new?edit=${v._id}`)}>
                           {getPetPhoto(v) ? (
-                            <img src={getPetPhoto(v)!} alt={getPetName(v)} className="w-8 h-8 rounded-full object-cover" />
+                            <Image src={getPetPhoto(v)!} alt={getPetName(v)} width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover" />
                           ) : (
                             <div className="w-8 h-8 bg-[#476B6B] rounded-full flex items-center justify-center text-white text-xs font-bold">
                               {getPetInitial(v)}

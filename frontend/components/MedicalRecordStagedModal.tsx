@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
@@ -3884,7 +3885,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </p>
                   <div className="flex items-center gap-3">
                     {pet.photo ? (
-                      <img src={pet.photo} alt={pet.name} className="w-12 h-12 rounded-xl object-cover" />
+                      <Image src={pet.photo} alt={pet.name} width={48} height={48} sizes="48px" className="w-12 h-12 rounded-xl object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-[#7FA5A3]/20 flex items-center justify-center">
                         <PawPrint className="w-6 h-6 text-[#476B6B]" />
@@ -4369,7 +4370,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </p>
                   <div className="flex items-center gap-3">
                     {pet.photo ? (
-                      <img src={pet.photo} alt={pet.name} className="w-12 h-12 rounded-xl object-cover" />
+                      <Image src={pet.photo} alt={pet.name} width={48} height={48} sizes="48px" className="w-12 h-12 rounded-xl object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-[#7FA5A3]/20 flex items-center justify-center">
                         <PawPrint className="w-6 h-6 text-[#476B6B]" />
