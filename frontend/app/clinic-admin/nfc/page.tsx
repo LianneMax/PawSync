@@ -8,12 +8,10 @@ import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import {
   Nfc,
-  Search,
   AlertCircle,
   Check,
   Loader,
   Activity,
-  PawPrint,
   Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -73,12 +71,7 @@ export default function ClinicNfcManagementPage() {
   const token = useAuthStore((state) => state.token)
   const userType = useAuthStore((state) => state.user?.userType)
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [pets, setPets] = useState<Pet[]>([])
-  const [searching, setSearching] = useState(false)
-
   const [currentWrite, setCurrentWrite] = useState<WriteOperation | null>(null)
-  const [nfcStatus, setNfcStatus] = useState<NfcStatus[]>([])
   const [readerStatus, setReaderStatus] = useState('Checking...')
   const [readerAvailable, setReaderAvailable] = useState(false)
 
@@ -278,56 +271,6 @@ export default function ClinicNfcManagementPage() {
     return () => clearInterval(interval)
   }, [token])
 
-  // Search for pets
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim() || !token) return
-
-    setSearching(true)
-    try {
-      const response = await authenticatedFetch(
-        `/pets/search?q=${encodeURIComponent(searchQuery)}`,
-        { method: 'GET' },
-        token
-      )
-
-      const data = response
-
-      if (data.status === 'SUCCESS' && data.data?.pets) {
-        setPets(data.data.pets)
-
-        // Fetch NFC status for each pet
-        const statuses = await Promise.all(
-          data.data.pets.map(async (pet: Pet) => {
-            try {
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-              const statusRes = await fetch(
-                `${apiUrl}/nfc/pet/${pet._id}/status`
-              )
-              const statusData = await statusRes.json()
-              return statusData.data
-            } catch {
-              return { petId: pet._id, hasNFCTag: false, nfcTagId: null }
-            }
-          })
-        )
-
-        setNfcStatus(statuses)
-      } else {
-        setPets([])
-        setNfcStatus([])
-        toast('No pets found', {
-          description: 'Try searching by pet or owner name',
-        })
-      }
-    } catch (error) {
-      console.error('Search error:', error)
-      toast('Search failed', { description: 'Unable to search pets' })
-    } finally {
-      setSearching(false)
-    }
-  }
-
   // Start NFC writing process from pending request
   const handleStartWriteFromRequest = async (request: TagRequest) => {
     if (!readerAvailable) {
@@ -448,121 +391,6 @@ export default function ClinicNfcManagementPage() {
     }
   }
 
-  // Start NFC writing process from search
-  const handleStartWrite = async (pet: Pet) => {
-    if (!readerAvailable) {
-      toast('NFC reader not available', {
-        description: 'Please connect an NFC reader and try again',
-      })
-      return
-    }
-
-    setWriteStage('waiting')
-    setCurrentWrite({
-      petId: pet._id,
-      petName: pet.name,
-      status: 'writing',
-    })
-
-    // Clear any existing timeout
-    if (writeTimeoutRef.current) {
-      clearTimeout(writeTimeoutRef.current)
-    }
-
-    // Set 60-second timeout
-    writeTimeoutRef.current = setTimeout(() => {
-      setCurrentWrite((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: 'error',
-              error: 'Write timeout - no NFC tag detected. Please try again.',
-            }
-          : null
-      )
-    }, 60000)
-
-    try {
-      const response = await authenticatedFetch(
-        `/nfc/pet/${pet._id}/write`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        },
-        token || ''
-      )
-
-      const data = response
-
-      if (data.status === 'QUEUED') {
-        // Remote mode — agent will pick up the command and report back via WebSocket
-        queuedWriteRef.current = {
-          petId: pet._id,
-          petName: pet.name,
-          url: data.data.url,
-        }
-        // Stay in 'writing' state; WS write:complete will resolve the modal
-        return
-      }
-
-      if (writeTimeoutRef.current) {
-        clearTimeout(writeTimeoutRef.current)
-        writeTimeoutRef.current = null
-      }
-
-      if (data.status === 'SUCCESS') {
-        setCurrentWrite({
-          petId: pet._id,
-          petName: pet.name,
-          status: 'success',
-          nfcTagId: data.data.nfcTagId,
-          url: data.data.url,
-        })
-
-        // Update NFC status
-        const updatedStatus = nfcStatus.map((s) =>
-          s.petId === pet._id
-            ? { ...s, hasNFCTag: true, nfcTagId: data.data.nfcTagId }
-            : s
-        )
-        setNfcStatus(updatedStatus)
-
-        toast('NFC tag written successfully!', {
-          description: `Tag for ${pet.name} is ready`,
-        })
-
-        // Auto-close success message after 5 seconds
-        setTimeout(() => {
-          setCurrentWrite(null)
-        }, 5000)
-      } else {
-        setCurrentWrite({
-          petId: pet._id,
-          petName: pet.name,
-          status: 'error',
-          error: data.message || 'Failed to write NFC tag',
-        })
-      }
-    } catch {
-      if (writeTimeoutRef.current) {
-        clearTimeout(writeTimeoutRef.current)
-        writeTimeoutRef.current = null
-      }
-
-      setCurrentWrite({
-        petId: pet._id,
-        petName: pet.name,
-        status: 'error',
-        error: 'An error occurred while writing the NFC tag',
-      })
-    }
-  }
-
-  const getPetNfcStatus = (petId: string) => {
-    return nfcStatus.find((s) => s.petId === petId)
-  }
-
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-6xl mx-auto">
@@ -670,39 +498,6 @@ export default function ClinicNfcManagementPage() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Search Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <form onSubmit={handleSearch} className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search pet by name or owner name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!searchQuery.trim() || searching}
-              className="px-6 py-3 bg-[#7FA5A3] text-white rounded-lg font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {searching ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin" />
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <Search className="w-5 h-5" />
-                  Search
-                </>
-              )}
-            </button>
-          </form>
         </div>
 
         {/* Writing Dialog */}
@@ -835,84 +630,6 @@ export default function ClinicNfcManagementPage() {
           </div>
         )}
 
-        {/* Pets List */}
-        <div>
-          {pets.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <PawPrint className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">
-                {searchQuery ? 'No pets found' : 'Search for pets to get started'}
-              </p>
-              <p className="text-sm text-gray-500">
-                {searchQuery
-                  ? 'Try searching by a different name'
-                  : 'Enter a pet or owner name to search'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {pets.map((pet) => {
-                const status = getPetNfcStatus(pet._id)
-                const hasTag = status?.hasNFCTag
-
-                return (
-                  <div
-                    key={pet._id}
-                    className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Pet Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-bold text-[#476B6B]">
-                            {pet.name}
-                          </h3>
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 capitalize">
-                            {pet.species}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">
-                          {pet.breed} • Owner: {pet.owner.firstName} {pet.owner.lastName}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
-                            hasTag
-                              ? 'bg-[#E8F5E9] text-[#2E7D32]'
-                              : 'bg-orange-50 text-orange-700'
-                          }`}>
-                            <Nfc className="w-4 h-4" />
-                            <span className="text-xs font-semibold">
-                              {hasTag ? `Tag: ${status?.nfcTagId?.slice(-4)}` : 'No tag'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Button */}
-                      {!hasTag && (
-                        <button
-                          onClick={() => handleStartWrite(pet)}
-                          className="px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 bg-[#7FA5A3] text-white hover:bg-[#6B8E8C]"
-                        >
-                          <Nfc className="w-4 h-4" />
-                          Write Tag
-                        </button>
-                      )}
-                      {hasTag && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-[#E8F5E9] rounded-lg">
-                          <Check className="w-5 h-5 text-[#4CAF50]" />
-                          <span className="text-sm font-semibold text-[#2E7D32]">
-                            Written
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
       </div>
     </DashboardLayout>
   )
