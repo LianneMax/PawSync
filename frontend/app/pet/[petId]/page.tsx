@@ -356,6 +356,7 @@ export default function PetProfilePage() {
         setPet(prev => prev ? { ...prev, scanLocations: [...prev.scanLocations, newEntry] } : null)
       }
 
+      setLocationShared(true)
       setFoundStep('success')
     } catch {
       setFoundStep('success')
@@ -365,6 +366,7 @@ export default function PetProfilePage() {
   }
 
   const handleShareLocation = async () => {
+    setShowFoundDrawer(false)
     setIsSharingLocation(true)
     try {
       const getLocation = (): Promise<GeolocationPosition | null> =>
