@@ -13,7 +13,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import Billing from '../models/Billing';
 import ProductService from '../models/ProductService';
 import AuditTrail from '../models/AuditTrail';
-import { sendAppointmentBooked, sendAppointmentCancelled, sendGuestClaimInviteEmail } from '../services/emailService';
+import { sendAppointmentBooked, sendAppointmentCancelled, sendAppointmentDisplacedByEmergency, sendGuestClaimInviteEmail } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { getClinicForAdmin } from './clinicController';
@@ -1452,6 +1452,10 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
         // Gap found — this appointment starts at or after the filled boundary, no cascade needed
         if (appt.startTime >= pushTo) break;
 
+        // Capture original schedule before mutation for notification
+        const origDate = new Date(appt.date as Date);
+        const origStartTime = appt.startTime;
+
         const newStart = pushTo;
         const newEnd = addMinutes(pushTo, 30);
 
@@ -1519,6 +1523,10 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
         }
 
         // Notify the displaced appointment owner about the reschedule (fire-and-forget)
+        const displacedApptId = (appt._id as any).toString();
+        const displacedNewDate = new Date(appt.date as Date);
+        const displacedNewTime = appt.startTime;
+        const displacedTypes: string[] = appt.types ?? [];
         Promise.all([
           User.findById(appt.ownerId).select('firstName email'),
           Pet.findById(appt.petId).select('name'),
@@ -1526,16 +1534,36 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
           ClinicBranch.findById(appt.clinicBranchId).select('name'),
         ]).then(async ([apptOwner, apptPet, apptVet, apptBranch]) => {
           if (!apptOwner || !apptPet || !apptVet || !apptBranch) return;
-          const newDateStr = (appt.date as Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-          await createNotification(
-            appt.ownerId.toString(),
-            'appointment_rescheduled',
-            'Appointment Rescheduled',
-            `Your appointment for ${(apptPet as any).name} with Dr. ${(apptVet as any).firstName} ${(apptVet as any).lastName} at ${(apptBranch as any).name} has been rescheduled to ${newDateStr} at ${appt.startTime} due to an emergency patient.`,
-            { appointmentId: appt._id }
-          );
+          const newDateStr = displacedNewDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const vetFullName = `${(apptVet as any).firstName} ${(apptVet as any).lastName}`;
+          const branchName = (apptBranch as any).name;
+          await Promise.all([
+            createNotification(
+              appt.ownerId.toString(),
+              'appointment_rescheduled',
+              'Appointment Rescheduled – Emergency',
+              `Your appointment for ${(apptPet as any).name} with Dr. ${vetFullName} at ${branchName} has been moved to ${newDateStr} at ${displacedNewTime} due to an emergency patient. You may cancel or reschedule if this time does not work.`,
+              { appointmentId: displacedApptId }
+            ),
+            sendAppointmentDisplacedByEmergency({
+              ownerEmail: (apptOwner as any).email,
+              ownerFirstName: (apptOwner as any).firstName,
+              petName: (apptPet as any).name,
+              vetName: vetFullName,
+              clinicName: branchName,
+              originalDate: origDate,
+              originalTime: origStartTime,
+              newDate: displacedNewDate,
+              newTime: displacedNewTime,
+              appointmentId: displacedApptId,
+              petId: appt.petId?.toString(),
+              branchId: appt.clinicBranchId?.toString(),
+              vetId: appt.vetId?.toString(),
+              types: displacedTypes,
+            }),
+          ]);
         }).catch((err) => {
-          console.error('[Appointment] Reschedule notification error:', err);
+          console.error('[Appointment] Emergency displacement notification error:', err);
         });
       }
     }
@@ -2206,6 +2234,11 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
       let pushTo = endTime;
       for (const appt of sameDay) {
         if (appt.startTime >= pushTo) break;
+
+        // Capture original schedule before mutation for notification
+        const origDate = new Date(appt.date as Date);
+        const origStartTime = appt.startTime;
+
         const newStart = pushTo;
         const newEnd = addMinutes(pushTo, 30);
         if (newEnd <= schedSlotEnd) {
@@ -2248,6 +2281,50 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
             rescheduledAppointments.push(appt);
           }
         }
+
+        // Notify the displaced appointment owner (fire-and-forget)
+        const displacedApptId = (appt._id as any).toString();
+        const displacedNewDate = new Date(appt.date as Date);
+        const displacedNewTime = appt.startTime;
+        const displacedTypes: string[] = appt.types ?? [];
+        Promise.all([
+          User.findById(appt.ownerId).select('firstName email'),
+          Pet.findById(appt.petId).select('name'),
+          User.findById(appt.vetId).select('firstName lastName'),
+          ClinicBranch.findById(appt.clinicBranchId).select('name'),
+        ]).then(async ([apptOwner, apptPet, apptVet, apptBranch]) => {
+          if (!apptOwner || !apptPet || !apptVet || !apptBranch) return;
+          const newDateStr = displacedNewDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const vetFullName = `${(apptVet as any).firstName} ${(apptVet as any).lastName}`;
+          const branchName = (apptBranch as any).name;
+          await Promise.all([
+            createNotification(
+              appt.ownerId.toString(),
+              'appointment_rescheduled',
+              'Appointment Rescheduled – Emergency',
+              `Your appointment for ${(apptPet as any).name} with Dr. ${vetFullName} at ${branchName} has been moved to ${newDateStr} at ${displacedNewTime} due to an emergency patient. You may cancel or reschedule if this time does not work.`,
+              { appointmentId: displacedApptId }
+            ),
+            sendAppointmentDisplacedByEmergency({
+              ownerEmail: (apptOwner as any).email,
+              ownerFirstName: (apptOwner as any).firstName,
+              petName: (apptPet as any).name,
+              vetName: vetFullName,
+              clinicName: branchName,
+              originalDate: origDate,
+              originalTime: origStartTime,
+              newDate: displacedNewDate,
+              newTime: displacedNewTime,
+              appointmentId: displacedApptId,
+              petId: appt.petId?.toString(),
+              branchId: appt.clinicBranchId?.toString(),
+              vetId: appt.vetId?.toString(),
+              types: displacedTypes,
+            }),
+          ]);
+        }).catch((err) => {
+          console.error('[Appointment] Emergency displacement notification error:', err);
+        });
       }
     }
 

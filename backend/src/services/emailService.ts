@@ -196,6 +196,65 @@ export async function sendAppointmentMissed(params: {
   }
 }
 
+// ─── Appointment Displaced by Emergency ──────────────────────────────────────
+
+export async function sendAppointmentDisplacedByEmergency(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  vetName: string;
+  clinicName: string;
+  originalDate: Date | string;
+  originalTime: string;
+  newDate: Date | string;
+  newTime: string;
+  appointmentId: string;
+  petId?: string;
+  branchId?: string;
+  vetId?: string;
+  types?: string[];
+}) {
+  const cancelUrl = `${FRONTEND_URL}/my-appointments?appointmentId=${params.appointmentId}`;
+  const rescheduleQuery = new URLSearchParams();
+  if (params.petId) rescheduleQuery.set('petId', params.petId);
+  if (params.branchId) rescheduleQuery.set('branchId', params.branchId);
+  if (params.vetId) rescheduleQuery.set('vetId', params.vetId);
+  if (params.types?.length) rescheduleQuery.set('types', params.types.join(','));
+  const rescheduleUrl = `${FRONTEND_URL}/my-appointments?${rescheduleQuery.toString()}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `PawSync – Your Appointment for ${params.petName} Has Been Moved`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Rescheduled – Emergency Override</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>We sincerely apologize for the inconvenience. Your appointment for <strong>${params.petName}</strong> with <strong>Dr. ${params.vetName}</strong> at <strong>${params.clinicName}</strong> has been moved due to an emergency patient that required immediate attention.</p>
+          <div style="background: #fff7ed; border: 1px solid #fdba74; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0; color: #9a3412;"><strong>Original Schedule</strong></p>
+            <p style="margin: 4px 0; text-decoration: line-through; color: #9a3412;">${formatDate(params.originalDate)} at ${params.originalTime}</p>
+          </div>
+          <div style="background: #f0fdf4; border: 1px solid #86efac; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0; color: #166534;"><strong>New Schedule</strong></p>
+            <p style="margin: 4px 0; color: #166534;">${formatDate(params.newDate)} at ${params.newTime}</p>
+            <p style="margin: 4px 0;"><strong>Vet:</strong> Dr. ${params.vetName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+          </div>
+          <p style="color: #444;">If this new schedule does not work for you, you may cancel and book a new appointment at a time that suits you best.</p>
+          <div style="display: flex; gap: 12px; margin: 24px 0;">
+            <a href="${cancelUrl}" style="background: #ef4444; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-right: 12px;">Cancel Appointment</a>
+            <a href="${rescheduleUrl}" style="background: #5A7C7A; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold;">Reschedule Instead</a>
+          </div>
+          <p style="color: #999; font-size: 12px;">We appreciate your understanding and patience. – PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentDisplacedByEmergency error:', err);
+  }
+}
+
 // ─── Vaccination Due Reminder ─────────────────────────────────────────────────
 
 export async function sendVaccinationDueReminder(params: {
