@@ -205,6 +205,7 @@ export default function PatientRecordsPage() {
   const [patients, setPatients] = useState<PatientPet[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState<'All' | 'Alive' | 'Deceased' | 'Confined' | 'Lost' | 'Relocated'>('All')
 
   // Selected patient
   const [selectedPatient, setSelectedPatient] = useState<PatientPet | null>(null)
@@ -487,15 +488,27 @@ export default function PatientRecordsPage() {
     }
   }
 
-  // Filter patients by search
+  const getNormalizedPatientStatus = (patient: PatientPet): 'Alive' | 'Deceased' | 'Confined' | 'Lost' | 'Relocated' => {
+    const normalizedStatus = (patient.status || '').trim().toLowerCase()
+    if (patient.isConfined || normalizedStatus === 'confined') return 'Confined'
+    if (patient.isLost || normalizedStatus === 'lost') return 'Lost'
+    if (patient.removedByOwner || normalizedStatus === 'relocated') return 'Relocated'
+    if (patient.isAlive === false || normalizedStatus === 'deceased') return 'Deceased'
+    return 'Alive'
+  }
+
+  // Filter patients by search + status
   const filteredPatients = patients.filter((p) => {
     const q = searchQuery.toLowerCase()
-    return (
+    const matchesSearch = (
       p.name.toLowerCase().includes(q) ||
       p.species.toLowerCase().includes(q) ||
       p.breed.toLowerCase().includes(q) ||
       `${p.ownerFirstName} ${p.ownerLastName}`.toLowerCase().includes(q)
     )
+    const normalized = getNormalizedPatientStatus(p)
+    const matchesStatus = selectedStatus === 'All' || normalized === selectedStatus
+    return matchesSearch && matchesStatus
   })
 
   const totalPatients = patients.length
@@ -544,8 +557,26 @@ export default function PatientRecordsPage() {
               </div>
             </div>
 
-            {/* Search */}
+            {/* Status Filter + Search */}
             <div className="mb-6">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setSelectedStatus(status)}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors border ${
+                      selectedStatus === status
+                        ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                        : 'bg-white text-[#4F4F4F] border-gray-200 hover:border-[#7FA5A3] hover:text-[#476B6B]'
+                    }`}
+                    aria-pressed={selectedStatus === status}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -568,8 +599,8 @@ export default function PatientRecordsPage() {
                 <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-[#4F4F4F] mb-2">No patients found</h2>
                 <p className="text-gray-500 text-sm">
-                  {searchQuery
-                    ? 'No patients match your search. Try a different term.'
+                  {searchQuery || selectedStatus !== 'All'
+                    ? 'No patients match your current search and status filters. Try adjusting them.'
                     : 'Your patients will appear here once you have confirmed appointments or receive a referral.'}
                 </p>
               </div>
@@ -838,32 +869,32 @@ export default function PatientRecordsPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-3">
                           {currentRecord.vitals?.weight?.value && (
                             <div className="bg-white rounded-lg p-2 border border-blue-100">
-                              <p className="text-[10px] text-gray-500 font-medium">Weight</p>
-                              <p className="text-sm font-semibold text-blue-600">{currentRecord.vitals.weight.value} kg</p>
+                              <p className="text-[10px] text-[#3B82F6] font-medium">Weight</p>
+                              <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.weight.value} kg</p>
                             </div>
                           )}
                           {currentRecord.vitals?.temperature?.value && (
                             <div className="bg-white rounded-lg p-2 border border-orange-100">
-                              <p className="text-[10px] text-gray-500 font-medium">Temperature</p>
-                              <p className="text-sm font-semibold text-orange-600">{currentRecord.vitals.temperature.value}°C</p>
+                              <p className="text-[10px] text-[#3B82F6] font-medium">Temperature</p>
+                              <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.temperature.value}°C</p>
                             </div>
                           )}
                           {currentRecord.vitals?.pulseRate?.value && (
                             <div className="bg-white rounded-lg p-2 border border-red-100">
-                              <p className="text-[10px] text-gray-500 font-medium">Pulse</p>
-                              <p className="text-sm font-semibold text-red-600">{currentRecord.vitals.pulseRate.value} bpm</p>
+                              <p className="text-[10px] text-[#3B82F6] font-medium">Pulse</p>
+                              <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.pulseRate.value} bpm</p>
                             </div>
                           )}
                           {currentRecord.vitals?.spo2?.value && (
                             <div className="bg-white rounded-lg p-2 border border-violet-100">
-                              <p className="text-[10px] text-gray-500 font-medium">SpO2</p>
-                              <p className="text-sm font-semibold text-violet-600">{currentRecord.vitals.spo2.value}%</p>
+                              <p className="text-[10px] text-[#3B82F6] font-medium">SpO2</p>
+                              <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.spo2.value}%</p>
                             </div>
                           )}
                           {currentRecord.vitals?.bodyConditionScore?.value && (
                             <div className="bg-white rounded-lg p-2 border border-emerald-100">
-                              <p className="text-[10px] text-gray-500 font-medium">BCS</p>
-                              <p className="text-sm font-semibold text-emerald-600">{currentRecord.vitals.bodyConditionScore.value}/5</p>
+                              <p className="text-[10px] text-[#3B82F6] font-medium">BCS</p>
+                              <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.bodyConditionScore.value}/5</p>
                             </div>
                           )}
                         </div>
@@ -876,19 +907,19 @@ export default function PatientRecordsPage() {
                           currentRecord.vitals?.vaccinated?.value) && (
                           <div className="mt-3 space-y-1">
                             {currentRecord.vitals?.dentalScore?.value && (
-                              <p className="text-xs text-gray-600">Dental Score: <span className="font-semibold">{currentRecord.vitals.dentalScore.value}/3</span></p>
+                              <p className="text-xs text-[#3B82F6]">Dental Score: <span className="font-semibold">{currentRecord.vitals.dentalScore.value}/3</span></p>
                             )}
                             {currentRecord.vitals?.crt?.value && (
-                              <p className="text-xs text-gray-600">CRT: <span className="font-semibold">{currentRecord.vitals.crt.value} sec</span></p>
+                              <p className="text-xs text-[#3B82F6]">CRT: <span className="font-semibold">{currentRecord.vitals.crt.value} sec</span></p>
                             )}
                             {currentRecord.vitals?.pregnancy?.value && (
-                              <p className="text-xs text-gray-600">Pregnancy: <span className="font-semibold">{currentRecord.vitals.pregnancy.value}</span></p>
+                              <p className="text-xs text-[#3B82F6]">Pregnancy: <span className="font-semibold">{currentRecord.vitals.pregnancy.value}</span></p>
                             )}
                             {currentRecord.vitals?.xray?.value && (
-                              <p className="text-xs text-gray-600">X-Ray: <span className="font-semibold">{currentRecord.vitals.xray.value}</span></p>
+                              <p className="text-xs text-[#3B82F6]">X-Ray: <span className="font-semibold">{currentRecord.vitals.xray.value}</span></p>
                             )}
                             {currentRecord.vitals?.vaccinated?.value && (
-                              <p className="text-xs text-gray-600">Vaccinated: <span className="font-semibold">{currentRecord.vitals.vaccinated.value}</span></p>
+                              <p className="text-xs text-[#3B82F6]">Vaccinated: <span className="font-semibold">{currentRecord.vitals.vaccinated.value}</span></p>
                             )}
                           </div>
                         )}
