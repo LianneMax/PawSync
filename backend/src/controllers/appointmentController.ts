@@ -758,6 +758,40 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: `Cannot cancel a ${appointment.status} appointment` });
     }
 
+    if (isVet && (appointment.status === 'in_clinic' || appointment.status === 'in_progress')) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'Vets cannot cancel appointments once the visit has started.'
+      });
+    }
+
+    if (isOwner) {
+      if (appointment.status === 'in_progress') {
+        return res.status(403).json({
+          status: 'ERROR',
+          message: 'Cannot cancel appointment once it is in progress.'
+        });
+      }
+
+      const ownerCancellableStatuses = ['confirmed', 'in_clinic'];
+      if (!ownerCancellableStatuses.includes(appointment.status)) {
+        return res.status(403).json({
+          status: 'ERROR',
+          message: `Pet owners can only cancel confirmed or in-clinic appointments.`
+        });
+      }
+    }
+
+    if (isAdmin) {
+      const clinicAdminCancellableStatuses = ['confirmed', 'in_clinic'];
+      if (!clinicAdminCancellableStatuses.includes(appointment.status)) {
+        return res.status(403).json({
+          status: 'ERROR',
+          message: 'Clinic admins can only cancel confirmed or in-clinic appointments.'
+        });
+      }
+    }
+
     appointment.status = 'cancelled';
     await appointment.save();
 

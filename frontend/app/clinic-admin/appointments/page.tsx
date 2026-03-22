@@ -556,14 +556,16 @@ function CalendarGridView({
                                   >
                                     Reschedule
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onCancel(appt._id)}
-                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                                  >
-                                    Cancel
-                                  </button>
                                 </>
+                              )}
+                              {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
+                                <button
+                                  type="button"
+                                  onClick={() => onCancel(appt._id)}
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                >
+                                  Cancel
+                                </button>
                               )}
                               {appt.status === 'in_progress' && (
                                 <button
@@ -750,14 +752,16 @@ function CalendarGridView({
                                     >
                                       Reschedule
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => onCancel(appt._id)}
-                                      className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                                    >
-                                      Cancel
-                                    </button>
                                   </>
+                                )}
+                                {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onCancel(appt._id)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                  >
+                                    Cancel
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -2040,13 +2044,15 @@ export default function ClinicAdminAppointmentsPage() {
                               >
                                 Reschedule
                               </button>
-                              <button
-                                onClick={() => handleCancel(appt._id)}
-                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                              >
-                                Cancel
-                              </button>
                             </>
+                          )}
+                          {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
+                            <button
+                              onClick={() => handleCancel(appt._id)}
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                            >
+                              Cancel
+                            </button>
                           )}
                           {appt.status === 'in_progress' && (
                             <button
@@ -2058,27 +2064,33 @@ export default function ClinicAdminAppointmentsPage() {
                           )}
                         </div>
                       ) : (
-                        (appt.status === 'confirmed' || appt.status === 'pending') && (
+                        (appt.status === 'confirmed' || appt.status === 'pending' || appt.status === 'in_clinic') && (
                           <div className="flex items-center gap-2 flex-wrap justify-end">
-                            <button
-                              onClick={() => handleCheckIn(appt._id)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
-                            >
-                              Check-in
-                            </button>
-                            <button
-                              onClick={() => setRescheduleTarget(appt)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
-                            >
-                              Reschedule
-                            </button>
-                            <button
-                              onClick={() => handleCancel(appt._id)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
-                            >
-                              Cancel
-                            </button>
-                            {appt.ownerId?.isGuest && appt.ownerId?.claimStatus !== 'claimed' && (
+                            {(appt.status === 'confirmed' || appt.status === 'pending') && (
+                              <>
+                                <button
+                                  onClick={() => handleCheckIn(appt._id)}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500 transition-all duration-200"
+                                >
+                                  Check-in
+                                </button>
+                                <button
+                                  onClick={() => setRescheduleTarget(appt)}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#7FA5A3] text-[#7FA5A3] hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all duration-200"
+                                >
+                                  Reschedule
+                                </button>
+                              </>
+                            )}
+                            {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
+                              <button
+                                onClick={() => handleCancel(appt._id)}
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            {(appt.status === 'confirmed' || appt.status === 'pending') && appt.ownerId?.isGuest && appt.ownerId?.claimStatus !== 'claimed' && (
                               appt.ownerId?.claimStatus === 'unclaimable' ? (
                                 <button
                                   onClick={() => handleOpenGuestEmailModal(appt)}

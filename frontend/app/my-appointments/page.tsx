@@ -745,7 +745,7 @@ function MyAppointmentsPageContent() {
                        getDisplayStatus(appt) === 'completed' ? 'Completed' :
                        (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
                     </span>
-                    {(appt.status === 'pending' || appt.status === 'confirmed' || appt.status === 'rescheduled') && getDisplayStatus(appt) !== 'cancelled' && activeTab === 'upcoming' && (
+                    {(appt.status === 'confirmed' || appt.status === 'in_clinic') && getDisplayStatus(appt) !== 'cancelled' && getDisplayStatus(appt) !== 'in_progress' && activeTab === 'upcoming' && (
                       <button
                         onClick={() => handleCancel(appt._id)}
                         className="text-xs text-red-500 hover:text-red-700 font-medium"

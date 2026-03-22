@@ -657,12 +657,14 @@ export default function VetAppointmentsPage() {
                                           {continuingVisit === appt._id ? 'Loading…' : 'Continue Visit'}
                                         </button>
                                       )}
-                                      <button
-                                        onClick={() => handleCancel(appt._id)}
-                                        className="px-3 py-1 text-[10px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-                                      >
-                                        Cancel
-                                      </button>
+                                      {appt.status !== 'in_clinic' && appt.status !== 'in_progress' && (
+                                        <button
+                                          onClick={() => handleCancel(appt._id)}
+                                          className="px-3 py-1 text-[10px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 )
