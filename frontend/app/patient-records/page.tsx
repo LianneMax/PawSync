@@ -56,6 +56,8 @@ import {
   Baby,
   Heart,
   Scissors,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { getVaccinationsByPet, getVaccinationsByMedicalRecord, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 import { toast } from 'sonner'
@@ -103,6 +105,7 @@ interface PatientPet {
   isLost?: boolean
   removedByOwner?: boolean
   previousOwners?: Array<unknown>
+  lastVisitAt?: string | null
 }
 
 // ==================== HELPERS ====================
@@ -207,6 +210,7 @@ function PatientRecordsPageContent() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'All' | 'Alive' | 'Deceased' | 'Confined' | 'Lost' | 'Relocated'>('All')
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
 
   // Selected patient
   const [selectedPatient, setSelectedPatient] = useState<PatientPet | null>(null)
@@ -256,7 +260,10 @@ function PatientRecordsPageContent() {
       if (apptRes.status === 'SUCCESS' && apptRes.data?.appointments) {
         for (const appt of apptRes.data.appointments) {
           const petId = appt.petId?._id
-          if (petId && !petMap.has(petId)) {
+          if (!petId) continue
+
+          const latestVisitAt = appt.date ? new Date(appt.date).toISOString() : null
+          if (!petMap.has(petId)) {
             petMap.set(petId, {
               _id: petId,
               name: appt.petId?.name || 'Unknown',
@@ -283,7 +290,17 @@ function PatientRecordsPageContent() {
               clinicName: appt.clinicId?.name || '',
               clinicBranchId: appt.clinicBranchId?._id || '',
               clinicBranchName: appt.clinicBranchId?.name || '',
+              lastVisitAt: latestVisitAt,
             })
+            continue
+          }
+
+          const existingPet = petMap.get(petId)
+          if (!existingPet) continue
+          const existingTime = existingPet.lastVisitAt ? new Date(existingPet.lastVisitAt).getTime() : 0
+          const nextTime = latestVisitAt ? new Date(latestVisitAt).getTime() : 0
+          if (nextTime > existingTime) {
+            petMap.set(petId, { ...existingPet, lastVisitAt: latestVisitAt })
           }
         }
       }
@@ -292,7 +309,7 @@ function PatientRecordsPageContent() {
       if (referralRes.status === 'SUCCESS' && referralRes.data?.pets) {
         for (const p of referralRes.data.pets) {
           if (!petMap.has(p._id)) {
-            petMap.set(p._id, { ...p, isReferral: true })
+            petMap.set(p._id, { ...p, isReferral: true, lastVisitAt: null })
           }
         }
       }
@@ -581,22 +598,55 @@ function PatientRecordsPageContent() {
 
             {/* Status Filter + Search */}
             <div className="mb-6">
-              <div className="mb-3 flex flex-wrap gap-2">
-                {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0 overflow-x-auto">
+                  <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 min-w-max">
+                    {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setSelectedStatus(status)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                          selectedStatus === status
+                            ? 'bg-[#476B6B] text-white shadow-sm'
+                            : 'text-[#4F4F4F] hover:bg-white/70'
+                        }`}
+                        aria-pressed={selectedStatus === status}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="shrink-0 inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1">
                   <button
-                    key={status}
                     type="button"
-                    onClick={() => setSelectedStatus(status)}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors border ${
-                      selectedStatus === status
-                        ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                        : 'bg-white text-[#4F4F4F] border-gray-200 hover:border-[#7FA5A3] hover:text-[#476B6B]'
+                    onClick={() => setViewMode('card')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                      viewMode === 'card'
+                        ? 'bg-[#476B6B] text-white shadow-sm'
+                        : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
                     }`}
-                    aria-pressed={selectedStatus === status}
+                    aria-pressed={viewMode === 'card'}
                   >
-                    {status}
+                    <LayoutGrid className="w-4 h-4" />
+                    Card
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('list')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                      viewMode === 'list'
+                        ? 'bg-[#476B6B] text-white shadow-sm'
+                        : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
+                    }`}
+                    aria-pressed={viewMode === 'list'}
+                  >
+                    <List className="w-4 h-4" />
+                    List
+                  </button>
+                </div>
               </div>
 
               <div className="relative">
@@ -627,87 +677,146 @@ function PatientRecordsPageContent() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredPatients.map((pet) => {
-                  const isLost = pet.isLost || pet.status === 'lost'
-                  const isDeceased = !pet.isAlive || pet.status === 'deceased'
-                  const isRelocated = !!pet.removedByOwner
+              viewMode === 'card' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredPatients.map((pet) => {
+                    const isLost = pet.isLost || pet.status === 'lost'
+                    const isDeceased = !pet.isAlive || pet.status === 'deceased'
+                    const isRelocated = !!pet.removedByOwner
 
-                  return (
-                  <button
-                    key={pet._id}
-                    onClick={() => handleSelectPatient(pet)}
-                    className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
-                      pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
-                      : isLost ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
-                      : isDeceased ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
-                      : isRelocated ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
-                      : pet.isReferral ? 'bg-teal-50 border-2 border-teal-200 hover:ring-1 hover:ring-teal-400/40'
-                      : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      {pet.photo ? (
-                        <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
-                      ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          pet.isConfined ? 'bg-blue-100'
-                          : isLost ? 'bg-red-100'
-                          : isDeceased ? 'bg-amber-100'
-                          : isRelocated ? 'bg-orange-100'
-                          : pet.isReferral ? 'bg-teal-100'
-                          : 'bg-[#7FA5A3]/15'
-                        }`}>
-                          <PawPrint className={`w-6 h-6 ${
-                            pet.isConfined ? 'text-blue-500'
-                            : isLost ? 'text-[#900B09]'
-                            : isDeceased ? 'text-amber-500'
-                            : isRelocated ? 'text-orange-500'
-                            : pet.isReferral ? 'text-teal-600'
-                            : 'text-[#5A7C7A]'
-                          }`} />
+                    return (
+                    <button
+                      key={pet._id}
+                      onClick={() => handleSelectPatient(pet)}
+                      className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
+                        pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
+                        : isLost ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
+                        : isDeceased ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
+                        : isRelocated ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
+                        : pet.isReferral ? 'bg-teal-50 border-2 border-teal-200 hover:ring-1 hover:ring-teal-400/40'
+                        : 'bg-white border-2 border-transparent hover:ring-1 hover:ring-[#7FA5A3]/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        {pet.photo ? (
+                          <img src={pet.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
+                        ) : (
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            pet.isConfined ? 'bg-blue-100'
+                            : isLost ? 'bg-red-100'
+                            : isDeceased ? 'bg-amber-100'
+                            : isRelocated ? 'bg-orange-100'
+                            : pet.isReferral ? 'bg-teal-100'
+                            : 'bg-[#7FA5A3]/15'
+                          }`}>
+                            <PawPrint className={`w-6 h-6 ${
+                              pet.isConfined ? 'text-blue-500'
+                              : isLost ? 'text-[#900B09]'
+                              : isDeceased ? 'text-amber-500'
+                              : isRelocated ? 'text-orange-500'
+                              : pet.isReferral ? 'text-teal-600'
+                              : 'text-[#5A7C7A]'
+                            }`} />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-[#4F4F4F]">{pet.name}</p>
+                            {pet.isConfined && (
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide shrink-0">
+                                Confined
+                              </span>
+                            )}
+                            {isLost && (
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
+                                Lost
+                              </span>
+                            )}
+                            {isDeceased && !pet.isConfined && !isLost && (
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide shrink-0">
+                                Deceased
+                              </span>
+                            )}
+                            {isRelocated && !pet.isConfined && !isLost && !isDeceased && (
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide shrink-0">
+                                Relocated
+                              </span>
+                            )}
+                            {pet.isReferral && (
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-700 font-semibold uppercase tracking-wide shrink-0">
+                                Referred
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 capitalize">{pet.species} &middot; {pet.breed}</p>
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-[#4F4F4F]">{pet.name}</p>
-                          {pet.isConfined && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-700 font-semibold uppercase tracking-wide shrink-0">
-                              Confined
-                            </span>
-                          )}
-                          {isLost && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
-                              Lost
-                            </span>
-                          )}
-                          {isDeceased && !pet.isConfined && !isLost && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide shrink-0">
-                              Deceased
-                            </span>
-                          )}
-                          {isRelocated && !pet.isConfined && !isLost && !isDeceased && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-orange-100 text-orange-700 font-semibold uppercase tracking-wide shrink-0">
-                              Relocated
-                            </span>
-                          )}
-                          {pet.isReferral && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full bg-teal-100 text-teal-700 font-semibold uppercase tracking-wide shrink-0">
-                              Referred
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 capitalize">{pet.species} &middot; {pet.breed}</p>
                       </div>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      <p>Owner: {pet.ownerFirstName} {pet.ownerLastName}</p>
-                      <p className="mt-0.5">{pet.clinicBranchName || pet.clinicName}</p>
-                    </div>
-                  </button>
-                  )
-                })}
-              </div>
+                      <div className="text-xs text-gray-400">
+                        <p>Owner: {pet.ownerFirstName} {pet.ownerLastName}</p>
+                        <p className="mt-0.5">{pet.clinicBranchName || pet.clinicName}</p>
+                      </div>
+                    </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-[#F5FAF8]">
+                        <tr className="text-left text-[#476B6B]">
+                          <th className="px-4 py-3 font-semibold">Name</th>
+                          <th className="px-4 py-3 font-semibold">Species</th>
+                          <th className="px-4 py-3 font-semibold">Status</th>
+                          <th className="px-4 py-3 font-semibold">Owner</th>
+                          <th className="px-4 py-3 font-semibold">Last Visit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPatients.map((pet) => {
+                          const normalizedStatus = getNormalizedPatientStatus(pet)
+                          return (
+                            <tr
+                              key={pet._id}
+                              onClick={() => handleSelectPatient(pet)}
+                              className="border-t border-gray-100 hover:bg-[#F8FCFA] cursor-pointer transition-colors"
+                            >
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {pet.photo ? (
+                                    <img src={pet.photo} alt="" className="w-9 h-9 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
+                                      <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
+                                    </div>
+                                  )}
+                                  <span className="font-semibold text-[#4F4F4F]">{pet.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600 capitalize">{pet.species}</td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded-full font-semibold uppercase tracking-wide ${
+                                  normalizedStatus === 'Confined' ? 'bg-blue-100 text-blue-700'
+                                  : normalizedStatus === 'Lost' ? 'bg-red-100 text-red-700'
+                                  : normalizedStatus === 'Deceased' ? 'bg-amber-100 text-amber-700'
+                                  : normalizedStatus === 'Relocated' ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                  {normalizedStatus}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{pet.ownerFirstName} {pet.ownerLastName}</td>
+                              <td className="px-4 py-3 text-gray-600">
+                                {pet.lastVisitAt ? formatDate(pet.lastVisitAt) : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
             )}
           </>
         ) : (
@@ -1054,17 +1163,17 @@ function PatientRecordsPageContent() {
                             {/* Quick vitals preview */}
                             <div className="flex flex-wrap gap-2 mt-2">
                               {record.vitals?.weight?.value && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-blue-600">
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-[#3B82F6]">
                                   Weight: {record.vitals.weight.value} kg
                                 </span>
                               )}
                               {record.vitals?.temperature?.value && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-orange-50 text-orange-600">
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-[#3B82F6]">
                                   Temp: {record.vitals.temperature.value}&deg;C
                                 </span>
                               )}
                               {record.vitals?.pulseRate?.value && (
-                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-red-600">
+                                <span className="px-2 py-0.5 text-[10px] rounded-full bg-blue-50 text-[#3B82F6]">
                                   Pulse: {record.vitals.pulseRate.value} bpm
                                 </span>
                               )}
