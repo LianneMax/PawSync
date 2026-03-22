@@ -9,6 +9,7 @@ import VetApplication from '../models/VetApplication';
 import VetInvitation from '../models/VetInvitation';
 import User from '../models/User';
 import MedicalRecord from '../models/MedicalRecord';
+import Vaccination from '../models/Vaccination';
 import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
 import { updateBranchStatus } from '../services/branchStatusService';
@@ -246,7 +247,21 @@ export const addBranch = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain } = req.body;
+    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain, adminPassword } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Branch name is required' });
+    }
+
+    // Prevent duplicate branch names within the same clinic (escape regex special chars)
+    const escapedName = name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const duplicate = await ClinicBranch.findOne({
+      clinicId: clinic._id,
+      name: { $regex: new RegExp(`^${escapedName}$`, 'i') },
+    });
+    if (duplicate) {
+      return res.status(409).json({ status: 'ERROR', message: 'A branch with this name already exists' });
+    }
 
     // If this branch is set as main, unset the current main branch
     if (isMain) {
@@ -269,6 +284,53 @@ export const addBranch = async (req: Request, res: Response) => {
       operatingDays: operatingDays || [],
       isMain: isMain || false
     });
+
+    // Create the branch admin user (required — roll back branch if this fails)
+    const adminEmail = (email || '').trim().toLowerCase();
+    const adminPass = (adminPassword || '').toString();
+
+    if (!adminEmail || !adminPass) {
+      await branch.deleteOne();
+      return res.status(400).json({ status: 'ERROR', message: 'Branch email and password are required to create a branch admin account' });
+    }
+
+    try {
+      // If there's an orphaned inactive account with this email, reactivate it
+      const orphaned = await User.findOne({ email: adminEmail, userType: 'inactive' });
+      if (orphaned) {
+        orphaned.password = adminPass;
+        orphaned.userType = 'clinic-admin';
+        orphaned.clinicId = clinic._id as any;
+        orphaned.clinicBranchId = branch._id as any;
+        orphaned.isMainBranch = false;
+        orphaned.isVerified = true;
+        await orphaned.save();
+      } else {
+        await User.create({
+          email: adminEmail,
+          password: adminPass,
+          firstName: 'Branch',
+          lastName: 'Admin',
+          userType: 'clinic-admin',
+          clinicId: clinic._id,
+          clinicBranchId: branch._id,
+          isMainBranch: false,
+          isVerified: true,
+        });
+      }
+    } catch (adminErr: any) {
+      console.error('[addBranch] Failed to create branch admin:', adminErr);
+      // Roll back the branch so we don't leave an orphaned branch without an admin
+      await branch.deleteOne();
+      if (adminErr.code === 11000) {
+        return res.status(409).json({ status: 'ERROR', message: 'Email is already registered to another account' });
+      }
+      if (adminErr.name === 'ValidationError') {
+        const messages = Object.values(adminErr.errors).map((e: any) => e.message);
+        return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
+      }
+      return res.status(500).json({ status: 'ERROR', message: `Failed to create branch admin: ${adminErr.message}` });
+    }
 
     // Update clinic's mainBranchId if this is the new main
     if (isMain) {
@@ -390,6 +452,47 @@ export const deleteBranch = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
 
+    if (branch.isMain) {
+      return res.status(400).json({ status: 'ERROR', message: 'Cannot delete the main branch' });
+    }
+
+    const { transferToBranchId, reassignVetsToBranchId } = req.body;
+
+    // ── Vet reassignment ────────────────────────────────────────────────────────
+    const branchVetCount = await User.countDocuments({ clinicBranchId: branch._id, isActive: true });
+    if (branchVetCount > 0) {
+      if (!reassignVetsToBranchId) {
+        return res.status(400).json({ status: 'ERROR', message: 'Must select a branch to reassign vets to' });
+      }
+      const targetVetBranch = await ClinicBranch.findOne({ _id: reassignVetsToBranchId, clinicId: clinic._id });
+      if (!targetVetBranch) {
+        return res.status(400).json({ status: 'ERROR', message: 'Target branch for vet reassignment not found' });
+      }
+      await User.updateMany({ clinicBranchId: branch._id }, { $set: { clinicBranchId: reassignVetsToBranchId } });
+      await VetApplication.updateMany({ branchId: branch._id, clinicId: clinic._id }, { $set: { branchId: reassignVetsToBranchId } });
+    }
+
+    // ── Record transfer ─────────────────────────────────────────────────────────
+    const hasRecords = await MedicalRecord.exists({ clinicBranchId: branch._id });
+    const hasVaccinations = await Vaccination.exists({ clinicBranchId: branch._id });
+    if (hasRecords || hasVaccinations) {
+      if (!transferToBranchId) {
+        return res.status(400).json({ status: 'ERROR', message: 'Must select a branch to transfer records to' });
+      }
+      const targetRecordBranch = await ClinicBranch.findOne({ _id: transferToBranchId, clinicId: clinic._id });
+      if (!targetRecordBranch) {
+        return res.status(400).json({ status: 'ERROR', message: 'Target branch for record transfer not found' });
+      }
+      await MedicalRecord.updateMany({ clinicBranchId: branch._id }, { $set: { clinicBranchId: transferToBranchId } });
+      await Vaccination.updateMany({ clinicBranchId: branch._id }, { $set: { clinicBranchId: transferToBranchId } });
+    }
+
+    // Deactivate clinic-admin accounts tied to this branch so their emails can be reused
+    await User.updateMany(
+      { clinicBranchId: branch._id, userType: 'clinic-admin', isMainBranch: false },
+      { $set: { userType: 'inactive', clinicBranchId: null } }
+    );
+
     await branch.deleteOne();
 
     return res.status(200).json({
@@ -475,7 +578,15 @@ export const createClinicAdmin = async (req: Request, res: Response) => {
       const messages = Object.values(error.errors).map((e: any) => e.message);
       return res.status(400).json({ status: 'ERROR', message: messages.join(', ') });
     }
-    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the branch admin' });
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue || {})[0] || 'field';
+      const value = error.keyValue?.[field];
+      if (field === 'email' || field === 'email_1') {
+        return res.status(409).json({ status: 'ERROR', message: 'Email is already registered' });
+      }
+      return res.status(409).json({ status: 'ERROR', message: `Duplicate value on ${field}: ${value}` });
+    }
+    return res.status(500).json({ status: 'ERROR', message: `Failed to create admin: ${error.message}` });
   }
 };
 
@@ -1095,12 +1206,18 @@ export const sendBranchEmailOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Invalid email address format' });
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    // Store keyed by email (per-admin scoped with userId to avoid cross-account misuse)
     const storeKey = `${req.user.userId}:${trimmed}`;
+    const existing = branchOtpStore.get(storeKey);
+
+    // Reuse the existing OTP if it hasn't expired — no new email sent
+    if (existing && Date.now() < existing.expiresAt) {
+      return res.status(200).json({ status: 'SUCCESS', message: 'OTP already sent. Please check your email.' });
+    }
+
+    // Generate a fresh 6-digit OTP (5-minute window)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
     branchOtpStore.set(storeKey, { otp, expiresAt });
 
     await sendBranchOTP({ branchEmail: trimmed, otp, branchName });

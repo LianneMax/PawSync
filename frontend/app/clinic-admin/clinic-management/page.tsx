@@ -123,6 +123,10 @@ export default function ClinicManagementPage() {
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
   const [removeBranchOpen, setRemoveBranchOpen] = useState(false)
   const [branchToRemove, setBranchToRemove] = useState<Branch | null>(null)
+  const [removeBranchStats, setRemoveBranchStats] = useState<{ vets: number; patients: number } | null>(null)
+  const [removeBranchLoading, setRemoveBranchLoading] = useState(false)
+  const [transferToBranchId, setTransferToBranchId] = useState('')
+  const [reassignVetsToBranchId, setReassignVetsToBranchId] = useState('')
   const [addBranchOpen, setAddBranchOpen] = useState(false)
   const [addingBranch, setAddingBranch] = useState(false)
   const [editIs24h, setEditIs24h] = useState(false)
@@ -218,8 +222,8 @@ export default function ClinicManagementPage() {
         body: JSON.stringify({ email: addForm.email, branchName: addForm.name || undefined }),
       }, token)
       if (res.status === 'SUCCESS') {
+        // Don't reset otpValue if OTP was already sent (reuse flow — keep whatever they typed)
         setOtpModalOpen(true)
-        setOtpValue('')
         setOtpError('')
       } else {
         setAddFormErrors(prev => ({ ...prev, email: res.message || 'Failed to send OTP.' }))
@@ -443,22 +447,43 @@ export default function ClinicManagementPage() {
     setSelectedVet(null)
   }
 
+  const openRemoveBranch = async (branch: Branch) => {
+    setBranchToRemove(branch)
+    setRemoveBranchStats(null)
+    setTransferToBranchId('')
+    setReassignVetsToBranchId('')
+    setRemoveBranchOpen(true)
+    if (!clinicId || !token) return
+    setRemoveBranchLoading(true)
+    try {
+      const statsRes = await authenticatedFetch(`/clinics/${clinicId}/branches/${branch.id}/stats`, {}, token)
+      if (statsRes.status === 'SUCCESS') {
+        setRemoveBranchStats({ vets: statsRes.data.stats.vets, patients: statsRes.data.stats.patients })
+      }
+    } finally {
+      setRemoveBranchLoading(false)
+    }
+  }
+
   const handleRemoveBranch = async () => {
     if (!branchToRemove || !clinicId || !token) return
     try {
+      const body: Record<string, string> = {}
+      if (reassignVetsToBranchId) body.reassignVetsToBranchId = reassignVetsToBranchId
+      if (transferToBranchId) body.transferToBranchId = transferToBranchId
       const res = await authenticatedFetch(`/clinics/${clinicId}/branches/${branchToRemove.id}`, {
         method: 'DELETE',
+        body: JSON.stringify(body),
       }, token)
       if (res.status === 'SUCCESS') {
         setBranches(prev => prev.filter(b => b.id !== branchToRemove.id))
+        setRemoveBranchOpen(false)
+        setBranchToRemove(null)
       } else {
         console.error('Failed to delete branch:', res.message)
       }
     } catch (err) {
       console.error('Failed to delete branch:', err)
-    } finally {
-      setRemoveBranchOpen(false)
-      setBranchToRemove(null)
     }
   }
 
@@ -485,7 +510,7 @@ export default function ClinicManagementPage() {
 
     setAddingBranch(true)
     try {
-      // Step 1: Create the branch
+      // Single request — branch + admin user created atomically on the backend
       const res = await authenticatedFetch(`/clinics/${clinicId}/branches`, {
         method: 'POST',
         body: JSON.stringify({
@@ -499,47 +524,34 @@ export default function ClinicManagementPage() {
           closingTime: addForm.closingTime || null,
           operatingDays: addForm.operatingDays,
           isMain: false,
+          adminPassword: addForm.adminPassword,
         }),
       }, token)
 
       if (res.status === 'SUCCESS' && res.data?.branch) {
         const b = res.data.branch
-
-        // Step 2: Create the branch admin user using the branch email + password
-        const adminRes = await authenticatedFetch('/clinics/clinic-admin', {
-          method: 'POST',
-          body: JSON.stringify({
-            email: addForm.email,
-            password: addForm.adminPassword,
-            branchId: b._id,
-          }),
-        }, token)
-
-        if (adminRes.status === 'SUCCESS') {
-          setBranches(prev => [...prev, {
-            id: b._id,
-            name: b.name,
-            address: b.address || '',
-            isMain: b.isMain,
-            vets: 0,
-            patients: 0,
-            today: 0,
-            phone: b.phone || '',
-            hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
-            email: b.email || '',
-            isOpen: true,
-            city: b.city || '',
-            province: b.province || '',
-            openingTime: b.openingTime || '',
-            closingTime: b.closingTime || '',
-            operatingDays: (b.operatingDays || []).join(', '),
-          }])
-          setAddBranchOpen(false)
-          resetAddForm()
-        } else {
-          console.error('Failed to create branch admin:', adminRes.message)
-          alert(`Branch created but failed to create admin user: ${adminRes.message}`)
-        }
+        setBranches(prev => [...prev, {
+          id: b._id,
+          name: b.name,
+          address: b.address || '',
+          isMain: b.isMain,
+          vets: 0,
+          patients: 0,
+          today: 0,
+          phone: b.phone || '',
+          hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
+          email: b.email || '',
+          isOpen: true,
+          city: b.city || '',
+          province: b.province || '',
+          openingTime: b.openingTime || '',
+          closingTime: b.closingTime || '',
+          operatingDays: (b.operatingDays || []).join(', '),
+        }])
+        setAddBranchOpen(false)
+        resetAddForm()
+      } else {
+        setAddFormErrors(prev => ({ ...prev, general: res.message || 'Failed to create branch' }))
       }
     } catch (err) {
       console.error('Failed to add branch:', err)
@@ -826,7 +838,7 @@ export default function ClinicManagementPage() {
                       </button>
                       {!branch.isMain && (
                         <button
-                          onClick={() => { setBranchToRemove(branch); setRemoveBranchOpen(true) }}
+                          onClick={() => openRemoveBranch(branch)}
                           className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1406,6 +1418,12 @@ export default function ClinicManagementPage() {
             </div>
           </div>
 
+          {addFormErrors.general && (
+            <div className="mx-6 mb-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+              {addFormErrors.general}
+            </div>
+          )}
+
           <div className="flex gap-3 px-6 py-4 border-t border-gray-100 bg-white">
             <button
               onClick={() => { setAddBranchOpen(false); resetAddForm() }}
@@ -1488,16 +1506,15 @@ export default function ClinicManagementPage() {
 
           <div className="text-center py-4">
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-7 h-7 text-red-400" />
+              <Trash2 className="w-7 h-7 text-red-500" />
             </div>
             <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">Remove this branch?</h3>
-            <p className="text-sm text-gray-500">
-              This action cannot be undone. All staff assigned to this branch will need to be reassigned.
-            </p>
+            <p className="text-sm text-gray-500">This action cannot be undone.</p>
           </div>
 
           {branchToRemove && (
             <>
+              {/* Stats */}
               <div className="bg-[#F8F6F2] rounded-xl p-4 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Branch Name</span>
@@ -1505,25 +1522,56 @@ export default function ClinicManagementPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Assigned Vets</span>
-                  <span className="font-medium text-[#4F4F4F]">{branchToRemove.vets} veterinarians</span>
+                  <span className="font-medium text-[#4F4F4F]">
+                    {removeBranchLoading ? '—' : (removeBranchStats?.vets ?? branchToRemove.vets)} veterinarians
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Active Patients</span>
-                  <span className="font-medium text-[#4F4F4F]">{branchToRemove.patients} patients</span>
+                  <span className="font-medium text-[#4F4F4F]">
+                    {removeBranchLoading ? '—' : (removeBranchStats?.patients ?? branchToRemove.patients)} patients
+                  </span>
                 </div>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-3">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-amber-800 text-sm">Before Removing</p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      Please reassign all veterinarians and transfer patient records to another branch before removing.
-                    </p>
-                  </div>
+              {/* Vet reassignment — only shown if there are vets */}
+              {!removeBranchLoading && (removeBranchStats?.vets ?? 0) > 0 && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
+                    Reassign all vets to <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={reassignVetsToBranchId}
+                    onChange={(e) => setReassignVetsToBranchId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+                  >
+                    <option value="">Select a branch...</option>
+                    {branches.filter(b => b.id !== branchToRemove.id).map(b => (
+                      <option key={b.id} value={b.id}>{b.name}{b.isMain ? ' (Main)' : ''}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              )}
+
+              {/* Record transfer — only shown if there are patients */}
+              {!removeBranchLoading && (removeBranchStats?.patients ?? 0) > 0 && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
+                    Transfer patient records to <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={transferToBranchId}
+                    onChange={(e) => setTransferToBranchId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] bg-white"
+                  >
+                    <option value="">Select a branch...</option>
+                    {branches.filter(b => b.id !== branchToRemove.id).map(b => (
+                      <option key={b.id} value={b.id}>{b.name}{b.isMain ? ' (Main)' : ''}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Medical records and vaccination records will be reassigned to this branch.</p>
+                </div>
+              )}
             </>
           )}
 
@@ -1531,7 +1579,15 @@ export default function ClinicManagementPage() {
             <button onClick={() => setRemoveBranchOpen(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
               Cancel
             </button>
-            <button onClick={handleRemoveBranch} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors">
+            <button
+              onClick={handleRemoveBranch}
+              disabled={
+                removeBranchLoading ||
+                ((removeBranchStats?.vets ?? 0) > 0 && !reassignVetsToBranchId) ||
+                ((removeBranchStats?.patients ?? 0) > 0 && !transferToBranchId)
+              }
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Remove Branch
             </button>
           </div>
