@@ -137,7 +137,15 @@ export default function VaccineCardPage() {
           })
         }
 
-        setVaccinations(vaxData)
+        const filteredVaccinations = vaxData.filter((vax) => {
+          const isLegacyPendingPlaceholder =
+            vax.status === 'pending' ||
+            (vax.vaccineName || '').toLowerCase().includes('to be filled by vet') ||
+            (vax.vaccineName || '').toLowerCase().startsWith('pending')
+          return !isLegacyPendingPlaceholder
+        })
+
+        setVaccinations(filteredVaccinations)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load vaccination records')
       } finally {

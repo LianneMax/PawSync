@@ -1708,11 +1708,17 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view these vaccinations' });
     }
 
-    const vaccinations = await Vaccination.find({ petId: req.params.petId })
+    const allVaccinations = await Vaccination.find({ petId: req.params.petId })
       .populate('vaccineTypeId', 'name isSeries totalSeries doseVolumeMl')
       .populate('vetId', 'firstName lastName prcLicenseNumber licenseNumber')
       .populate('clinicId', 'name')
+      .populate('medicalRecordId', 'stage')
       .sort({ dateAdministered: -1 });
+
+    const vaccinations = allVaccinations.filter((v) => {
+      const mr = v.medicalRecordId as any;
+      return mr?.stage === 'completed';
+    });
 
     return res.status(200).json({
       status: 'SUCCESS',

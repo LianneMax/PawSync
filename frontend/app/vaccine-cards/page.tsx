@@ -563,9 +563,16 @@ export default function VaccineCardsPage() {
         const results = await Promise.all(
           pets.map(async (pet) => {
             const vaxRes = await getVaccinationsByPet(pet._id, token)
+            const filteredVaccinations = (vaxRes.data?.vaccinations ?? []).filter((vax) => {
+              const isLegacyPendingPlaceholder =
+                vax.status === 'pending' ||
+                (vax.vaccineName || '').toLowerCase().includes('to be filled by vet') ||
+                (vax.vaccineName || '').toLowerCase().startsWith('pending')
+              return !isLegacyPendingPlaceholder
+            })
             return {
               pet,
-              vaccinations: vaxRes.data?.vaccinations ?? [],
+              vaccinations: filteredVaccinations,
             }
           })
         )

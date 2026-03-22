@@ -524,12 +524,18 @@ export const getVaccinationsByPet = async (req: Request, res: Response) => {
       }
     }
 
-    const vaccinations = await Vaccination.find({ petId: req.params.petId })
+    const allVaccinations = await Vaccination.find({ petId: req.params.petId })
       .populate('vaccineTypeId', 'name species validityDays isSeries totalSeries seriesIntervalDays boosterValid boosterIntervalDays doseVolumeMl')
       .populate('vetId', 'firstName lastName prcLicenseNumber licenseNumber')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
+      .populate('medicalRecordId', 'stage')
       .sort({ dateAdministered: -1 });
+
+    const vaccinations = allVaccinations.filter((v) => {
+      const mr = v.medicalRecordId as any;
+      return mr?.stage === 'completed';
+    });
 
     await refreshStatuses(vaccinations);
 
@@ -579,13 +585,19 @@ export const getPublicVaccinationsByPet = async (req: Request, res: Response) =>
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
-    const vaccinations = await Vaccination.find({
+    const allVaccinations = await Vaccination.find({
       petId: req.params.petId,
     })
       .populate('vaccineTypeId', 'name species')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
+      .populate('medicalRecordId', 'stage')
       .sort({ dateAdministered: -1 });
+
+    const vaccinations = allVaccinations.filter((v) => {
+      const mr = v.medicalRecordId as any;
+      return mr?.stage === 'completed';
+    });
 
     await refreshStatuses(vaccinations);
 

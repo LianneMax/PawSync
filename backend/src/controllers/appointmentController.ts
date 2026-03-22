@@ -1023,26 +1023,6 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     appointment.status = status;
     await appointment.save();
 
-    // Auto-create a pending vaccination draft when appointment is completed
-    let vaccinationId: string | undefined;
-    if (status === 'completed' && appointment.types.includes('vaccination')) {
-      const existingVax = await Vaccination.findOne({ appointmentId: appointment._id });
-      if (!existingVax) {
-        const vax = await Vaccination.create({
-          petId: appointment.petId,
-          vetId: appointment.vetId,
-          clinicId: appointment.clinicId,
-          clinicBranchId: appointment.clinicBranchId,
-          appointmentId: appointment._id,
-          vaccineName: 'Pending — to be filled by vet',
-          status: 'pending',
-        });
-        vaccinationId = vax._id.toString();
-      } else {
-        vaccinationId = existingVax._id.toString();
-      }
-    }
-
     // When appointment is completed, update the pet's assigned vet
     if (status === 'completed' && appointment.vetId) {
       Pet.findByIdAndUpdate(appointment.petId, { assignedVetId: appointment.vetId }).catch((err) => {
@@ -1072,7 +1052,6 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
       data: {
         appointment,
         ...(medicalRecordId ? { medicalRecordId } : {}),
-        ...(vaccinationId ? { vaccinationId } : {})
       }
     });
   } catch (error) {
