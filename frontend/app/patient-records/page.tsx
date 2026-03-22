@@ -562,7 +562,11 @@ function PatientRecordsPageContent() {
       `${p.ownerFirstName} ${p.ownerLastName}`.toLowerCase().includes(q)
     )
     const normalized = getNormalizedPatientStatus(p)
-    const matchesStatus = selectedStatus === 'All' || normalized === selectedStatus
+    const matchesStatus =
+      selectedStatus === 'All' ||
+      (selectedStatus === 'Alive'
+        ? ['Alive', 'Confined', 'Lost', 'Relocated'].includes(normalized)
+        : normalized === selectedStatus)
     return matchesSearch && matchesStatus
   })
 
