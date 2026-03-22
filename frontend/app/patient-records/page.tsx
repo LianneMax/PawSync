@@ -874,25 +874,25 @@ export default function PatientRecordsPage() {
                             </div>
                           )}
                           {currentRecord.vitals?.temperature?.value && (
-                            <div className="bg-white rounded-lg p-2 border border-orange-100">
+                            <div className="bg-white rounded-lg p-2 border border-blue-100">
                               <p className="text-[10px] text-[#3B82F6] font-medium">Temperature</p>
                               <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.temperature.value}°C</p>
                             </div>
                           )}
                           {currentRecord.vitals?.pulseRate?.value && (
-                            <div className="bg-white rounded-lg p-2 border border-red-100">
+                            <div className="bg-white rounded-lg p-2 border border-blue-100">
                               <p className="text-[10px] text-[#3B82F6] font-medium">Pulse</p>
                               <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.pulseRate.value} bpm</p>
                             </div>
                           )}
                           {currentRecord.vitals?.spo2?.value && (
-                            <div className="bg-white rounded-lg p-2 border border-violet-100">
+                            <div className="bg-white rounded-lg p-2 border border-blue-100">
                               <p className="text-[10px] text-[#3B82F6] font-medium">SpO2</p>
                               <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.spo2.value}%</p>
                             </div>
                           )}
                           {currentRecord.vitals?.bodyConditionScore?.value && (
-                            <div className="bg-white rounded-lg p-2 border border-emerald-100">
+                            <div className="bg-white rounded-lg p-2 border border-blue-100">
                               <p className="text-[10px] text-[#3B82F6] font-medium">BCS</p>
                               <p className="text-sm font-semibold text-[#3B82F6]">{currentRecord.vitals.bodyConditionScore.value}/5</p>
                             </div>
