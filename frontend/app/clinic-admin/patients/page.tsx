@@ -20,7 +20,7 @@ import {
 import {
   Smartphone, Search, FileText, Calendar, PawPrint,
   ChevronRight, Info, Clock, User, Syringe, Stethoscope,
-  Pill, FolderOpen, Printer, Share2, Edit, Upload, X, CheckCircle, AlertCircle,
+  Pill, X, CheckCircle, AlertCircle,
   QrCode, Loader, Receipt
 } from 'lucide-react'
 import Link from 'next/link'
@@ -29,7 +29,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 
 // ==================== TYPES ====================
 
-type PatientTab = 'overview' | 'vaccine' | 'medical' | 'medications' | 'files'
+type PatientTab = 'overview' | 'vaccine' | 'medical' | 'medications'
 type ScanMode = 'nfc' | 'qr' | null
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'error'
 
@@ -371,32 +371,6 @@ function MedicationsTab() {
         <p className="text-sm font-medium text-gray-500">No medications recorded</p>
         <p className="text-xs text-gray-400 mt-1">Medication records will appear here</p>
       </div>
-    </div>
-  )
-}
-
-// ==================== TAB: FILES & IMAGES ====================
-
-function FilesTab() {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-3">
-        <FolderOpen className="w-4 h-4 text-[#4A8A87]" />
-        <h3 className="text-sm font-semibold text-[#4A8A87] uppercase tracking-wide">Files & Images</h3>
-      </div>
-      <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center bg-gray-50">
-        <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center mx-auto mb-3">
-          <Upload className="w-6 h-6 text-[#7FA5A3]" />
-        </div>
-        <p className="text-sm font-medium text-gray-600 mb-1">
-          Drag & drop files or{' '}
-          <span className="text-[#4A8A87] underline cursor-pointer">Browse</span>
-        </p>
-        <p className="text-xs text-gray-400">Supported formats: JPEG, PNG, GIF, MP4, PDF, PSD, AI, Word, PPT</p>
-      </div>
-      <button className="w-full py-3 bg-[#4A8A87] hover:bg-[#3d7370] text-white text-sm font-semibold rounded-xl transition-colors uppercase tracking-wide">
-        Upload Files
-      </button>
     </div>
   )
 }
@@ -834,7 +808,6 @@ function PatientDrawer({
     { id: 'vaccine', label: 'Vaccine Card' },
     { id: 'medical', label: 'Medical Record' },
     { id: 'medications', label: 'Medications' },
-    { id: 'files', label: 'Files & Images' },
   ]
 
   if (!patient) return null
@@ -937,27 +910,6 @@ function PatientDrawer({
             <MedicalRecordTab records={records} loading={loadingRecords} />
           )}
           {activeTab === 'medications' && <MedicationsTab />}
-          {activeTab === 'files' && <FilesTab />}
-        </div>
-
-        {/* Footer */}
-        <div className="shrink-0 border-t border-gray-200 bg-white px-5 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-2">
-              <button className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                <Printer className="w-3.5 h-3.5" />
-                Print
-              </button>
-              <button className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                <Share2 className="w-3.5 h-3.5" />
-                Share
-              </button>
-            </div>
-            <button className="flex items-center gap-1.5 px-4 py-2 bg-[#4A8A87] hover:bg-[#3d7370] text-white rounded-lg text-xs font-semibold transition-colors">
-              <Edit className="w-3.5 h-3.5" />
-              Edit Patient
-            </button>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
