@@ -42,6 +42,7 @@ import {
   Search,
   AlertTriangle,
   Scissors,
+  List,
   Building2,
   LogIn,
   Smartphone,
@@ -1672,18 +1673,38 @@ export default function ClinicAdminAppointmentsPage() {
 
             {/* Branch filter — dropdown for main branch admin, static badge otherwise */}
             {isMainBranchAdmin && branches.length > 0 ? (
-              <div className="relative">
-                <select
-                  value={selectedBranchFilter}
-                  onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-1.5 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] cursor-pointer"
-                >
-                  <option value="all">All Branches</option>
-                  {branches.map((b) => (
-                    <option key={b._id} value={b._id}>{b.name}</option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4F4F4F]" />
+              <div className="inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold text-[#4F4F4F] hover:bg-[#F5FAF8] transition-all"
+                    >
+                      <Building2 className="w-4 h-4" />
+                      {selectedBranchFilter === 'all'
+                        ? 'All Branches'
+                        : branches.find((b) => b._id === selectedBranchFilter)?.name || 'All Branches'}
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 rounded-xl">
+                    <DropdownMenuItem
+                      onSelect={() => setSelectedBranchFilter('all')}
+                      className={selectedBranchFilter === 'all' ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium' : ''}
+                    >
+                      All Branches
+                    </DropdownMenuItem>
+                    {branches.map((branch) => (
+                      <DropdownMenuItem
+                        key={branch._id}
+                        onSelect={() => setSelectedBranchFilter(branch._id)}
+                        className={selectedBranchFilter === branch._id ? 'bg-[#7FA5A3]/10 text-[#5A7C7A] font-medium' : ''}
+                      >
+                        {branch.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ) : branches.length > 0 ? (
               <span className="px-3 py-1.5 rounded-xl text-sm bg-[#F8F6F2] text-[#4F4F4F] font-medium">
@@ -1693,21 +1714,27 @@ export default function ClinicAdminAppointmentsPage() {
           </div>
 
           {activeTab === 'upcoming' && (
-            <div className="flex items-center bg-gray-100 rounded-xl p-0.5">
+            <div className="inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1">
               <button
                 onClick={() => setViewMode('calendar')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  viewMode === 'calendar' ? 'bg-white shadow-sm text-[#4F4F4F]' : 'text-gray-500'
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                  viewMode === 'calendar'
+                    ? 'bg-[#476B6B] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
                 }`}
               >
+                <Calendar className="w-4 h-4" />
                 Calendar
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  viewMode === 'list' ? 'bg-white shadow-sm text-[#4F4F4F]' : 'text-gray-500'
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                  viewMode === 'list'
+                    ? 'bg-[#476B6B] text-white shadow-sm'
+                    : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
                 }`}
               >
+                <List className="w-4 h-4" />
                 List
               </button>
             </div>
