@@ -77,21 +77,6 @@ interface Branch {
 const emptyVets: Veterinarian[] = []
 const emptyBranches: Branch[] = []
 
-// ==================== ROLE BADGE ====================
-
-function RoleBadge({ role }: { role: Veterinarian['role'] }) {
-  const styles = {
-    ADMIN: 'bg-[#476B6B] text-white',
-    VET: 'bg-[#476B6B] text-white',
-    STAFF: 'bg-[#7FA5A3] text-white',
-  }
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${styles[role]}`}>
-      {role}
-    </span>
-  )
-}
-
 function StatusBadge({ status }: { status: Veterinarian['status'] }) {
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-medium ${status === 'Active' ? 'text-green-600' : 'text-red-500'}`}>
@@ -782,7 +767,6 @@ export default function ClinicManagementPage() {
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Veterinarian</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRC License</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -806,7 +790,6 @@ export default function ClinicManagementPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4"><RoleBadge role={vet.role} /></td>
                         <td className="px-6 py-4 text-sm text-[#4F4F4F]">{vet.branch}</td>
                         <td className="px-6 py-4 text-sm text-[#4F4F4F]">{vet.prcLicense}</td>
                         <td className="px-6 py-4"><StatusBadge status={vet.status} /></td>

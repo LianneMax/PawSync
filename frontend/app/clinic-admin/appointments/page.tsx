@@ -2441,7 +2441,7 @@ function ClinicScheduleModal({
 
   // Form state
   const [selectedOwner, setSelectedOwner] = useState<PetOwner | null>(null)
-  const [ownerPets, setOwnerPets] = useState<{ _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean; isAlive: boolean; status: 'alive' | 'lost' | 'deceased'; deceasedAt?: string | null }[]>([])
+  const [ownerPets, setOwnerPets] = useState<{ _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean; isAlive: boolean; isConfined: boolean; status: 'alive' | 'lost' | 'deceased' | 'confined'; deceasedAt?: string | null }[]>([])
   const [branchVets, setBranchVets] = useState<BranchVet[]>([])
   const [serviceCategories, setServiceCategories] = useState<any[]>([])
   const [loadingVets, setLoadingVets] = useState(false)
@@ -2494,6 +2494,9 @@ function ClinicScheduleModal({
   const hasMedical = selectedTypes.some((type) => !groomingTypeValues.has(type))
   const isGroomingOnly = hasGrooming && !hasMedical
   const selectedPet = ownerPets.find((pet) => pet._id === selectedPetId) || null
+  const selectedPetIsDeceased = !!(selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased'))
+  const selectedPetIsLost = !!selectedPet?.isLost
+  const selectedPetIsConfined = !!(selectedPet?.isConfined || selectedPet?.status === 'confined')
   const selectedVet = branchVets.find((vet) => vet._id === selectedVetId) || null
   const selectedVetUnavailableAfter = selectedVet?.unavailableAfter ? new Date(selectedVet.unavailableAfter) : null
   const selectedDateObj = selectedDate ? new Date(selectedDate) : null
@@ -2884,8 +2887,9 @@ function ClinicScheduleModal({
     // ── Regular (existing owner) path ────────────────────────────────────────
     if (!selectedOwner) return toast.error('Please select a pet owner')
     if (!selectedPetId) return toast.error('Please select a pet')
-    if (selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased')) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
-    if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
+    if (selectedPetIsDeceased) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
+    if (selectedPetIsLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
+    if (selectedPetIsConfined) return toast.error('Appointments cannot be scheduled for pets currently in confinement.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter) {
@@ -3043,17 +3047,24 @@ function ClinicScheduleModal({
         <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
-            {!isGuestMode && selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased') && (
+            {!isGuestMode && selectedPetIsDeceased && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-sm text-amber-800 font-medium">⚠️ This pet is marked as deceased</p>
                 <p className="text-xs text-amber-700 mt-1">Appointments cannot be scheduled for deceased pets.</p>
               </div>
             )}
 
-            {!isGuestMode && selectedPet?.isLost && (
+            {!isGuestMode && selectedPetIsLost && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-800 font-medium">⚠️ This pet is marked as lost</p>
                 <p className="text-xs text-yellow-700 mt-1">Appointments cannot be scheduled for lost pets. Please update their status once they are found.</p>
+              </div>
+            )}
+
+            {!isGuestMode && selectedPetIsConfined && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800 font-medium">⚠️ This pet is currently confined</p>
+                <p className="text-xs text-blue-700 mt-1">Appointments cannot be scheduled while a pet is under confinement.</p>
               </div>
             )}
 
@@ -3170,13 +3181,17 @@ function ClinicScheduleModal({
                     value={selectedPetId}
                     placeholder="Choose a pet"
                     options={ownerPets.map((p) => ({ value: p._id, label: p.name }))}
-                    disabledOptions={ownerPets.filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased').map((pet) => pet._id)}
+                    disabledOptions={ownerPets.filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased' || pet.isConfined || pet.status === 'confined').map((pet) => pet._id)}
                     disabledReasonByValue={Object.fromEntries(
                       ownerPets
-                        .filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased')
+                        .filter((pet) => pet.isLost || !pet.isAlive || pet.status === 'deceased' || pet.isConfined || pet.status === 'confined')
                         .map((pet) => [
                           pet._id,
-                          !pet.isAlive || pet.status === 'deceased' ? 'Deceased Pet' : 'Lost Pet',
+                          !pet.isAlive || pet.status === 'deceased'
+                            ? 'Deceased Pet'
+                            : (pet.isConfined || pet.status === 'confined')
+                              ? 'Confined Pet'
+                              : 'Lost Pet',
                         ])
                     )}
                     onSelect={setSelectedPetId}
@@ -3482,7 +3497,7 @@ function ClinicScheduleModal({
         <div className="flex items-center justify-center gap-4 px-8 py-4 shrink-0 border-t border-gray-100">
           <button
             onClick={handleSubmit}
-            disabled={submitting || (!isGuestMode && (Boolean(selectedPet?.isLost) || Boolean(selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased'))))}
+            disabled={submitting || (!isGuestMode && (selectedPetIsLost || selectedPetIsDeceased || selectedPetIsConfined))}
             className={`px-8 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${isGuestMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#7FA5A3] hover:bg-[#6b9391]'}`}
           >
             {submitting ? (isGuestMode ? 'Creating...' : 'Booking...') : isGuestMode ? 'Create Guest Appointment' : 'Set an appointment'}

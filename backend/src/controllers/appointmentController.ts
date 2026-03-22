@@ -1306,7 +1306,7 @@ export const getPetsForOwner = async (req: Request, res: Response) => {
     }
 
     const pets = await Pet.find({ ownerId: ownerId as string })
-      .select('name species breed photo isLost isAlive status deceasedAt')
+      .select('name species breed photo isLost isAlive isConfined status deceasedAt')
       .sort({ name: 1 });
 
     return res.status(200).json({
@@ -1354,6 +1354,13 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(403).json({
         status: 'ERROR',
         message: `Cannot schedule an appointment for ${pet.name} as they are marked as lost. Please update their status once they are found.`
+      });
+    }
+
+    if (pet.isConfined) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Cannot schedule an appointment for ${pet.name} because the pet is currently confined.`
       });
     }
 
