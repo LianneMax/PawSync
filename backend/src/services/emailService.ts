@@ -145,6 +145,69 @@ export async function sendAppointmentCancelled(params: {
   }
 }
 
+// ─── Appointment Cancelled – Clinic Closure ──────────────────────────────────
+
+export async function sendClinicClosureCancellation(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  date: Date | string;
+  startTime: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'Appointment Cancelled',
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Cancelled</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Your appointment for <strong>${params.petName}</strong> on <strong>${formatDate(params.date)}</strong> at <strong>${params.startTime}</strong> has been cancelled due to clinic closure.</p>
+          <p style="color: #666;">Please reopen PawSync to book a new appointment.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendClinicClosureCancellation error:', err);
+  }
+}
+
+// ─── Appointment Rescheduled – Clinic Closure ────────────────────────────────
+
+export async function sendClinicClosureRescheduled(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  previousDate: Date | string;
+  previousStartTime: string;
+  newDate: Date | string;
+  newStartTime: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'Appointment Rescheduled',
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Rescheduled</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Your appointment for <strong>${params.petName}</strong> has been moved due to clinic closure.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Previous:</strong> ${formatDate(params.previousDate)} at ${params.previousStartTime}</p>
+            <p style="margin: 4px 0;"><strong>New:</strong> ${formatDate(params.newDate)} at ${params.newStartTime}</p>
+          </div>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendClinicClosureRescheduled error:', err);
+  }
+}
+
 // ─── Appointment Reassigned (Vet on Leave) ────────────────────────────────────
 
 export async function sendAppointmentReassigned(params: {

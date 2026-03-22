@@ -20,6 +20,8 @@ import {
   acceptVetInvitation,
   sendBranchEmailOTP,
   verifyBranchEmailOTP,
+  previewBranchClosure,
+  applyBranchClosure,
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -126,6 +128,18 @@ router.get('/:clinicId/branches/:branchId', authMiddleware, clinicAdminOnly, get
  * Get statistics for a specific branch (vets, patients, appointments)
  */
 router.get('/:clinicId/branches/:branchId/stats', authMiddleware, clinicAdminOnly, getBranchStats);
+
+/**
+ * POST /api/clinics/:clinicId/branches/:branchId/closure/preview
+ * Preview affected appointments for a temporary branch closure.
+ */
+router.post('/:clinicId/branches/:branchId/closure/preview', authMiddleware, clinicAdminOnly, previewBranchClosure);
+
+/**
+ * POST /api/clinics/:clinicId/branches/:branchId/closure/apply
+ * Apply temporary branch closure and cancel/reschedule affected appointments.
+ */
+router.post('/:clinicId/branches/:branchId/closure/apply', authMiddleware, clinicAdminOnly, applyBranchClosure);
 
 /**
  * POST /api/clinics/:clinicId/vets

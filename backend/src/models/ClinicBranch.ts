@@ -11,6 +11,12 @@ export interface IClinicBranch extends Document {
   openingTime: string | null;
   closingTime: string | null;
   operatingDays: string[];
+  closureDates: {
+    startDate: Date;
+    endDate: Date;
+    closureType: 'single-day' | 'date-range';
+    createdAt: Date;
+  }[];
   isMain: boolean;
   isActive: boolean;
   createdAt: Date;
@@ -65,6 +71,17 @@ const ClinicBranchSchema = new Schema(
       type: [String],
       default: [],
       enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    },
+    closureDates: {
+      type: [
+        {
+          startDate: { type: Date, required: true },
+          endDate: { type: Date, required: true },
+          closureType: { type: String, enum: ['single-day', 'date-range'], required: true },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
     },
     isMain: {
       type: Boolean,

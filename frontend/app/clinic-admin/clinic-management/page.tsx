@@ -70,12 +70,52 @@ interface Branch {
   openingTime: string
   closingTime: string
   operatingDays: string
+  closureDates?: { startDate: string; endDate: string; closureType: 'single-day' | 'date-range'; createdAt: string }[]
+}
+
+interface AffectedAppointment {
+  _id: string
+  petName: string
+  ownerName: string
+  ownerEmail: string
+  date: string
+  startTime: string
+  status: string
 }
 
 // ==================== MOCK DATA (fallback) ====================
 
 const emptyVets: Veterinarian[] = []
 const emptyBranches: Branch[] = []
+
+function toUtcDateOnly(value: string | Date): Date | null {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0))
+}
+
+function isBranchOpenNow(branch: { isActive: boolean; closureDates?: { startDate: string; endDate: string }[] }): boolean {
+  if (!branch.isActive) return false
+  if (!Array.isArray(branch.closureDates) || branch.closureDates.length === 0) return true
+
+  const now = new Date()
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0))
+  const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999))
+
+  const isClosedToday = branch.closureDates.some((closure) => {
+    const closureStart = toUtcDateOnly(closure.startDate)
+    const closureEndStart = toUtcDateOnly(closure.endDate)
+    if (!closureStart || !closureEndStart) return false
+
+    const closureEnd = new Date(closureEndStart)
+    closureEnd.setUTCHours(23, 59, 59, 999)
+
+    return closureStart <= todayEnd && closureEnd >= todayStart
+  })
+
+  // Reopens automatically the day after the inclusive endDate.
+  return !isClosedToday
+}
 
 function StatusBadge({ status }: { status: Veterinarian['status'] }) {
   const statusStyles =
@@ -134,6 +174,17 @@ export default function ClinicManagementPage() {
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
   const [removeBranchOpen, setRemoveBranchOpen] = useState(false)
   const [branchToRemove, setBranchToRemove] = useState<Branch | null>(null)
+  const [closeBranchOpen, setCloseBranchOpen] = useState(false)
+  const [branchToClose, setBranchToClose] = useState<Branch | null>(null)
+  const [closureStartDate, setClosureStartDate] = useState('')
+  const [closureEndDate, setClosureEndDate] = useState('')
+  const [closurePreviewed, setClosurePreviewed] = useState(false)
+  const [previewingClosure, setPreviewingClosure] = useState(false)
+  const [applyingClosure, setApplyingClosure] = useState(false)
+  const [affectedAppointments, setAffectedAppointments] = useState<AffectedAppointment[]>([])
+  const [closureAction, setClosureAction] = useState<'cancel' | 'reschedule' | null>(null)
+  const [closureRescheduleDate, setClosureRescheduleDate] = useState('')
+  const [closureError, setClosureError] = useState('')
   const [removeBranchStats, setRemoveBranchStats] = useState<{ vets: number; patients: number } | null>(null)
   const [removeBranchLoading, setRemoveBranchLoading] = useState(false)
   const [transferToBranchId, setTransferToBranchId] = useState('')
@@ -319,7 +370,7 @@ export default function ClinicManagementPage() {
           }
 
           if (branchesRes.status === 'SUCCESS') {
-            const apiBranches: Branch[] = (branchesRes.data.branches || []).map((b: { _id: string; name: string; address: string; isMain: boolean; isActive?: boolean; phone: string; email: string; city: string; province: string; openingTime: string; closingTime: string; operatingDays: string[] }) => ({
+            const apiBranches: Branch[] = (branchesRes.data.branches || []).map((b: { _id: string; name: string; address: string; isMain: boolean; isActive?: boolean; phone: string; email: string; city: string; province: string; openingTime: string; closingTime: string; operatingDays: string[]; closureDates?: { startDate: string; endDate: string; closureType: 'single-day' | 'date-range'; createdAt: string }[] }) => ({
               id: b._id,
               name: b.name,
               address: b.address || '',
@@ -331,12 +382,13 @@ export default function ClinicManagementPage() {
               phone: b.phone || '',
               hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
               email: b.email || (b.isMain ? (resolvedClinicEmail || user?.email || '') : ''),
-              isOpen: !!b.isActive,
+              isOpen: isBranchOpenNow({ isActive: !!b.isActive, closureDates: b.closureDates || [] }),
               city: b.city || '',
               province: b.province || '',
               openingTime: b.openingTime || '',
               closingTime: b.closingTime || '',
               operatingDays: (b.operatingDays || []).join(', '),
+              closureDates: b.closureDates || [],
             }))
             setBranches(apiBranches)
 
@@ -520,6 +572,127 @@ export default function ClinicManagementPage() {
     }
   }
 
+  const resetCloseBranchState = () => {
+    setCloseBranchOpen(false)
+    setBranchToClose(null)
+    setClosureStartDate('')
+    setClosureEndDate('')
+    setClosurePreviewed(false)
+    setPreviewingClosure(false)
+    setApplyingClosure(false)
+    setAffectedAppointments([])
+    setClosureAction(null)
+    setClosureRescheduleDate('')
+    setClosureError('')
+  }
+
+  const openCloseBranch = (branch: Branch) => {
+    const today = new Date().toISOString().slice(0, 10)
+    setBranchToClose(branch)
+    setClosureStartDate(today)
+    setClosureEndDate(today)
+    setClosurePreviewed(false)
+    setAffectedAppointments([])
+    setClosureAction(null)
+    setClosureRescheduleDate('')
+    setClosureError('')
+    setCloseBranchOpen(true)
+  }
+
+  const handlePreviewClosure = async () => {
+    if (!branchToClose || !clinicId || !token || !closureStartDate) return
+    setPreviewingClosure(true)
+    setClosureError('')
+    try {
+      const res = await authenticatedFetch(
+        `/clinics/${clinicId}/branches/${branchToClose.id}/closure/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            startDate: closureStartDate,
+            endDate: closureEndDate || closureStartDate,
+          }),
+        },
+        token,
+      )
+
+      if (res.status === 'SUCCESS') {
+        setAffectedAppointments(res.data?.affectedAppointments || [])
+        setClosurePreviewed(true)
+      } else {
+        setClosureError(res.message || 'Failed to preview affected appointments')
+      }
+    } catch (err) {
+      console.error('Failed to preview branch closure:', err)
+      setClosureError('Failed to preview affected appointments')
+    } finally {
+      setPreviewingClosure(false)
+    }
+  }
+
+  const handleApplyClosure = async () => {
+    if (!branchToClose || !clinicId || !token || !closureStartDate) return
+    if (affectedAppointments.length > 0) {
+      if (!closureAction) {
+        setClosureError('Please choose how to handle affected appointments')
+        return
+      }
+      if (closureAction === 'reschedule' && !closureRescheduleDate) {
+        setClosureError('Please select a new date for rescheduling')
+        return
+      }
+    }
+
+    setApplyingClosure(true)
+    setClosureError('')
+    try {
+      const payload: Record<string, string> = {
+        startDate: closureStartDate,
+        endDate: closureEndDate || closureStartDate,
+      }
+      if (affectedAppointments.length > 0 && closureAction) payload.action = closureAction
+      if (closureAction === 'reschedule' && closureRescheduleDate) payload.newDate = closureRescheduleDate
+
+      const res = await authenticatedFetch(
+        `/clinics/${clinicId}/branches/${branchToClose.id}/closure/apply`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        },
+        token,
+      )
+
+      if (res.status === 'SUCCESS') {
+        setBranches((prev) => prev.map((b) => {
+          if (b.id !== branchToClose.id) return b
+          const closureType = payload.startDate === payload.endDate ? 'single-day' : 'date-range'
+          const updatedClosures = [
+            ...(b.closureDates || []),
+            {
+              startDate: payload.startDate,
+              endDate: payload.endDate,
+              closureType,
+              createdAt: new Date().toISOString(),
+            },
+          ]
+          return {
+            ...b,
+            closureDates: updatedClosures,
+            isOpen: isBranchOpenNow({ isActive: b.isActive, closureDates: updatedClosures }),
+          }
+        }))
+        resetCloseBranchState()
+      } else {
+        setClosureError(res.message || 'Failed to close branch')
+      }
+    } catch (err) {
+      console.error('Failed to apply branch closure:', err)
+      setClosureError('Failed to close branch')
+    } finally {
+      setApplyingClosure(false)
+    }
+  }
+
   const resetAddForm = () => {
     setAddForm({ name: '', address: '', city: '', province: '', phone: '', email: '', openingTime: '', closingTime: '', operatingDays: [], adminPassword: '' })
     setAddFormErrors({})
@@ -581,6 +754,7 @@ export default function ClinicManagementPage() {
           openingTime: b.openingTime || '',
           closingTime: b.closingTime || '',
           operatingDays: (b.operatingDays || []).join(', '),
+          closureDates: b.closureDates || [],
         }])
         setAddBranchOpen(false)
         resetAddForm()
@@ -909,6 +1083,12 @@ export default function ClinicManagementPage() {
                     </span>
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => openCloseBranch(branch)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" /> Close Clinic
+                      </button>
+                      <button
                         onClick={() => openEditBranch(branch)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                       >
@@ -942,6 +1122,156 @@ export default function ClinicManagementPage() {
           </div>
         )}
       </div>
+
+      {/* ==================== CLOSE BRANCH MODAL ==================== */}
+      <Dialog open={closeBranchOpen} onOpenChange={(v) => { if (!v) resetCloseBranchState() }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#4F4F4F]">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              Close Clinic Branch
+            </DialogTitle>
+          </DialogHeader>
+
+          {branchToClose && (
+            <div className="space-y-4">
+              <div className="bg-[#F8F6F2] rounded-xl p-4">
+                <p className="text-sm text-gray-500">Branch</p>
+                <p className="font-semibold text-[#4F4F4F]">{branchToClose.name}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={closureStartDate}
+                    onChange={(e) => {
+                      const nextStartDate = e.target.value
+                      setClosureStartDate(nextStartDate)
+                      if (!closureEndDate || (closureEndDate && closureEndDate < nextStartDate)) {
+                        setClosureEndDate(nextStartDate)
+                      }
+                      setClosurePreviewed(false)
+                      setAffectedAppointments([])
+                      setClosureAction(null)
+                    }}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">End Date (optional)</label>
+                  <input
+                    type="date"
+                    value={closureEndDate}
+                    min={closureStartDate || undefined}
+                    onChange={(e) => {
+                      setClosureEndDate(e.target.value)
+                      setClosurePreviewed(false)
+                      setAffectedAppointments([])
+                      setClosureAction(null)
+                    }}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handlePreviewClosure}
+                  disabled={!closureStartDate || previewingClosure}
+                  className="px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+                >
+                  {previewingClosure ? 'Checking...' : 'Check Affected Appointments'}
+                </button>
+              </div>
+
+              {closurePreviewed && (
+                <>
+                  {affectedAppointments.length === 0 ? (
+                    <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                      No appointments are affected within the selected closure period. You can close this branch immediately.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        {affectedAppointments.length} appointment(s) will be affected by this closure.
+                      </div>
+
+                      <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
+                        {affectedAppointments.map((appt) => (
+                          <div key={appt._id} className="p-3 text-sm">
+                            <p className="font-semibold text-[#4F4F4F]">{appt.petName} • {appt.ownerName}</p>
+                            <p className="text-gray-500">{new Date(appt.date).toLocaleDateString()} at {appt.startTime}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-[#4F4F4F]">How do you want to handle affected appointments?</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setClosureAction('cancel')}
+                            className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                              closureAction === 'cancel'
+                                ? 'bg-red-50 border-red-300 text-red-700'
+                                : 'bg-white border-gray-200 text-[#4F4F4F] hover:bg-gray-50'
+                            }`}
+                          >
+                            Cancel Appointments
+                          </button>
+                          <button
+                            onClick={() => setClosureAction('reschedule')}
+                            className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                              closureAction === 'reschedule'
+                                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                                : 'bg-white border-gray-200 text-[#4F4F4F] hover:bg-gray-50'
+                            }`}
+                          >
+                            Reschedule Appointments
+                          </button>
+                        </div>
+                      </div>
+
+                      {closureAction === 'reschedule' && (
+                        <div>
+                          <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Select new date</label>
+                          <input
+                            type="date"
+                            value={closureRescheduleDate}
+                            onChange={(e) => setClosureRescheduleDate(e.target.value)}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {closureError && (
+                <p className="text-sm text-red-600">{closureError}</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={resetCloseBranchState}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApplyClosure}
+                  disabled={!closurePreviewed || applyingClosure}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
+                >
+                  {applyingClosure ? 'Applying...' : 'Close Clinic'}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ==================== INVITE VET MODAL ==================== */}
       <Dialog open={inviteVetOpen} onOpenChange={(v) => { if (!v) { setInviteVetOpen(false); setInviteSuccessVetId(null); setInviteErrorMsg(null) } }}>

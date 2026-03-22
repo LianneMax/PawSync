@@ -13,7 +13,13 @@ import Vaccination from '../models/Vaccination';
 import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
 import { updateBranchStatus } from '../services/branchStatusService';
-import { sendVetInvitation, sendBranchOTP, sendNewBranchNotification } from '../services/emailService';
+import {
+  sendVetInvitation,
+  sendBranchOTP,
+  sendNewBranchNotification,
+  sendClinicClosureCancellation,
+  sendClinicClosureRescheduled,
+} from '../services/emailService';
 import VetLeave from '../models/VetLeave';
 
 // ─── In-memory OTP store (email → { otp, expiresAt }) ────────────────────────
@@ -1217,6 +1223,278 @@ export const getBranchStats = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get branch stats error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching branch stats' });
+  }
+};
+
+const ACTIVE_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
+
+type ClosureAction = 'cancel' | 'reschedule';
+
+function parseDateOnlyToUtc(dateStr: string, endOfDay = false): Date {
+  return new Date(`${dateStr}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
+}
+
+function normalizeDateOnly(dateStr: string | undefined): string | undefined {
+  if (!dateStr) return undefined;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString().slice(0, 10);
+}
+
+function isBranchClosedOnDateOnly(
+  branch: { closureDates?: { startDate: Date; endDate: Date }[] },
+  dateOnly: string,
+): boolean {
+  const dayStart = parseDateOnlyToUtc(dateOnly, false);
+  const dayEnd = parseDateOnlyToUtc(dateOnly, true);
+  return (branch.closureDates || []).some((closure) => {
+    const closureStart = new Date(closure.startDate);
+    const closureEnd = new Date(closure.endDate);
+    return closureStart <= dayEnd && closureEnd >= dayStart;
+  });
+}
+
+async function getAffectedAppointmentsForBranchClosure(params: {
+  clinicId: mongoose.Types.ObjectId;
+  branchId: string;
+  startDate: Date;
+  endDate: Date;
+}) {
+  const appointments = await Appointment.find({
+    clinicId: params.clinicId,
+    clinicBranchId: params.branchId,
+    status: { $in: ACTIVE_APPOINTMENT_STATUSES },
+    date: { $gte: params.startDate, $lte: params.endDate },
+  })
+    .populate('petId', 'name')
+    .populate('ownerId', 'firstName lastName email')
+    .populate('vetId', 'firstName lastName')
+    .sort({ date: 1, startTime: 1 });
+
+  return appointments;
+}
+
+/**
+ * POST /api/clinics/:clinicId/branches/:branchId/closure/preview
+ * Preview affected appointments for a branch closure date/range.
+ */
+export const previewBranchClosure = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: req.params.branchId, clinicId: clinic._id, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const startDateOnly = normalizeDateOnly(req.body?.startDate);
+    const endDateOnly = normalizeDateOnly(req.body?.endDate) || startDateOnly;
+
+    if (!startDateOnly || !endDateOnly) {
+      return res.status(400).json({ status: 'ERROR', message: 'startDate is required' });
+    }
+
+    const startDate = parseDateOnlyToUtc(startDateOnly, false);
+    const endDate = parseDateOnlyToUtc(endDateOnly, true);
+    if (endDate < startDate) {
+      return res.status(400).json({ status: 'ERROR', message: 'End date must be on or after start date' });
+    }
+
+    const affectedAppointments = await getAffectedAppointmentsForBranchClosure({
+      clinicId: clinic._id,
+      branchId: branch._id.toString(),
+      startDate,
+      endDate,
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        closureType: startDateOnly === endDateOnly ? 'single-day' : 'date-range',
+        startDate: startDateOnly,
+        endDate: endDateOnly,
+        affectedAppointments: affectedAppointments.map((appt: any) => ({
+          _id: appt._id,
+          petName: appt.petId?.name || 'Unknown Pet',
+          ownerName: `${appt.ownerId?.firstName || ''} ${appt.ownerId?.lastName || ''}`.trim(),
+          ownerEmail: appt.ownerId?.email || '',
+          date: appt.date,
+          startTime: appt.startTime,
+          status: appt.status,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Preview branch closure error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while previewing branch closure' });
+  }
+};
+
+/**
+ * POST /api/clinics/:clinicId/branches/:branchId/closure/apply
+ * Apply a temporary branch closure and optionally cancel/reschedule affected appointments.
+ */
+export const applyBranchClosure = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: req.params.branchId, clinicId: clinic._id, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const startDateOnly = normalizeDateOnly(req.body?.startDate);
+    const endDateOnly = normalizeDateOnly(req.body?.endDate) || startDateOnly;
+    const action = req.body?.action as ClosureAction | undefined;
+    const newDateOnly = normalizeDateOnly(req.body?.newDate);
+
+    if (!startDateOnly || !endDateOnly) {
+      return res.status(400).json({ status: 'ERROR', message: 'startDate is required' });
+    }
+
+    const startDate = parseDateOnlyToUtc(startDateOnly, false);
+    const endDate = parseDateOnlyToUtc(endDateOnly, true);
+    if (endDate < startDate) {
+      return res.status(400).json({ status: 'ERROR', message: 'End date must be on or after start date' });
+    }
+
+    const affectedAppointments = await getAffectedAppointmentsForBranchClosure({
+      clinicId: clinic._id,
+      branchId: branch._id.toString(),
+      startDate,
+      endDate,
+    });
+
+    if (affectedAppointments.length > 0) {
+      if (!action || !['cancel', 'reschedule'].includes(action)) {
+        return res.status(400).json({ status: 'ERROR', message: 'Action is required when affected appointments exist' });
+      }
+
+      if (action === 'reschedule') {
+        if (!newDateOnly) {
+          return res.status(400).json({ status: 'ERROR', message: 'newDate is required for rescheduling' });
+        }
+        const newDate = parseDateOnlyToUtc(newDateOnly, false);
+        if (newDate >= startDate && newDate <= endDate) {
+          return res.status(400).json({ status: 'ERROR', message: 'New date cannot be inside the closure range' });
+        }
+        if (isBranchClosedOnDateOnly(branch as any, newDateOnly)) {
+          return res.status(400).json({
+            status: 'ERROR',
+            message: 'New date falls on an existing branch closure. Select a date when the branch is open.',
+          });
+        }
+
+        const targetDayStart = parseDateOnlyToUtc(newDateOnly, false);
+        const targetDayEnd = parseDateOnlyToUtc(newDateOnly, true);
+
+        const duplicateKey = new Set<string>();
+        for (const appt of affectedAppointments as any[]) {
+          const vetId = appt.vetId ? appt.vetId.toString() : '';
+          const key = `${vetId}:${appt.startTime}`;
+          if (duplicateKey.has(key) && vetId) {
+            return res.status(409).json({
+              status: 'ERROR',
+              message: `Reschedule conflict: multiple affected appointments share time ${appt.startTime} for the same vet`,
+            });
+          }
+          duplicateKey.add(key);
+        }
+
+        for (const appt of affectedAppointments as any[]) {
+          if (!appt.vetId) continue;
+          const conflict = await Appointment.findOne({
+            _id: { $ne: appt._id },
+            vetId: appt.vetId,
+            clinicId: clinic._id,
+            date: { $gte: targetDayStart, $lte: targetDayEnd },
+            startTime: appt.startTime,
+            status: { $in: ACTIVE_APPOINTMENT_STATUSES },
+            isEmergency: false,
+          }).select('_id');
+
+          if (conflict) {
+            return res.status(409).json({
+              status: 'ERROR',
+              message: `Selected date has slot conflicts for one or more appointments (${appt.startTime})`,
+            });
+          }
+        }
+
+        for (const appt of affectedAppointments as any[]) {
+          const previousDate = appt.date;
+          const previousStartTime = appt.startTime;
+          appt.date = targetDayStart;
+          appt.status = 'rescheduled';
+          await appt.save();
+
+          if (appt.ownerId?.email) {
+            sendClinicClosureRescheduled({
+              ownerEmail: appt.ownerId.email,
+              ownerFirstName: appt.ownerId.firstName || 'Pet Owner',
+              petName: appt.petId?.name || 'your pet',
+              previousDate,
+              previousStartTime,
+              newDate: targetDayStart,
+              newStartTime: appt.startTime,
+            }).catch((err) => console.error('[applyBranchClosure] reschedule email failed:', err));
+          }
+        }
+      }
+
+      if (action === 'cancel') {
+        for (const appt of affectedAppointments as any[]) {
+          appt.status = 'cancelled';
+          await appt.save();
+
+          if (appt.ownerId?.email) {
+            sendClinicClosureCancellation({
+              ownerEmail: appt.ownerId.email,
+              ownerFirstName: appt.ownerId.firstName || 'Pet Owner',
+              petName: appt.petId?.name || 'your pet',
+              date: appt.date,
+              startTime: appt.startTime,
+            }).catch((err) => console.error('[applyBranchClosure] cancellation email failed:', err));
+          }
+        }
+      }
+    }
+
+    const closureType = startDateOnly === endDateOnly ? 'single-day' : 'date-range';
+    branch.closureDates = [
+      ...(branch.closureDates || []),
+      { startDate, endDate, closureType, createdAt: new Date() },
+    ] as any;
+    await branch.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Branch closure applied successfully',
+      data: {
+        closureType,
+        startDate: startDateOnly,
+        endDate: endDateOnly,
+        affectedCount: affectedAppointments.length,
+        action: action || null,
+      },
+    });
+  } catch (error) {
+    console.error('Apply branch closure error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while applying branch closure' });
   }
 };
 

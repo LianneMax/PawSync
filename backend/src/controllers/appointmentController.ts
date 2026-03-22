@@ -117,6 +117,52 @@ function getVetBookingCutoffDate(
   return cutoff;
 }
 
+function getUtcDayBounds(dateInput: string | Date): { dayStart: Date; dayEnd: Date } | null {
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const dayStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  const dayEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+  return { dayStart, dayEnd };
+}
+
+function getBranchClosureStateOnDate(
+  branch: { isActive?: boolean; closureDates?: { startDate: Date; endDate: Date }[] } | null,
+  dateInput: string | Date,
+): { isClosed: boolean; reopensOn?: string } {
+  if (!branch || !branch.isActive) {
+    return { isClosed: true };
+  }
+
+  const dayBounds = getUtcDayBounds(dateInput);
+  if (!dayBounds) return { isClosed: false };
+
+  const overlappingClosure = (branch.closureDates || []).find((closure) => {
+    const closureStart = new Date(closure.startDate);
+    const closureEnd = new Date(closure.endDate);
+    return closureStart <= dayBounds.dayEnd && closureEnd >= dayBounds.dayStart;
+  });
+
+  if (!overlappingClosure) {
+    return { isClosed: false };
+  }
+
+  const reopenDate = new Date(overlappingClosure.endDate);
+  reopenDate.setUTCDate(reopenDate.getUTCDate() + 1);
+
+  return {
+    isClosed: true,
+    reopensOn: reopenDate.toISOString().slice(0, 10),
+  };
+}
+
+function getBranchClosedMessage(reopensOn?: string): string {
+  if (!reopensOn) {
+    return 'This branch is currently closed and cannot accept appointments.';
+  }
+  return `This branch is currently closed and cannot accept appointments. It will reopen on ${reopensOn}.`;
+}
+
 /**
  * Create a new appointment
  */
@@ -268,6 +314,23 @@ export const createAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Cannot book an appointment in the past'
+      });
+    }
+
+    const targetBranch = await ClinicBranch.findOne({
+      _id: clinicBranchId,
+      clinicId,
+    }).select('isActive closureDates');
+
+    if (!targetBranch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const branchClosureState = getBranchClosureStateOnDate(targetBranch as any, date as string);
+    if (branchClosureState.isClosed) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: getBranchClosedMessage(branchClosureState.reopensOn),
       });
     }
 
@@ -522,6 +585,22 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     let isClosed = false;
 
     if (branchId) {
+      const branch = await ClinicBranch.findById(branchId as string).select('isActive closureDates openingTime closingTime operatingDays');
+      if (branch) {
+        const closureState = getBranchClosureStateOnDate(branch as any, date as string);
+        if (closureState.isClosed) {
+          return res.status(200).json({
+            status: 'SUCCESS',
+            data: {
+              slots: [],
+              isClosed: true,
+              closureMessage: getBranchClosedMessage(closureState.reopensOn),
+              reopensOn: closureState.reopensOn || null,
+            },
+          });
+        }
+      }
+
       const vetSchedule = await VetSchedule.findOne({
         vetId: vetId as string,
         branchId: branchId as string
@@ -619,7 +698,24 @@ export const getGroomingSlots = async (req: Request, res: Response) => {
     let slotEnd = '17:00';
     let isClosed = false;
 
-    const branch = await ClinicBranch.findById(branchId as string);
+    const branch = await ClinicBranch.findById(branchId as string).select('isActive closureDates openingTime closingTime operatingDays');
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const closureState = getBranchClosureStateOnDate(branch as any, date as string);
+    if (closureState.isClosed) {
+      return res.status(200).json({
+        status: 'SUCCESS',
+        data: {
+          slots: [],
+          isClosed: true,
+          closureMessage: getBranchClosedMessage(closureState.reopensOn),
+          reopensOn: closureState.reopensOn || null,
+        },
+      });
+    }
+
     if (branch) {
       if (branch.operatingDays.length > 0 && !branch.operatingDays.includes(dayName)) {
         isClosed = true;
@@ -1083,6 +1179,22 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Date, start time, and end time are required' });
     }
 
+    const branch = await ClinicBranch.findOne({
+      _id: appointment.clinicBranchId,
+      clinicId: appointment.clinicId,
+    }).select('isActive closureDates');
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const branchClosureState = getBranchClosureStateOnDate(branch as any, date as string);
+    if (branchClosureState.isClosed) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: getBranchClosedMessage(branchClosureState.reopensOn),
+      });
+    }
+
     const oldDate = appointment.date;
     const oldStartTime = appointment.startTime;
     const oldEndTime = appointment.endTime;
@@ -1357,6 +1469,22 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Cannot book an appointment in the past'
+      });
+    }
+
+    const clinicTargetBranch = await ClinicBranch.findOne({
+      _id: clinicBranchId,
+      clinicId,
+    }).select('isActive closureDates');
+    if (!clinicTargetBranch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const clinicBranchClosureState = getBranchClosureStateOnDate(clinicTargetBranch as any, date as string);
+    if (clinicBranchClosureState.isClosed) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: getBranchClosedMessage(clinicBranchClosureState.reopensOn),
       });
     }
 
@@ -2134,6 +2262,22 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
     }
     if (appointmentStartDateTime.getTime() < Date.now()) {
       return res.status(400).json({ status: 'ERROR', message: 'Cannot book an appointment in the past' });
+    }
+
+    const guestTargetBranch = await ClinicBranch.findOne({
+      _id: clinicBranchId,
+      clinicId,
+    }).select('isActive closureDates');
+    if (!guestTargetBranch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const guestBranchClosureState = getBranchClosureStateOnDate(guestTargetBranch as any, date as string);
+    if (guestBranchClosureState.isClosed) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: getBranchClosedMessage(guestBranchClosureState.reopensOn),
+      });
     }
 
     // ── Validate appointment types / mode ────────────────────────────────────
