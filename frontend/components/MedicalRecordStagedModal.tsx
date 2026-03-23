@@ -86,6 +86,7 @@ interface Props {
   appointmentTypes?: string[]
   appointmentTiterFirst?: boolean
   appointmentDate?: string | null
+  appointmentMode?: 'online' | 'face-to-face'
   onComplete: () => void
   onClose: () => void
 }
@@ -692,7 +693,7 @@ function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: 
   }
 }
 
-export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, onComplete, onClose }: Props) {
+export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, appointmentMode, onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
   const [step, setStep] = useState<StepKey>(1)
   const [pet, setPet] = useState<Pet | null>(null)
@@ -769,6 +770,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   // Referral and scheduled surgery do not block discharge (they can coexist).
   const autoDischarge = !confined && !euthanasia
   const billableFieldsLocked = !!appointmentId && recordStage === 'completed' && !confined
+  const isOnlineAppointment = appointmentMode === 'online'
 
   // Load pet-level vet notes on mount
   useEffect(() => {
@@ -3452,8 +3454,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {testsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {testsOpen && (
-                  <fieldset disabled={billableFieldsLocked} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
-                    {billableFieldsLocked && (
+                  <fieldset disabled={billableFieldsLocked || isOnlineAppointment} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
+                    {isOnlineAppointment && (
+                      <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        Products and services cannot be added to online appointments.
+                      </p>
+                    )}
+                    {billableFieldsLocked && !isOnlineAppointment && (
                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                         Billable services are locked for completed appointments.
                       </p>
@@ -4768,7 +4775,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {medsOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {medsOpen && (
-                  <fieldset disabled={billableFieldsLocked} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
+                  <fieldset disabled={billableFieldsLocked || isOnlineAppointment} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
+                    {isOnlineAppointment && (
+                      <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        Products and services cannot be added to online appointments.
+                      </p>
+                    )}
                     {/* Medication reconciliation from previous visit */}
                     {carryoverMeds.length > 0 && !carryoverApplied && medications.length === 0 && (
                       <div className="mt-3 border border-amber-200 rounded-xl overflow-hidden bg-amber-50/40">
@@ -5093,7 +5105,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {preventiveOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {preventiveOpen && (
-                  <fieldset disabled={billableFieldsLocked} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
+                  <fieldset disabled={billableFieldsLocked || isOnlineAppointment} className="px-4 pb-4 border-t border-gray-50 space-y-3 disabled:opacity-70">
+                    {isOnlineAppointment && (
+                      <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        Products and services cannot be added to online appointments.
+                      </p>
+                    )}
                     {preventiveCare.map((care, i) => {
                       return (
                         <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-2">

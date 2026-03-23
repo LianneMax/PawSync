@@ -65,6 +65,7 @@ export default function VetAppointmentsPage() {
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null)
   const [activePetId, setActivePetId] = useState<string | null>(null)
   const [activeApptTypes, setActiveApptTypes] = useState<string[]>([])
+  const [activeApptMode, setActiveApptMode] = useState<'online' | 'face-to-face' | undefined>(undefined)
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return
@@ -96,6 +97,7 @@ export default function VetAppointmentsPage() {
           setActiveAppointmentId(appt._id)
           setActivePetId(petId)
           setActiveApptTypes(appt.types || [])
+          setActiveApptMode(appt.mode)
           setModalOpen(true)
           fetchAppointments()
         }
@@ -118,6 +120,7 @@ export default function VetAppointmentsPage() {
         setActiveAppointmentId(appt._id)
         setActivePetId(petId)
         setActiveApptTypes(appt.types || [])
+        setActiveApptMode(appt.mode)
         setModalOpen(true)
       } else {
         alert('Could not find the visit record. Please try again.')
@@ -136,6 +139,7 @@ export default function VetAppointmentsPage() {
       setActiveRecordId(recordId)
       setActiveAppointmentId(appt._id)
       setActivePetId(petId)
+      setActiveApptMode(appt.mode)
       setModalOpen(true)
       return
     }
@@ -147,6 +151,7 @@ export default function VetAppointmentsPage() {
         setActiveRecordId(res.data.record._id)
         setActiveAppointmentId(appt._id)
         setActivePetId(petId)
+        setActiveApptMode(appt.mode)
         setModalOpen(true)
       } else {
         alert('No medical record found for this appointment.')
@@ -161,6 +166,7 @@ export default function VetAppointmentsPage() {
     setActiveRecordId(null)
     setActiveAppointmentId(null)
     setActivePetId(null)
+    setActiveApptMode(undefined)
     fetchAppointments()
   }
 
@@ -169,6 +175,7 @@ export default function VetAppointmentsPage() {
     setActiveRecordId(null)
     setActiveAppointmentId(null)
     setActivePetId(null)
+    setActiveApptMode(undefined)
     fetchAppointments()
   }
 
@@ -402,6 +409,7 @@ export default function VetAppointmentsPage() {
           appointmentId={activeAppointmentId}
           petId={activePetId}
           appointmentTypes={activeApptTypes}
+          appointmentMode={activeApptMode}
           onComplete={handleModalComplete}
           onClose={handleModalClose}
         />

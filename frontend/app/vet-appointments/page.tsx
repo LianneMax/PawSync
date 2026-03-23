@@ -186,6 +186,7 @@ export default function VetAppointmentsPage() {
   const [activePetId, setActivePetId] = useState<string | null>(null)
   const [activeAppointmentTypes, setActiveAppointmentTypes] = useState<string[]>([])
   const [activeAppointmentDate, setActiveAppointmentDate] = useState<string | null>(null)
+  const [activeAppointmentMode, setActiveAppointmentMode] = useState<'online' | 'face-to-face' | undefined>(undefined)
 
   const { data: apptData, isLoading: loading, mutate: refreshAppointments } = useSWR(
     token ? '/appointments/vet' : null,
@@ -309,6 +310,7 @@ export default function VetAppointmentsPage() {
           setActivePetId(petId)
           setActiveAppointmentTypes(appt.types || [])
           setActiveAppointmentDate(appt.date || null)
+          setActiveAppointmentMode(appt.mode)
           setModalOpen(true)
           refreshAppointments()
         }
@@ -332,6 +334,7 @@ export default function VetAppointmentsPage() {
         setActivePetId(petId)
         setActiveAppointmentTypes(appt.types || [])
         setActiveAppointmentDate(appt.date || null)
+        setActiveAppointmentMode(appt.mode)
         setModalOpen(true)
       } else {
         toast.error('Could not find the visit record. Please try again.')
@@ -348,6 +351,7 @@ export default function VetAppointmentsPage() {
     setActivePetId(null)
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
+    setActiveAppointmentMode(undefined)
     refreshAppointments()
   }
 
@@ -358,6 +362,7 @@ export default function VetAppointmentsPage() {
     setActivePetId(null)
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
+    setActiveAppointmentMode(undefined)
     refreshAppointments()
   }
 
@@ -980,6 +985,7 @@ export default function VetAppointmentsPage() {
           petId={activePetId}
           appointmentTypes={activeAppointmentTypes}
           appointmentDate={activeAppointmentDate}
+          appointmentMode={activeAppointmentMode}
           onComplete={handleModalComplete}
           onClose={handleModalClose}
         />
