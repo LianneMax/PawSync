@@ -125,7 +125,11 @@ export default function PetProfilePage() {
   const [foundStep, setFoundStep] = useState<'alert' | 'location' | 'success'>('alert')
   const [isReportingFound, setIsReportingFound] = useState(false)
   const [isSharingLocation, setIsSharingLocation] = useState(false)
-  const [locationShared, setLocationShared] = useState(false)
+  const locationStorageKey = `pawsync_location_shared_${petId}`
+  const [locationShared, setLocationShared] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem(`pawsync_location_shared_${petId}`) === 'true'
+  })
   const [showOwnerLostModal, setShowOwnerLostModal] = useState(false)
   const [showStrangerMissingConfirmModal, setShowStrangerMissingConfirmModal] = useState(false)
   const [lostNameShown, setLostNameShown] = useState('')
@@ -142,7 +146,7 @@ export default function PetProfilePage() {
     if (pet?.isLost && owner && !drawerTriggeredRef.current) {
       drawerTriggeredRef.current = true
       const isOwner = !!userId && userId === owner._id
-      if (!isOwner) {
+      if (!isOwner && !locationShared) {
         setShowFoundDrawer(true)
         // Fire-and-forget scan alert to the owner
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
@@ -356,6 +360,7 @@ export default function PetProfilePage() {
         setPet(prev => prev ? { ...prev, scanLocations: [...prev.scanLocations, newEntry] } : null)
       }
 
+      localStorage.setItem(locationStorageKey, 'true')
       setLocationShared(true)
       setFoundStep('success')
     } catch {
@@ -400,6 +405,7 @@ export default function PetProfilePage() {
           }]
         } : null)
       }
+      localStorage.setItem(locationStorageKey, 'true')
       setLocationShared(true)
       toast.success('Location Shared', { description: 'The owner has been notified. Thank you!' })
     } catch {
