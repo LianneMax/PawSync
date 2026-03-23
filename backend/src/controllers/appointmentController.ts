@@ -950,9 +950,13 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     }
 
     // When checking in (confirmed → in_progress), auto-create a draft medical record
-    // only for appointments that have an assigned vet.
+    // only for appointments that have an assigned vet and are NOT grooming-only.
+    const GROOMING_TYPES = ['basic-grooming', 'full-grooming'];
+    const isGroomingOnly = Array.isArray(appointment.types) && appointment.types.length > 0 &&
+      appointment.types.every((t: string) => GROOMING_TYPES.includes(t));
+
     let medicalRecordId: string | undefined;
-    if (status === 'in_progress' && appointment.vetId) {
+    if (status === 'in_progress' && appointment.vetId && !isGroomingOnly) {
       const resolvedServiceLabel = formatAppointmentTypesForServiceLabel(appointment.types || []);
       const resolvedServiceDate = appointment.date ? new Date(appointment.date) : new Date();
 

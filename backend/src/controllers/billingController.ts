@@ -92,6 +92,18 @@ export const createBilling = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'ownerId and petId are required' });
     }
 
+    // Idempotency: prevent duplicate billings for the same appointment
+    if (appointmentId) {
+      const existingBilling = await Billing.findOne({ appointmentId }).populate(POPULATE_BILLING);
+      if (existingBilling) {
+        return res.status(200).json({
+          status: 'SUCCESS',
+          message: 'Billing already exists for this appointment',
+          data: { billing: existingBilling },
+        });
+      }
+    }
+
     // Billing always starts as pending_payment; ignore any other incoming status
     const resolvedStatus = 'pending_payment';
 
@@ -542,6 +554,19 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
     if (paymentMethod !== undefined) (billing as any).paymentMethod = paymentMethod;
     await billing.save();
 
+    // Auto-complete grooming appointment when billing is paid
+    if (billing.appointmentId) {
+      const GROOMING_TYPES = ['basic-grooming', 'full-grooming'];
+      const appt = await Appointment.findById(billing.appointmentId);
+      if (appt && Array.isArray(appt.types) && appt.types.length > 0 &&
+          appt.types.every((t: string) => GROOMING_TYPES.includes(t))) {
+        if (appt.status !== 'completed' && appt.status !== 'cancelled') {
+          appt.status = 'completed';
+          await appt.save();
+        }
+      }
+    }
+
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
 
     // Send receipt email to owner (fire-and-forget)
@@ -720,6 +745,19 @@ export const approveQrPayment = async (req: Request, res: Response) => {
     (billing as any).amountPaid = billing.totalAmountDue;
     billing.pendingQrApproval = false;
     await billing.save();
+
+    // Auto-complete grooming appointment when billing is paid via QR
+    if (billing.appointmentId) {
+      const GROOMING_TYPES = ['basic-grooming', 'full-grooming'];
+      const appt = await Appointment.findById(billing.appointmentId);
+      if (appt && Array.isArray(appt.types) && appt.types.length > 0 &&
+          appt.types.every((t: string) => GROOMING_TYPES.includes(t))) {
+        if (appt.status !== 'completed' && appt.status !== 'cancelled') {
+          appt.status = 'completed';
+          await appt.save();
+        }
+      }
+    }
 
     const populated = await Billing.findById(billing._id).populate(POPULATE_BILLING) as any;
 

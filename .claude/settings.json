@@ -37,7 +37,8 @@
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync -type f -name *.env*)",
       "Bash(find /Users/juliannalammoglia/Desktop/PawSync -name database* -o -name seed* -o -name migration*)",
       "Bash(xargs ls:*)",
-      "Bash(grep -r \"export.*function\\\\|export.*const.*=\\\\|class.*extends\" /Users/juliannalammoglia/Desktop/PawSync/backend/src/controllers/*.ts)"
+      "Bash(grep -r \"export.*function\\\\|export.*const.*=\\\\|class.*extends\" /Users/juliannalammoglia/Desktop/PawSync/backend/src/controllers/*.ts)",
+      "Bash(grep -n \"clinicCheckInAppointment\\\\|running\\\\|status.*running\" /Users/juliannalammoglia/Desktop/PawSync/frontend/lib/*.ts)"
     ]
   }
 }

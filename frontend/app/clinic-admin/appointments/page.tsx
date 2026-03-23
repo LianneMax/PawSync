@@ -1324,15 +1324,6 @@ export default function ClinicAdminAppointmentsPage() {
         const appointment = appointments.find(a => a._id === appointmentToCheckIn)
         const petName = appointment?.petId?.name || 'Pet'
 
-        // Auto-create billing for grooming appointments (no vet approval needed)
-        if (appointment) {
-          const isGroomingOnly = appointment.types?.some(t => GROOMING_TYPES.includes(t)) &&
-            !appointment.types?.some(t => !GROOMING_TYPES.includes(t))
-          if (isGroomingOnly) {
-            await createGroomingBilling(appointment)
-          }
-        }
-
         toast(
           <div className="flex gap-2">
             <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
