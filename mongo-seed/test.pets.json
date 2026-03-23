@@ -1,0 +1,402 @@
+[{
+  "_id": {
+    "$oid": "69c099e4ecffe5509c6d132d"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "status": "alive",
+  "name": "Blu Reaño",
+  "species": "canine",
+  "breed": "Dachshund",
+  "secondaryBreed": null,
+  "sex": "male",
+  "dateOfBirth": {
+    "$date": "2016-09-14T00:00:00.000Z"
+  },
+  "weight": 7,
+  "sterilization": "unneutered",
+  "microchipNumber": null,
+  "nfcTagId": "04774246560AD0",
+  "qrCode": "data:image/png;base64,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",
+  "photo": "/uploads/pets/1774230091005-908441374.jpg",
+  "color": "Gray",
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": null,
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T01:39:48.057Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:45:15.380Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09a44fabdec10364d6faa"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "status": "alive",
+  "name": "Tamago",
+  "species": "canine",
+  "breed": "Yorkshire Terrier",
+  "secondaryBreed": null,
+  "sex": "male",
+  "dateOfBirth": {
+    "$date": "2020-03-05T00:00:00.000Z"
+  },
+  "weight": 2,
+  "sterilization": "unneutered",
+  "microchipNumber": null,
+  "nfcTagId": null,
+  "qrCode": "data:image/png;base64,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",
+  "photo": "/uploads/pets/1774230018120-723756197.jpg",
+  "color": null,
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T01:41:24.624Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:26:55.567Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09a78ecffe5509c6d140f"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "status": "alive",
+  "name": "Rojo Reaño",
+  "species": "canine",
+  "breed": "Shihtzu",
+  "secondaryBreed": null,
+  "sex": "male",
+  "dateOfBirth": {
+    "$date": "2024-03-09T00:00:00.000Z"
+  },
+  "weight": 7,
+  "sterilization": "unneutered",
+  "microchipNumber": null,
+  "nfcTagId": null,
+  "qrCode": "data:image/png;base64,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",
+  "photo": null,
+  "color": "Brown",
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T01:42:16.727Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:24:28.023Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "status": "alive",
+  "name": "Yoru",
+  "species": "feline",
+  "breed": "European Shorthair",
+  "secondaryBreed": null,
+  "sex": "female",
+  "dateOfBirth": {
+    "$date": "2021-09-13T00:00:00.000Z"
+  },
+  "weight": 6,
+  "sterilization": "unspayed",
+  "microchipNumber": null,
+  "nfcTagId": "04774293330BD0",
+  "qrCode": "data:image/png;base64,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",
+  "photo": "/uploads/pets/1774230116263-318638851.jpg",
+  "color": "Bicolor: Black and White Mix",
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T01:43:23.266Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:51.454Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09b02fabdec10364d6fd8"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "status": "alive",
+  "name": "Chutni",
+  "species": "canine",
+  "breed": "Yorkshire Terrier",
+  "secondaryBreed": null,
+  "sex": "female",
+  "dateOfBirth": {
+    "$date": "2024-10-07T00:00:00.000Z"
+  },
+  "weight": 4,
+  "sterilization": "spayed",
+  "microchipNumber": null,
+  "nfcTagId": null,
+  "qrCode": "data:image/png;base64,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",
+  "photo": "/uploads/pets/1774230224867-185966585.jpg",
+  "color": "Light Brown, Mole on the Back",
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": null,
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T01:44:34.365Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:44:34.512Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "status": "alive",
+  "name": "Bobi",
+  "species": "canine",
+  "breed": "Yorkshire Terrier",
+  "secondaryBreed": null,
+  "sex": "male",
+  "dateOfBirth": {
+    "$date": "2024-03-03T00:00:00.000Z"
+  },
+  "weight": 3,
+  "sterilization": "neutered",
+  "microchipNumber": null,
+  "nfcTagId": "04774209270AD0",
+  "qrCode": "data:image/png;base64,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",
+  "photo": "/uploads/pets/1774230301764-939065003.jpg",
+  "color": null,
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T01:46:52.988Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:43.373Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "status": "alive",
+  "name": "Kath Reaño",
+  "species": "feline",
+  "breed": "British Shorthair",
+  "secondaryBreed": "Russian Blue",
+  "sex": "female",
+  "dateOfBirth": {
+    "$date": "2024-03-20T00:00:00.000Z"
+  },
+  "weight": 5,
+  "sterilization": "spayed",
+  "microchipNumber": null,
+  "nfcTagId": null,
+  "qrCode": "data:image/png;base64,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",
+  "photo": "/uploads/pets/1774233581665-578650236.jpg",
+  "color": null,
+  "bloodType": null,
+  "allergies": [],
+  "totalPregnancies": 0,
+  "totalLitters": 0,
+  "lastDeliveryDate": null,
+  "pregnancyStatus": null,
+  "assignedVetId": {
+    "$oid": "69c09db0ecffe5509c6d15b9"
+  },
+  "isLost": false,
+  "isAlive": true,
+  "deceasedAt": null,
+  "deceasedBy": null,
+  "removedByOwner": false,
+  "removedAt": null,
+  "lostReportedByStranger": false,
+  "lostContactName": null,
+  "lostContactNumber": null,
+  "lostMessage": null,
+  "isConfined": false,
+  "confinedSince": null,
+  "currentConfinementRecordId": null,
+  "lastScannedLat": null,
+  "lastScannedLng": null,
+  "lastScannedAt": null,
+  "scanLocations": [],
+  "previousOwners": [],
+  "createdAt": {
+    "$date": "2026-03-23T02:41:36.336Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:48:06.029Z"
+  },
+  "__v": 0
+}]

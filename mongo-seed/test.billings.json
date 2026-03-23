@@ -1,0 +1,839 @@
+[{
+  "_id": {
+    "$oid": "69c09aa7ecffe5509c6d1439"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petId": {
+    "$oid": "69c099e4ecffe5509c6d132d"
+  },
+  "vetId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": null,
+  "confinementRecordId": null,
+  "appointmentId": null,
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69bebb5cd7535f157bafd51c"
+      },
+      "vaccineTypeId": null,
+      "name": "NFC Pet Tag",
+      "type": "Product",
+      "unitPrice": 250,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c09aa7ecffe5509c6d143a"
+      }
+    }
+  ],
+  "subtotal": 250,
+  "discount": 0,
+  "totalAmountDue": 250,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:36:51.267Z"
+  },
+  "amountPaid": 250,
+  "paymentMethod": "cash",
+  "serviceLabel": "NFC Pet Tag",
+  "serviceDate": {
+    "$date": "2026-03-23T01:43:03.770Z"
+  },
+  "qrPaymentProof": null,
+  "qrPaymentSubmittedAt": null,
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T01:43:03.793Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:36:51.274Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09c73fabdec10364d704b"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "vetId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": null,
+  "confinementRecordId": null,
+  "appointmentId": null,
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69bebb5cd7535f157bafd51c"
+      },
+      "vaccineTypeId": null,
+      "name": "NFC Pet Tag",
+      "type": "Product",
+      "unitPrice": 250,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c09c73fabdec10364d704c"
+      }
+    }
+  ],
+  "subtotal": 250,
+  "discount": 0,
+  "totalAmountDue": 250,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:28:45.568Z"
+  },
+  "amountPaid": 250,
+  "paymentMethod": "qr",
+  "serviceLabel": "NFC Pet Tag",
+  "serviceDate": {
+    "$date": "2026-03-23T01:50:43.062Z"
+  },
+  "qrPaymentProof": "/uploads/payment-screenshots/1774235782666-303556117.jpeg",
+  "qrPaymentSubmittedAt": {
+    "$date": "2026-03-23T03:16:23.555Z"
+  },
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T01:50:43.065Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:45.570Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09c8dfabdec10364d705f"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "vetId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": null,
+  "confinementRecordId": null,
+  "appointmentId": null,
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69bebb5cd7535f157bafd51c"
+      },
+      "vaccineTypeId": null,
+      "name": "NFC Pet Tag",
+      "type": "Product",
+      "unitPrice": 250,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c09c8dfabdec10364d7060"
+      }
+    }
+  ],
+  "subtotal": 250,
+  "discount": 0,
+  "totalAmountDue": 250,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:28:40.739Z"
+  },
+  "amountPaid": 250,
+  "paymentMethod": "qr",
+  "serviceLabel": "NFC Pet Tag",
+  "serviceDate": {
+    "$date": "2026-03-23T01:51:09.639Z"
+  },
+  "qrPaymentProof": "/uploads/payment-screenshots/1774235791623-349080821.jpeg",
+  "qrPaymentSubmittedAt": {
+    "$date": "2026-03-23T03:16:32.583Z"
+  },
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T01:51:09.640Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:40.740Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a294ecffe5509c6d16d7"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petId": {
+    "$oid": "69c09a78ecffe5509c6d140f"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0a294ecffe5509c6d16d3"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0a240ecffe5509c6d1690"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69b97d19ff4752c119a394d3"
+      },
+      "vaccineTypeId": null,
+      "name": "General Consulation",
+      "type": "Service",
+      "unitPrice": 350,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0ac8566beeee960a846f7"
+      }
+    }
+  ],
+  "subtotal": 350,
+  "discount": 0,
+  "totalAmountDue": 350,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T02:59:58.672Z"
+  },
+  "amountPaid": 350,
+  "paymentMethod": "cash",
+  "serviceLabel": "General Consulation",
+  "serviceDate": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "qrPaymentProof": null,
+  "qrPaymentSubmittedAt": null,
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T02:16:52.786Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:58.683Z"
+  },
+  "__v": 11
+},
+{
+  "_id": {
+    "$oid": "69c0a527ecffe5509c6d1ad8"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petId": {
+    "$oid": "69c099e4ecffe5509c6d132d"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0a527ecffe5509c6d1ad4"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0a4dfecffe5509c6d1a23"
+  },
+  "items": [],
+  "subtotal": 0,
+  "discount": 0,
+  "totalAmountDue": 0,
+  "status": "pending_payment",
+  "paidAt": null,
+  "amountPaid": null,
+  "paymentMethod": null,
+  "serviceLabel": "Full Grooming",
+  "serviceDate": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "qrPaymentProof": null,
+  "qrPaymentSubmittedAt": null,
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T02:27:51.461Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:27:51.461Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a528ecffe5509c6d1b33"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petId": {
+    "$oid": "69c099e4ecffe5509c6d132d"
+  },
+  "vetId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": null,
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0a4dfecffe5509c6d1a23"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69b97d63ff4752c119a39510"
+      },
+      "vaccineTypeId": null,
+      "name": "Full Grooming",
+      "type": "Service",
+      "unitPrice": 1000,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0a528ecffe5509c6d1b34"
+      }
+    }
+  ],
+  "subtotal": 1000,
+  "discount": 0,
+  "totalAmountDue": 1000,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T02:33:15.434Z"
+  },
+  "amountPaid": 1000,
+  "paymentMethod": "cash",
+  "serviceLabel": "Full Grooming",
+  "serviceDate": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "qrPaymentProof": null,
+  "qrPaymentSubmittedAt": null,
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T02:27:52.537Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:33:15.438Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8e6ecffe5509c6d1eff"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petId": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "vetId": {
+    "$oid": "69c09db0ecffe5509c6d15b9"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0a8e5ecffe5509c6d1efb"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0a8aeecffe5509c6d1eb8"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69bab376c3873a521face417"
+      },
+      "vaccineTypeId": null,
+      "name": "Amoxicillin (Syrup)",
+      "type": "Product",
+      "unitPrice": 180,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0ac7966beeee960a84686"
+      }
+    },
+    {
+      "productServiceId": {
+        "$oid": "69b97dedff4752c119a39567"
+      },
+      "vaccineTypeId": null,
+      "name": "Sterilization",
+      "type": "Service",
+      "unitPrice": 1500,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0ac7966beeee960a84687"
+      }
+    }
+  ],
+  "subtotal": 1680,
+  "discount": 0,
+  "totalAmountDue": 1680,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T02:59:13.030Z"
+  },
+  "amountPaid": 1680,
+  "paymentMethod": "cash",
+  "serviceLabel": "Amoxicillin (Syrup), Sterilization",
+  "serviceDate": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "qrPaymentProof": null,
+  "qrPaymentSubmittedAt": null,
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T02:43:50.391Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:13.032Z"
+  },
+  "__v": 6
+},
+{
+  "_id": {
+    "$oid": "69c0a967936f20ea28aafc98"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0a967936f20ea28aafc94"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0a525270c1fa91d4b62e2"
+  },
+  "items": [
+    {
+      "productServiceId": null,
+      "vaccineTypeId": null,
+      "name": "Consultation",
+      "type": "Service",
+      "unitPrice": 0,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1452c03625293580ac2"
+      }
+    }
+  ],
+  "subtotal": 0,
+  "discount": 0,
+  "totalAmountDue": 0,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:19:47.898Z"
+  },
+  "amountPaid": 0,
+  "paymentMethod": "qr",
+  "serviceLabel": "Consultation",
+  "serviceDate": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "qrPaymentProof": "/uploads/payment-screenshots/1774235873226-69815102.jpg",
+  "qrPaymentSubmittedAt": {
+    "$date": "2026-03-23T03:17:54.659Z"
+  },
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T02:45:59.854Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:19:47.901Z"
+  },
+  "__v": 24
+},
+{
+  "_id": {
+    "$oid": "69c0ab67936f20ea28aaff3e"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0ab67936f20ea28aaff3a"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0a84c270c1fa91d4b6490"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69b97dd1ff4752c119a3955a"
+      },
+      "vaccineTypeId": null,
+      "name": "Vaccination/Immunization",
+      "type": "Service",
+      "unitPrice": 100,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1552c03625293580b67"
+      }
+    },
+    {
+      "productServiceId": null,
+      "vaccineTypeId": {
+        "$oid": "69bab82563d49301cba07fb3"
+      },
+      "name": "Anti-Rabies",
+      "type": "Service",
+      "unitPrice": 200,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1552c03625293580b68"
+      }
+    },
+    {
+      "productServiceId": {
+        "$oid": "69b97d19ff4752c119a394d3"
+      },
+      "vaccineTypeId": null,
+      "name": "General Consulation",
+      "type": "Service",
+      "unitPrice": 350,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1552c03625293580b69"
+      }
+    },
+    {
+      "productServiceId": {
+        "$oid": "69bbbe9a490635a2601d4087"
+      },
+      "vaccineTypeId": null,
+      "name": "Canine Titer Testing (CDV, CAV, CPV)",
+      "type": "Service",
+      "unitPrice": 900,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1552c03625293580b6a"
+      }
+    }
+  ],
+  "subtotal": 1550,
+  "discount": 0,
+  "totalAmountDue": 1550,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:19:51.822Z"
+  },
+  "amountPaid": 1550,
+  "paymentMethod": "qr",
+  "serviceLabel": "Vaccination/Immunization, Anti-Rabies, General Consulation, Canine Titer Testing (CDV, CAV, CPV)",
+  "serviceDate": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "qrPaymentProof": "/uploads/payment-screenshots/1774235899241-204436580.jpeg",
+  "qrPaymentSubmittedAt": {
+    "$date": "2026-03-23T03:18:20.175Z"
+  },
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T02:54:31.803Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:19:51.824Z"
+  },
+  "__v": 25
+},
+{
+  "_id": {
+    "$oid": "69c0ad4b936f20ea28ab02d0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0ad4a936f20ea28ab02cc"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0abbb936f20ea28ab01c3"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69b97dd1ff4752c119a3955a"
+      },
+      "vaccineTypeId": null,
+      "name": "Vaccination/Immunization",
+      "type": "Service",
+      "unitPrice": 100,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1592c03625293580bc6"
+      }
+    },
+    {
+      "productServiceId": null,
+      "vaccineTypeId": {
+        "$oid": "69c092f9ecffe5509c6d11bc"
+      },
+      "name": "FVRCP",
+      "type": "Service",
+      "unitPrice": 250,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1592c03625293580bc7"
+      }
+    },
+    {
+      "productServiceId": {
+        "$oid": "69bbbeda490635a2601d4099"
+      },
+      "vaccineTypeId": null,
+      "name": "Feline Titer Testing (FPV, FCV, FHV)",
+      "type": "Service",
+      "unitPrice": 800,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b1592c03625293580bc8"
+      }
+    }
+  ],
+  "subtotal": 1150,
+  "discount": 0,
+  "totalAmountDue": 1150,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:19:55.738Z"
+  },
+  "amountPaid": 1150,
+  "paymentMethod": "qr",
+  "serviceLabel": "Vaccination/Immunization, FVRCP, Feline Titer Testing (FPV, FCV, FHV)",
+  "serviceDate": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "qrPaymentProof": "/uploads/payment-screenshots/1774235933049-586554865.jpeg",
+  "qrPaymentSubmittedAt": {
+    "$date": "2026-03-23T03:18:54.256Z"
+  },
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T03:02:35.194Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:19:55.738Z"
+  },
+  "__v": 14
+},
+{
+  "_id": {
+    "$oid": "69c0ad6066beeee960a84909"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petId": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "vetId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "medicalRecordId": null,
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0ad3866beeee960a8480b"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69b97d34ff4752c119a394ed"
+      },
+      "vaccineTypeId": null,
+      "name": "Basic Grooming",
+      "type": "Service",
+      "unitPrice": 500,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0ad6066beeee960a8490a"
+      }
+    }
+  ],
+  "subtotal": 500,
+  "discount": 0,
+  "totalAmountDue": 500,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:03:12.701Z"
+  },
+  "amountPaid": 500,
+  "paymentMethod": "cash",
+  "serviceLabel": "Basic Grooming",
+  "serviceDate": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "qrPaymentProof": null,
+  "qrPaymentSubmittedAt": null,
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T03:02:56.024Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:03:12.704Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b26c2c03625293580dba"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petId": {
+    "$oid": "69c09a44fabdec10364d6faa"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0b26c2c03625293580db6"
+  },
+  "confinementRecordId": null,
+  "appointmentId": {
+    "$oid": "69c0b2492c03625293580d6d"
+  },
+  "items": [
+    {
+      "productServiceId": {
+        "$oid": "69bab376c3873a521face417"
+      },
+      "vaccineTypeId": null,
+      "name": "Amoxicillin (Syrup)",
+      "type": "Product",
+      "unitPrice": 180,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b35d2c036252935811fa"
+      }
+    },
+    {
+      "productServiceId": {
+        "$oid": "69b97d19ff4752c119a394d3"
+      },
+      "vaccineTypeId": null,
+      "name": "General Consulation",
+      "type": "Service",
+      "unitPrice": 350,
+      "quantity": 1,
+      "_id": {
+        "$oid": "69c0b35d2c036252935811fb"
+      }
+    }
+  ],
+  "subtotal": 530,
+  "discount": 0,
+  "totalAmountDue": 530,
+  "status": "paid",
+  "paidAt": {
+    "$date": "2026-03-23T03:28:35.309Z"
+  },
+  "amountPaid": 530,
+  "paymentMethod": "qr",
+  "serviceLabel": "Amoxicillin (Syrup), General Consulation",
+  "serviceDate": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "qrPaymentProof": "/uploads/payment-screenshots/1774236486469-785021635.jpg",
+  "qrPaymentSubmittedAt": {
+    "$date": "2026-03-23T03:28:07.688Z"
+  },
+  "pendingQrApproval": false,
+  "createdAt": {
+    "$date": "2026-03-23T03:24:28.684Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:35.312Z"
+  },
+  "__v": 9
+}]

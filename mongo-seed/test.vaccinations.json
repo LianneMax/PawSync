@@ -1,0 +1,110 @@
+[{
+  "_id": {
+    "$oid": "69c0ae2b2c03625293580027"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0abbb936f20ea28ab01c3"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0ad4a936f20ea28ab02cc"
+  },
+  "boosterAppointmentId": {
+    "$oid": "69c0ae862c0362529358006f"
+  },
+  "doseNumber": 1,
+  "boosterNumber": 0,
+  "vaccineTypeId": {
+    "$oid": "69c092f9ecffe5509c6d11bc"
+  },
+  "vaccineName": "FVRCP",
+  "manufacturer": "Zoetiz",
+  "batchNumber": "A12311",
+  "route": "subcutaneous",
+  "administeredDoseMl": 0.5,
+  "dateAdministered": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "expiryDate": {
+    "$date": "2029-03-22T00:00:00.000Z"
+  },
+  "nextDueDate": {
+    "$date": "2026-04-20T00:00:00.000Z"
+  },
+  "status": "active",
+  "isUpToDate": true,
+  "notes": "",
+  "createdAt": {
+    "$date": "2026-03-23T03:06:19.266Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:50.126Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0aee32c03625293580337"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0a84c270c1fa91d4b6490"
+  },
+  "medicalRecordId": {
+    "$oid": "69c0ab67936f20ea28aaff3a"
+  },
+  "boosterAppointmentId": {
+    "$oid": "69c0af6e2c03625293580376"
+  },
+  "doseNumber": 1,
+  "boosterNumber": 0,
+  "vaccineTypeId": {
+    "$oid": "69bab82563d49301cba07fb3"
+  },
+  "vaccineName": "Anti-Rabies",
+  "manufacturer": "Boehringer",
+  "batchNumber": "A12346",
+  "route": "subcutaneous",
+  "administeredDoseMl": 1,
+  "dateAdministered": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "expiryDate": {
+    "$date": "2027-03-23T00:00:00.000Z"
+  },
+  "nextDueDate": {
+    "$date": "2027-03-23T00:00:00.000Z"
+  },
+  "status": "active",
+  "isUpToDate": true,
+  "notes": "",
+  "createdAt": {
+    "$date": "2026-03-23T03:09:23.169Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:42.120Z"
+  },
+  "__v": 0
+}]

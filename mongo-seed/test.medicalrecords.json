@@ -1,0 +1,992 @@
+[{
+  "_id": {
+    "$oid": "69c0a294ecffe5509c6d16d3"
+  },
+  "petId": {
+    "$oid": "69c09a78ecffe5509c6d140f"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Miguel Reaño",
+    "id": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    }
+  },
+  "vetAtTime": {
+    "name": "Gino Bailon",
+    "id": {
+      "$oid": "69c09c44d69d4570e96c5756"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0a240ecffe5509c6d1690"
+  },
+  "stage": "completed",
+  "chiefComplaint": "Check-up",
+  "vitals": {
+    "weight": {
+      "value": 7,
+      "notes": ""
+    },
+    "temperature": {
+      "value": "38.7",
+      "notes": ""
+    },
+    "pulseRate": {
+      "value": "80",
+      "notes": ""
+    },
+    "spo2": {
+      "value": "95.6",
+      "notes": ""
+    },
+    "bodyConditionScore": {
+      "value": "4",
+      "notes": ""
+    },
+    "dentalScore": {
+      "value": "1",
+      "notes": ""
+    },
+    "crt": {
+      "value": "0",
+      "notes": ""
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "Dog must come back for a vaccination shot.",
+  "vetNotes": "",
+  "overallObservation": "Physical examination shows a clinically normal, alert dog with all vital signs within normal limits and no abnormalities observed.",
+  "subjective": "Owner brought the dog for a routine check-up and reported that the pet has not yet received any vaccinations.",
+  "assessment": "The dog is currently healthy but unvaccinated and at risk for preventable infectious diseases.",
+  "plan": "Recommend initiating the core vaccination schedule and scheduling follow-up visits for completion of required doses and boosters.",
+  "sharedWithOwner": true,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": true,
+  "scheduledSurgery": false,
+  "isCurrent": true,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": null,
+  "immunityTesting": null,
+  "billingId": {
+    "$oid": "69c0a294ecffe5509c6d16d7"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [],
+  "diagnosticTests": [
+    {
+      "testType": "other",
+      "name": "",
+      "date": null,
+      "result": "",
+      "normalRange": "",
+      "notes": "",
+      "images": [],
+      "_id": {
+        "$oid": "69c0a45aecffe5509c6d190b"
+      }
+    }
+  ],
+  "preventiveCare": [],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T02:16:52.316Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:15:21.736Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69c0a527ecffe5509c6d1ad4"
+  },
+  "petId": {
+    "$oid": "69c099e4ecffe5509c6d132d"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Miguel Reaño",
+    "id": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    }
+  },
+  "vetAtTime": {
+    "name": "Gino Bailon",
+    "id": {
+      "$oid": "69c09c44d69d4570e96c5756"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0a4dfecffe5509c6d1a23"
+  },
+  "stage": "pre_procedure",
+  "chiefComplaint": "Long hair",
+  "vitals": {
+    "weight": {
+      "value": "",
+      "notes": ""
+    },
+    "temperature": {
+      "value": "",
+      "notes": ""
+    },
+    "pulseRate": {
+      "value": "",
+      "notes": ""
+    },
+    "spo2": {
+      "value": "",
+      "notes": ""
+    },
+    "bodyConditionScore": {
+      "value": "",
+      "notes": ""
+    },
+    "dentalScore": {
+      "value": "",
+      "notes": ""
+    },
+    "crt": {
+      "value": "",
+      "notes": ""
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "",
+  "vetNotes": "",
+  "overallObservation": "",
+  "subjective": "",
+  "assessment": "",
+  "plan": "",
+  "sharedWithOwner": true,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": false,
+  "scheduledSurgery": false,
+  "isCurrent": true,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": null,
+  "immunityTesting": null,
+  "billingId": {
+    "$oid": "69c0a527ecffe5509c6d1ad8"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [],
+  "diagnosticTests": [],
+  "preventiveCare": [],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T02:27:51.125Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:15:42.043Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8e5ecffe5509c6d1efb"
+  },
+  "petId": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Miguel Reaño",
+    "id": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    }
+  },
+  "vetAtTime": {
+    "name": "John Smith",
+    "id": {
+      "$oid": "69c09db0ecffe5509c6d15b9"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09db0ecffe5509c6d15b9"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "appointmentId": {
+    "$oid": "69c0a8aeecffe5509c6d1eb8"
+  },
+  "stage": "completed",
+  "chiefComplaint": "In need of spaying",
+  "vitals": {
+    "weight": {
+      "value": "5",
+      "notes": ""
+    },
+    "temperature": {
+      "value": "37.9",
+      "notes": ""
+    },
+    "pulseRate": {
+      "value": "89",
+      "notes": ""
+    },
+    "spo2": {
+      "value": "94",
+      "notes": ""
+    },
+    "bodyConditionScore": {
+      "value": "3",
+      "notes": ""
+    },
+    "dentalScore": {
+      "value": "2",
+      "notes": ""
+    },
+    "crt": {
+      "value": "1",
+      "notes": ""
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "Surgical procedure: Sterilization",
+  "vetNotes": "",
+  "overallObservation": "Cat is bright, alert, and responsive with normal vital signs and no abnormalities on physical examination.",
+  "subjective": "Owner presents the cat for elective spay surgery with no reported health concerns.",
+  "assessment": "Clinically healthy cat and suitable candidate for elective ovariohysterectomy (spay).",
+  "plan": "Proceed with spay surgery after standard pre-operative preparation and provide post-operative care instructions to the owner.",
+  "sharedWithOwner": false,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": true,
+  "scheduledSurgery": false,
+  "isCurrent": true,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": {
+    "surgeryType": "Sterilization",
+    "vetRemarks": "Surgery was completed successfully without complications and the patient recovered well from anesthesia.",
+    "images": []
+  },
+  "immunityTesting": null,
+  "billingId": {
+    "$oid": "69c0a8e6ecffe5509c6d1eff"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [
+    {
+      "name": "Amoxicillin (Syrup)",
+      "dosage": "50 mg",
+      "route": "oral",
+      "frequency": "2 times per day, every 8 hours",
+      "duration": "7 days",
+      "startDate": null,
+      "endDate": null,
+      "notes": "",
+      "status": "active",
+      "quantity": 1,
+      "pricingType": "singlePill",
+      "piecesPerPack": null,
+      "_id": {
+        "$oid": "69c0a9e3ecffe5509c6d21ff"
+      }
+    }
+  ],
+  "diagnosticTests": [],
+  "preventiveCare": [],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T02:43:50.037Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:48:04.664Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69c0a967936f20ea28aafc94"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Maxene Balbastro",
+    "id": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    }
+  },
+  "vetAtTime": {
+    "name": "Gino Bailon",
+    "id": {
+      "$oid": "69c09c44d69d4570e96c5756"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0a525270c1fa91d4b62e2"
+  },
+  "stage": "completed",
+  "chiefComplaint": "Consultation for Diet",
+  "vitals": {
+    "weight": {
+      "value": 3,
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "temperature": {
+      "value": "37",
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "pulseRate": {
+      "value": "140",
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "spo2": {
+      "value": "100",
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "bodyConditionScore": {
+      "value": "4",
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "dentalScore": {
+      "value": "3",
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "crt": {
+      "value": "2",
+      "notes": "Vitals seem normal, ruling out anxiety for now"
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "Chief complaint: Consultation for Diet. Assessment: Normal for new transferred pet to be unfamiliar. Plan: follow up appoinment to be scheduled next week for other preventive care as well.",
+  "vetNotes": "",
+  "overallObservation": "Give advice to pet owner on how to soothe pet",
+  "subjective": "Consultation for Diet",
+  "assessment": "Normal for new transferred pet to be unfamiliar",
+  "plan": "follow up appoinment to be scheduled next week for other preventive care as well",
+  "sharedWithOwner": true,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": true,
+  "scheduledSurgery": false,
+  "isCurrent": false,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": null,
+  "immunityTesting": null,
+  "billingId": {
+    "$oid": "69c0a967936f20ea28aafc98"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [],
+  "diagnosticTests": [],
+  "preventiveCare": [],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T02:45:59.171Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:14.877Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ab67936f20ea28aaff3a"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Maxene Balbastro",
+    "id": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    }
+  },
+  "vetAtTime": {
+    "name": "Gino Bailon",
+    "id": {
+      "$oid": "69c09c44d69d4570e96c5756"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0a84c270c1fa91d4b6490"
+  },
+  "stage": "completed",
+  "chiefComplaint": "Rabies Vaccination",
+  "vitals": {
+    "weight": {
+      "value": 3,
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "temperature": {
+      "value": "37.7",
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "pulseRate": {
+      "value": "135",
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "spo2": {
+      "value": "100",
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "bodyConditionScore": {
+      "value": "4",
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "dentalScore": {
+      "value": "3",
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "crt": {
+      "value": "1",
+      "notes": "All recorded vitals are marked as normal."
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "Visit went as expected",
+  "vetNotes": "",
+  "overallObservation": "No abnormal physical observations were noticed in physical examination.",
+  "subjective": "Rabies Vaccination",
+  "assessment": "Bobi presented for scheduled vaccination. Vitals within acceptable limits. No contraindications observed.",
+  "plan": "Vaccinations administered today. Owner advised to monitor for 15–30 minutes post-vaccination for adverse reactions (facial swelling, lethargy, vomiting). Return immediately if reaction occurs. Next booster scheduled per vaccine protocol.\n\nImmunity Testing\nTiter: 2026-03-23 (Canine VCheck)\n| Disease | Score | Status | Action |\n|---------|-------|--------|--------|\n| CPV | 6 | Positive | None |\n| CDV | 6 | Positive | None |\n| CAV-1 | 6 | Positive | None |\nPlan: Cleared to vaccinate.\n\nAntigen: 2026-03-23 (Canine 3-in-1)\n| Disease | Result |\n|---------|--------|\n| CPV | Negative |\n| CDV | Negative |\n| CAV-1 | Negative |",
+  "sharedWithOwner": true,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": true,
+  "scheduledSurgery": false,
+  "isCurrent": true,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": null,
+  "immunityTesting": {
+    "enabled": true,
+    "species": "canine",
+    "kitName": "VCheck",
+    "testDate": {
+      "$date": "2026-03-23T00:00:00.000Z"
+    },
+    "rows": [
+      {
+        "disease": "CPV",
+        "score": 6,
+        "status": "Positive",
+        "action": "None"
+      },
+      {
+        "disease": "CDV",
+        "score": 6,
+        "status": "Positive",
+        "action": "None"
+      },
+      {
+        "disease": "CAV-1",
+        "score": 6,
+        "status": "Positive",
+        "action": "None"
+      }
+    ],
+    "positiveCount": 3,
+    "summary": "# Positive: 3/3 | Vaccinate for: None",
+    "markdown": "Titer: 2026-03-23 (Canine VCheck)\n| Disease | Score | Status | Action |\n|---------|-------|--------|--------|\n| CPV | 6 | Positive | None |\n| CDV | 6 | Positive | None |\n| CAV-1 | 6 | Positive | None |\nPlan: Cleared to vaccinate.\n\nAntigen: 2026-03-23 (Canine 3-in-1)\n| Disease | Result |\n|---------|--------|\n| CPV | Negative |\n| CDV | Negative |\n| CAV-1 | Negative |",
+    "tag": "#titer-canine-2026-03-23",
+    "linkedAppointmentId": {
+      "$oid": "69c0a84c270c1fa91d4b6490"
+    },
+    "followUpAppointmentId": null,
+    "followUpDate": null,
+    "skipSuggested": false,
+    "antigenEnabled": true,
+    "antigenRows": [
+      {
+        "disease": "CPV",
+        "result": "Negative"
+      },
+      {
+        "disease": "CDV",
+        "result": "Negative"
+      },
+      {
+        "disease": "CAV-1",
+        "result": "Negative"
+      }
+    ],
+    "antigenDate": {
+      "$date": "2026-03-23T00:00:00.000Z"
+    }
+  },
+  "billingId": {
+    "$oid": "69c0ab67936f20ea28aaff3e"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [],
+  "diagnosticTests": [],
+  "preventiveCare": [
+    {
+      "careType": "other",
+      "product": "Vaccination/Immunization",
+      "dateAdministered": {
+        "$date": "2026-03-24T00:00:00.000Z"
+      },
+      "notes": "",
+      "_id": {
+        "$oid": "69c0af6d2c03625293580372"
+      }
+    }
+  ],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T02:54:31.430Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:42.251Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69c0ad4a936f20ea28ab02cc"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Maxene Balbastro",
+    "id": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    }
+  },
+  "vetAtTime": {
+    "name": "Gino Bailon",
+    "id": {
+      "$oid": "69c09c44d69d4570e96c5756"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0abbb936f20ea28ab01c3"
+  },
+  "stage": "completed",
+  "chiefComplaint": "For Vaccinations",
+  "vitals": {
+    "weight": {
+      "value": 6,
+      "notes": "All vitals recorded are normal."
+    },
+    "temperature": {
+      "value": "37.5",
+      "notes": "All vitals recorded are normal."
+    },
+    "pulseRate": {
+      "value": "98",
+      "notes": "All vitals recorded are normal."
+    },
+    "spo2": {
+      "value": "100",
+      "notes": "All vitals recorded are normal."
+    },
+    "bodyConditionScore": {
+      "value": "5",
+      "notes": "All vitals recorded are normal."
+    },
+    "dentalScore": {
+      "value": "3",
+      "notes": "All vitals recorded are normal."
+    },
+    "crt": {
+      "value": "1",
+      "notes": "All vitals recorded are normal."
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "Vaccination went well. Pet will return for 2nd dosing of vaccination.",
+  "vetNotes": "",
+  "overallObservation": "Yoru presented with no indications of examination findings that are of concern.",
+  "subjective": "For Vaccinations",
+  "assessment": "Yoru presented for scheduled vaccination. Vitals within acceptable limits. No contraindications observed.",
+  "plan": "Vaccinations administered today. Owner advised to monitor for 15–30 minutes post-vaccination for adverse reactions (facial swelling, lethargy, vomiting). Return immediately if reaction occurs. Next booster scheduled per vaccine protocol.\n\nImmunity Testing\nTiter: 2026-03-23 (Feline VCheck)\n| Disease | Score | Status | Action |\n|---------|-------|--------|--------|\n| FPV | 4 | Positive | None |\n| FCV | 3 | Positive | None |\n| FHV | 3 | Positive | None |\nPlan: Cleared to vaccinate.\n\nAntigen: 2026-03-23 (Feline 3-in-1)\n| Disease | Result |\n|---------|--------|\n| FPV | Negative |\n| FCV | Negative |\n| FHV | Negative |",
+  "sharedWithOwner": true,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": true,
+  "scheduledSurgery": false,
+  "isCurrent": true,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": null,
+  "immunityTesting": {
+    "enabled": true,
+    "species": "feline",
+    "kitName": "VCheck",
+    "testDate": {
+      "$date": "2026-03-23T00:00:00.000Z"
+    },
+    "rows": [
+      {
+        "disease": "FPV",
+        "score": 4,
+        "status": "Positive",
+        "action": "None"
+      },
+      {
+        "disease": "FCV",
+        "score": 3,
+        "status": "Positive",
+        "action": "None"
+      },
+      {
+        "disease": "FHV",
+        "score": 3,
+        "status": "Positive",
+        "action": "None"
+      }
+    ],
+    "positiveCount": 3,
+    "summary": "# Positive: 3/3 | Vaccinate for: None",
+    "markdown": "Titer: 2026-03-23 (Feline VCheck)\n| Disease | Score | Status | Action |\n|---------|-------|--------|--------|\n| FPV | 4 | Positive | None |\n| FCV | 3 | Positive | None |\n| FHV | 3 | Positive | None |\nPlan: Cleared to vaccinate.\n\nAntigen: 2026-03-23 (Feline 3-in-1)\n| Disease | Result |\n|---------|--------|\n| FPV | Negative |\n| FCV | Negative |\n| FHV | Negative |",
+    "tag": "#titer-feline-2026-03-23",
+    "linkedAppointmentId": {
+      "$oid": "69c0abbb936f20ea28ab01c3"
+    },
+    "followUpAppointmentId": null,
+    "followUpDate": null,
+    "skipSuggested": false,
+    "antigenEnabled": true,
+    "antigenRows": [
+      {
+        "disease": "FPV",
+        "result": "Negative"
+      },
+      {
+        "disease": "FCV",
+        "result": "Negative"
+      },
+      {
+        "disease": "FHV",
+        "result": "Negative"
+      }
+    ],
+    "antigenDate": {
+      "$date": "2026-03-23T00:00:00.000Z"
+    }
+  },
+  "billingId": {
+    "$oid": "69c0ad4b936f20ea28ab02d0"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [],
+  "diagnosticTests": [],
+  "preventiveCare": [
+    {
+      "careType": "other",
+      "product": "Vaccination/Immunization",
+      "dateAdministered": {
+        "$date": "2026-03-23T00:00:00.000Z"
+      },
+      "notes": "",
+      "_id": {
+        "$oid": "69c0ae852c0362529358006b"
+      }
+    }
+  ],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T03:02:34.879Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:50.246Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69c0b26c2c03625293580db6"
+  },
+  "petId": {
+    "$oid": "69c09a44fabdec10364d6faa"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "petIsAlive": true,
+  "ownerAtTime": {
+    "name": "Maxene Balbastro",
+    "id": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    }
+  },
+  "vetAtTime": {
+    "name": "Gino Bailon",
+    "id": {
+      "$oid": "69c09c44d69d4570e96c5756"
+    }
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "appointmentId": {
+    "$oid": "69c0b2492c03625293580d6d"
+  },
+  "stage": "completed",
+  "chiefComplaint": "My pet has low appetite",
+  "vitals": {
+    "weight": {
+      "value": 2,
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "temperature": {
+      "value": "37.8",
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "pulseRate": {
+      "value": "98",
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "spo2": {
+      "value": "100",
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "bodyConditionScore": {
+      "value": "3",
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "dentalScore": {
+      "value": "3",
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "crt": {
+      "value": "1",
+      "notes": "Tamago presents as slightly lethargic"
+    },
+    "pregnancy": {
+      "value": "",
+      "notes": ""
+    },
+    "xray": {
+      "value": "",
+      "notes": ""
+    },
+    "vaccinated": {
+      "value": "",
+      "notes": ""
+    }
+  },
+  "visitSummary": "Pet presented as slightly sick.",
+  "vetNotes": "",
+  "overallObservation": "Tamago presents as slightly lethargic. No other physical observations.",
+  "subjective": "My pet has low appetite",
+  "assessment": "Tamago is sick and needs to be prescribed.",
+  "plan": "Prescribe with medicine and send for home care.",
+  "sharedWithOwner": true,
+  "confinementAction": "none",
+  "confinementDays": 0,
+  "confinementRecordId": null,
+  "referral": false,
+  "discharge": true,
+  "scheduledSurgery": false,
+  "isCurrent": true,
+  "pregnancyRecord": null,
+  "pregnancyDelivery": null,
+  "pregnancyLoss": null,
+  "surgeryRecord": null,
+  "immunityTesting": null,
+  "billingId": {
+    "$oid": "69c0b26c2c03625293580dba"
+  },
+  "preventiveAssociatedExclusions": [],
+  "images": [],
+  "medications": [
+    {
+      "name": "Amoxicillin (Syrup)",
+      "dosage": "20 mg",
+      "route": "oral",
+      "frequency": "2 times per day, every 8 hours",
+      "duration": "7 days",
+      "startDate": null,
+      "endDate": null,
+      "notes": "",
+      "status": "active",
+      "quantity": 1,
+      "pricingType": "singlePill",
+      "piecesPerPack": null,
+      "_id": {
+        "$oid": "69c0b2fe2c03625293580fdb"
+      }
+    }
+  ],
+  "diagnosticTests": [],
+  "preventiveCare": [],
+  "followUps": [],
+  "createdAt": {
+    "$date": "2026-03-23T03:24:28.363Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:26:54.560Z"
+  },
+  "__v": 1
+}]

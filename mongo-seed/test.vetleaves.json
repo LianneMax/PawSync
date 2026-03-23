@@ -1,0 +1,20 @@
+[{
+  "_id": {
+    "$oid": "69c0aaed936f20ea28aafef1"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "date": {
+    "$date": "2026-04-04T00:00:00.000Z"
+  },
+  "reason": "Personal Matters",
+  "status": "active",
+  "createdAt": {
+    "$date": "2026-03-23T02:52:29.405Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:52:29.405Z"
+  },
+  "__v": 0
+}]

@@ -1,0 +1,2152 @@
+[{
+  "_id": {
+    "$oid": "69c09aa6ecffe5509c6d1434"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_pet_tag_requested",
+  "title": "New Pet Tag Request",
+  "message": "Miguel Reaño requested a pet tag for Blu Reaño at Parañaque.",
+  "read": false,
+  "metadata": {
+    "requestId": {
+      "$oid": "69c09aa6ecffe5509c6d142f"
+    },
+    "petId": {
+      "$oid": "69c099e4ecffe5509c6d132d"
+    },
+    "ownerId": "69c09989ecffe5509c6d1325",
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": "69b9510c1dbc4345cd411a0c",
+    "pickupDate": {
+      "$date": "2026-03-24T00:00:00.000Z"
+    },
+    "reason": ""
+  },
+  "createdAt": {
+    "$date": "2026-03-23T01:43:02.832Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:43:02.832Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09c72fabdec10364d7046"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_pet_tag_requested",
+  "title": "New Pet Tag Request",
+  "message": "Maxene Balbastro requested a pet tag for Bobi at Parañaque.",
+  "read": false,
+  "metadata": {
+    "requestId": {
+      "$oid": "69c09c71fabdec10364d7041"
+    },
+    "petId": {
+      "$oid": "69c09b8cfabdec10364d6ff0"
+    },
+    "ownerId": "69c099acfabdec10364d6f9e",
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": "69b9510c1dbc4345cd411a0c",
+    "pickupDate": {
+      "$date": "2026-03-30T00:00:00.000Z"
+    },
+    "reason": ""
+  },
+  "createdAt": {
+    "$date": "2026-03-23T01:50:42.380Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:50:42.380Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09c8cfabdec10364d705a"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_pet_tag_requested",
+  "title": "New Pet Tag Request",
+  "message": "Maxene Balbastro requested a pet tag for Yoru at Parañaque.",
+  "read": false,
+  "metadata": {
+    "requestId": {
+      "$oid": "69c09c8cfabdec10364d7055"
+    },
+    "petId": {
+      "$oid": "69c09abbfabdec10364d6fc2"
+    },
+    "ownerId": "69c099acfabdec10364d6f9e",
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": "69b9510c1dbc4345cd411a0c",
+    "pickupDate": {
+      "$date": "2026-03-30T00:00:00.000Z"
+    },
+    "reason": ""
+  },
+  "createdAt": {
+    "$date": "2026-03-23T01:51:08.726Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:51:08.726Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09d84d69d4570e96c5772"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_vet_application_submitted",
+  "title": "New Vet Application Submitted",
+  "message": "Dr. Gino Bailon submitted a PRC verification request for Parañaque.",
+  "read": false,
+  "metadata": {
+    "verificationId": {
+      "$oid": "69c09d84d69d4570e96c576c"
+    },
+    "vetId": "69c09c44d69d4570e96c5756",
+    "clinicId": "69b9510c1dbc4345cd411a0a",
+    "branchId": "69b9510c1dbc4345cd411a0c",
+    "prcLicenseNumber": "0278178"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T01:55:16.757Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:55:16.757Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09eafecffe5509c6d15d2"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_vet_application_submitted",
+  "title": "New Vet Application Submitted",
+  "message": "Dr. John Smith submitted a PRC verification request for Makati.",
+  "read": false,
+  "metadata": {
+    "verificationId": {
+      "$oid": "69c09eaeecffe5509c6d15cc"
+    },
+    "vetId": "69c09db0ecffe5509c6d15b9",
+    "clinicId": "69b9510c1dbc4345cd411a0a",
+    "branchId": "69bfb3c39b088ffaa0cf38fb",
+    "prcLicenseNumber": "0982350"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:00:15.387Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:00:15.387Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09eafecffe5509c6d15d3"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_vet_application_submitted",
+  "title": "New Vet Application Submitted",
+  "message": "Dr. John Smith submitted a PRC verification request for Makati.",
+  "read": false,
+  "metadata": {
+    "verificationId": {
+      "$oid": "69c09eaeecffe5509c6d15cc"
+    },
+    "vetId": "69c09db0ecffe5509c6d15b9",
+    "clinicId": "69b9510c1dbc4345cd411a0a",
+    "branchId": "69bfb3c39b088ffaa0cf38fb",
+    "prcLicenseNumber": "0982350"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:00:15.388Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:00:15.388Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09f89270c1fa91d4b604d"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_vet_application_submitted",
+  "title": "New Vet Application Submitted",
+  "message": "Dr. En Lee submitted a PRC verification request for Makati.",
+  "read": false,
+  "metadata": {
+    "verificationId": {
+      "$oid": "69c09f88270c1fa91d4b6047"
+    },
+    "vetId": "69c09d94fabdec10364d706e",
+    "clinicId": "69b9510c1dbc4345cd411a0a",
+    "branchId": "69bfb3c39b088ffaa0cf38fb",
+    "prcLicenseNumber": "9265294"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:03:53.186Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:03:53.186Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09f89270c1fa91d4b604e"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_vet_application_submitted",
+  "title": "New Vet Application Submitted",
+  "message": "Dr. En Lee submitted a PRC verification request for Makati.",
+  "read": false,
+  "metadata": {
+    "verificationId": {
+      "$oid": "69c09f88270c1fa91d4b6047"
+    },
+    "vetId": "69c09d94fabdec10364d706e",
+    "clinicId": "69b9510c1dbc4345cd411a0a",
+    "branchId": "69bfb3c39b088ffaa0cf38fb",
+    "prcLicenseNumber": "9265294"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:03:53.187Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:03:53.187Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a241ecffe5509c6d1696"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Rojo Reaño with Dr. Gino Bailon at Parañaque on March 23, 2026 at 14:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a240ecffe5509c6d1690"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:15:29.224Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:15:29.224Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a241ecffe5509c6d169d"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Miguel Reaño booked an appointment for Rojo Reaño on March 23, 2026 at 14:00 (General Consulation).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a240ecffe5509c6d1690"
+    },
+    "petId": {
+      "$oid": "69c09a78ecffe5509c6d140f"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:15:29.492Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:15:29.492Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a45becffe5509c6d1916"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "bill_due",
+  "title": "New Invoice Ready",
+  "message": "A new invoice of ₱350.00 for Rojo Reaño is ready for payment.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a294ecffe5509c6d16d7"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:24:27.544Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:24:27.544Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a45cecffe5509c6d1931"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "appointment_completed",
+  "title": "Clinic Visit Completed",
+  "message": "The clinic visit for Rojo Reaño has been completed. Thank you for visiting us!",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a240ecffe5509c6d1690"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:24:28.123Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:24:28.123Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a4dfecffe5509c6d1a29"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Blu Reaño with Dr. Gino Bailon at Parañaque on March 23, 2026 at 15:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a4dfecffe5509c6d1a23"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:26:39.297Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:26:39.297Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a4dfecffe5509c6d1a30"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Miguel Reaño booked an appointment for Blu Reaño on March 23, 2026 at 15:00 (full-grooming).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a4dfecffe5509c6d1a23"
+    },
+    "petId": {
+      "$oid": "69c099e4ecffe5509c6d132d"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:26:39.503Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:26:39.503Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a526270c1fa91d4b62e8"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Bobi with Dr. Gino Bailon at Parañaque on March 23, 2026 at 17:30 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a525270c1fa91d4b62e2"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:27:50.168Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:27:50.168Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a526270c1fa91d4b62ef"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Bobi on March 23, 2026 at 17:30 (consultation).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a525270c1fa91d4b62e2"
+    },
+    "petId": {
+      "$oid": "69c09b8cfabdec10364d6ff0"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:27:50.375Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:27:50.375Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a66becffe5509c6d1c0a"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "bill_paid",
+  "title": "Payment Confirmed",
+  "message": "Your payment of ₱1000.00 for Blu Reaño has been received. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a528ecffe5509c6d1b33"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:33:15.747Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:33:15.747Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a66becffe5509c6d1c0d"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_invoice_paid",
+  "title": "Invoice Paid by Pet Owner",
+  "message": "Miguel Reaño paid ₱1000.00 for Blu Reaño.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a528ecffe5509c6d1b33"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "petId": {
+      "$oid": "69c099e4ecffe5509c6d132d"
+    },
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    },
+    "amountPaid": 1000,
+    "paidAt": {
+      "$date": "2026-03-23T02:33:15.434Z"
+    },
+    "paymentMethod": "cash"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:33:15.952Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:33:15.952Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a74eecffe5509c6d1db7"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Blu Reaño with Dr. Gino Bailon at Parañaque on March 26, 2026 at 11:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a74decffe5509c6d1db1"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:37:02.222Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:02.222Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a74eecffe5509c6d1dbe"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Miguel Reaño booked an appointment for Blu Reaño on March 26, 2026 at 11:00 (flea-tick-prevention).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a74decffe5509c6d1db1"
+    },
+    "petId": {
+      "$oid": "69c099e4ecffe5509c6d132d"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:37:02.472Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:02.472Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a76c270c1fa91d4b63f7"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Chutni with Dr. En Lee at Makati on March 23, 2026 at 17:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a76c270c1fa91d4b63f1"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:37:32.475Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:32.475Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a76c270c1fa91d4b63fe"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Chutni on March 23, 2026 at 17:00 (General Consulation, deworming).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a76c270c1fa91d4b63f1"
+    },
+    "petId": {
+      "$oid": "69c09b02fabdec10364d6fd8"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:37:32.680Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:32.680Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a76c270c1fa91d4b63ff"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Chutni on March 23, 2026 at 17:00 (General Consulation, deworming).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a76c270c1fa91d4b63f1"
+    },
+    "petId": {
+      "$oid": "69c09b02fabdec10364d6fd8"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:37:32.680Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:32.680Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a84c270c1fa91d4b649a"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Bobi with Dr. Gino Bailon at Parañaque on March 24, 2026 at 09:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a84c270c1fa91d4b6490"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:41:16.599Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:41:16.599Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a84d270c1fa91d4b649d"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Bobi on March 24, 2026 at 09:00 (vaccination, General Consulation).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a84c270c1fa91d4b6490"
+    },
+    "petId": {
+      "$oid": "69c09b8cfabdec10364d6ff0"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:41:17.111Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:41:17.111Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8afecffe5509c6d1ebe"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Kath Reaño with Dr. John Smith at Makati on March 24, 2026 at 10:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8aeecffe5509c6d1eb8"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:42:55.011Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:42:55.011Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8afecffe5509c6d1ec5"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Miguel Reaño booked an appointment for Kath Reaño on March 24, 2026 at 10:00 (Sterilization).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8aeecffe5509c6d1eb8"
+    },
+    "petId": {
+      "$oid": "69c0a860ecffe5509c6d1e31"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "branchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:42:55.340Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:42:55.340Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8afecffe5509c6d1ec6"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Miguel Reaño booked an appointment for Kath Reaño on March 24, 2026 at 10:00 (Sterilization).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8aeecffe5509c6d1eb8"
+    },
+    "petId": {
+      "$oid": "69c0a860ecffe5509c6d1e31"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "branchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:42:55.340Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:42:55.340Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8bd270c1fa91d4b6547"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Bobi with Dr. Gino Bailon at Parañaque on March 25, 2026 at 09:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8bc270c1fa91d4b6541"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:43:09.150Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:43:09.150Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8bd270c1fa91d4b654e"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Bobi on March 25, 2026 at 09:00 (full-grooming).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8bc270c1fa91d4b6541"
+    },
+    "petId": {
+      "$oid": "69c09b8cfabdec10364d6ff0"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:43:09.373Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:43:09.373Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8ff270c1fa91d4b65b2"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Chutni with Dr. En Lee at Makati on March 23, 2026 at 23:30 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8ff270c1fa91d4b65a8"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:44:15.690Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:44:15.690Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8ff270c1fa91d4b65b5"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Chutni on March 23, 2026 at 23:30 (flea-tick-prevention, Heartworm Prevention).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8ff270c1fa91d4b65a8"
+    },
+    "petId": {
+      "$oid": "69c09b02fabdec10364d6fd8"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:44:15.940Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:44:15.940Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8ff270c1fa91d4b65b6"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Chutni on March 23, 2026 at 23:30 (flea-tick-prevention, Heartworm Prevention).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8ff270c1fa91d4b65a8"
+    },
+    "petId": {
+      "$oid": "69c09b02fabdec10364d6fd8"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:44:15.940Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:44:15.940Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a9e5ecffe5509c6d220c"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "bill_due",
+  "title": "New Invoice Ready",
+  "message": "A new invoice of ₱1500.00 for Kath Reaño is ready for payment.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a8e6ecffe5509c6d1eff"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:48:05.094Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:48:05.094Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a9e6ecffe5509c6d222c"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "appointment_completed",
+  "title": "Clinic Visit Completed",
+  "message": "The clinic visit for Kath Reaño has been completed. Thank you for visiting us!",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a8aeecffe5509c6d1eb8"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:48:06.131Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:48:06.131Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0abc9936f20ea28ab01df"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Yoru with Dr. Gino Bailon at Parañaque on March 23, 2026 at 17:00 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0abbb936f20ea28ab01c3"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:56:09.053Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:56:09.053Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0abc9936f20ea28ab01ed"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Yoru on March 23, 2026 at 17:00 (vaccination).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0abbb936f20ea28ab01c3"
+    },
+    "petId": {
+      "$oid": "69c09abbfabdec10364d6fc2"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:56:09.268Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:56:09.268Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ac0f936f20ea28ab0230"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Bobi with Dr. Gino Bailon at Parañaque on March 26, 2026 at 10:30 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0ac0f936f20ea28ab022a"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:57:19.923Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:57:19.923Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ac10936f20ea28ab0237"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Bobi on March 26, 2026 at 10:30 (Heartworm Prevention, General Consulation).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0ac0f936f20ea28ab022a"
+    },
+    "petId": {
+      "$oid": "69c09b8cfabdec10364d6ff0"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:57:20.142Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:57:20.142Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ac8266beeee960a846c5"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "bill_paid",
+  "title": "Payment Confirmed",
+  "message": "Your payment of ₱1680.00 for Kath Reaño has been received. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a8e6ecffe5509c6d1eff"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:59:14.274Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:14.274Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ac8266beeee960a846c8"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_invoice_paid",
+  "title": "Invoice Paid by Pet Owner",
+  "message": "Miguel Reaño paid ₱1680.00 for Kath Reaño.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a8e6ecffe5509c6d1eff"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "petId": {
+      "$oid": "69c0a860ecffe5509c6d1e31"
+    },
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    },
+    "amountPaid": 1680,
+    "paidAt": {
+      "$date": "2026-03-23T02:59:13.030Z"
+    },
+    "paymentMethod": "cash"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:59:14.516Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:14.516Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ac8266beeee960a846c9"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_invoice_paid",
+  "title": "Invoice Paid by Pet Owner",
+  "message": "Miguel Reaño paid ₱1680.00 for Kath Reaño.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a8e6ecffe5509c6d1eff"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "petId": {
+      "$oid": "69c0a860ecffe5509c6d1e31"
+    },
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    },
+    "amountPaid": 1680,
+    "paidAt": {
+      "$date": "2026-03-23T02:59:13.030Z"
+    },
+    "paymentMethod": "cash"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:59:14.516Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:14.516Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0acaf66beeee960a8472f"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "bill_paid",
+  "title": "Payment Confirmed",
+  "message": "Your payment of ₱350.00 for Rojo Reaño has been received. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a294ecffe5509c6d16d7"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:59:59.221Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:59.221Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0acaf66beeee960a84732"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_invoice_paid",
+  "title": "Invoice Paid by Pet Owner",
+  "message": "Miguel Reaño paid ₱350.00 for Rojo Reaño.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a294ecffe5509c6d16d7"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "petId": {
+      "$oid": "69c09a78ecffe5509c6d140f"
+    },
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    },
+    "amountPaid": 350,
+    "paidAt": {
+      "$date": "2026-03-23T02:59:58.672Z"
+    },
+    "paymentMethod": "cash"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:59:59.431Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:59:59.431Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ad7166beeee960a849fc"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "bill_paid",
+  "title": "Payment Confirmed",
+  "message": "Your payment of ₱500.00 for Kath Reaño has been received. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ad6066beeee960a84909"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:03:13.267Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:03:13.267Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ad7166beeee960a849ff"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_invoice_paid",
+  "title": "Invoice Paid by Pet Owner",
+  "message": "Miguel Reaño paid ₱500.00 for Kath Reaño.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ad6066beeee960a84909"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "petId": {
+      "$oid": "69c0a860ecffe5509c6d1e31"
+    },
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    },
+    "amountPaid": 500,
+    "paidAt": {
+      "$date": "2026-03-23T03:03:12.701Z"
+    },
+    "paymentMethod": "cash"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:03:13.603Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:03:13.603Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ad7166beeee960a84a00"
+  },
+  "userId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fe"
+  },
+  "type": "clinic_invoice_paid",
+  "title": "Invoice Paid by Pet Owner",
+  "message": "Miguel Reaño paid ₱500.00 for Kath Reaño.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ad6066beeee960a84909"
+    },
+    "ownerId": {
+      "$oid": "69c09989ecffe5509c6d1325"
+    },
+    "petId": {
+      "$oid": "69c0a860ecffe5509c6d1e31"
+    },
+    "clinicId": {
+      "$oid": "69b9510c1dbc4345cd411a0a"
+    },
+    "clinicBranchId": {
+      "$oid": "69bfb3c39b088ffaa0cf38fb"
+    },
+    "amountPaid": 500,
+    "paidAt": {
+      "$date": "2026-03-23T03:03:12.701Z"
+    },
+    "paymentMethod": "cash"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:03:13.603Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:03:13.603Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ae862c03625293580072"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "Booster Appointment Scheduled",
+  "message": "A booster appointment for FVRCP has been automatically confirmed for April 20, 2026.",
+  "read": false,
+  "metadata": {
+    "appointmentId": "69c0ae862c0362529358006f",
+    "vaccineName": "FVRCP"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:07:50.244Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:50.244Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ae862c03625293580073"
+  },
+  "userId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "type": "appointment_scheduled",
+  "title": "Booster Appointment Scheduled",
+  "message": "A booster appointment for FVRCP has been auto-scheduled for Yoru on April 20, 2026.",
+  "read": false,
+  "metadata": {
+    "appointmentId": "69c0ae862c0362529358006f",
+    "vaccineName": "FVRCP",
+    "petId": {
+      "$oid": "69c09abbfabdec10364d6fc2"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:07:50.244Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:50.244Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ae862c03625293580080"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_due",
+  "title": "New Invoice Ready",
+  "message": "A new invoice of ₱1150.00 for Yoru is ready for payment.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ad4b936f20ea28ab02d0"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:07:50.596Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:50.596Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ae872c036252935800aa"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_completed",
+  "title": "Clinic Visit Completed",
+  "message": "The clinic visit for Yoru has been completed. Thank you for visiting us!",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0abbb936f20ea28ab01c3"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:07:51.547Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:51.547Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af53936f20ea28ab1188"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_due",
+  "title": "New Invoice Ready",
+  "message": "A new invoice of ₱0.00 for Bobi is ready for payment.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a967936f20ea28aafc98"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:11:15.190Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:15.190Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af53936f20ea28ab11a1"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_completed",
+  "title": "Clinic Visit Completed",
+  "message": "The clinic visit for Bobi has been completed. Thank you for visiting us!",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a525270c1fa91d4b62e2"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:11:15.726Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:15.726Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af6e2c03625293580379"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "Booster Appointment Scheduled",
+  "message": "A booster appointment for Anti-Rabies has been automatically confirmed for March 23, 2027.",
+  "read": false,
+  "metadata": {
+    "appointmentId": "69c0af6e2c03625293580376",
+    "vaccineName": "Anti-Rabies"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:11:42.243Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:42.243Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af6e2c0362529358037a"
+  },
+  "userId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "type": "appointment_scheduled",
+  "title": "Booster Appointment Scheduled",
+  "message": "A booster appointment for Anti-Rabies has been auto-scheduled for Bobi on March 23, 2027.",
+  "read": false,
+  "metadata": {
+    "appointmentId": "69c0af6e2c03625293580376",
+    "vaccineName": "Anti-Rabies",
+    "petId": {
+      "$oid": "69c09b8cfabdec10364d6ff0"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:11:42.243Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:42.243Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af6e2c03625293580388"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_due",
+  "title": "New Invoice Ready",
+  "message": "A new invoice of ₱1550.00 for Bobi is ready for payment.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ab67936f20ea28aaff3e"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:11:42.586Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:42.586Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af6f2c036252935803b4"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_completed",
+  "title": "Clinic Visit Completed",
+  "message": "The clinic visit for Bobi has been completed. Thank you for visiting us!",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0a84c270c1fa91d4b6490"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:11:43.464Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:43.464Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b04a66beeee960a84f5b"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "medical_record_shared",
+  "title": "Medical Record Available",
+  "message": "Dr. Gino Bailon has shared a medical record for Rojo Reaño.",
+  "read": false,
+  "metadata": {
+    "medicalRecordId": {
+      "$oid": "69c0a294ecffe5509c6d16d3"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:15:22.195Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:15:22.195Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b05e66beeee960a84f79"
+  },
+  "userId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "type": "medical_record_shared",
+  "title": "Medical Record Available",
+  "message": "Dr. Gino Bailon has shared a medical record for Blu Reaño.",
+  "read": false,
+  "metadata": {
+    "medicalRecordId": {
+      "$oid": "69c0a527ecffe5509c6d1ad4"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:15:42.324Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:15:42.324Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b0872c03625293580642"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_qr_payment_submitted",
+  "title": "QR Payment Proof Submitted",
+  "message": "Maxene Balbastro submitted a QR payment screenshot for Bobi. Please review and approve.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c09c73fabdec10364d704b"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:16:23.964Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:16:23.964Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b0912c036252935806a6"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_qr_payment_submitted",
+  "title": "QR Payment Proof Submitted",
+  "message": "Maxene Balbastro submitted a QR payment screenshot for Yoru. Please review and approve.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c09c8dfabdec10364d705f"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:16:33.050Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:16:33.050Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b0e32c03625293580896"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_qr_payment_submitted",
+  "title": "QR Payment Proof Submitted",
+  "message": "Maxene Balbastro submitted a QR payment screenshot for Bobi. Please review and approve.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a967936f20ea28aafc98"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:17:55.780Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:17:55.780Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b0fc2c0362529358090e"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_qr_payment_submitted",
+  "title": "QR Payment Proof Submitted",
+  "message": "Maxene Balbastro submitted a QR payment screenshot for Bobi. Please review and approve.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ab67936f20ea28aaff3e"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:18:20.603Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:18:20.603Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b11e2c0362529358097a"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_qr_payment_submitted",
+  "title": "QR Payment Proof Submitted",
+  "message": "Maxene Balbastro submitted a QR payment screenshot for Yoru. Please review and approve.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ad4b936f20ea28ab02d0"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:18:54.707Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:18:54.707Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b1542c03625293580b2c"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_paid",
+  "title": "QR Payment Approved",
+  "message": "Your QR payment of ₱0.00 for Bobi has been approved. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0a967936f20ea28aafc98"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:19:48.323Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:19:48.323Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b1582c03625293580b9a"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_paid",
+  "title": "QR Payment Approved",
+  "message": "Your QR payment of ₱1550.00 for Bobi has been approved. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ab67936f20ea28aaff3e"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:19:52.251Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:19:52.251Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b15c2c03625293580beb"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_paid",
+  "title": "QR Payment Approved",
+  "message": "Your QR payment of ₱1150.00 for Yoru has been approved. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0ad4b936f20ea28ab02d0"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:19:56.149Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:19:56.149Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b1d02c03625293580d10"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Tamago with Dr. Gino Bailon at Parañaque on March 23, 2026 at 12:30 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0b1d02c03625293580d0a"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:21:52.894Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:21:52.894Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b1d12c03625293580d17"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Tamago on March 23, 2026 at 12:30 (General Consulation).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0b1d02c03625293580d0a"
+    },
+    "petId": {
+      "$oid": "69c09a44fabdec10364d6faa"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:21:53.173Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:21:53.173Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b2492c03625293580d73"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_scheduled",
+  "title": "New Appointment Scheduled",
+  "message": "Your appointment for Tamago with Dr. Gino Bailon at Parañaque on March 24, 2026 at 09:30 has been confirmed.",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0b2492c03625293580d6d"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:23:53.798Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:23:53.798Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b24a2c03625293580d7a"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_new_appointment_booked",
+  "title": "New Appointment Booked by Pet Owner",
+  "message": "Maxene Balbastro booked an appointment for Tamago on March 24, 2026 at 09:30 (General Consulation).",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0b2492c03625293580d6d"
+    },
+    "petId": {
+      "$oid": "69c09a44fabdec10364d6faa"
+    },
+    "ownerId": {
+      "$oid": "69c099acfabdec10364d6f9e"
+    },
+    "branchId": {
+      "$oid": "69b9510c1dbc4345cd411a0c"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:23:54.033Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:23:54.033Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b2fe2c03625293580fe6"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_due",
+  "title": "New Invoice Ready",
+  "message": "A new invoice of ₱350.00 for Tamago is ready for payment.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0b26c2c03625293580dba"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:26:54.899Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:26:54.899Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b2ff2c03625293581008"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "appointment_completed",
+  "title": "Clinic Visit Completed",
+  "message": "The clinic visit for Tamago has been completed. Thank you for visiting us!",
+  "read": false,
+  "metadata": {
+    "appointmentId": {
+      "$oid": "69c0b2492c03625293580d6d"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:26:55.686Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:26:55.686Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b3482c03625293581111"
+  },
+  "userId": {
+    "$oid": "69b9510d1dbc4345cd411a11"
+  },
+  "type": "clinic_qr_payment_submitted",
+  "title": "QR Payment Proof Submitted",
+  "message": "Maxene Balbastro submitted a QR payment screenshot for Tamago. Please review and approve.",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0b26c2c03625293580dba"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:28:08.128Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:08.128Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b3632c03625293581235"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_paid",
+  "title": "QR Payment Approved",
+  "message": "Your QR payment of ₱530.00 for Tamago has been approved. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c0b26c2c03625293580dba"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:28:35.755Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:35.755Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b3692c03625293581269"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_paid",
+  "title": "QR Payment Approved",
+  "message": "Your QR payment of ₱250.00 for Yoru has been approved. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c09c8dfabdec10364d705f"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:28:41.049Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:41.049Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b36d2c0362529358129d"
+  },
+  "userId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "type": "bill_paid",
+  "title": "QR Payment Approved",
+  "message": "Your QR payment of ₱250.00 for Bobi has been approved. Thank you!",
+  "read": false,
+  "metadata": {
+    "billingId": {
+      "$oid": "69c09c73fabdec10364d704b"
+    }
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:28:45.871Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:28:45.871Z"
+  },
+  "__v": 0
+}]

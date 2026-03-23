@@ -1,0 +1,95 @@
+[{
+  "_id": {
+    "$oid": "69c0a3f8569dc83ed809661f"
+  },
+  "petId": {
+    "$oid": "69c09a78ecffe5509c6d140f"
+  },
+  "__v": 0,
+  "createdAt": {
+    "$date": "2026-03-23T02:22:48.466Z"
+  },
+  "notes": "To be vaccinated next week \n\nFor DHPPiL core vaccination.",
+  "updatedAt": {
+    "$date": "2026-03-23T02:24:28.032Z"
+  },
+  "updatedBy": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  }
+},
+{
+  "_id": {
+    "$oid": "69c0a97a569dc83ed8096659"
+  },
+  "petId": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "__v": 0,
+  "createdAt": {
+    "$date": "2026-03-23T02:46:18.137Z"
+  },
+  "notes": "Ovariohysterectomy performed uneventfully; vital signs remained stable throughout the procedure.\nPatient is stable post-operatively and was discharged with medications and care instructions.\nNo intraoperative complications noted; incision site is clean and properly closed.\nAdvised owner to monitor appetite, activity, and incision site, and to return for follow-up as scheduled.",
+  "updatedAt": {
+    "$date": "2026-03-23T02:48:06.055Z"
+  },
+  "updatedBy": {
+    "$oid": "69c09db0ecffe5509c6d15b9"
+  }
+},
+{
+  "_id": {
+    "$oid": "69c0a9cc569dc83ed809665b"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "__v": 0,
+  "createdAt": {
+    "$date": "2026-03-23T02:47:40.615Z"
+  },
+  "notes": "Pet is new and playful. Came from a family that had a hard time for care, became unsuitable for the pet\n\n",
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:43.390Z"
+  },
+  "updatedBy": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  }
+},
+{
+  "_id": {
+    "$oid": "69c0ad9e569dc83ed8096673"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "__v": 0,
+  "createdAt": {
+    "$date": "2026-03-23T03:03:58.831Z"
+  },
+  "notes": "Yoru presented to the clinic with no abnormal signs. Pet was vaccinated with no issues. Pet to return for her second dosing as scheduled.",
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:51.467Z"
+  },
+  "updatedBy": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  }
+},
+{
+  "_id": {
+    "$oid": "69c0b2d0569dc83ed809669e"
+  },
+  "petId": {
+    "$oid": "69c09a44fabdec10364d6faa"
+  },
+  "__v": 0,
+  "createdAt": {
+    "$date": "2026-03-23T03:26:08.423Z"
+  },
+  "notes": "Pet presented as slightly sick. Prescribed with medicine Amoxicillin",
+  "updatedAt": {
+    "$date": "2026-03-23T03:26:55.581Z"
+  },
+  "updatedBy": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  }
+}]

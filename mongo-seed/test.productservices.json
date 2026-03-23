@@ -1,0 +1,2905 @@
+[{
+  "_id": {
+    "$oid": "69b97108361862898d9f84dd"
+  },
+  "name": "Doxycycline",
+  "type": "Product",
+  "category": "Medication",
+  "price": 7,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": "oral",
+  "administrationMethod": "tablets",
+  "dosePerKg": 10,
+  "doseUnit": "mg",
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": "every 12 hours",
+  "duration": 28,
+  "durationLabel": "28 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b98a0589b95b1876cffb44"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b98a0589b95b1876cffb45"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T15:19:36.489Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T13:41:04.756Z"
+  },
+  "__v": 2,
+  "netContent": 250,
+  "pricingType": "singlePill"
+},
+{
+  "_id": {
+    "$oid": "69b97cadff4752c119a39476"
+  },
+  "name": "Blood Chemistry",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 2100,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cadff4752c119a39477"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cadff4752c119a39478"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:09:17.317Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:16:03.200Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97cb8ff4752c119a39483"
+  },
+  "name": "CBC",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 600,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cb8ff4752c119a39484"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cb8ff4752c119a39485"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:09:28.170Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:09:28.170Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97cc2ff4752c119a39490"
+  },
+  "name": "Fecal Exam",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cc2ff4752c119a39491"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cc2ff4752c119a39492"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:09:38.393Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:09:38.393Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97ccfff4752c119a3949d"
+  },
+  "name": "Ultrasound",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 800,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97ccfff4752c119a3949e"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97ccfff4752c119a3949f"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:09:51.262Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:09:51.262Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97cf1ff4752c119a394ab"
+  },
+  "name": "Urinalysis",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cf1ff4752c119a394ac"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97cf1ff4752c119a394ad"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:10:25.258Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:10:25.258Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97d06ff4752c119a394b8"
+  },
+  "name": "X-Ray",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 1400,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d06ff4752c119a394b9"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d06ff4752c119a394ba"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:10:46.657Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:10:46.657Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97d0fff4752c119a394c5"
+  },
+  "name": "Consultation",
+  "type": "Service",
+  "category": "General Consultation",
+  "price": 350,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d4dff4752c119a39506"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d4dff4752c119a39507"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:10:55.456Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-21T17:45:02.251Z"
+  },
+  "__v": 1,
+  "isSystemProduct": false,
+  "pricingType": "singlePill"
+},
+{
+  "_id": {
+    "$oid": "69b97d19ff4752c119a394d3"
+  },
+  "name": "General Consulation",
+  "type": "Service",
+  "category": "General Consultation",
+  "price": 350,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d45ff4752c119a394ff"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d45ff4752c119a39500"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:11:05.671Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:11:49.385Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69b97d23ff4752c119a394e0"
+  },
+  "name": "Maternity Care",
+  "type": "Service",
+  "category": "General Consultation",
+  "price": 500,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d3cff4752c119a394f8"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d3cff4752c119a394f9"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:11:15.704Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-21T17:45:02.546Z"
+  },
+  "__v": 1,
+  "isSystemProduct": false,
+  "pricingType": "singlePill"
+},
+{
+  "_id": {
+    "$oid": "69b97d34ff4752c119a394ed"
+  },
+  "name": "Basic Grooming",
+  "type": "Service",
+  "category": "Grooming",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d34ff4752c119a394ee"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d34ff4752c119a394ef"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:11:32.176Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:11:32.176Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97d63ff4752c119a39510"
+  },
+  "name": "Full Grooming",
+  "type": "Service",
+  "category": "Grooming",
+  "price": 1000,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d63ff4752c119a39511"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d63ff4752c119a39512"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:12:19.770Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:12:19.770Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97d71ff4752c119a3951d"
+  },
+  "name": "Confinement",
+  "type": "Service",
+  "category": "Others",
+  "price": 1000,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d71ff4752c119a3951e"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d71ff4752c119a3951f"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:12:33.583Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:12:33.583Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97d80ff4752c119a3952a"
+  },
+  "name": "Deworming",
+  "type": "Service",
+  "category": "Preventive Care",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d9eff4752c119a39543"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d9eff4752c119a39544"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:12:48.813Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:13:18.573Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69b97d95ff4752c119a39538"
+  },
+  "name": "Flea & Tick Prevention",
+  "type": "Service",
+  "category": "Preventive Care",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d95ff4752c119a39539"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97d95ff4752c119a3953a"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:13:09.587Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:13:09.587Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97db2ff4752c119a3954c"
+  },
+  "name": "Heartworm Prevention",
+  "type": "Service",
+  "category": "Preventive Care",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97db2ff4752c119a3954d"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97db2ff4752c119a3954e"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:13:38.073Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:13:38.073Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b97dd1ff4752c119a3955a"
+  },
+  "name": "Vaccination/Immunization",
+  "type": "Service",
+  "category": "Preventive Care",
+  "price": 100,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a621d69d4570e96c6096"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": false,
+      "_id": {
+        "$oid": "69c0a621d69d4570e96c6097"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:14:09.539Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:01.299Z"
+  },
+  "__v": 2,
+  "pricingType": "singlePill",
+  "isSystemProduct": false
+},
+{
+  "_id": {
+    "$oid": "69b97dedff4752c119a39567"
+  },
+  "name": "Sterilization",
+  "type": "Service",
+  "category": "Surgeries",
+  "price": 1500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97dedff4752c119a39568"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b97dedff4752c119a39569"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T16:14:37.797Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T16:14:37.797Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69b98a8789b95b1876cffb53"
+  },
+  "name": "Amoxicillin",
+  "type": "Product",
+  "category": "Medication",
+  "price": 8,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": "oral",
+  "administrationMethod": "tablets",
+  "netContent": 250,
+  "dosePerKg": 12.5,
+  "doseUnit": "mg",
+  "dosageAmount": null,
+  "frequency": null,
+  "frequencyLabel": "every 12 hours",
+  "duration": 7,
+  "durationLabel": "7 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b9982df80e355ad2e3bf88"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b9982df80e355ad2e3bf89"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T17:08:23.724Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T13:41:04.558Z"
+  },
+  "__v": 6,
+  "pricingType": "singlePill"
+},
+{
+  "_id": {
+    "$oid": "69b98d2c6abbb957ecf58455"
+  },
+  "name": "Ear Drops",
+  "type": "Product",
+  "category": "Medication",
+  "price": 440,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": "topical",
+  "administrationMethod": "ears",
+  "netContent": 20,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": "4-6 Drops",
+  "frequency": null,
+  "frequencyLabel": "every 12 hours",
+  "duration": 7,
+  "durationLabel": "7 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b98d2c6abbb957ecf58456"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b98d2c6abbb957ecf58457"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T17:19:40.347Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T13:41:04.946Z"
+  },
+  "__v": 0,
+  "pricingType": "singlePill"
+},
+{
+  "_id": {
+    "$oid": "69b98de86abbb957ecf5846f"
+  },
+  "name": "Small Dog Spot-On (Tick/Flea)",
+  "type": "Product",
+  "category": "Medication",
+  "price": 400,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": "preventive",
+  "administrationMethod": "spot-on",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 4,
+  "weightMax": 10,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b98de86abbb957ecf58470"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69b98de86abbb957ecf58471"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-17T17:22:48.809Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T13:41:05.141Z"
+  },
+  "__v": 0,
+  "pricingType": "singlePill"
+},
+{
+  "_id": {
+    "$oid": "69baaefcc3873a521face28b"
+  },
+  "name": "Amoxicillin (Tablet)",
+  "type": "Product",
+  "category": "Medication",
+  "price": 25,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "oral",
+  "administrationMethod": "tablets",
+  "netContent": 500,
+  "dosePerKg": 10,
+  "doseUnit": "mg",
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": 2,
+  "frequencyLabel": "2 times per day, every 12 hours",
+  "duration": 7,
+  "durationLabel": "7 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69baced798198922f6d02090"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69baced798198922f6d02091"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T13:56:12.892Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T16:12:07.120Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69baaf5bc3873a521face2a1"
+  },
+  "name": "Doxycycline",
+  "type": "Product",
+  "category": "Medication",
+  "price": 450,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "oral",
+  "administrationMethod": "capsules",
+  "netContent": 100,
+  "dosePerKg": 5,
+  "doseUnit": "mg",
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": 1,
+  "frequencyLabel": "1 times per day, every 24 hours",
+  "duration": 14,
+  "durationLabel": "14 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bacc8c1fc9e80425055ad4"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bacc8c1fc9e80425055ad5"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T13:57:47.097Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T16:02:20.066Z"
+  },
+  "__v": 3
+},
+{
+  "_id": {
+    "$oid": "69bab140c3873a521face2f7"
+  },
+  "name": "Fipronil Spot-On",
+  "type": "Product",
+  "category": "Medication",
+  "price": 250,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": "preventive",
+  "administrationMethod": "spot-on",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 5,
+  "weightMax": 10,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbff5bc5dbb9cf6fd9e9e4"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbff5bc5dbb9cf6fd9e9e5"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T14:05:52.615Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-19T13:54:00.817Z"
+  },
+  "__v": 3,
+  "associatedServiceId": {
+    "$oid": "69b97d95ff4752c119a39538"
+  },
+  "preventiveDuration": 20,
+  "preventiveDurationUnit": "months"
+},
+{
+  "_id": {
+    "$oid": "69bab17cc3873a521face311"
+  },
+  "name": "Ivermectin Chewable",
+  "type": "Product",
+  "category": "Medication",
+  "price": 120,
+  "description": "",
+  "isActive": false,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 10,
+  "weightMax": 20,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbff69c5dbb9cf6fd9e9ff"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbff69c5dbb9cf6fd9ea00"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T14:06:52.344Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-19T13:54:00.924Z"
+  },
+  "__v": 3,
+  "associatedServiceId": {
+    "$oid": "69b97d80ff4752c119a3952a"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months"
+},
+{
+  "_id": {
+    "$oid": "69bab376c3873a521face417"
+  },
+  "name": "Amoxicillin (Syrup)",
+  "type": "Product",
+  "category": "Medication",
+  "price": 180,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "oral",
+  "administrationMethod": "syrup",
+  "netContent": 60,
+  "dosePerKg": 10,
+  "doseUnit": "mg",
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": 2,
+  "frequencyLabel": "2 times per day, every 8 hours",
+  "duration": 7,
+  "durationLabel": "7 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bacede98198922f6d0209b"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bacede98198922f6d0209c"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T14:15:18.384Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T16:12:14.410Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69bab4c4c3873a521face509"
+  },
+  "name": "Meloxicam",
+  "type": "Product",
+  "category": "Medication",
+  "price": 15,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "injection",
+  "administrationMethod": "sc",
+  "netContent": 1,
+  "dosePerKg": 0.2,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "mlPerKg",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bced7267cd85c450b69e09"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bced7267cd85c450b69e0a"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T14:20:52.591Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T06:47:14.865Z"
+  },
+  "__v": 3,
+  "associatedServiceId": null
+},
+{
+  "_id": {
+    "$oid": "69bab5a2c3873a521face55c"
+  },
+  "name": "Ceftriaxone",
+  "type": "Product",
+  "category": "Medication",
+  "price": 350,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "injection",
+  "administrationMethod": "im",
+  "netContent": 1,
+  "dosePerKg": 0.1,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "singleDose",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bced5467cd85c450b69da5"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bced5467cd85c450b69da6"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T14:24:34.978Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T06:46:44.976Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69bad8df174b4777d69ff3c8"
+  },
+  "name": "Ketoconazole",
+  "type": "Product",
+  "category": "Medication",
+  "price": 350,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "topical",
+  "administrationMethod": "wounds",
+  "netContent": 20,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": "Apply twice a day every 8 hours",
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": 7,
+  "durationLabel": "7 days",
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdadb268c4fe300e9b87af"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdadb268c4fe300e9b87b0"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T16:54:55.163Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:27:30.313Z"
+  },
+  "__v": 5
+},
+{
+  "_id": {
+    "$oid": "69baed0c389ae562cf459cfc"
+  },
+  "name": "Natural Delivery",
+  "type": "Service",
+  "category": "Pregnancy Delivery",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69baed0c389ae562cf459cfd"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69baed0c389ae562cf459cfe"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T18:21:00.391Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T18:21:00.391Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69baed22389ae562cf459d09"
+  },
+  "name": "Cesarian Section Delivery",
+  "type": "Service",
+  "category": "Pregnancy Delivery",
+  "price": 2000,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69baed2b389ae562cf459d14"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69baed2b389ae562cf459d15"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-18T18:21:22.808Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-18T18:21:31.369Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69bbbe9a490635a2601d4087"
+  },
+  "name": "Canine Titer Testing (CDV, CAV, CPV)",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 900,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbbe9a490635a2601d4088"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbbe9a490635a2601d4089"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T09:15:06.189Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-19T09:15:06.189Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69bbbeda490635a2601d4099"
+  },
+  "name": "Feline Titer Testing (FPV, FCV, FHV)",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 800,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbbeda490635a2601d409a"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bbbeda490635a2601d409b"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T09:16:10.549Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-19T09:16:10.549Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69bbffa1c5dbb9cf6fd9ea29"
+  },
+  "name": "(Afoxolaner) NexGard",
+  "type": "Product",
+  "category": "Medication",
+  "price": 250,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 2,
+  "weightMax": 14,
+  "associatedServiceId": {
+    "$oid": "69b97d95ff4752c119a39538"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months",
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaeb168c4fe300e9b888e"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaeb168c4fe300e9b888f"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T13:52:33.516Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:31:45.539Z"
+  },
+  "__v": 4
+},
+{
+  "_id": {
+    "$oid": "69bc0037c5dbb9cf6fd9ea82"
+  },
+  "name": "(Praziquantel) Drontal",
+  "type": "Product",
+  "category": "Medication",
+  "price": 250,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 5,
+  "weightMax": 15,
+  "associatedServiceId": {
+    "$oid": "69b97d80ff4752c119a3952a"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months",
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaedb68c4fe300e9b88ae"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaedb68c4fe300e9b88af"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T13:55:03.874Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:32:27.610Z"
+  },
+  "__v": 4
+},
+{
+  "_id": {
+    "$oid": "69bc27c672541143e16578ec"
+  },
+  "name": "(Ivermectin) Heartgard Plus",
+  "type": "Product",
+  "category": "Medication",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 1,
+  "weightMax": 15,
+  "associatedServiceId": {
+    "$oid": "69b97db2ff4752c119a3954c"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months",
+  "pricingType": "pack",
+  "piecesPerPack": 25,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdae9268c4fe300e9b8873"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdae9268c4fe300e9b8874"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T16:43:50.840Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:31:14.056Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69bc79bbaf543fd2a2a60c13"
+  },
+  "name": "(Praziquantel) PraziCare",
+  "type": "Product",
+  "category": "Medication",
+  "price": 200,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "injection",
+  "administrationMethod": "sc",
+  "netContent": 10,
+  "dosePerKg": 0.2,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": {
+    "$oid": "69b97d80ff4752c119a3952a"
+  },
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "mlPerKg",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaef868c4fe300e9b890d"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaef868c4fe300e9b890e"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T22:33:31.018Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:32:56.438Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69bc7ae4af543fd2a2a60cd3"
+  },
+  "name": "(Moxidectin) ProHeart",
+  "type": "Product",
+  "category": "Medication",
+  "price": 1300,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "injection",
+  "administrationMethod": "sc",
+  "netContent": 10,
+  "dosePerKg": 0.11,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": {
+    "$oid": "69b97db2ff4752c119a3954c"
+  },
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "mlPerKg",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaf1b68c4fe300e9b8971"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdaf1b68c4fe300e9b8972"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T22:38:28.486Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:33:31.103Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69bc7bfbaf543fd2a2a60d3d"
+  },
+  "name": "(Fluralaner) Bravecto Quantum",
+  "type": "Product",
+  "category": "Medication",
+  "price": 525,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": "injection",
+  "administrationMethod": "sc",
+  "netContent": 150,
+  "dosePerKg": 0.1,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": {
+    "$oid": "69b97d95ff4752c119a39538"
+  },
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "mlPerKg",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdadd768c4fe300e9b8813"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdadd768c4fe300e9b8814"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-19T22:43:07.767Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T20:28:07.006Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69bdc5dc288fadd6368af1d6"
+  },
+  "name": "Canine 3-in-1 Antigen Test Kit (CPV, CAV, CDV)",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 900,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdc5e9288fadd6368af1e1"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdc5e9288fadd6368af1e2"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-20T22:10:36.756Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T22:10:49.122Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69bdc5f4288fadd6368af1eb"
+  },
+  "name": "Feline 3-in-1 Antigen Test Kit  (FPV, FCV, FHV)",
+  "type": "Service",
+  "category": "Diagnostic Tests",
+  "price": 900,
+  "description": "",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdc5ff288fadd6368af1ff"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdc5ff288fadd6368af200"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-20T22:11:00.708Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T22:11:11.232Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69bdccf8ff242cd64a7ae9a1"
+  },
+  "name": "Euthanasia",
+  "type": "Service",
+  "category": "Others",
+  "price": 3500,
+  "description": "a humane, veterinary-supervised procedure designed to end a pet's life in a peaceful, painless manner",
+  "isActive": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdccf8ff242cd64a7ae9a2"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bdccf8ff242cd64a7ae9a3"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-20T22:40:56.332Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-20T22:40:56.332Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69bebb5cd7535f157bafd51c"
+  },
+  "name": "NFC Pet Tag",
+  "type": "Product",
+  "category": "Others",
+  "price": 250,
+  "description": "Physical NFC tag for pet identification",
+  "isActive": true,
+  "isSystemProduct": true,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bebc4fd7535f157bafd629"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69b9544b705b9e6992794194"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69bebc4fd7535f157bafd62a"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-21T15:38:04.319Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-21T15:42:07.632Z"
+  },
+  "__v": 2
+},
+{
+  "_id": {
+    "$oid": "69c0a1b5d69d4570e96c598d"
+  },
+  "name": "(Afoxolaner) Simparica",
+  "type": "Product",
+  "category": "Medication",
+  "price": 220,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 0,
+  "weightMax": 25,
+  "associatedServiceId": {
+    "$oid": "69b97d95ff4752c119a39538"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months",
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a24bd69d4570e96c5a2b"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a24bd69d4570e96c5a2c"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:13:09.102Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:15:39.748Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69c0a1efd69d4570e96c59ce"
+  },
+  "name": "(Ivermectin) Stronghart",
+  "type": "Product",
+  "category": "Medication",
+  "price": 530,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 0,
+  "weightMax": 25,
+  "associatedServiceId": {
+    "$oid": "69b97db2ff4752c119a3954c"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months",
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a279d69d4570e96c5a64"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a279d69d4570e96c5a65"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:14:07.190Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:16:25.220Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69c0a2fdd69d4570e96c5ae9"
+  },
+  "name": "(Praziquantel) Vermifuge",
+  "type": "Product",
+  "category": "Medication",
+  "price": 700,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": "preventive",
+  "administrationMethod": "chewable",
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": 30,
+  "weightMin": 0,
+  "weightMax": 25,
+  "associatedServiceId": {
+    "$oid": "69b97d80ff4752c119a3952a"
+  },
+  "preventiveDuration": 12,
+  "preventiveDurationUnit": "months",
+  "pricingType": "pack",
+  "piecesPerPack": 30,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a2fdd69d4570e96c5aea"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a2fdd69d4570e96c5aeb"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:18:37.591Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:18:37.591Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a3b5d69d4570e96c5ba8"
+  },
+  "name": "(Ivermectin) Ivermax",
+  "type": "Product",
+  "category": "Medication",
+  "price": 550,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": "injection",
+  "administrationMethod": "im",
+  "netContent": 10,
+  "dosePerKg": 0.1,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": {
+    "$oid": "69b97db2ff4752c119a3954c"
+  },
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "singleDose",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a400d69d4570e96c5c99"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a400d69d4570e96c5c9a"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:21:41.880Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:22:56.530Z"
+  },
+  "__v": 1
+},
+{
+  "_id": {
+    "$oid": "69c0a46fd69d4570e96c5d82"
+  },
+  "name": "(Praziquantel) Safe-guard",
+  "type": "Product",
+  "category": "Medication",
+  "price": 330,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": "injection",
+  "administrationMethod": "sc",
+  "netContent": 10,
+  "dosePerKg": 0.2,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": 0,
+  "weightMax": 25,
+  "associatedServiceId": {
+    "$oid": "69b97d80ff4752c119a3952a"
+  },
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "singleDose",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a46fd69d4570e96c5d83"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a46fd69d4570e96c5d84"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:24:47.965Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:24:47.965Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a4ded69d4570e96c5e9f"
+  },
+  "name": "(Fluralaner) Frontline",
+  "type": "Product",
+  "category": "Medication",
+  "price": 500,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": "injection",
+  "administrationMethod": "sc",
+  "netContent": 10,
+  "dosePerKg": 0.1,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": 0,
+  "weightMax": 20,
+  "associatedServiceId": {
+    "$oid": "69b97d95ff4752c119a39538"
+  },
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": "singleDose",
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a4ded69d4570e96c5ea0"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a4ded69d4570e96c5ea1"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:26:38.901Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:26:38.901Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a519d69d4570e96c5f1e"
+  },
+  "name": "Dental Scaling",
+  "type": "Service",
+  "category": "Surgeries",
+  "price": 3500,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a519d69d4570e96c5f1f"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a519d69d4570e96c5f20"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:27:37.109Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:27:37.109Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a560d69d4570e96c5f39"
+  },
+  "name": "Orthopedic Surgery",
+  "type": "Service",
+  "category": "Surgeries",
+  "price": 16500,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a560d69d4570e96c5f3a"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a560d69d4570e96c5f3b"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:28:48.588Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:28:48.588Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a58bd69d4570e96c5f54"
+  },
+  "name": "Cystotomy",
+  "type": "Service",
+  "category": "Surgeries",
+  "price": 11500,
+  "description": "",
+  "isActive": true,
+  "isSystemProduct": false,
+  "administrationRoute": null,
+  "administrationMethod": null,
+  "netContent": null,
+  "dosePerKg": null,
+  "doseUnit": null,
+  "doseConcentration": null,
+  "dosageAmount": null,
+  "frequencyNotes": null,
+  "frequency": null,
+  "frequencyLabel": null,
+  "duration": null,
+  "durationLabel": null,
+  "intervalDays": null,
+  "weightMin": null,
+  "weightMax": null,
+  "associatedServiceId": null,
+  "preventiveDuration": null,
+  "preventiveDurationUnit": null,
+  "pricingType": "singlePill",
+  "piecesPerPack": null,
+  "injectionPricingType": null,
+  "branchAvailability": [
+    {
+      "branchId": {
+        "$oid": "69b9510c1dbc4345cd411a0c"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a58bd69d4570e96c5f55"
+      }
+    },
+    {
+      "branchId": {
+        "$oid": "69bfb3c39b088ffaa0cf38fb"
+      },
+      "isActive": true,
+      "_id": {
+        "$oid": "69c0a58bd69d4570e96c5f56"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-03-23T02:29:31.939Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:29:31.939Z"
+  },
+  "__v": 0
+}]

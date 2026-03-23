@@ -1,0 +1,90 @@
+[{
+  "_id": {
+    "$oid": "69c09de3d69d4570e96c57ed"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "petId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "clinicName": "Baivet",
+  "clinicAddress": "Merville",
+  "assignedAt": {
+    "$date": "2026-03-23T01:56:51.124Z"
+  },
+  "isActive": true,
+  "lastVisit": null,
+  "nextVisit": null,
+  "createdAt": {
+    "$date": "2026-03-23T01:56:51.128Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:56:51.128Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09fd9270c1fa91d4b60c1"
+  },
+  "vetId": {
+    "$oid": "69c09d94fabdec10364d706e"
+  },
+  "petId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "clinicName": "Baivet",
+  "clinicAddress": "123 Main St. San Antonio",
+  "assignedAt": {
+    "$date": "2026-03-23T02:05:13.043Z"
+  },
+  "isActive": true,
+  "lastVisit": null,
+  "nextVisit": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:05:13.043Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:05:13.043Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09fdf270c1fa91d4b60d7"
+  },
+  "vetId": {
+    "$oid": "69c09db0ecffe5509c6d15b9"
+  },
+  "petId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "clinicName": "Baivet",
+  "clinicAddress": "123 Main St. San Antonio",
+  "assignedAt": {
+    "$date": "2026-03-23T02:05:19.226Z"
+  },
+  "isActive": true,
+  "lastVisit": null,
+  "nextVisit": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:05:19.227Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:05:19.227Z"
+  },
+  "__v": 0
+}]

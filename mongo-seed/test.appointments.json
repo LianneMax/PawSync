@@ -1,0 +1,588 @@
+[{
+  "_id": {
+    "$oid": "69c0a240ecffe5509c6d1690"
+  },
+  "petId": {
+    "$oid": "69c09a78ecffe5509c6d140f"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "General Consulation"
+  ],
+  "date": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "startTime": "14:00",
+  "endTime": "14:30",
+  "status": "completed",
+  "notes": "Check-up",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": {
+    "$oid": "69c0a294ecffe5509c6d16d3"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:15:28.999Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:24:27.918Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a525270c1fa91d4b62e2"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "online",
+  "types": [
+    "consultation"
+  ],
+  "date": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "startTime": "17:30",
+  "endTime": "18:00",
+  "status": "completed",
+  "notes": "Consultation for Diet",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": {
+    "$oid": "69c0a967936f20ea28aafc94"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:27:49.966Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:15.516Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a74decffe5509c6d1db1"
+  },
+  "petId": {
+    "$oid": "69c099e4ecffe5509c6d132d"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "flea-tick-prevention"
+  ],
+  "date": {
+    "$date": "2026-03-26T00:00:00.000Z"
+  },
+  "startTime": "11:00",
+  "endTime": "11:30",
+  "status": "confirmed",
+  "notes": "Seeing lots of fleas in the past week",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:37:01.988Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:01.988Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a76c270c1fa91d4b63f1"
+  },
+  "petId": {
+    "$oid": "69c09b02fabdec10364d6fd8"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09d94fabdec10364d706e"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "General Consulation",
+    "deworming"
+  ],
+  "date": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "startTime": "17:00",
+  "endTime": "17:30",
+  "status": "confirmed",
+  "notes": "Not Eating, No Appetite",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:37:32.273Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:37:32.273Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a84c270c1fa91d4b6490"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "vaccination",
+    "General Consulation"
+  ],
+  "date": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "startTime": "09:00",
+  "endTime": "09:30",
+  "status": "completed",
+  "notes": "Rabies Vaccination",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": {
+    "$oid": "69c0ab67936f20ea28aaff3a"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:41:16.372Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:43.159Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8aeecffe5509c6d1eb8"
+  },
+  "petId": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "vetId": {
+    "$oid": "69c09db0ecffe5509c6d15b9"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "Sterilization"
+  ],
+  "date": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "startTime": "10:00",
+  "endTime": "10:30",
+  "status": "completed",
+  "notes": "In need of spaying",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": {
+    "$oid": "69c0a8e5ecffe5509c6d1efb"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:42:54.798Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:48:05.845Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8bc270c1fa91d4b6541"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "full-grooming"
+  ],
+  "date": {
+    "$date": "2026-03-25T00:00:00.000Z"
+  },
+  "startTime": "09:00",
+  "endTime": "09:30",
+  "status": "confirmed",
+  "notes": "Matts/knots",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:43:08.929Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:43:08.929Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0a8ff270c1fa91d4b65a8"
+  },
+  "petId": {
+    "$oid": "69c09b02fabdec10364d6fd8"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09d94fabdec10364d706e"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "flea-tick-prevention",
+    "Heartworm Prevention"
+  ],
+  "date": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "startTime": "23:30",
+  "endTime": "24:00",
+  "status": "confirmed",
+  "notes": "Prevention",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:44:15.161Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:44:15.161Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0abbb936f20ea28ab01c3"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "vaccination"
+  ],
+  "date": {
+    "$date": "2026-03-23T00:00:00.000Z"
+  },
+  "startTime": "17:00",
+  "endTime": "17:30",
+  "status": "completed",
+  "notes": "For Vaccinations",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": {
+    "$oid": "69c0ad4a936f20ea28ab02cc"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T02:55:55.192Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:51.274Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ac0f936f20ea28ab022a"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "Heartworm Prevention",
+    "General Consulation"
+  ],
+  "date": {
+    "$date": "2026-03-26T00:00:00.000Z"
+  },
+  "startTime": "10:30",
+  "endTime": "11:00",
+  "status": "confirmed",
+  "notes": "Disease Preventions Recommended Based on Last Visit",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T02:57:19.678Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:57:19.678Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ad3866beeee960a8480b"
+  },
+  "petId": {
+    "$oid": "69c0a860ecffe5509c6d1e31"
+  },
+  "ownerId": {
+    "$oid": "69c09989ecffe5509c6d1325"
+  },
+  "vetId": null,
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "basic-grooming"
+  ],
+  "date": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "startTime": "14:30",
+  "endTime": "15:00",
+  "status": "completed",
+  "notes": "In need of a haircut and nails cut",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T03:02:16.028Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:03:12.894Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0ae862c0362529358006f"
+  },
+  "petId": {
+    "$oid": "69c09abbfabdec10364d6fc2"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "vaccination"
+  ],
+  "date": {
+    "$date": "2026-04-20T00:00:00.000Z"
+  },
+  "startTime": "09:00",
+  "endTime": "09:30",
+  "status": "confirmed",
+  "notes": "Auto-scheduled booster for FVRCP",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T03:07:50.025Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:07:50.025Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0af6e2c03625293580376"
+  },
+  "petId": {
+    "$oid": "69c09b8cfabdec10364d6ff0"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "vaccination"
+  ],
+  "date": {
+    "$date": "2027-03-23T00:00:00.000Z"
+  },
+  "startTime": "09:00",
+  "endTime": "09:30",
+  "status": "confirmed",
+  "notes": "Auto-scheduled booster for Anti-Rabies",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": null,
+  "createdAt": {
+    "$date": "2026-03-23T03:11:42.017Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:11:42.017Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0b2492c03625293580d6d"
+  },
+  "petId": {
+    "$oid": "69c09a44fabdec10364d6faa"
+  },
+  "ownerId": {
+    "$oid": "69c099acfabdec10364d6f9e"
+  },
+  "vetId": {
+    "$oid": "69c09c44d69d4570e96c5756"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "clinicBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "mode": "face-to-face",
+  "types": [
+    "General Consulation"
+  ],
+  "date": {
+    "$date": "2026-03-24T00:00:00.000Z"
+  },
+  "startTime": "09:30",
+  "endTime": "10:00",
+  "status": "completed",
+  "notes": "My pet has low appetite",
+  "isWalkIn": false,
+  "isEmergency": false,
+  "medicalRecordId": {
+    "$oid": "69c0b26c2c03625293580db6"
+  },
+  "createdAt": {
+    "$date": "2026-03-23T03:23:53.559Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:26:55.461Z"
+  },
+  "__v": 0
+}]

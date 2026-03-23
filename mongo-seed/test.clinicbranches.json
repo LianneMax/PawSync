@@ -1,0 +1,100 @@
+[{
+  "_id": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "name": "Parañaque",
+  "address": "Merville",
+  "city": "Paranaque",
+  "province": "Metro Manila",
+  "phone": "+639688833195",
+  "email": null,
+  "openingTime": "09:00",
+  "closingTime": "18:00",
+  "operatingDays": [
+    "Mon",
+    "Tue",
+    "Thu",
+    "Wed",
+    "Fri",
+    "Sat"
+  ],
+  "isMain": true,
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-17T13:03:09.000Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:14:44.439Z"
+  },
+  "__v": 3,
+  "closureDates": []
+},
+{
+  "_id": {
+    "$oid": "69bfb3c39b088ffaa0cf38fb"
+  },
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "name": "Makati",
+  "address": "123 Main St. San Antonio",
+  "city": "Makati",
+  "province": "Metro Manil",
+  "phone": "09275630095",
+  "email": "baivetclinic.makati@yahoo.com",
+  "openingTime": "00:00",
+  "closingTime": "23:59",
+  "operatingDays": [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun"
+  ],
+  "isMain": false,
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-22T09:17:55.405Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-22T23:40:07.266Z"
+  },
+  "__v": 3,
+  "closureDates": [
+    {
+      "startDate": {
+        "$date": "2026-03-27T00:00:00.000Z"
+      },
+      "endDate": {
+        "$date": "2026-03-27T23:59:59.999Z"
+      },
+      "closureType": "single-day",
+      "createdAt": {
+        "$date": "2026-03-22T22:12:33.623Z"
+      },
+      "_id": {
+        "$oid": "69c06951447d3717d1d9d5fc"
+      }
+    },
+    {
+      "startDate": {
+        "$date": "2026-03-30T00:00:00.000Z"
+      },
+      "endDate": {
+        "$date": "2026-03-30T23:59:59.999Z"
+      },
+      "closureType": "single-day",
+      "createdAt": {
+        "$date": "2026-03-22T22:13:28.556Z"
+      },
+      "_id": {
+        "$oid": "69c06988447d3717d1d9d61a"
+      }
+    }
+  ]
+}]

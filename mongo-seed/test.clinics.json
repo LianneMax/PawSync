@@ -1,0 +1,21 @@
+[{
+  "_id": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "name": "Baivet",
+  "mainBranchId": {
+    "$oid": "69b9510c1dbc4345cd411a0c"
+  },
+  "logo": null,
+  "address": null,
+  "phone": null,
+  "email": null,
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-17T13:03:08.913Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-17T13:03:09.085Z"
+  },
+  "__v": 0
+}]

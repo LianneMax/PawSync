@@ -1,0 +1,256 @@
+[{
+  "_id": {
+    "$oid": "69bab82563d49301cba07fb3"
+  },
+  "name": "Anti-Rabies",
+  "species": [
+    "dog"
+  ],
+  "validityDays": 365,
+  "isSeries": false,
+  "totalSeries": 1,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 365,
+  "minAgeMonths": 16,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": 0,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": 1,
+  "pricePerDose": 200,
+  "defaultManufacturer": "Boehringer",
+  "defaultBatchNumber": "A12346",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-18T14:35:17.367Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:04:31.764Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69bac064cd9055ede89996a1"
+  },
+  "name": "DHPPiL",
+  "species": [
+    "dog"
+  ],
+  "validityDays": 1095,
+  "isSeries": true,
+  "totalSeries": 4,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 1095,
+  "minAgeMonths": 6,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": 1,
+  "pricePerDose": 250,
+  "defaultManufacturer": "Zoetis",
+  "defaultBatchNumber": "A12345",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-18T15:10:28.943Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T01:04:40.577Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c091d1ecffe5509c6d1177"
+  },
+  "name": "Oral Kennel Cough",
+  "species": [
+    "dog"
+  ],
+  "validityDays": 365,
+  "isSeries": false,
+  "totalSeries": 1,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 365,
+  "minAgeMonths": 8,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "oral",
+  "doseVolumeMl": 1,
+  "pricePerDose": 550,
+  "defaultManufacturer": "Zoetis",
+  "defaultBatchNumber": "A123457",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T01:05:21.078Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:55.299Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09225ecffe5509c6d1188"
+  },
+  "name": "Leptospirosis Booster (High-Risk)",
+  "species": [
+    "dog"
+  ],
+  "validityDays": 182,
+  "isSeries": false,
+  "totalSeries": 1,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 180,
+  "minAgeMonths": 0,
+  "minAgeUnit": "months",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": null,
+  "pricePerDose": 500,
+  "defaultManufacturer": "Boehringer",
+  "defaultBatchNumber": "A12348",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T01:06:45.953Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:50.386Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0925cecffe5509c6d1196"
+  },
+  "name": "6-in-1 Vaccine",
+  "species": [
+    "dog"
+  ],
+  "validityDays": 1095,
+  "isSeries": true,
+  "totalSeries": 4,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 1095,
+  "minAgeMonths": 6,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": null,
+  "pricePerDose": 250,
+  "defaultManufacturer": "Zoetis",
+  "defaultBatchNumber": "A12349",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T01:07:40.019Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:28.024Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c0928aecffe5509c6d11a4"
+  },
+  "name": "8-in-1 Vaccine",
+  "species": [
+    "dog"
+  ],
+  "validityDays": 1095,
+  "isSeries": true,
+  "totalSeries": 4,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 1095,
+  "minAgeMonths": 6,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": null,
+  "pricePerDose": 350,
+  "defaultManufacturer": "Boehringer",
+  "defaultBatchNumber": "A12310",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T01:08:26.848Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:31.647Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c092f9ecffe5509c6d11bc"
+  },
+  "name": "FVRCP",
+  "species": [
+    "cat"
+  ],
+  "validityDays": 1095,
+  "isSeries": true,
+  "totalSeries": 3,
+  "seriesIntervalDays": 28,
+  "boosterValid": true,
+  "boosterIntervalDays": 1095,
+  "minAgeMonths": 6,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": 0.5,
+  "pricePerDose": 250,
+  "defaultManufacturer": "Zoetiz",
+  "defaultBatchNumber": "A12311",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T01:10:17.067Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:44.227Z"
+  },
+  "__v": 0
+},
+{
+  "_id": {
+    "$oid": "69c09322ecffe5509c6d11c0"
+  },
+  "name": "Anti-Rabies",
+  "species": [
+    "cat"
+  ],
+  "validityDays": 365,
+  "isSeries": false,
+  "totalSeries": 1,
+  "seriesIntervalDays": 21,
+  "boosterValid": true,
+  "boosterIntervalDays": 365,
+  "minAgeMonths": 14,
+  "minAgeUnit": "weeks",
+  "maxAgeMonths": null,
+  "maxAgeUnit": "months",
+  "route": "subcutaneous",
+  "doseVolumeMl": 0.5,
+  "pricePerDose": 300,
+  "defaultManufacturer": "Merial",
+  "defaultBatchNumber": "A12312",
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T01:10:58.536Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T02:32:36.579Z"
+  },
+  "__v": 0
+}]

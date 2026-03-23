@@ -1,0 +1,18 @@
+[{
+  "_id": {
+    "$oid": "69c0b035936f20ea28ab13b6"
+  },
+  "label": "Maya",
+  "imageData": "/uploads/payment-qr/1774235699758-427313264.jpg",
+  "clinicId": {
+    "$oid": "69b9510c1dbc4345cd411a0a"
+  },
+  "isActive": true,
+  "createdAt": {
+    "$date": "2026-03-23T03:15:01.264Z"
+  },
+  "updatedAt": {
+    "$date": "2026-03-23T03:15:01.264Z"
+  },
+  "__v": 0
+}]
