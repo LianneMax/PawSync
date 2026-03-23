@@ -128,13 +128,19 @@ export const createConfinementMonitoringEntry = async (req: Request, res: Respon
       return res.status(400).json({ status: 'ERROR', message: 'Monitoring entries can only be added while confinement is admitted' });
     }
 
-    const { entryType } = req.body;
+    const entryType = req.body.entryType || 'daily';
     if (req.user.userType === 'clinic-admin' && entryType !== 'spot') {
       return res.status(403).json({ status: 'ERROR', message: 'Clinic admins can only add spot monitoring entries' });
     }
 
     if (entryType !== 'daily' && entryType !== 'spot') {
       return res.status(400).json({ status: 'ERROR', message: 'entryType must be daily or spot' });
+    }
+
+    const requiredFields = ['temperature', 'heartRate', 'weight', 'spo2', 'capillaryRefillTime', 'bodyConditionScore', 'dentalScore', 'clinicalNotes'];
+    const missing = requiredFields.find((field) => req.body[field] === undefined || req.body[field] === null || String(req.body[field]).trim() === '');
+    if (missing) {
+      return res.status(400).json({ status: 'ERROR', message: `${missing} is required` });
     }
 
     const recordingDate = toDateOrNull(req.body.recordedAt);
@@ -152,11 +158,15 @@ export const createConfinementMonitoringEntry = async (req: Request, res: Respon
       recorderRole: req.user.userType,
       temperature: { value: Number(req.body.temperature), unit: '°C' },
       heartRate: { value: Number(req.body.heartRate), unit: 'bpm' },
-      respiratoryRate: { value: Number(req.body.respiratoryRate), unit: 'breaths/min' },
+      respiratoryRate: metricOrNull(req.body.respiratoryRate, 'breaths/min'),
       weight: { value: Number(req.body.weight), unit: 'kg' },
+      bodyConditionScore: metricOrNull(req.body.bodyConditionScore, '/5'),
+      dentalScore: metricOrNull(req.body.dentalScore, '/3'),
       hydrationStatus: String(req.body.hydrationStatus || '').trim(),
       appetite: String(req.body.appetite || '').trim(),
-      painScore: Number(req.body.painScore),
+      painScore: req.body.painScore !== undefined && req.body.painScore !== null && String(req.body.painScore).trim() !== ''
+        ? Number(req.body.painScore)
+        : null,
       capillaryRefillTime: metricOrNull(req.body.capillaryRefillTime, 'sec'),
       spo2: metricOrNull(req.body.spo2, '%'),
       bloodGlucose: metricOrNull(req.body.bloodGlucose, 'mg/dL'),
@@ -164,7 +174,7 @@ export const createConfinementMonitoringEntry = async (req: Request, res: Respon
       bloodPressureDiastolic: metricOrNull(req.body.bloodPressureDiastolic, 'mmHg'),
       clinicalNotes: String(req.body.clinicalNotes || '').trim(),
       clinicalFlag: req.body.clinicalFlag || 'normal',
-      followUpAction: req.body.followUpAction,
+      followUpAction: req.body.followUpAction || 'watch',
       followUpInHours: toNumberOrNull(req.body.followUpInHours),
       requiresImmediateReview: Boolean(req.body.requiresImmediateReview) || req.body.clinicalFlag === 'critical',
       alertResolved: false,
@@ -254,11 +264,17 @@ export const updateConfinementMonitoringEntry = async (req: Request, res: Respon
     if (req.body.entryType !== undefined) entry.entryType = req.body.entryType;
     if (req.body.temperature !== undefined) entry.temperature = { value: Number(req.body.temperature), unit: '°C' };
     if (req.body.heartRate !== undefined) entry.heartRate = { value: Number(req.body.heartRate), unit: 'bpm' };
-    if (req.body.respiratoryRate !== undefined) entry.respiratoryRate = { value: Number(req.body.respiratoryRate), unit: 'breaths/min' };
+    if (req.body.respiratoryRate !== undefined) entry.respiratoryRate = metricOrNull(req.body.respiratoryRate, 'breaths/min') as any;
     if (req.body.weight !== undefined) entry.weight = { value: Number(req.body.weight), unit: 'kg' };
+    if (req.body.bodyConditionScore !== undefined) entry.bodyConditionScore = metricOrNull(req.body.bodyConditionScore, '/5') as any;
+    if (req.body.dentalScore !== undefined) entry.dentalScore = metricOrNull(req.body.dentalScore, '/3') as any;
     if (req.body.hydrationStatus !== undefined) entry.hydrationStatus = String(req.body.hydrationStatus || '').trim();
     if (req.body.appetite !== undefined) entry.appetite = String(req.body.appetite || '').trim();
-    if (req.body.painScore !== undefined) entry.painScore = Number(req.body.painScore);
+    if (req.body.painScore !== undefined) {
+      entry.painScore = req.body.painScore === null || String(req.body.painScore).trim() === ''
+        ? null as any
+        : Number(req.body.painScore);
+    }
     if (req.body.capillaryRefillTime !== undefined) entry.capillaryRefillTime = metricOrNull(req.body.capillaryRefillTime, 'sec');
     if (req.body.spo2 !== undefined) entry.spo2 = metricOrNull(req.body.spo2, '%');
     if (req.body.bloodGlucose !== undefined) entry.bloodGlucose = metricOrNull(req.body.bloodGlucose, 'mg/dL');

@@ -15,11 +15,13 @@ export interface MonitoringEntry {
   recorderRole: 'veterinarian' | 'clinic-admin'
   temperature: { value: number; unit: string }
   heartRate: { value: number; unit: string }
-  respiratoryRate: { value: number; unit: string }
+  respiratoryRate?: { value: number; unit: string } | null
   weight: { value: number; unit: string }
-  hydrationStatus: string
-  appetite: string
-  painScore: number
+  bodyConditionScore?: { value: number; unit: string } | null
+  dentalScore?: { value: number; unit: string } | null
+  hydrationStatus?: string
+  appetite?: string
+  painScore?: number | null
   capillaryRefillTime?: { value: number; unit: string } | null
   spo2?: { value: number; unit: string } | null
   bloodGlucose?: { value: number; unit: string } | null

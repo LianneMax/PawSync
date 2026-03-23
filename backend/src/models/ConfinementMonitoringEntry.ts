@@ -19,11 +19,13 @@ export interface IConfinementMonitoringEntry extends Document {
   recorderRole: 'veterinarian' | 'clinic-admin';
   temperature: INumericMetric;
   heartRate: INumericMetric;
-  respiratoryRate: INumericMetric;
+  respiratoryRate: INumericMetric | null;
   weight: INumericMetric;
+  bodyConditionScore: INumericMetric | null;
+  dentalScore: INumericMetric | null;
   hydrationStatus: string;
   appetite: string;
-  painScore: number;
+  painScore: number | null;
   capillaryRefillTime: INumericMetric | null;
   spo2: INumericMetric | null;
   bloodGlucose: INumericMetric | null;
@@ -110,28 +112,36 @@ const ConfinementMonitoringEntrySchema = new Schema<IConfinementMonitoringEntry>
       required: true,
     },
     respiratoryRate: {
-      type: numericMetricSchema,
-      required: true,
+      type: optionalNumericMetricSchema,
+      default: null,
     },
     weight: {
       type: numericMetricSchema,
       required: true,
     },
+    bodyConditionScore: {
+      type: optionalNumericMetricSchema,
+      default: null,
+    },
+    dentalScore: {
+      type: optionalNumericMetricSchema,
+      default: null,
+    },
     hydrationStatus: {
       type: String,
-      required: true,
+      default: '',
       trim: true,
       maxlength: 80,
     },
     appetite: {
       type: String,
-      required: true,
+      default: '',
       trim: true,
       maxlength: 80,
     },
     painScore: {
       type: Number,
-      required: true,
+      default: null,
       min: 0,
       max: 10,
     },
@@ -234,13 +244,23 @@ ConfinementMonitoringEntrySchema.pre('validate', function () {
   const rr = doc.respiratoryRate?.value;
   const wt = doc.weight?.value;
   const spo2 = doc.spo2?.value;
+  const bcs = doc.bodyConditionScore?.value;
+  const dental = doc.dentalScore?.value;
 
   requireReasonForOutOfRange(temp < 34 || temp > 42, 'Temperature');
   requireReasonForOutOfRange(hr < 40 || hr > 260, 'Heart rate');
-  requireReasonForOutOfRange(rr < 5 || rr > 120, 'Respiratory rate');
+  if (typeof rr === 'number') {
+    requireReasonForOutOfRange(rr < 5 || rr > 120, 'Respiratory rate');
+  }
   requireReasonForOutOfRange(wt <= 0 || wt > 200, 'Weight');
   if (typeof spo2 === 'number') {
     requireReasonForOutOfRange(spo2 < 50 || spo2 > 100, 'SpO2');
+  }
+  if (typeof bcs === 'number') {
+    requireReasonForOutOfRange(bcs < 1 || bcs > 5, 'Body condition score');
+  }
+  if (typeof dental === 'number') {
+    requireReasonForOutOfRange(dental < 1 || dental > 3, 'Dental score');
   }
 
   if (doc.clinicalFlag === 'critical' && (!doc.clinicalNotes || !doc.clinicalNotes.trim())) {
