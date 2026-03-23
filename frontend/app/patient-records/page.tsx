@@ -1457,7 +1457,7 @@ function CreateRecordModal({
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
   const [extraCheckboxes, setExtraCheckboxes] = useState<ExtraCheckboxState>(emptyExtraCheckboxes())
   const [overallObservation, setOverallObservation] = useState('')
-  const [images, setImages] = useState<{ data: string; contentType: string; description: string }[]>([])
+  const [images, setImages] = useState<{ url?: string; data?: string; contentType?: string; description: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -3263,7 +3263,7 @@ function FollowUpRecordModal({
 
   const [vetNotes, setVetNotes] = useState('')
   const [sharedWithOwner, setSharedWithOwner] = useState(false)
-  const [media, setMedia] = useState<{ data: string; contentType: string; description: string }[]>([])
+  const [media, setMedia] = useState<{ url?: string; data?: string; contentType?: string; description: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 

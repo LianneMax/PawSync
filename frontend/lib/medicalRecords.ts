@@ -112,7 +112,7 @@ export interface FollowUp {
   ownerObservations: string;
   vetNotes: string;
   sharedWithOwner: boolean;
-  media?: { _id?: string; data?: string; contentType: string; description: string }[];
+  media?: { _id?: string; url?: string; data?: string; contentType?: string; description: string }[];
   createdAt: string;
 }
 
@@ -255,7 +255,7 @@ export const createMedicalRecord = async (recordData: {
   vetId?: string;
   appointmentId?: string;
   vitals?: Partial<Vitals>;
-  images?: { data: string; contentType: string; description?: string }[];
+  images?: { url?: string; data?: string; contentType?: string; description?: string }[];
   overallObservation?: string;
   subjective?: string;
   visitSummary?: string;
@@ -277,7 +277,7 @@ export const createMedicalRecord = async (recordData: {
  */
 export const createFollowUp = async (
   recordId: string,
-  data: { ownerObservations: string; vetNotes?: string; sharedWithOwner?: boolean; media?: { data: string; contentType: string; description: string }[] },
+  data: { ownerObservations: string; vetNotes?: string; sharedWithOwner?: boolean; media?: { url?: string; data?: string; contentType?: string; description: string }[] },
   token?: string
 ): Promise<{ status: string; message?: string; data?: { followUps: FollowUp[] } }> => {
   return authenticatedFetch(`/medical-records/${recordId}/follow-ups`, {
