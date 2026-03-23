@@ -124,12 +124,23 @@ export default function VetOnboardingPage() {
     if (!expirationDate) newErrors.expirationDate = true
     if (!prcIdPhotoBase64) newErrors.prcIdPhoto = true
 
-    // Check if expiration date is in the past (license expired)
+    // Check expiration date constraints
     if (expirationDate) {
       const expDate = new Date(expirationDate)
+      expDate.setHours(0, 0, 0, 0)
+
+      // Must not be before registration date
+      if (registrationDate) {
+        const regDate = new Date(registrationDate)
+        regDate.setHours(0, 0, 0, 0)
+        if (expDate <= regDate) {
+          newErrors.expirationDateBeforeReg = true
+        }
+      }
+
+      // Must not be in the past (license expired)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      expDate.setHours(0, 0, 0, 0)
       if (expDate < today) {
         newErrors.expirationDateExpired = true
         toast.error('Your PRC license has already expired')
@@ -501,13 +512,16 @@ export default function VetOnboardingPage() {
                   <div>
                     <DatePicker
                       value={expirationDate}
-                      onChange={(v) => { setExpirationDate(v); setErrors(prev => ({ ...prev, expirationDate: false, expirationDateExpired: false })) }}
+                      onChange={(v) => { setExpirationDate(v); setErrors(prev => ({ ...prev, expirationDate: false, expirationDateExpired: false, expirationDateBeforeReg: false })) }}
                       placeholder="Expiration Date"
-                      error={errors.expirationDate || errors.expirationDateExpired}
+                      error={errors.expirationDate || errors.expirationDateExpired || errors.expirationDateBeforeReg}
                       allowFutureDates={true}
+                      minDate={registrationDate ? (() => { const d = new Date(registrationDate); d.setDate(d.getDate() + 1); return d })() : undefined}
                     />
                     {errors.expirationDateExpired ? (
                       <p className="text-xs text-red-500 mt-1 ml-1">Your license has already expired</p>
+                    ) : errors.expirationDateBeforeReg ? (
+                      <p className="text-xs text-red-500 mt-1 ml-1">Expiry must be after the registration date</p>
                     ) : !errors.expirationDate && (
                       <p className="text-xs text-gray-500 mt-1 ml-1">
                         When your current license expires
