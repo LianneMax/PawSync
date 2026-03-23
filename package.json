@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/LianneMax/PawSync/issues"
   },
-  "homepage": "https://github.com/LianneMax/PawSync#readme"
+  "homepage": "https://github.com/LianneMax/PawSync#readme",
+  "dependencies": {
+    "mongosh": "^2.8.1"
+  }
 }
