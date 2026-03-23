@@ -259,10 +259,40 @@ export const createAppointment = async (req: Request, res: Response) => {
 
     // Check if pet is marked as lost
     if (pet.isLost) {
-      return res.status(403).json({ 
-        status: 'ERROR', 
-        message: `Cannot schedule an appointment for ${pet.name} as they are marked as lost. Please update their status once they are found.` 
+      return res.status(403).json({
+        status: 'ERROR',
+        message: `Cannot schedule an appointment for ${pet.name} as they are marked as lost. Please update their status once they are found.`
       });
+    }
+
+    // Rule 5: Block confined pets
+    if (pet.isConfined) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'This pet cannot be scheduled for an appointment due to its current status.'
+      });
+    }
+
+    // Rule 5: Block relocated pets (removed from owner's profile)
+    if ((pet as any).removedByOwner) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'This pet cannot be scheduled for an appointment due to its current status.'
+      });
+    }
+
+    // Rule 1: Block if owner has unpaid bills (pet-owner only)
+    if (req.user.userType === 'pet-owner') {
+      const unpaidCount = await Billing.countDocuments({
+        ownerId: req.user.userId,
+        status: 'pending_payment',
+      });
+      if (unpaidCount > 0) {
+        return res.status(403).json({
+          status: 'ERROR',
+          message: 'You have unpaid bills. Please settle them before booking an appointment.'
+        });
+      }
     }
 
     if (includesSterilizationType(types) && isAlreadySterilizedStatus((pet as any).sterilization)) {
@@ -294,6 +324,31 @@ export const createAppointment = async (req: Request, res: Response) => {
         status: 'ERROR',
         message: 'Cannot book an appointment in the past'
       });
+    }
+
+    // Rule 2: Pet owners must book at least 4 hours in advance
+    if (req.user.userType === 'pet-owner') {
+      const fourHoursMs = 4 * 60 * 60 * 1000;
+      if (appointmentStartDateTime.getTime() - Date.now() < fourHoursMs) {
+        return res.status(400).json({
+          status: 'ERROR',
+          message: 'Appointments must be booked at least 4 hours in advance.'
+        });
+      }
+    }
+
+    // Rule 7: Prevent multiple active appointments for the same pet (pet-owner only)
+    if (req.user.userType === 'pet-owner') {
+      const activeAppt = await Appointment.findOne({
+        petId,
+        status: { $nin: ['completed', 'cancelled', 'rescheduled'] },
+      });
+      if (activeAppt) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'This pet already has an active appointment.'
+        });
+      }
     }
 
     // Check if appointment is grooming-only (no vet required) or requires vet
@@ -831,6 +886,18 @@ export const cancelAppointment = async (req: Request, res: Response) => {
           message: `Pet owners can only cancel confirmed or in-clinic appointments.`
         });
       }
+
+      // Rule 3: Owners cannot cancel within 4 hours of the appointment
+      const cancelStartDT = getAppointmentStartDateTime(appointment.date, appointment.startTime);
+      if (cancelStartDT) {
+        const fourHoursBefore = new Date(cancelStartDT.getTime() - 4 * 60 * 60 * 1000);
+        if (new Date() >= fourHoursBefore) {
+          return res.status(403).json({
+            status: 'ERROR',
+            message: 'You can no longer cancel this appointment within 4 hours of its scheduled time.'
+          });
+        }
+      }
     }
 
     if (isAdmin) {
@@ -1111,7 +1178,7 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
 };
 
 /**
- * Reschedule an appointment to a new date/time (clinic admin)
+ * Reschedule an appointment to a new date/time (clinic admin or pet owner)
  */
 export const rescheduleAppointment = async (req: Request, res: Response) => {
   try {
@@ -1122,6 +1189,35 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) {
       return res.status(404).json({ status: 'ERROR', message: 'Appointment not found' });
+    }
+
+    const isOwner = appointment.ownerId.toString() === req.user.userId;
+    const isAdmin = req.user.userType === 'clinic-admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to reschedule this appointment' });
+    }
+
+    // Rule 6: Pet owners can only reschedule once
+    if (isOwner && appointment.rescheduleCount >= 1) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'You can only reschedule an appointment once.'
+      });
+    }
+
+    // Rule 4: Pet owners cannot reschedule within 4 hours of the appointment
+    if (isOwner) {
+      const reschedStartDT = getAppointmentStartDateTime(appointment.date, appointment.startTime);
+      if (reschedStartDT) {
+        const fourHoursBefore = new Date(reschedStartDT.getTime() - 4 * 60 * 60 * 1000);
+        if (new Date() >= fourHoursBefore) {
+          return res.status(403).json({
+            status: 'ERROR',
+            message: 'You can no longer reschedule this appointment within 4 hours of its scheduled time.'
+          });
+        }
+      }
     }
 
     if (appointment.status !== 'pending' && appointment.status !== 'confirmed') {
@@ -1167,6 +1263,7 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
     appointment.date = new Date(date);
     appointment.startTime = startTime;
     appointment.endTime = endTime;
+    appointment.rescheduleCount = (appointment.rescheduleCount || 0) + 1;
     await appointment.save();
 
     // Notify owner of reschedule
@@ -1410,8 +1507,42 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
     if (pet.isConfined) {
       return res.status(403).json({
         status: 'ERROR',
-        message: `Cannot schedule an appointment for ${pet.name} because the pet is currently confined.`
+        message: 'This pet cannot be scheduled for an appointment due to its current status.'
       });
+    }
+
+    // Rule 5: Block relocated pets (removed from owner's profile)
+    if ((pet as any).removedByOwner) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'This pet cannot be scheduled for an appointment due to its current status.'
+      });
+    }
+
+    // Rule 1: Block if owner has unpaid bills (clinic admin booking on behalf of owner)
+    const ownerUnpaidCount = await Billing.countDocuments({
+      ownerId,
+      status: 'pending_payment',
+    });
+    if (ownerUnpaidCount > 0) {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'This pet owner has unpaid bills. Please settle them before booking an appointment.'
+      });
+    }
+
+    // Rule 7: Prevent multiple active appointments for the same pet (skip for emergency)
+    if (!isEmergency) {
+      const activeApptForPet = await Appointment.findOne({
+        petId,
+        status: { $nin: ['completed', 'cancelled', 'rescheduled'] },
+      });
+      if (activeApptForPet) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'This pet already has an active appointment.'
+        });
+      }
     }
 
     if (includesSterilizationType(types) && isAlreadySterilizedStatus((pet as any).sterilization)) {

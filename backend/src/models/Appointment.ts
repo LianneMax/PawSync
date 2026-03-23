@@ -16,6 +16,7 @@ export interface IAppointment extends Document {
   isWalkIn: boolean;
   isEmergency: boolean;
   medicalRecordId: mongoose.Types.ObjectId | null;
+  rescheduleCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -97,6 +98,11 @@ const AppointmentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'MedicalRecord',
       default: null
+    },
+    rescheduleCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     }
   },
   {

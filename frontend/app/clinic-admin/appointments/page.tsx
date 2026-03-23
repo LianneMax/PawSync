@@ -2437,6 +2437,7 @@ function ClinicScheduleModal({
 
   // Form state
   const [selectedOwner, setSelectedOwner] = useState<PetOwner | null>(null)
+  const [ownerHasUnpaidBills, setOwnerHasUnpaidBills] = useState(false)
   const [ownerPets, setOwnerPets] = useState<{ _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean; isAlive: boolean; isConfined: boolean; status: 'alive' | 'lost' | 'deceased' | 'confined'; deceasedAt?: string | null }[]>([])
   const [branchVets, setBranchVets] = useState<BranchVet[]>([])
   const [serviceCategories, setServiceCategories] = useState<any[]>([])
@@ -2539,7 +2540,7 @@ function ClinicScheduleModal({
 
   // Load pets when owner changes
   useEffect(() => {
-    if (!selectedOwner) { setOwnerPets([]); setSelectedPetId(''); return }
+    if (!selectedOwner) { setOwnerPets([]); setSelectedPetId(''); setOwnerHasUnpaidBills(false); return }
     const load = async () => {
       setLoadingPets(true)
       try {
@@ -2884,8 +2885,9 @@ function ClinicScheduleModal({
     if (!selectedOwner) return toast.error('Please select a pet owner')
     if (!selectedPetId) return toast.error('Please select a pet')
     if (selectedPetIsDeceased) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
-    if (selectedPetIsLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
-    if (selectedPetIsConfined) return toast.error('Appointments cannot be scheduled for pets currently in confinement.')
+    if (selectedPetIsLost) return toast.error('This pet cannot be scheduled for an appointment due to its current status.')
+    if (selectedPetIsConfined) return toast.error('This pet cannot be scheduled for an appointment due to its current status.')
+    if ((selectedPet as any)?.removedByOwner) return toast.error('This pet cannot be scheduled for an appointment due to its current status.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter) {

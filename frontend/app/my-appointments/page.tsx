@@ -12,6 +12,7 @@ import {
   getAvailableSlots,
   createAppointment,
   cancelAppointment,
+  rescheduleAppointment,
   type Appointment,
   type TimeSlot,
 } from '@/lib/appointments'
@@ -192,6 +193,28 @@ function getRangeForDateFilter(filter: 'today' | 'week' | 'month' | 'year') {
 }
 
 
+// ---- Helper: check if owner can still cancel (Rule 3: 4-hour window) ----
+function canCancelAppointment(appt: Appointment): boolean {
+  const dateStr = appt.date.includes('T') ? appt.date.split('T')[0] : appt.date
+  const apptStart = new Date(`${dateStr}T${appt.startTime}`)
+  const fourHoursBefore = new Date(apptStart.getTime() - 4 * 60 * 60 * 1000)
+  return new Date() < fourHoursBefore
+}
+
+// ---- Helper: check if owner can still reschedule (Rules 4 & 6) ----
+function canRescheduleAppointment(appt: Appointment): { allowed: boolean; reason?: string } {
+  if ((appt.rescheduleCount ?? 0) >= 1) {
+    return { allowed: false, reason: 'You can only reschedule an appointment once.' }
+  }
+  const dateStr = appt.date.includes('T') ? appt.date.split('T')[0] : appt.date
+  const apptStart = new Date(`${dateStr}T${appt.startTime}`)
+  const fourHoursBefore = new Date(apptStart.getTime() - 4 * 60 * 60 * 1000)
+  if (new Date() >= fourHoursBefore) {
+    return { allowed: false, reason: 'You can no longer reschedule this appointment within 4 hours of its scheduled time.' }
+  }
+  return { allowed: true }
+}
+
 // ---- Dropdown component ----
 function Dropdown({
   label,
@@ -271,9 +294,11 @@ function MyAppointmentsPageContent() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [myPets, setMyPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasUnpaidBills, setHasUnpaidBills] = useState(false)
   const [modalOpen, setModalOpen] = useState(!!petIdFromUrl)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
+  const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
   const [petSearch, setPetSearch] = useState('')
   const [selectedPetId, setSelectedPetId] = useState<string>('')
   const [petSearchOpen, setPetSearchOpen] = useState(false)
@@ -293,7 +318,20 @@ function MyAppointmentsPageContent() {
         // silent
       }
     }
-    if (token) loadMyPets()
+    const checkUnpaidBills = async () => {
+      try {
+        const res = await authenticatedFetch('/billing/my-invoices?status=pending_payment', { method: 'GET' }, token || undefined)
+        if (res.status === 'SUCCESS' && res.data?.billings) {
+          setHasUnpaidBills(res.data.billings.length > 0)
+        }
+      } catch {
+        // silent — if check fails, backend will enforce on submit
+      }
+    }
+    if (token) {
+      loadMyPets()
+      checkUnpaidBills()
+    }
   }, [token])
 
   const petOptions = useMemo(() => {
@@ -468,6 +506,14 @@ function MyAppointmentsPageContent() {
           <p className="text-sm text-gray-500 mt-1">Schedule and Manage your pet&apos;s appointments</p>
         </div>
 
+        {/* Rule 1: Unpaid bills warning banner */}
+        {hasUnpaidBills && (
+          <div className="mt-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+            <X className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>You have unpaid bills. Please settle them before booking a new appointment.</span>
+          </div>
+        )}
+
         {/* Tabs + Action */}
         <div className="flex items-center justify-between mt-6 mb-4">
           <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
@@ -493,8 +539,18 @@ function MyAppointmentsPageContent() {
             </button>
           </div>
           <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
+            onClick={() => {
+              if (hasUnpaidBills) {
+                toast.error('You have unpaid bills. Please settle them before booking an appointment.')
+                return
+              }
+              setModalOpen(true)
+            }}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
+              hasUnpaidBills
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]'
+            }`}
           >
             <Plus className="w-4 h-4" />
             Set an appointment
@@ -746,14 +802,42 @@ function MyAppointmentsPageContent() {
                        getDisplayStatus(appt) === 'completed' ? 'Completed' :
                        (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
                     </span>
-                    {(appt.status === 'confirmed' || appt.status === 'in_clinic') && getDisplayStatus(appt) !== 'cancelled' && getDisplayStatus(appt) !== 'in_progress' && activeTab === 'upcoming' && (
-                      <button
-                        onClick={() => handleCancel(appt._id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >
-                        Cancel
-                      </button>
-                    )}
+                    {(appt.status === 'confirmed' || appt.status === 'in_clinic') && getDisplayStatus(appt) !== 'cancelled' && getDisplayStatus(appt) !== 'in_progress' && activeTab === 'upcoming' && (() => {
+                      const cancelAllowed = canCancelAppointment(appt)
+                      const reschedCheck = canRescheduleAppointment(appt)
+                      return (
+                        <div className="flex items-center gap-2">
+                          {appt.status === 'confirmed' && (
+                            <button
+                              onClick={() => {
+                                if (!reschedCheck.allowed) {
+                                  toast.error(reschedCheck.reason || 'Cannot reschedule this appointment.')
+                                  return
+                                }
+                                setRescheduleTarget(appt)
+                              }}
+                              title={reschedCheck.allowed ? 'Reschedule appointment' : reschedCheck.reason}
+                              className={`text-xs font-medium ${reschedCheck.allowed ? 'text-blue-500 hover:text-blue-700' : 'text-gray-400 cursor-not-allowed'}`}
+                            >
+                              Reschedule
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (!cancelAllowed) {
+                                toast.error('You can no longer cancel this appointment within 4 hours of its scheduled time.')
+                                return
+                              }
+                              handleCancel(appt._id)
+                            }}
+                            title={cancelAllowed ? 'Cancel appointment' : 'Cannot cancel within 4 hours of appointment'}
+                            className={`text-xs font-medium ${cancelAllowed ? 'text-red-500 hover:text-red-700' : 'text-gray-400 cursor-not-allowed'}`}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               ))}
@@ -774,8 +858,16 @@ function MyAppointmentsPageContent() {
                         : 'No upcoming clinic service appointments'}
                     </p>
                     <button
-                      onClick={() => setModalOpen(true)}
-                      className="bg-[#7FA5A3] text-white px-6 py-2 rounded-xl hover:bg-[#6b9391] transition-colors inline-flex items-center gap-2 text-sm"
+                      onClick={() => {
+                        if (hasUnpaidBills) {
+                          toast.error('You have unpaid bills. Please settle them before booking an appointment.')
+                          return
+                        }
+                        setModalOpen(true)
+                      }}
+                      className={`px-6 py-2 rounded-xl inline-flex items-center gap-2 text-sm transition-colors ${
+                        hasUnpaidBills ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]'
+                      }`}
                     >
                       <Plus className="w-4 h-4" />
                       Set an Appointment
@@ -808,7 +900,17 @@ function MyAppointmentsPageContent() {
         initialBranchId={branchIdFromUrl || undefined}
         initialVetId={vetIdFromUrl || undefined}
         initialTypes={typesFromUrl ? typesFromUrl.split(',') : undefined}
+        currentAppointments={appointments}
       />
+
+      {/* Reschedule Modal (Rules 4 & 6) */}
+      {rescheduleTarget && (
+        <PetOwnerRescheduleModal
+          appointment={rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          onRescheduled={() => { setRescheduleTarget(null); loadAppointments() }}
+        />
+      )}
 
       {/* Cancel Confirmation Modal */}
       <Dialog open={appointmentToCancel !== null} onOpenChange={(open) => { if (!open) setAppointmentToCancel(null) }}>
@@ -878,6 +980,7 @@ function ScheduleModal({
   initialBranchId,
   initialVetId,
   initialTypes,
+  currentAppointments = [],
 }: {
   open: boolean
   onClose: () => void
@@ -886,6 +989,7 @@ function ScheduleModal({
   initialBranchId?: string
   initialVetId?: string
   initialTypes?: string[]
+  currentAppointments?: Appointment[]
 }) {
   const { token } = useAuthStore()
   const currentYear = new Date().getFullYear()
@@ -949,14 +1053,10 @@ function ScheduleModal({
 
   const canUseSlot = (dateYmd: string, slot: TimeSlot) => {
     if (slot.status !== 'available') return false
-    const todayYmd = formatYmd(new Date())
-    if (dateYmd !== todayYmd) return true
-
-    const now = new Date()
-    const [slotHour, slotMin] = slot.startTime.split(':').map(Number)
-    const slotMinutes = slotHour * 60 + slotMin
-    const nowMinutes = now.getHours() * 60 + now.getMinutes()
-    return slotMinutes > nowMinutes
+    // Rule 2: Slots must be at least 4 hours from now
+    const slotDateTime = new Date(`${dateYmd}T${slot.startTime}`)
+    const fourHoursFromNow = new Date(Date.now() + 4 * 60 * 60 * 1000)
+    return slotDateTime >= fourHoursFromNow
   }
 
   const fetchSlotsForDate = async (dateYmd: string) => {
@@ -1328,7 +1428,15 @@ function ScheduleModal({
     if (!selectedPetId) return toast.error('Please select a pet')
     if (selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased')) return toast.error('Appointments cannot be scheduled for pets marked as deceased.')
     if (selectedPet?.isLost) return toast.error('Appointments cannot be scheduled for pets marked as lost.')
-    if (selectedPet?.isConfined) return toast.error('Appointments cannot be scheduled for pets that are currently confined.')
+    if (selectedPet?.isConfined) return toast.error('This pet cannot be scheduled for an appointment due to its current status.')
+    // Rule 5: Block relocated pets
+    if ((selectedPet as any)?.removedByOwner) return toast.error('This pet cannot be scheduled for an appointment due to its current status.')
+    // Rule 7: Block if pet already has an active appointment
+    const petHasActive = currentAppointments.some((a) => {
+      const apptPetId = typeof a.petId === 'string' ? a.petId : a.petId?._id
+      return String(apptPetId) === selectedPetId && !['completed', 'cancelled', 'rescheduled'].includes(a.status)
+    })
+    if (petHasActive) return toast.error('This pet already has an active appointment.')
     if (!selectedBranchId) return toast.error('Please select a clinic branch')
     if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
     if (!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter) {
@@ -1468,9 +1576,31 @@ function ScheduleModal({
             {selectedPet?.isConfined && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800 font-medium">⚠️ This pet is currently confined</p>
-                <p className="text-xs text-blue-700 mt-1">Appointments cannot be scheduled for pets that are currently confined. Please wait until they are discharged.</p>
+                <p className="text-xs text-blue-700 mt-1">This pet cannot be scheduled for an appointment due to its current status.</p>
               </div>
             )}
+
+            {/* Relocated Pet Warning */}
+            {(selectedPet as any)?.removedByOwner && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-800 font-medium">⚠️ This pet has been relocated</p>
+                <p className="text-xs text-orange-700 mt-1">This pet cannot be scheduled for an appointment due to its current status.</p>
+              </div>
+            )}
+
+            {/* Active Appointment Warning (Rule 7) */}
+            {selectedPetId && (() => {
+              const hasActive = currentAppointments.some((a) => {
+                const apptPetId = typeof a.petId === 'string' ? a.petId : a.petId?._id
+                return String(apptPetId) === selectedPetId && !['completed', 'cancelled', 'rescheduled'].includes(a.status)
+              })
+              return hasActive ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 font-medium">⚠️ Active appointment exists</p>
+                  <p className="text-xs text-amber-700 mt-1">This pet already has an active appointment. Please cancel or complete it first.</p>
+                </div>
+              ) : null
+            })()}
 
             {/* Row 1: Pet + Branch */}
             <div className="grid grid-cols-2 gap-4">
@@ -1479,14 +1609,30 @@ function ScheduleModal({
                 value={selectedPetId}
                 placeholder="Menu Label"
                 options={pets.map((p) => ({ value: p._id, label: p.name }))}
-                disabledOptions={pets.filter(p => p.isLost || !p.isAlive || p.status === 'deceased' || p.isConfined).map(p => p._id)}
+                disabledOptions={pets.filter(p => {
+                  if (p.isLost || !p.isAlive || p.status === 'deceased' || p.isConfined || (p as any).removedByOwner) return true
+                  // Rule 7: disable if pet already has an active appointment
+                  return currentAppointments.some((a) => {
+                    const apptPetId = typeof a.petId === 'string' ? a.petId : a.petId?._id
+                    return String(apptPetId) === String(p._id) && !['completed', 'cancelled', 'rescheduled'].includes(a.status)
+                  })
+                }).map(p => p._id)}
                 disabledReasonByValue={Object.fromEntries(
                   pets
-                    .filter((p) => p.isLost || !p.isAlive || p.status === 'deceased' || p.isConfined)
-                    .map((p) => [
-                      p._id,
-                      !p.isAlive || p.status === 'deceased' ? 'Deceased Pet' : p.isLost ? 'Lost Pet' : 'Confined Pet',
-                    ])
+                    .filter((p) => p.isLost || !p.isAlive || p.status === 'deceased' || p.isConfined || (p as any).removedByOwner || currentAppointments.some((a) => {
+                      const apptPetId = typeof a.petId === 'string' ? a.petId : a.petId?._id
+                      return String(apptPetId) === String(p._id) && !['completed', 'cancelled', 'rescheduled'].includes(a.status)
+                    }))
+                    .map((p) => {
+                      const hasActive = currentAppointments.some((a) => {
+                        const apptPetId = typeof a.petId === 'string' ? a.petId : a.petId?._id
+                        return String(apptPetId) === String(p._id) && !['completed', 'cancelled', 'rescheduled'].includes(a.status)
+                      })
+                      return [
+                        p._id,
+                        !p.isAlive || p.status === 'deceased' ? 'Deceased' : p.isLost ? 'Lost' : p.isConfined ? 'Confined' : (p as any).removedByOwner ? 'Relocated' : hasActive ? 'Has Active Appointment' : 'Unavailable',
+                      ]
+                    })
                 )}
                 onSelect={setSelectedPetId}
               />
@@ -1736,6 +1882,181 @@ function ScheduleModal({
           >
             Cancel
           </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ========== PET OWNER RESCHEDULE MODAL (Rules 4 & 6) ==========
+function PetOwnerRescheduleModal({
+  appointment,
+  onClose,
+  onRescheduled,
+}: {
+  appointment: Appointment
+  onClose: () => void
+  onRescheduled: () => void
+}) {
+  const { token } = useAuthStore()
+  const vetId = typeof appointment.vetId === 'object' ? appointment.vetId?._id : appointment.vetId
+  const branchId = typeof appointment.clinicBranchId === 'object' ? appointment.clinicBranchId?._id : appointment.clinicBranchId
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  })
+  const [slots, setSlots] = useState<TimeSlot[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const isGroomingOnly = appointment.types.every((t) => t === 'basic-grooming' || t === 'full-grooming')
+
+  // Load slots when date changes
+  useEffect(() => {
+    const load = async () => {
+      setLoadingSlots(true)
+      setSelectedSlot(null)
+      try {
+        let res
+        if (isGroomingOnly) {
+          res = await authenticatedFetch(
+            `/appointments/grooming-slots?branchId=${branchId}&date=${selectedDate}`,
+            { method: 'GET' },
+            token || undefined
+          )
+        } else {
+          res = await getAvailableSlots(vetId as string, selectedDate, token || undefined, branchId as string)
+        }
+        if (res.status === 'SUCCESS' && res.data) {
+          setSlots(res.data.isClosed ? [] : (res.data.slots || []))
+        } else {
+          setSlots([])
+        }
+      } catch {
+        setSlots([])
+      } finally {
+        setLoadingSlots(false)
+      }
+    }
+    if (selectedDate) load()
+  }, [selectedDate, vetId, branchId, isGroomingOnly, token])
+
+  const canUseSlot = (slot: TimeSlot) => {
+    if (slot.status !== 'available') return false
+    const slotDateTime = new Date(`${selectedDate}T${slot.startTime}`)
+    return slotDateTime.getTime() - Date.now() >= 4 * 60 * 60 * 1000
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedSlot) return toast.error('Please select a time slot')
+    setSubmitting(true)
+    try {
+      const res = await rescheduleAppointment(appointment._id, {
+        date: selectedDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      }, token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success('Appointment rescheduled successfully.')
+        onRescheduled()
+      } else {
+        toast.error(res.message || 'Failed to reschedule appointment.')
+      }
+    } catch {
+      toast.error('An error occurred while rescheduling.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const slotsByHour: Record<number, TimeSlot[]> = {}
+  slots.forEach((s) => {
+    const hour = parseInt(s.startTime.split(':')[0])
+    if (!slotsByHour[hour]) slotsByHour[hour] = []
+    slotsByHour[hour].push(s)
+  })
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
+        <DialogTitle className="sr-only">Reschedule Appointment</DialogTitle>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#2C3E2D]">Reschedule Appointment</h2>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+
+          <p className="text-sm text-gray-500 mb-4">
+            Select a new date and time for this appointment. You can only reschedule once and must do so at least 4 hours before the scheduled time.
+          </p>
+
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">New Date</p>
+            <DatePicker
+              value={selectedDate}
+              onChange={setSelectedDate}
+              allowFutureDates
+              minDate={new Date()}
+              className="w-full"
+            />
+          </div>
+
+          {loadingSlots ? (
+            <div className="flex justify-center py-6">
+              <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : slots.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">No available slots on this date.</p>
+          ) : (
+            <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
+              {Object.entries(slotsByHour).map(([hour, hourSlots]) => (
+                <div key={hour}>
+                  <p className="text-xs text-gray-400 mb-1">{formatSlotTime(`${hour.padStart(2, '0')}:00`)}</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {hourSlots.map((slot) => {
+                      const usable = canUseSlot(slot)
+                      const isSelected = selectedSlot?.startTime === slot.startTime
+                      return (
+                        <button
+                          key={slot.startTime}
+                          type="button"
+                          disabled={!usable}
+                          onClick={() => usable && setSelectedSlot(slot)}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
+                            isSelected ? 'bg-gray-300 text-gray-600' :
+                            usable ? 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]' :
+                            'bg-red-100 text-red-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {formatSlotTime(slot.startTime)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !selectedSlot}
+              className="flex-1 px-4 py-2.5 bg-[#7FA5A3] text-white font-medium rounded-xl hover:bg-[#6b9391] transition-colors text-sm disabled:opacity-50"
+            >
+              {submitting ? 'Rescheduling...' : 'Confirm Reschedule'}
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-gray-300 text-[#2C3E2D] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm"
+            >
+              Keep Current
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

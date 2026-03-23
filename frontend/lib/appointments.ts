@@ -32,6 +32,7 @@ export interface Appointment {
   isWalkIn: boolean;
   isEmergency: boolean;
   medicalRecordId: string | null;
+  rescheduleCount: number;
   createdAt: string;
   updatedAt: string;
 }

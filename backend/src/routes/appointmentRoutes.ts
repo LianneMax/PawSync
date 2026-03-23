@@ -144,8 +144,8 @@ router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
 
 /**
  * PATCH /api/appointments/:id/reschedule
- * Reschedule an appointment to a new date/time (clinic admin)
+ * Reschedule an appointment (clinic admin or pet owner; owner enforces 4-hr + 1-reschedule rules)
  */
-router.patch('/:id/reschedule', authMiddleware, clinicAdminOnly, rescheduleAppointment);
+router.patch('/:id/reschedule', authMiddleware, rescheduleAppointment);
 
 export default router;
