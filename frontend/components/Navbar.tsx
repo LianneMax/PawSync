@@ -24,6 +24,8 @@ import {
   Briefcase,
   BarChart3,
   FileText,
+  Sparkles,
+  X,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -41,6 +43,7 @@ interface NavItem {
   icon: React.ReactNode
   section?: string
   badge?: string
+  comingSoon?: boolean
 }
 
 interface NavbarProps {
@@ -68,7 +71,8 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
     { label: 'Appointments', href: '/vet-appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Patient Records', href: '/patient-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccination Records', href: '/vet-dashboard/vaccinations', icon: <Syringe className="w-5 h-5" /> },
-    { label: 'Reports', href: '/vet-dashboard/reports', icon: <FileText className="w-5 h-5" /> },
+    { label: 'Reports', href: '/vet-dashboard/reports', icon: <FileText className="w-5 h-5" />, comingSoon: true },
+    { label: 'Generate Report', href: '#', icon: <Sparkles className="w-5 h-5" />, comingSoon: true },
     { label: 'Billing', href: '/billing', icon: <Receipt className="w-5 h-5" /> },
   ],
   'clinic-admin': [
@@ -102,6 +106,7 @@ export default function Navbar({
 }: NavbarProps) {
   const [isHovering, setIsHovering] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [comingSoonOpen, setComingSoonOpen] = useState(false)
   const [clinicStats, setClinicStats] = useState<ClinicNavStats>({ patientCount: null, appointmentCount: null, pendingVetCount: null })
   const pathname = usePathname()
   const router = useRouter()
@@ -189,6 +194,7 @@ export default function Navbar({
   }, [onToggle])
 
   return (
+    <>
     <nav
       ref={navRef}
       onMouseEnter={handleMouseEnter}
@@ -237,23 +243,36 @@ export default function Navbar({
                     {item.section}
                   </p>
                 )}
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-xl transition-colors ${
-                    isActive
-                      ? 'bg-white/20 text-white border-l-4 border-white'
-                      : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  } ${!isExpanded ? 'justify-center w-11 h-11 mx-auto px-0 py-0' : 'px-4 py-3'}`}
-                  title={!isExpanded ? item.label : undefined}
-                >
-                  {item.icon}
-                  {isExpanded && <span className="font-medium whitespace-nowrap">{item.label}</span>}
-                  {isExpanded && item.badge && (
-                    <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#9EC4C8] text-white min-w-5 text-center">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
+                {item.comingSoon ? (
+                  <button
+                    onClick={() => setComingSoonOpen(true)}
+                    className={`flex items-center gap-3 rounded-xl transition-colors w-full text-left text-white/80 hover:bg-white/10 hover:text-white ${
+                      !isExpanded ? 'justify-center w-11 h-11 mx-auto px-0 py-0' : 'px-4 py-3'
+                    }`}
+                    title={!isExpanded ? item.label : undefined}
+                  >
+                    {item.icon}
+                    {isExpanded && <span className="font-medium whitespace-nowrap">{item.label}</span>}
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-xl transition-colors ${
+                      isActive
+                        ? 'bg-white/20 text-white border-l-4 border-white'
+                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    } ${!isExpanded ? 'justify-center w-11 h-11 mx-auto px-0 py-0' : 'px-4 py-3'}`}
+                    title={!isExpanded ? item.label : undefined}
+                  >
+                    {item.icon}
+                    {isExpanded && <span className="font-medium whitespace-nowrap">{item.label}</span>}
+                    {isExpanded && item.badge && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#9EC4C8] text-white min-w-5 text-center">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                )}
               </li>
             )
           })}
@@ -328,5 +347,37 @@ export default function Navbar({
         </div>
       </div>
     </nav>
+
+    {/* Coming Soon Modal */}
+    {comingSoonOpen && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setComingSoonOpen(false)} />
+        <div className="relative bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center text-center">
+          <button
+            onClick={() => setComingSoonOpen(false)}
+            className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+
+          <div className="w-16 h-16 bg-[#5A7C7A]/10 rounded-2xl flex items-center justify-center mb-4">
+            <Sparkles className="w-8 h-8 text-[#5A7C7A]" />
+          </div>
+
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Coming Soon</h2>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            AI-powered report generation is currently in development. This feature will let you generate detailed clinical reports for your patients.
+          </p>
+
+          <button
+            onClick={() => setComingSoonOpen(false)}
+            className="mt-6 px-6 py-2.5 bg-[#5A7C7A] text-white text-sm font-semibold rounded-xl hover:bg-[#4a6a68] transition-colors"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
