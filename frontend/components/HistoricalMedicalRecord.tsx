@@ -96,6 +96,14 @@ export function HistoricalMedicalRecord({
     return plan.slice(0, markerIndex).trimEnd()
   }
 
+  const getImageSrc = (image: { data: string; contentType: string }) => {
+    if (!image.data) return ''
+    if (image.data.startsWith('data:') || image.data.startsWith('http://') || image.data.startsWith('https://')) {
+      return image.data
+    }
+    return `data:${image.contentType};base64,${image.data}`
+  }
+
   const diagnosticEntries = data.latestDiagnosticTests || []
 
   return (
@@ -151,6 +159,10 @@ export function HistoricalMedicalRecord({
               <div>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Color</p>
                 <p className="text-[#4F4F4F] font-semibold">{pet.color || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Blood Type</p>
+                <p className="text-[#4F4F4F] font-semibold">{pet.bloodType || 'N/A'}</p>
               </div>
               {pet.microchipNumber && (
                 <div>
@@ -331,7 +343,7 @@ export function HistoricalMedicalRecord({
                       {entry.images.map((img, imgIndex) => (
                         <img
                           key={imgIndex}
-                          src={img.url}
+                          src={getImageSrc(img)}
                           alt={img.description || `${entry.testName} image ${imgIndex + 1}`}
                           className="w-full h-24 object-cover rounded-lg border border-blue-100"
                         />
@@ -469,7 +481,7 @@ export function HistoricalMedicalRecord({
                       {op.images.map((img, imgIndex) => (
                         <img
                           key={imgIndex}
-                          src={img.url}
+                          src={getImageSrc(img)}
                           alt={img.description || `Surgery image ${imgIndex + 1}`}
                           className="w-full h-24 object-cover rounded-lg border border-blue-100"
                         />

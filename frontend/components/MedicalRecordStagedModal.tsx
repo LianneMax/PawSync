@@ -2837,6 +2837,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <p className="font-medium text-[#4F4F4F] text-xs">{pet.microchipNumber}</p>
                       </div>
                     )}
+                    <div>
+                      <p className="text-gray-400 text-xs mb-0.5">Blood Type</p>
+                      <p className="font-medium text-[#4F4F4F]">{pet.bloodType || '-'}</p>
+                    </div>
                     {pet.sex === 'female' && (
                       <div>
                         <p className="text-gray-400 text-xs mb-0.5">Pregnancy</p>

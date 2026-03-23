@@ -69,6 +69,21 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
+const CANINE_BLOOD_TYPES = [
+  'DEA 1',
+  'DEA 3',
+  'DEA 4',
+  'DEA 5',
+  'DEA 6',
+  'DEA 7',
+  'DEA 8',
+  'Dal',
+  'Kai-1',
+  'Kai-2',
+] as const
+
+const FELINE_BLOOD_TYPES = ['Type A', 'Type B', 'Type AB'] as const
+
 export default function PetProfilePage() {
   const router = useRouter()
   const params = useParams()
@@ -130,6 +145,7 @@ export default function PetProfilePage() {
   const [editSex, setEditSex] = useState('')
   const [editWeight, setEditWeight] = useState('')
   const [editMicrochip, setEditMicrochip] = useState('')
+  const [editBloodType, setEditBloodType] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [editAllergies, setEditAllergies] = useState('')
   const [editPhoto, setEditPhoto] = useState<string | null>(null)
@@ -328,6 +344,7 @@ export default function PetProfilePage() {
     setEditSex(pet.sex)
     setEditWeight(String(pet.weight))
     setEditMicrochip(pet.microchipNumber || '')
+    setEditBloodType(pet.bloodType || '')
     setEditNotes(pet.notes || '')
     setEditAllergies(pet.allergies.join(', '))
     setEditPhoto(null)
@@ -348,6 +365,7 @@ export default function PetProfilePage() {
 
       if (editName.trim() && editName !== pet.name) updates.name = editName.trim()
       if (editMicrochip !== (pet.microchipNumber || '')) updates.microchipNumber = editMicrochip || null
+      if (editBloodType !== (pet.bloodType || '')) updates.bloodType = editBloodType || null
       if (editNotes !== (pet.notes || '')) updates.notes = editNotes || null
       if (editPhoto) updates.photo = editPhoto
 
@@ -952,8 +970,26 @@ export default function PetProfilePage() {
                 </div>
               )}
 
-              {/* Blood Type - read only */}
-              <DetailField label="Blood Type" value={pet.bloodType || '-'} />
+              {/* Blood Type - editable */}
+              {editing ? (
+                <div className="bg-[#F8F6F2] rounded-xl p-4">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Blood Type</p>
+                  <select
+                    value={editBloodType}
+                    onChange={(e) => setEditBloodType(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  >
+                    <option value="">Select blood type</option>
+                    {(pet.species === 'feline' ? FELINE_BLOOD_TYPES : CANINE_BLOOD_TYPES).map((bloodTypeOption) => (
+                      <option key={bloodTypeOption} value={bloodTypeOption}>
+                        {bloodTypeOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <DetailField label="Blood Type" value={pet.bloodType || '-'} />
+              )}
 
               {/* Microchip - editable */}
               {editing ? (

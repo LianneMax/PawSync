@@ -2391,6 +2391,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
           age: calculateAge(pet.dateOfBirth),
           sterilization: pet.sterilization,
           color: pet.color,
+          bloodType: pet.bloodType,
           microchipNumber: pet.microchipNumber,
           nfcTagId: pet.nfcTagId,
           photo: pet.photo,

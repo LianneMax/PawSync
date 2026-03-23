@@ -12,6 +12,7 @@ export interface MedicalHistoryPet {
   age: string
   sterilization: string
   color: string | null
+  bloodType: string | null
   microchipNumber: string | null
   nfcTagId: string | null
   photo: string | null
@@ -29,6 +30,7 @@ export interface Operation {
 }
 
 export interface MedicalHistoryImage {
+  url?: string
   data: string
   contentType: string
   description: string
