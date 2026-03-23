@@ -72,26 +72,29 @@ function getDisplayStatus(appt: Appointment): string {
 // ---- Helper: normalize appointment type to valid enum values ----
 function normalizeAppointmentType(type: string): string {
   const typeMap: Record<string, string> = {
-    // Normalize capitalized versions
+    // General Consultation
     'Consultation': 'consultation',
     'consultation': 'consultation',
     'General Checkup': 'general-checkup',
+    'General Consultation': 'General Consultation',
+    // Preventive Care
     'Vaccination': 'vaccination',
     'Vaccination / Immunization': 'vaccination',
     'Vaccination/Immunization': 'vaccination',
+    'Preventive Care': 'Preventive Care',
     'Flea & Tick Prevention': 'flea-tick-prevention',
     'Flea Tick Prevention': 'flea-tick-prevention',
     'Rabies': 'rabies-vaccination',
     'Rabies Vaccination': 'rabies-vaccination',
     'Deworming': 'deworming',
+    // Surgeries
     'Sterilization': 'Sterilization',
+    // Grooming
     'Grooming': 'Grooming',
     'Basic Grooming': 'basic-grooming',
     'Basic grooming': 'basic-grooming',
     'Full Grooming': 'full-grooming',
     'Full grooming': 'full-grooming',
-    'General Consultation': 'General Consultation',
-    'Preventive Care': 'Preventive Care',
   }
   
   // Return mapped value if exists, otherwise return as-is (already in correct format)

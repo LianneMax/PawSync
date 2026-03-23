@@ -53,7 +53,7 @@ interface ApiBilling {
   _id: string
   ownerId: { _id: string; firstName: string; lastName: string; email: string }
   petId: { _id: string; name: string; species: string; breed: string }
-  vetId: { _id: string; firstName: string; lastName: string }
+  vetId: { _id: string; firstName: string; lastName: string; userType?: string }
   clinicId: { _id: string; name: string }
   clinicBranchId: { _id: string; name: string }
   medicalRecordId: { _id: string; stage: string } | null
@@ -139,6 +139,14 @@ function formatDate(dateStr: string): string {
 
 function formatCurrency(amount: number): string {
   return `Php ${(amount || 0).toLocaleString()}`
+}
+
+function formatVetDisplay(vet?: { firstName?: string; lastName?: string; userType?: string } | null): string | null {
+  if (vet?.userType && vet.userType !== 'veterinarian') return null
+  const firstName = vet?.firstName?.trim()
+  const lastName = vet?.lastName?.trim()
+  const fullName = [firstName, lastName].filter(Boolean).join(' ')
+  return fullName ? `Dr. ${fullName}` : null
 }
 
 // ==================== PET OWNER VIEW ====================
@@ -1491,6 +1499,7 @@ function ViewBillingModal({
 
   const modalStatus = mapAdminStatus(billing)
   const groupedItems = groupBillingItemsByCategory(billing.items, categoryMap)
+  const vetDisplay = formatVetDisplay(billing.vetId)
 
   return (
     <div
@@ -1524,8 +1533,8 @@ function ViewBillingModal({
           </div>
           {/* Meta row: vet, date */}
           <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-            {billing.vetId?.firstName && (
-              <span>Dr. {billing.vetId.firstName} {billing.vetId.lastName}</span>
+            {vetDisplay && (
+              <span>{vetDisplay}</span>
             )}
             {(billing.serviceDate || billing.createdAt) && (
               <span>{formatDate(billing.serviceDate || billing.createdAt)}</span>
@@ -2697,7 +2706,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                     </td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.petId?.name || '-'}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">
-                      Dr. {b.vetId?.firstName} {b.vetId?.lastName}
+                      {formatVetDisplay(b.vetId) || '-'}
                     </td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.clinicBranchId?.name || '-'}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.serviceLabel || '-'}</td>

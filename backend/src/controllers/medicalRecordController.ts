@@ -333,7 +333,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
       if (appt?.types?.length) {
         // Human-readable labels keyed by appointment type value
         const APPT_TYPE_LABEL: Record<string, string> = {
-          'consultation':             'Consultation',
+          'consultation':             'General Consultation',
           'general-checkup':          'General Checkup',
           'primary-treatment':        'Primary Treatment',
           'outpatient-treatment':     'Outpatient Treatment',

@@ -21,11 +21,36 @@ import { getClinicForAdmin } from './clinicController';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const APPT_TYPE_DISPLAY: Record<string, string> = {
+  'consultation':             'General Consultation',
+  'general-checkup':          'General Checkup',
+  'primary-treatment':        'Primary Treatment',
+  'outpatient-treatment':     'Outpatient Treatment',
+  'inpatient-care':           'Inpatient Care',
+  'point-of-care-diagnostic': 'Point of Care Diagnostic',
+  'laser-therapy':            'Laser Therapy',
+  'dental-scaling':           'Dental Scaling',
+  'cbc':                      'CBC Test',
+  'blood-chemistry-16':       'Blood Chemistry (16)',
+  'pcr-test':                 'PCR Test',
+  'x-ray':                    'X-Ray',
+  'ultrasound':               'Ultrasound',
+  'abdominal-surgery':        'Abdominal Surgery',
+  'orthopedic-surgery':       'Orthopedic Surgery',
+  'vaccination':              'Vaccination',
+  'rabies-vaccination':       'Rabies Vaccination',
+  'deworming':                'Deworming',
+  'flea-tick-prevention':     'Flea & Tick Prevention',
+  'basic-grooming':           'Basic Grooming',
+  'full-grooming':            'Full Grooming',
+};
+
 function formatAppointmentTypesForServiceLabel(types: string[] = []): string {
   if (!Array.isArray(types) || types.length === 0) return '';
 
   return types
     .map((type) =>
+      APPT_TYPE_DISPLAY[type] ||
       type
         .split('-')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

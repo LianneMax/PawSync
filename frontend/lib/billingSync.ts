@@ -32,7 +32,7 @@ function matchByName(name: string, catalog: CatalogEntry[]): CatalogEntry | unde
  * Called silently after saving a medical record — no UI interaction needed.
  */
 const APPT_TYPE_LABEL: Record<string, string> = {
-  'consultation':             'Consultation',
+  'consultation':             'General Consultation',
   'general-checkup':          'General Checkup',
   'primary-treatment':        'Primary Treatment',
   'outpatient-treatment':     'Outpatient Treatment',
