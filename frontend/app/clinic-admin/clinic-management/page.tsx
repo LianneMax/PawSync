@@ -21,7 +21,9 @@ import {
   AlertTriangle,
   ChevronDown,
   Check,
+  DoorOpen,
 } from 'lucide-react'
+import { DatePicker } from '@/components/ui/date-picker'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { getCitiesByProvince, getPhilippineProvinces } from '@/lib/philippineLocations'
 import {
@@ -41,6 +43,7 @@ import {
 
 interface Veterinarian {
   id: string
+  vetId: string
   branchId: string
   name: string
   email: string
@@ -48,7 +51,7 @@ interface Veterinarian {
   role: 'ADMIN' | 'VET' | 'STAFF'
   branch: string
   prcLicense: string
-  status: 'Active' | 'On Leave' | 'Resigned'
+  status: 'Active' | 'On Leave' | 'Resigned' | 'Resignation Notice'
   activePatients: number
 }
 
@@ -123,13 +126,17 @@ function StatusBadge({ status }: { status: Veterinarian['status'] }) {
       ? 'text-green-600'
       : status === 'On Leave'
         ? 'text-red-500'
-        : 'text-gray-500'
+        : status === 'Resignation Notice'
+          ? 'text-amber-600'
+          : 'text-gray-500'
   const dotStyles =
     status === 'Active'
       ? 'bg-green-500'
       : status === 'On Leave'
         ? 'bg-red-500'
-        : 'bg-gray-400'
+        : status === 'Resignation Notice'
+          ? 'bg-amber-500'
+          : 'bg-gray-400'
 
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-medium ${statusStyles}`}>
@@ -171,6 +178,9 @@ export default function ClinicManagementPage() {
   // Modal states
   const [removeVetOpen, setRemoveVetOpen] = useState(false)
   const [selectedVet, setSelectedVet] = useState<Veterinarian | null>(null)
+  const [fireReplacementVetId, setFireReplacementVetId] = useState('')
+  const [firingVet, setFiringVet] = useState(false)
+  const [fireVetError, setFireVetError] = useState('')
   const [editBranchOpen, setEditBranchOpen] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
   const [removeBranchOpen, setRemoveBranchOpen] = useState(false)
@@ -182,6 +192,7 @@ export default function ClinicManagementPage() {
   const [closurePreviewed, setClosurePreviewed] = useState(false)
   const [previewingClosure, setPreviewingClosure] = useState(false)
   const [applyingClosure, setApplyingClosure] = useState(false)
+  const [liftingClosureBranchId, setLiftingClosureBranchId] = useState<string | null>(null)
   const [affectedAppointments, setAffectedAppointments] = useState<AffectedAppointment[]>([])
   const [closureAction, setClosureAction] = useState<'cancel' | 'reschedule' | null>(null)
   const [closureRescheduleDate, setClosureRescheduleDate] = useState('')
@@ -355,8 +366,9 @@ export default function ClinicManagementPage() {
           ])
 
           if (vetsRes.status === 'SUCCESS') {
-            const apiVets: Veterinarian[] = (vetsRes.data.vets || []).map((v: { _id: string; clinicBranchId?: string; name: string; email: string; initials: string; branch: string; prcLicense: string; status: string }) => ({
+            const apiVets: Veterinarian[] = (vetsRes.data.vets || []).map((v: { _id: string; vetId?: string; clinicBranchId?: string; name: string; email: string; initials: string; branch: string; prcLicense: string; status: string }) => ({
               id: v._id,
+              vetId: v.vetId || v._id,
               branchId: v.clinicBranchId || '',
               name: v.name,
               email: v.email,
@@ -364,7 +376,7 @@ export default function ClinicManagementPage() {
               role: 'VET' as const,
               branch: v.branch,
               prcLicense: v.prcLicense,
-              status: (v.status || 'Active') as 'Active' | 'On Leave' | 'Resigned',
+              status: (v.status || 'Active') as 'Active' | 'On Leave' | 'Resigned' | 'Resignation Notice',
               activePatients: 0,
             }))
             setVets(apiVets)
@@ -427,6 +439,45 @@ export default function ClinicManagementPage() {
 
     fetchData()
   }, [token])
+
+  // Auto-preview affected appointments when modal is open and dates are set
+  useEffect(() => {
+    if (!closeBranchOpen || !branchToClose || !clinicId || !token || !closureStartDate) return
+    let cancelled = false
+    const doPreview = async () => {
+      setPreviewingClosure(true)
+      setClosureError('')
+      setAffectedAppointments([])
+      setClosurePreviewed(false)
+      setClosureAction(null)
+      try {
+        const res = await authenticatedFetch(
+          `/clinics/${clinicId}/branches/${branchToClose.id}/closure/preview`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              startDate: closureStartDate,
+              endDate: closureEndDate || closureStartDate,
+            }),
+          },
+          token,
+        )
+        if (cancelled) return
+        if (res.status === 'SUCCESS') {
+          setAffectedAppointments(res.data?.affectedAppointments || [])
+          setClosurePreviewed(true)
+        } else {
+          setClosureError(res.message || 'Failed to preview affected appointments')
+        }
+      } catch {
+        if (!cancelled) setClosureError('Failed to preview affected appointments')
+      } finally {
+        if (!cancelled) setPreviewingClosure(false)
+      }
+    }
+    doPreview()
+    return () => { cancelled = true }
+  }, [closeBranchOpen, closureStartDate, closureEndDate, branchToClose, clinicId, token])
 
   const filteredVets = vets.filter(v => {
     const q = searchQuery.toLowerCase()
@@ -526,11 +577,33 @@ export default function ClinicManagementPage() {
     }
   }
 
-  const handleRemoveVet = () => {
-    if (!selectedVet) return
-    setVets(prev => prev.filter(v => v.id !== selectedVet.id))
-    setRemoveVetOpen(false)
-    setSelectedVet(null)
+  const handleFireVet = async () => {
+    if (!selectedVet || !clinicId || !token) return
+    if (!fireReplacementVetId) {
+      setFireVetError('Please select a replacement veterinarian to receive the patient records.')
+      return
+    }
+    setFiringVet(true)
+    setFireVetError('')
+    try {
+      const res = await authenticatedFetch(
+        `/clinics/${clinicId}/vets/${selectedVet.vetId}/fire`,
+        { method: 'POST', body: JSON.stringify({ replacementVetId: fireReplacementVetId }) },
+        token,
+      )
+      if (res.status === 'SUCCESS') {
+        setVets(prev => prev.filter(v => v.vetId !== selectedVet.vetId))
+        setRemoveVetOpen(false)
+        setSelectedVet(null)
+        setFireReplacementVetId('')
+      } else {
+        setFireVetError(res.message || 'Failed to terminate veterinarian.')
+      }
+    } catch {
+      setFireVetError('An error occurred. Please try again.')
+    } finally {
+      setFiringVet(false)
+    }
   }
 
   const openRemoveBranch = async (branch: Branch) => {
@@ -598,6 +671,33 @@ export default function ClinicManagementPage() {
     setClosureRescheduleDate('')
     setClosureError('')
     setCloseBranchOpen(true)
+  }
+
+  const handleLiftClosure = async (branch: Branch) => {
+    if (!clinicId || !token) return
+    setLiftingClosureBranchId(branch.id)
+    try {
+      const res = await authenticatedFetch(
+        `/clinics/${clinicId}/branches/${branch.id}/closure`,
+        { method: 'DELETE' },
+        token,
+      )
+      if (res.status === 'SUCCESS') {
+        const updatedClosures = res.data?.closureDates ?? []
+        setBranches((prev) => prev.map((b) => {
+          if (b.id !== branch.id) return b
+          return {
+            ...b,
+            closureDates: updatedClosures,
+            isOpen: isBranchOpenNow({ isActive: b.isActive, closureDates: updatedClosures }),
+          }
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to lift branch closure:', err)
+    } finally {
+      setLiftingClosureBranchId(null)
+    }
   }
 
   const handlePreviewClosure = async () => {
@@ -979,7 +1079,9 @@ export default function ClinicManagementPage() {
                                       ? 'bg-green-500'
                                       : vet.status === 'On Leave'
                                         ? 'bg-red-500'
-                                        : 'bg-gray-400'
+                                        : vet.status === 'Resignation Notice'
+                                          ? 'bg-amber-500'
+                                          : 'bg-gray-400'
                                   }`}
                                 />
                                 <p className="text-xs text-gray-500">{vet.email}</p>
@@ -1084,12 +1186,23 @@ export default function ClinicManagementPage() {
                       {branch.isOpen ? 'Currently Open' : 'Closed'}
                     </span>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openCloseBranch(branch)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors"
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5" /> Close Clinic
-                      </button>
+                      {branch.isOpen ? (
+                        <button
+                          onClick={() => openCloseBranch(branch)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5" /> Close Clinic
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleLiftClosure(branch)}
+                          disabled={liftingClosureBranchId === branch.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50"
+                        >
+                          <DoorOpen className="w-3.5 h-3.5" />
+                          {liftingClosureBranchId === branch.id ? 'Opening...' : 'Open Clinic'}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEditBranch(branch)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1142,51 +1255,61 @@ export default function ClinicManagementPage() {
                 <p className="font-semibold text-[#4F4F4F]">{branchToClose.name}</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={closureStartDate}
-                    onChange={(e) => {
-                      const nextStartDate = e.target.value
-                      setClosureStartDate(nextStartDate)
-                      if (!closureEndDate || (closureEndDate && closureEndDate < nextStartDate)) {
-                        setClosureEndDate(nextStartDate)
-                      }
-                      setClosurePreviewed(false)
-                      setAffectedAppointments([])
-                      setClosureAction(null)
-                    }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1">End Date (optional)</label>
-                  <input
-                    type="date"
-                    value={closureEndDate}
-                    min={closureStartDate || undefined}
-                    onChange={(e) => {
-                      setClosureEndDate(e.target.value)
-                      setClosurePreviewed(false)
-                      setAffectedAppointments([])
-                      setClosureAction(null)
-                    }}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
-              </div>
+              {(() => {
+                const todayMidnight = new Date()
+                todayMidnight.setHours(0, 0, 0, 0)
+                const minEndDate = closureStartDate
+                  ? new Date(closureStartDate + 'T00:00:00')
+                  : todayMidnight
+                const currentYear = new Date().getFullYear()
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Start Date</label>
+                      <DatePicker
+                        value={closureStartDate}
+                        onChange={(value) => {
+                          setClosureStartDate(value)
+                          if (!closureEndDate || closureEndDate < value) {
+                            setClosureEndDate(value)
+                          }
+                          setClosurePreviewed(false)
+                          setAffectedAppointments([])
+                          setClosureAction(null)
+                          setClosureRescheduleDate('')
+                        }}
+                        placeholder="MM/DD/YYYY"
+                        allowFutureDates
+                        minDate={todayMidnight}
+                        fromYear={currentYear}
+                        toYear={currentYear + 5}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#4F4F4F] mb-1">End Date (optional)</label>
+                      <DatePicker
+                        value={closureEndDate}
+                        onChange={(value) => {
+                          setClosureEndDate(value)
+                          setClosurePreviewed(false)
+                          setAffectedAppointments([])
+                          setClosureAction(null)
+                          setClosureRescheduleDate('')
+                        }}
+                        placeholder="MM/DD/YYYY"
+                        allowFutureDates
+                        minDate={minEndDate}
+                        fromYear={currentYear}
+                        toYear={currentYear + 5}
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handlePreviewClosure}
-                  disabled={!closureStartDate || previewingClosure}
-                  className="px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
-                >
-                  {previewingClosure ? 'Checking...' : 'Check Affected Appointments'}
-                </button>
-              </div>
+              {previewingClosure && (
+                <p className="text-sm text-gray-500 text-center py-1">Checking affected appointments...</p>
+              )}
 
               {closurePreviewed && (
                 <>
@@ -1235,17 +1358,27 @@ export default function ClinicManagementPage() {
                         </div>
                       </div>
 
-                      {closureAction === 'reschedule' && (
-                        <div>
-                          <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Select new date</label>
-                          <input
-                            type="date"
-                            value={closureRescheduleDate}
-                            onChange={(e) => setClosureRescheduleDate(e.target.value)}
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                          />
-                        </div>
-                      )}
+                      {closureAction === 'reschedule' && (() => {
+                        const base = closureEndDate || closureStartDate
+                        const minRescheduleDate = base
+                          ? (() => { const d = new Date(base + 'T00:00:00'); d.setDate(d.getDate() + 1); return d })()
+                          : (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1); return d })()
+                        const currentYear = new Date().getFullYear()
+                        return (
+                          <div>
+                            <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Select new date</label>
+                            <DatePicker
+                              value={closureRescheduleDate}
+                              onChange={(value) => setClosureRescheduleDate(value)}
+                              placeholder="MM/DD/YYYY"
+                              allowFutureDates
+                              minDate={minRescheduleDate}
+                              fromYear={currentYear}
+                              toYear={currentYear + 5}
+                            />
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
                 </>
@@ -1264,7 +1397,7 @@ export default function ClinicManagementPage() {
                 </button>
                 <button
                   onClick={handleApplyClosure}
-                  disabled={!closurePreviewed || applyingClosure}
+                  disabled={previewingClosure || applyingClosure}
                   className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors disabled:opacity-50"
                 >
                   {applyingClosure ? 'Applying...' : 'Close Clinic'}
@@ -1381,12 +1514,12 @@ export default function ClinicManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ==================== REMOVE VET MODAL ==================== */}
-      <Dialog open={removeVetOpen} onOpenChange={setRemoveVetOpen}>
+      {/* ==================== FIRE VET MODAL ==================== */}
+      <Dialog open={removeVetOpen} onOpenChange={(v) => { if (!v) { setRemoveVetOpen(false); setFireReplacementVetId(''); setFireVetError('') } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#4F4F4F]">
-              Remove Veterinarian
+              Terminate Veterinarian
             </DialogTitle>
           </DialogHeader>
 
@@ -1394,9 +1527,9 @@ export default function ClinicManagementPage() {
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 className="w-7 h-7 text-red-400" />
             </div>
-            <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">Remove this veterinarian?</h3>
+            <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">Terminate this veterinarian?</h3>
             <p className="text-sm text-gray-500">
-              They will lose access to the clinic system. Their patient records will be preserved.
+              Their account will be permanently deactivated. All patient records and upcoming appointments will be transferred to the replacement veterinarian you select.
             </p>
           </div>
 
@@ -1410,25 +1543,61 @@ export default function ClinicManagementPage() {
                 <span className="text-gray-500">Branch</span>
                 <span className="font-medium text-[#4F4F4F]">{selectedVet.branch}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Active Patients</span>
-                <span className="font-medium text-[#4F4F4F]">{selectedVet.activePatients} patients</span>
-              </div>
             </div>
+          )}
+
+          <div className="mt-2">
+            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Transfer records to <span className="text-red-500">*</span></p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between"
+                >
+                  <span className="truncate">
+                    {fireReplacementVetId
+                      ? (() => { const v = vets.find(v => v.vetId === fireReplacementVetId); return v ? `${v.name} — ${v.branch}` : 'Select a veterinarian...' })()
+                      : 'Select a veterinarian...'}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-full min-w-[20rem]">
+                {vets
+                  .filter(v => v.vetId !== selectedVet?.vetId && v.status !== 'Resigned')
+                  .map(v => (
+                    <DropdownMenuItem
+                      key={v.vetId}
+                      onSelect={() => { setFireReplacementVetId(v.vetId); setFireVetError('') }}
+                      className="flex items-center justify-between"
+                    >
+                      <span>{v.name} — {v.branch}</span>
+                      {fireReplacementVetId === v.vetId && <Check className="w-4 h-4 text-[#476B6B]" />}
+                    </DropdownMenuItem>
+                  ))
+                }
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {fireVetError && (
+            <p className="text-sm text-red-600 mt-1">{fireVetError}</p>
           )}
 
           <div className="flex gap-3 mt-4">
             <button
-              onClick={() => setRemoveVetOpen(false)}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              onClick={() => { setRemoveVetOpen(false); setFireReplacementVetId(''); setFireVetError('') }}
+              disabled={firingVet}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-[#4F4F4F] border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
-              onClick={handleRemoveVet}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
+              onClick={handleFireVet}
+              disabled={firingVet || !fireReplacementVetId}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Remove Veterinarian
+              {firingVet ? 'Terminating...' : 'Terminate Veterinarian'}
             </button>
           </div>
         </DialogContent>

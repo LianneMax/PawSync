@@ -805,12 +805,12 @@ function MyAppointmentsPageContent() {
                        getDisplayStatus(appt) === 'completed' ? 'Completed' :
                        (getDisplayStatus(appt) as string).charAt(0).toUpperCase() + (getDisplayStatus(appt) as string).slice(1)}
                     </span>
-                    {(appt.status === 'confirmed' || appt.status === 'in_clinic') && getDisplayStatus(appt) !== 'cancelled' && getDisplayStatus(appt) !== 'in_progress' && activeTab === 'upcoming' && (() => {
+                    {(appt.status === 'confirmed' || appt.status === 'in_clinic' || appt.status === 'rescheduled') && getDisplayStatus(appt) !== 'cancelled' && getDisplayStatus(appt) !== 'in_progress' && activeTab === 'upcoming' && (() => {
                       const cancelAllowed = canCancelAppointment(appt)
                       const reschedCheck = canRescheduleAppointment(appt)
                       return (
                         <div className="flex items-center gap-2">
-                          {appt.status === 'confirmed' && (
+                          {(appt.status === 'confirmed' || appt.status === 'rescheduled') && (
                             <button
                               onClick={() => {
                                 if (!reschedCheck.allowed) {
@@ -1019,6 +1019,7 @@ function ScheduleModal({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [isClosedDay, setIsClosedDay] = useState(false)
+  const [isBranchClosureDay, setIsBranchClosureDay] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [isAutoSelectingDate, setIsAutoSelectingDate] = useState(false)
   const [noAvailableDatesMessage, setNoAvailableDatesMessage] = useState('')
@@ -1201,11 +1202,12 @@ function ScheduleModal({
   // Load slots when vet + date change (or grooming + branch + date change)
   useEffect(() => {
     const shouldLoadSlots = isGroomingOnly ? (selectedBranchId && selectedDate) : (selectedVetId && selectedDate)
-    if (!shouldLoadSlots) { setSlots([]); setIsClosedDay(false); return }
+    if (!shouldLoadSlots) { setSlots([]); setIsClosedDay(false); setIsBranchClosureDay(false); return }
 
     const load = async () => {
       setLoadingSlots(true)
       setIsClosedDay(false)
+      setIsBranchClosureDay(false)
       try {
         let res
         if (isGroomingOnly) {
@@ -1224,12 +1226,15 @@ function ScheduleModal({
           if (res.data.isClosed) {
             setSlots([])
             setIsClosedDay(true)
+            setIsBranchClosureDay(res.data.isBranchClosure ?? false)
           } else {
             setSlots(res.data.slots || [])
             setIsClosedDay(false)
+            setIsBranchClosureDay(false)
           }
         } else {
           setSlots([])
+          setIsBranchClosureDay(false)
         }
       } catch {
         setSlots([])
@@ -1289,6 +1294,7 @@ function ScheduleModal({
         setSelectedSlot(null)
         setSlots([])
         setIsClosedDay(false)
+        setIsBranchClosureDay(false)
         setNoAvailableDatesMessage('No available appointment dates at the moment.')
         setHasAutoSelectedDate(true)
       } finally {
@@ -1333,6 +1339,7 @@ function ScheduleModal({
       setSelectedSlot(null)
       setSlots([])
       setIsClosedDay(false)
+      setIsBranchClosureDay(false)
       setBranchVets([])
       setIsAutoSelectingDate(false)
       setNoAvailableDatesMessage('')
@@ -1767,6 +1774,7 @@ function ScheduleModal({
                   placeholder="Select a date"
                   allowFutureDates={true}
                   minDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                  maxDate={selectedVetUnavailableAfter ?? undefined}
                   fromYear={currentYear}
                   toYear={currentYear + 20}
                 />
@@ -1800,7 +1808,9 @@ function ScheduleModal({
                 </div>
               ) : isClosedDay ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-gray-400 text-center">{isGroomingOnly ? 'Groomer' : 'Vet'} is not available on this day</p>
+                  <p className="text-sm text-gray-400 text-center">
+                    {isBranchClosureDay ? 'This clinic branch is closed on the selected date' : `${isGroomingOnly ? 'Groomer' : 'Vet'} is not available on this day`}
+                  </p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">

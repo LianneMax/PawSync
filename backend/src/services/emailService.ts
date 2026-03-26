@@ -1539,3 +1539,34 @@ export async function sendGuestClaimInviteEmail(params: {
   }
 }
 
+export async function sendVetTerminated(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  vetLastName: string;
+  clinicName: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `Your employment at ${params.clinicName} has ended`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #900B09;">Employment Termination Notice</h2>
+          <p>Dear Dr. ${params.vetFirstName} ${params.vetLastName},</p>
+          <p>We are writing to inform you that your employment at <strong>${params.clinicName}</strong> has been ended effective immediately by the clinic administration.</p>
+          <div style="background: #fff0f0; border-left: 4px solid #900B09; padding: 14px 18px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #374151;">
+              Your PawSync account has been deactivated. You will no longer be able to log in or access any clinic data.
+            </p>
+          </div>
+          <p style="color: #666; font-size: 13px;">Your patient records have been transferred to another veterinarian at the clinic. If you have concerns regarding this action, please contact the clinic administration directly.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendVetTerminated error:', err);
+  }
+}
+

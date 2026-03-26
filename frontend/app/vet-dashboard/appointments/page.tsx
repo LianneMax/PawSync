@@ -180,7 +180,7 @@ export default function VetAppointmentsPage() {
   }
 
   const filtered = appointments.filter((a) => {
-    if (filter === 'upcoming') return a.status === 'pending' || a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress'
+    if (filter === 'upcoming') return a.status === 'pending' || a.status === 'confirmed' || a.status === 'in_clinic' || a.status === 'in_progress' || a.status === 'rescheduled'
     if (filter === 'completed') return a.status === 'completed'
     return true
   })

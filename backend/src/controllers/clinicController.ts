@@ -21,6 +21,7 @@ import {
   sendNewBranchNotification,
   sendClinicClosureCancellation,
   sendClinicClosureRescheduled,
+  sendVetTerminated,
 } from '../services/emailService';
 import VetLeave from '../models/VetLeave';
 
@@ -647,7 +648,21 @@ export const assignVetToBranch = async (req: Request, res: Response) => {
       assignedAt: new Date()
     });
 
-    // Update the branch status (mark as active if it has vets)
+    // If transferring from another branch: deactivate old assignment, update VetApplication, refresh old branch status
+    if (previousAssignment) {
+      const oldBranchId = (previousAssignment.clinicBranchId as any)._id?.toString()
+        ?? previousAssignment.clinicBranchId?.toString();
+      previousAssignment.isActive = false;
+      await previousAssignment.save();
+      // Update VetApplication.branchId so the vet's schedule management reflects the new branch
+      await VetApplication.findOneAndUpdate(
+        { vetId, clinicId: clinic._id, status: 'approved' },
+        { branchId }
+      );
+      await updateBranchStatus(oldBranchId);
+    }
+
+    // Update the new branch status (mark as active now that it has a vet)
     await updateBranchStatus(branchId);
 
     // Send email notification to the vet
@@ -725,6 +740,103 @@ export const removeVetFromBranch = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Remove vet error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while removing the vet' });
+  }
+};
+
+/**
+ * Permanently terminate (fire) a veterinarian:
+ * - Deactivates their account (userType → 'inactive')
+ * - Deactivates all AssignedVet records
+ * - Transfers medical records and future appointments to a replacement vet
+ * - Sends a termination email
+ */
+export const fireVet = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { vetId } = req.params;
+    const { replacementVetId } = req.body;
+
+    if (!replacementVetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'A replacement veterinarian must be selected to receive the patient records' });
+    }
+
+    if (vetId === replacementVetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Replacement veterinarian must be different from the vet being terminated' });
+    }
+
+    // Verify the vet belongs to this clinic
+    const assignment = await AssignedVet.findOne({ vetId, clinicId: clinic._id, isActive: true });
+    if (!assignment) {
+      return res.status(404).json({ status: 'ERROR', message: 'Veterinarian not found in this clinic' });
+    }
+
+    const vet = await User.findById(vetId).select('firstName lastName email userType');
+    if (!vet || vet.userType !== 'veterinarian') {
+      return res.status(404).json({ status: 'ERROR', message: 'Veterinarian not found' });
+    }
+
+    // Verify replacement vet is active in this clinic
+    const replacementAssignment = await AssignedVet.findOne({ vetId: replacementVetId, clinicId: clinic._id, isActive: true });
+    if (!replacementAssignment) {
+      return res.status(400).json({ status: 'ERROR', message: 'Replacement veterinarian is not an active member of this clinic' });
+    }
+
+    const branchId = assignment.clinicBranchId?.toString() || '';
+
+    // 1. Deactivate all AssignedVet records for this vet in this clinic
+    await AssignedVet.updateMany({ vetId, clinicId: clinic._id }, { isActive: false });
+
+    // 2. Transfer medical records to replacement vet
+    await MedicalRecord.updateMany(
+      { vetId, clinicId: clinic._id },
+      { vetId: replacementVetId }
+    );
+
+    // 3. Reassign future pending/confirmed/rescheduled appointments to replacement vet
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    await Appointment.updateMany(
+      {
+        vetId,
+        clinicId: clinic._id,
+        status: { $in: ['pending', 'confirmed', 'rescheduled'] },
+        date: { $gte: today },
+      },
+      { vetId: replacementVetId }
+    );
+
+    // 4. Deactivate the vet's account
+    vet.userType = 'inactive' as any;
+    (vet as any).clinicId = null;
+    (vet as any).clinicBranchId = null;
+    await vet.save();
+
+    // 5. Update branch active status
+    if (branchId) await updateBranchStatus(branchId);
+
+    // 6. Send termination email (fire-and-forget)
+    sendVetTerminated({
+      vetEmail: vet.email,
+      vetFirstName: vet.firstName,
+      vetLastName: vet.lastName,
+      clinicName: clinic.name,
+    }).catch(() => {});
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: `Dr. ${vet.firstName} ${vet.lastName} has been terminated and their records transferred.`,
+    });
+  } catch (error) {
+    console.error('Fire vet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while terminating the veterinarian' });
   }
 };
 
@@ -862,7 +974,14 @@ export const getClinicVets = async (req: Request, res: Response) => {
         const app = appByVetId.get(vet._id.toString());
         const verification = (app?.verificationId) as any;
         const isResigned = vet.userType === 'inactive' || vet?.resignation?.status === 'completed';
+        const isOnNotice = !isResigned && vet?.resignation?.status === 'approved';
         const isOnLeave = onLeaveVetIds.has(vet._id.toString());
+
+        let status: string;
+        if (isResigned) status = 'Resigned';
+        else if (isOnNotice) status = 'Resignation Notice';
+        else if (isOnLeave) status = 'On Leave';
+        else status = 'Active';
 
         return {
           _id: app?._id || a._id,
@@ -873,7 +992,7 @@ export const getClinicVets = async (req: Request, res: Response) => {
           initials: `${vet.firstName?.[0] || ''}${vet.lastName?.[0] || ''}`,
           branch: branch?.name || a.clinicName || 'Unassigned',
           prcLicense: verification?.prcLicenseNumber || '-',
-          status: isResigned ? 'Resigned' : (isOnLeave ? 'On Leave' : 'Active'),
+          status,
         };
       });
 
@@ -1145,6 +1264,12 @@ export const acceptVetInvitation = async (req: Request, res: Response) => {
       clinicId: invitation.clinicId,
       clinicBranchId: invitation.branchId,
     });
+
+    // Update VetApplication.branchId so the vet's schedule management reflects the new branch
+    await VetApplication.findOneAndUpdate(
+      { vetId: invitation.vetId, clinicId: invitation.clinicId, status: 'approved' },
+      { branchId: invitation.branchId }
+    );
 
     // Mark invitation as accepted
     invitation.status = 'accepted';
@@ -1442,43 +1567,76 @@ export const applyBranchClosure = async (req: Request, res: Response) => {
         const targetDayStart = parseDateOnlyToUtc(newDateOnly, false);
         const targetDayEnd = parseDateOnlyToUtc(newDateOnly, true);
 
-        const duplicateKey = new Set<string>();
-        for (const appt of affectedAppointments as any[]) {
-          const vetId = appt.vetId ? appt.vetId.toString() : '';
-          const key = `${vetId}:${appt.startTime}`;
-          if (duplicateKey.has(key) && vetId) {
-            return res.status(409).json({
-              status: 'ERROR',
-              message: `Reschedule conflict: multiple affected appointments share time ${appt.startTime} for the same vet`,
-            });
-          }
-          duplicateKey.add(key);
+        // Helper: convert "HH:MM" to total minutes
+        const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+        const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+        // Build 30-min slots for the branch day
+        const branchOpen = (branch as any).openingTime || '07:00';
+        const branchClose = (branch as any).closingTime || '17:00';
+        const daySlots: string[] = [];
+        for (let cur = toMin(branchOpen); cur + 30 <= toMin(branchClose); cur += 30) {
+          daySlots.push(toTime(cur));
+        }
+
+        // Load all existing active appointments on the target day to build reserved-slot map
+        const existingOnTarget = await Appointment.find({
+          clinicId: clinic._id,
+          date: { $gte: targetDayStart, $lte: targetDayEnd },
+          status: { $in: ACTIVE_APPOINTMENT_STATUSES },
+          isEmergency: false,
+        }).select('vetId startTime');
+
+        // reservedByVet: vetId (or '__none__') -> Set of reserved startTimes
+        const reservedByVet = new Map<string, Set<string>>();
+        for (const e of existingOnTarget as any[]) {
+          const vid = e.vetId ? e.vetId.toString() : '__none__';
+          if (!reservedByVet.has(vid)) reservedByVet.set(vid, new Set());
+          reservedByVet.get(vid)!.add(e.startTime);
         }
 
         for (const appt of affectedAppointments as any[]) {
-          if (!appt.vetId) continue;
-          const conflict = await Appointment.findOne({
-            _id: { $ne: appt._id },
-            vetId: appt.vetId,
-            clinicId: clinic._id,
-            date: { $gte: targetDayStart, $lte: targetDayEnd },
-            startTime: appt.startTime,
-            status: { $in: ACTIVE_APPOINTMENT_STATUSES },
-            isEmergency: false,
-          }).select('_id');
+          const vetId = appt.vetId ? appt.vetId.toString() : '__none__';
+          if (!reservedByVet.has(vetId)) reservedByVet.set(vetId, new Set());
+          const vetReserved = reservedByVet.get(vetId)!;
 
-          if (conflict) {
-            return res.status(409).json({
-              status: 'ERROR',
-              message: `Selected date has slot conflicts for one or more appointments (${appt.startTime})`,
-            });
+          let assignedStart = appt.startTime;
+
+          // Cascade: if the target slot is taken, find the next available slot
+          if (vetId !== '__none__' && vetReserved.has(assignedStart)) {
+            let found = false;
+            // Try slots at or after original time first
+            const startIdx = daySlots.findIndex(s => s >= assignedStart);
+            for (let i = startIdx >= 0 ? startIdx : 0; i < daySlots.length; i++) {
+              if (!vetReserved.has(daySlots[i])) {
+                assignedStart = daySlots[i];
+                found = true;
+                break;
+              }
+            }
+            // Fall back to earlier slots if no later slot is free
+            if (!found) {
+              for (let i = 0; i < daySlots.length; i++) {
+                if (!vetReserved.has(daySlots[i])) {
+                  assignedStart = daySlots[i];
+                  break;
+                }
+              }
+            }
           }
-        }
 
-        for (const appt of affectedAppointments as any[]) {
+          // Mark this slot as reserved for subsequent appointments in the batch
+          vetReserved.add(assignedStart);
+
+          // Compute new endTime preserving the original appointment duration
+          const duration = toMin(appt.endTime) - toMin(appt.startTime);
+          const assignedEnd = toTime(toMin(assignedStart) + (duration > 0 ? duration : 30));
+
           const previousDate = appt.date;
           const previousStartTime = appt.startTime;
           appt.date = targetDayStart;
+          appt.startTime = assignedStart;
+          appt.endTime = assignedEnd;
           appt.status = 'rescheduled';
           await appt.save();
 
@@ -1490,7 +1648,7 @@ export const applyBranchClosure = async (req: Request, res: Response) => {
               previousDate,
               previousStartTime,
               newDate: targetDayStart,
-              newStartTime: appt.startTime,
+              newStartTime: assignedStart,
             }).catch((err) => console.error('[applyBranchClosure] reschedule email failed:', err));
           }
         }
@@ -1535,6 +1693,52 @@ export const applyBranchClosure = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Apply branch closure error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while applying branch closure' });
+  }
+};
+
+// ==================== LIFT BRANCH CLOSURE ====================
+
+/**
+ * DELETE /api/clinics/:clinicId/branches/:branchId/closure
+ * Remove all closure dates that cover today, effectively re-opening the branch.
+ */
+export const liftBranchClosure = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const branch = await ClinicBranch.findOne({ _id: req.params.branchId, clinicId: clinic._id, isActive: true });
+    if (!branch) {
+      return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
+    }
+
+    const todayStart = parseDateOnlyToUtc(new Date().toISOString().slice(0, 10), false);
+    const todayEnd   = parseDateOnlyToUtc(new Date().toISOString().slice(0, 10), true);
+
+    // Keep only closures that do NOT cover today
+    const remaining = (branch.closureDates || []).filter((c: any) => {
+      const start = new Date(c.startDate);
+      const end   = new Date(c.endDate);
+      return !(start <= todayEnd && end >= todayStart);
+    });
+
+    branch.closureDates = remaining as any;
+    await branch.save();
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Branch closure lifted successfully',
+      data: { closureDates: remaining },
+    });
+  } catch (error) {
+    console.error('Lift branch closure error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while lifting branch closure' });
   }
 };
 

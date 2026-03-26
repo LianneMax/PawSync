@@ -104,7 +104,7 @@ export const getAvailableSlots = async (
   date: string,
   token?: string,
   branchId?: string
-): Promise<{ status: string; data?: { slots: TimeSlot[]; isClosed?: boolean } }> => {
+): Promise<{ status: string; data?: { slots: TimeSlot[]; isClosed?: boolean; isBranchClosure?: boolean } }> => {
   const qs = branchId ? `&branchId=${branchId}` : '';
   return authenticatedFetch(`/appointments/slots?vetId=${vetId}&date=${date}${qs}`, { method: 'GET' }, token);
 };

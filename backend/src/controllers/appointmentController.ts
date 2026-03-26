@@ -126,17 +126,14 @@ function getVetBookingCutoffDate(
 ): Date | null {
   if (resignation?.status !== 'approved') return null;
 
-  const cutoff = resignation.noticeStart
-    ? new Date(resignation.noticeStart)
-    : resignation.endDate
-      ? new Date(resignation.endDate)
+  // Use endDate (notice end) directly; fall back to noticeStart + 7 for legacy records
+  const cutoff = resignation.endDate
+    ? new Date(resignation.endDate)
+    : resignation.noticeStart
+      ? (() => { const d = new Date(resignation.noticeStart!); d.setDate(d.getDate() + 7); return d; })()
       : null;
 
   if (!cutoff) return null;
-
-  if (resignation.noticeStart) {
-    cutoff.setDate(cutoff.getDate() + 7);
-  }
 
   cutoff.setHours(23, 59, 59, 999);
   return cutoff;
@@ -423,6 +420,25 @@ export const createAppointment = async (req: Request, res: Response) => {
       }
     }
 
+    // ─── Branch closure check ─────────────────────────────────────────────────────
+    if (clinicBranchId) {
+      const apptBranch = await ClinicBranch.findById(clinicBranchId).select('closureDates');
+      if (apptBranch?.closureDates?.length) {
+        const [apptY, apptM, apptD] = (date as string).split('-').map(Number);
+        const dayStartUTC = new Date(Date.UTC(apptY, apptM - 1, apptD, 0, 0, 0, 0));
+        const dayEndUTC = new Date(Date.UTC(apptY, apptM - 1, apptD, 23, 59, 59, 999));
+        const branchClosed = (apptBranch.closureDates as any[]).some((c) =>
+          new Date(c.startDate) <= dayEndUTC && new Date(c.endDate) >= dayStartUTC
+        );
+        if (branchClosed) {
+          return res.status(400).json({
+            status: 'ERROR',
+            message: 'This clinic branch is closed on the selected date. Please choose a different date.',
+          });
+        }
+      }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────────
     // Pet-specific conflict validation
     // ─────────────────────────────────────────────────────────────────────────────────
@@ -627,10 +643,23 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
     let isClosed = false;
 
     if (branchId) {
-      const vetSchedule = await VetSchedule.findOne({
-        vetId: vetId as string,
-        branchId: branchId as string
-      });
+      const [vetSchedule, branch] = await Promise.all([
+        VetSchedule.findOne({ vetId: vetId as string, branchId: branchId as string }),
+        ClinicBranch.findById(branchId as string).select('operatingDays openingTime closingTime closureDates'),
+      ]);
+
+      // Check branch closure dates first
+      if (branch) {
+        const [qy2, qm2, qd2] = (date as string).split('-').map(Number);
+        const dayStartUTC = new Date(Date.UTC(qy2, qm2 - 1, qd2, 0, 0, 0, 0));
+        const dayEndUTC = new Date(Date.UTC(qy2, qm2 - 1, qd2, 23, 59, 59, 999));
+        const hasClosure = (branch.closureDates || []).some((c: any) =>
+          new Date(c.startDate) <= dayEndUTC && new Date(c.endDate) >= dayStartUTC
+        );
+        if (hasClosure) {
+          return res.status(200).json({ status: 'SUCCESS', data: { slots: [], isClosed: true, isBranchClosure: true } });
+        }
+      }
 
       if (vetSchedule) {
         // Use vet's own schedule
@@ -644,7 +673,6 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
         }
       } else {
         // Fall back to branch operating hours
-        const branch = await ClinicBranch.findById(branchId as string);
         if (branch) {
           if (branch.operatingDays.length > 0 && !branch.operatingDays.includes(dayName)) {
             isClosed = true;
@@ -726,6 +754,17 @@ export const getGroomingSlots = async (req: Request, res: Response) => {
 
     const branch = await ClinicBranch.findById(branchId as string);
     if (branch) {
+      // Check branch closure dates
+      const [qy2, qm2, qd2] = (date as string).split('-').map(Number);
+      const dayStartUTC = new Date(Date.UTC(qy2, qm2 - 1, qd2, 0, 0, 0, 0));
+      const dayEndUTC = new Date(Date.UTC(qy2, qm2 - 1, qd2, 23, 59, 59, 999));
+      const hasClosure = (branch.closureDates || []).some((c: any) =>
+        new Date(c.startDate) <= dayEndUTC && new Date(c.endDate) >= dayStartUTC
+      );
+      if (hasClosure) {
+        return res.status(200).json({ status: 'SUCCESS', data: { slots: [], isClosed: true, isBranchClosure: true } });
+      }
+
       if (branch.operatingDays.length > 0 && !branch.operatingDays.includes(dayName)) {
         isClosed = true;
       } else {
@@ -904,11 +943,11 @@ export const cancelAppointment = async (req: Request, res: Response) => {
         });
       }
 
-      const ownerCancellableStatuses = ['confirmed', 'in_clinic'];
+      const ownerCancellableStatuses = ['confirmed', 'in_clinic', 'rescheduled'];
       if (!ownerCancellableStatuses.includes(appointment.status)) {
         return res.status(403).json({
           status: 'ERROR',
-          message: `Pet owners can only cancel confirmed or in-clinic appointments.`
+          message: `Pet owners can only cancel confirmed, in-clinic, or rescheduled appointments.`
         });
       }
 
@@ -926,11 +965,11 @@ export const cancelAppointment = async (req: Request, res: Response) => {
     }
 
     if (isAdmin) {
-      const clinicAdminCancellableStatuses = ['confirmed', 'in_clinic'];
+      const clinicAdminCancellableStatuses = ['confirmed', 'in_clinic', 'rescheduled'];
       if (!clinicAdminCancellableStatuses.includes(appointment.status)) {
         return res.status(403).json({
           status: 'ERROR',
-          message: 'Clinic admins can only cancel confirmed or in-clinic appointments.'
+          message: 'Clinic admins can only cancel confirmed, in-clinic, or rescheduled appointments.'
         });
       }
     }
@@ -1245,8 +1284,8 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
       }
     }
 
-    if (appointment.status !== 'pending' && appointment.status !== 'confirmed') {
-      return res.status(400).json({ status: 'ERROR', message: 'Can only reschedule pending or confirmed appointments' });
+    if (!['pending', 'confirmed', 'rescheduled'].includes(appointment.status)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Can only reschedule pending, confirmed, or rescheduled appointments' });
     }
 
     const { date, startTime, endTime } = req.body;
@@ -1377,12 +1416,12 @@ export const getVetsForBranch = async (req: Request, res: Response) => {
       petId: null,
     }).populate('vetId', 'firstName lastName email userType resignation');
 
-    // Filter out resigned vets
+    // Filter out fully resigned vets; keep 'approved' (on notice) since they're still bookable until endDate
     const activeVetAssignments = activeAssignments.filter((a) => {
       const vet = a.vetId as any;
       if (!vet || vet.userType !== 'veterinarian') return false;
       const resignStatus = vet?.resignation?.status;
-      if (resignStatus === 'approved' || resignStatus === 'completed') return false;
+      if (resignStatus === 'completed') return false;
       return true;
     });
 
@@ -2221,12 +2260,12 @@ export const getVetsByBranchId = async (req: Request, res: Response) => {
       petId: null,
     }).populate('vetId', 'firstName lastName email userType resignation');
 
-    // Filter out resigned vets
+    // Filter out fully resigned vets; keep 'approved' (on notice) since they're still bookable until endDate
     const activeVetAssignments = activeAssignments.filter((a) => {
       const vet = a.vetId as any;
       if (!vet || vet.userType !== 'veterinarian') return false;
       const resignStatus = vet?.resignation?.status;
-      if (resignStatus === 'approved' || resignStatus === 'completed') return false;
+      if (resignStatus === 'completed') return false;
       return true;
     });
 

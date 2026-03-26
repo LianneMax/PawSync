@@ -22,6 +22,8 @@ import {
   verifyBranchEmailOTP,
   previewBranchClosure,
   applyBranchClosure,
+  liftBranchClosure,
+  fireVet,
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -142,6 +144,12 @@ router.post('/:clinicId/branches/:branchId/closure/preview', authMiddleware, cli
 router.post('/:clinicId/branches/:branchId/closure/apply', authMiddleware, clinicAdminOnly, applyBranchClosure);
 
 /**
+ * DELETE /api/clinics/:clinicId/branches/:branchId/closure
+ * Remove today's closure to re-open the branch.
+ */
+router.delete('/:clinicId/branches/:branchId/closure', authMiddleware, clinicAdminOnly, liftBranchClosure);
+
+/**
  * POST /api/clinics/:clinicId/vets
  * Assign a vet to a clinic branch
  */
@@ -152,6 +160,12 @@ router.post('/:clinicId/vets', authMiddleware, clinicAdminOnly, assignVetToBranc
  * Remove a vet from a clinic branch
  */
 router.delete('/:clinicId/vets/:assignmentId', authMiddleware, clinicAdminOnly, removeVetFromBranch);
+
+/**
+ * POST /api/clinics/:clinicId/vets/:vetId/fire
+ * Permanently terminate a vet: deactivate account, transfer records to replacement vet
+ */
+router.post('/:clinicId/vets/:vetId/fire', authMiddleware, clinicAdminOnly, mainBranchOnly, fireVet);
 
 /**
  * GET /api/clinics/:clinicId/patients

@@ -423,9 +423,9 @@ function CalendarGridView({
     ? ((currentHour - openHour + currentMinute / 60) / hourSpan) * 100
     : 0
 
-  // Show active appointments (pending, confirmed, in_clinic, in_progress) for the selected date in the calendar view
+  // Show active appointments for the selected date in the calendar view
   const confirmedAppointments = appointments.filter((a) => {
-    if (!['pending', 'confirmed', 'in_clinic', 'in_progress'].includes(a.status)) return false
+    if (!['pending', 'confirmed', 'in_clinic', 'in_progress', 'rescheduled'].includes(a.status)) return false
     // Match by date (compare YYYY-MM-DD)
     const apptDate = new Date(a.date).toISOString().split('T')[0]
     return apptDate === selectedDate
@@ -1128,7 +1128,7 @@ export default function ClinicAdminAppointmentsPage() {
 
         // On initial calendar load, auto-navigate to the first active appointment's date
         if (activeTab === 'upcoming' && viewMode === 'calendar' && filtered.length > 0) {
-          const firstConfirmed = filtered.find((a) => ['confirmed', 'in_clinic', 'in_progress', 'pending'].includes(a.status))
+          const firstConfirmed = filtered.find((a) => ['confirmed', 'in_clinic', 'in_progress', 'pending', 'rescheduled'].includes(a.status))
           if (firstConfirmed) {
             const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
             setCalendarDate((prev) => {
@@ -2457,6 +2457,7 @@ function ClinicScheduleModal({
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [slotsIsClosed, setSlotsIsClosed] = useState(false)
+  const [slotsIsBranchClosure, setSlotsIsBranchClosure] = useState(false)
   const [isAutoSelectingDate, setIsAutoSelectingDate] = useState(false)
   const [noAvailableDatesMessage, setNoAvailableDatesMessage] = useState('')
   const [hasAutoSelectedDate, setHasAutoSelectedDate] = useState(false)
@@ -2577,7 +2578,7 @@ function ClinicScheduleModal({
   // Load slots when vet + date change (or grooming + branch + date change)
   useEffect(() => {
     const shouldLoadSlots = isGroomingOnly ? (selectedBranchId && selectedDate) : (selectedVetId && selectedDate)
-    if (!shouldLoadSlots) { setSlots([]); setSlotsIsClosed(false); return }
+    if (!shouldLoadSlots) { setSlots([]); setSlotsIsClosed(false); setSlotsIsBranchClosure(false); return }
     const load = async () => {
       setLoadingSlots(true)
       try {
@@ -2593,12 +2594,14 @@ function ClinicScheduleModal({
         }
         if (res.status === 'SUCCESS' && res.data) {
           setSlotsIsClosed(res.data.isClosed ?? false)
+          setSlotsIsBranchClosure(res.data.isBranchClosure ?? false)
           setSlots(res.data.slots ?? [])
         } else {
           setSlotsIsClosed(false)
+          setSlotsIsBranchClosure(false)
           setSlots([])
         }
-      } catch { setSlotsIsClosed(false); setSlots([]) }
+      } catch { setSlotsIsClosed(false); setSlotsIsBranchClosure(false); setSlots([]) }
       finally { setLoadingSlots(false) }
     }
     load()
@@ -3386,6 +3389,7 @@ function ClinicScheduleModal({
                   placeholder="Select a date"
                   allowFutureDates={true}
                   minDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                  maxDate={selectedVetUnavailableAfter ?? undefined}
                   fromYear={currentYear}
                   toYear={currentYear + 20}
                 />
@@ -3415,7 +3419,9 @@ function ClinicScheduleModal({
                 </div>
               ) : slotsIsClosed ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-gray-400 text-center">{isGroomingOnly ? 'Groomer' : 'Vet'} is not available on this date</p>
+                  <p className="text-sm text-gray-400 text-center">
+                    {slotsIsBranchClosure ? 'This branch is closed on the selected date' : `${isGroomingOnly ? 'Groomer' : 'Vet'} is not available on this date`}
+                  </p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -3530,6 +3536,7 @@ function RescheduleModal({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [rescheduleIsClosed, setRescheduleIsClosed] = useState(false)
+  const [rescheduleIsBranchClosure, setRescheduleIsBranchClosure] = useState(false)
   const [isAutoSelectingDate, setIsAutoSelectingDate] = useState(false)
   const [noAvailableDatesMessage, setNoAvailableDatesMessage] = useState('')
   const [hasAutoSelectedDate, setHasAutoSelectedDate] = useState(false)
@@ -3551,6 +3558,7 @@ function RescheduleModal({
       setSelectedSlot(null)
       setSlots([])
       setRescheduleIsClosed(false)
+      setRescheduleIsBranchClosure(false)
       setIsAutoSelectingDate(false)
       setNoAvailableDatesMessage('')
       setHasAutoSelectedDate(false)
@@ -3565,6 +3573,7 @@ function RescheduleModal({
     if (!selectedDate || (!isGroomingOnly && !vetId) || (isGroomingOnly && !branchId)) {
       setSlots([])
       setRescheduleIsClosed(false)
+      setRescheduleIsBranchClosure(false)
       return
     }
     const load = async () => {
@@ -3583,12 +3592,14 @@ function RescheduleModal({
         }
         if (res.status === 'SUCCESS' && res.data) {
           setRescheduleIsClosed(res.data.isClosed ?? false)
+          setRescheduleIsBranchClosure(res.data.isBranchClosure ?? false)
           setSlots(res.data.slots ?? [])
         } else {
           setRescheduleIsClosed(false)
+          setRescheduleIsBranchClosure(false)
           setSlots([])
         }
-      } catch { setRescheduleIsClosed(false); setSlots([]) }
+      } catch { setRescheduleIsClosed(false); setRescheduleIsBranchClosure(false); setSlots([]) }
       finally { setLoadingSlots(false) }
     }
     load()
@@ -3659,6 +3670,7 @@ function RescheduleModal({
         setSelectedSlot(null)
         setSlots([])
         setRescheduleIsClosed(false)
+        setRescheduleIsBranchClosure(false)
         setNoAvailableDatesMessage('No available appointment dates at the moment.')
         setHasAutoSelectedDate(true)
       } finally {
@@ -3809,7 +3821,9 @@ function RescheduleModal({
                 </div>
               ) : rescheduleIsClosed ? (
                 <div className="flex items-center justify-center py-6">
-                  <p className="text-sm text-gray-400 text-center">Vet is not available on this date</p>
+                  <p className="text-sm text-gray-400 text-center">
+                    {rescheduleIsBranchClosure ? 'This branch is closed on the selected date' : 'Vet is not available on this date'}
+                  </p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="flex items-center justify-center py-6">

@@ -324,6 +324,22 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
       });
     }
 
+    // Surgery record — when a vet selects a surgery service in the medical record form,
+    // add it to billing directly from the Surgeries product catalog.
+    const surgeryTypeName: string = ((record as any).surgeryRecord?.surgeryType || '').trim();
+    if (surgeryTypeName) {
+      const surgeryCatalog = allProducts.filter((p: any) => p.category === 'Surgeries');
+      const match = matchByName(surgeryTypeName, surgeryCatalog) ?? matchByName(surgeryTypeName, allProducts);
+      newItems.push({
+        productServiceId: match ? match._id : null,
+        vaccineTypeId: null,
+        name: match ? match.name : surgeryTypeName,
+        type: 'Service',
+        unitPrice: match ? (match as any).price : 0,
+        quantity: 1,
+      });
+    }
+
     // Appointment types — add services that are not already covered by MR field sync
     if ((record as any).appointmentId) {
       const appt = await Appointment.findById((record as any).appointmentId)
