@@ -2204,11 +2204,13 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
   const mapBranchAvailability = (raw: any[]): BranchAvailabilityEntry[] =>
-    (raw || []).map((ba: any) => ({
-      branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
-      branchName: typeof ba.branchId === 'object' ? ba.branchId.name : '',
-      isActive: ba.isActive,
-    }))
+    (raw || [])
+      .filter((ba: any) => ba.branchId != null)
+      .map((ba: any) => ({
+        branchId: typeof ba.branchId === 'object' ? ba.branchId._id : ba.branchId,
+        branchName: typeof ba.branchId === 'object' ? ba.branchId.name : '',
+        isActive: ba.isActive,
+      }))
 
   // Fetch branches once on mount
   useEffect(() => {
