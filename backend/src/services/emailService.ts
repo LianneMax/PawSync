@@ -1539,6 +1539,50 @@ export async function sendGuestClaimInviteEmail(params: {
   }
 }
 
+// ─── Pet Owner Account Invite (clinic-created profile) ────────────────────────
+
+export async function sendPetOwnerInviteEmail(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  clinicName: string;
+  inviteUrl: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `${params.clinicName} has created your PawSync account`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px;">
+          <div style="text-align: center; margin-bottom: 28px;">
+            <img src="https://pawsync.app/logo.png" alt="PawSync" width="120" style="max-width:120px;" />
+          </div>
+          <h2 style="color: #5A7C7A; margin-bottom: 6px;">Welcome to PawSync, ${params.ownerFirstName}!</h2>
+          <p style="color: #374151; font-size: 15px;">
+            <strong>${params.clinicName}</strong> has created a PawSync account on your behalf so you can access your pet's medical records, upcoming appointments, and billing — all in one place.
+          </p>
+          <div style="background: #f0f7f7; border-left: 4px solid #7FA5A3; padding: 16px 20px; border-radius: 8px; margin: 24px 0;">
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6B7280;">Account registered to</p>
+            <p style="margin: 0; font-size: 15px; font-weight: 600; color: #374151;">${params.ownerFirstName} ${params.ownerLastName} &mdash; ${params.ownerEmail}</p>
+          </div>
+          <p style="color: #374151; font-size: 14px;">To activate your account and set your own password, click the button below:</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${params.inviteUrl}" style="background: #7FA5A3; color: white; padding: 14px 36px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: 700; display: inline-block;">
+              Activate My Account
+            </a>
+          </div>
+          <p style="color: #9CA3AF; font-size: 13px; text-align: center;">This link expires in 72 hours. If you believe this was sent in error, you can safely ignore it.</p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 28px 0;" />
+          <p style="color: #9CA3AF; font-size: 12px; text-align: center;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendPetOwnerInviteEmail error:', err);
+  }
+}
+
 export async function sendVetTerminated(params: {
   vetEmail: string;
   vetFirstName: string;

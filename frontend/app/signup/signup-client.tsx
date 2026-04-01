@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Mail, Lock, User, Heart, Stethoscope, Eye, EyeOff, Phone } from 'lucide-react'
+import { Mail, Lock, User, Stethoscope, Eye, EyeOff, Phone, Info } from 'lucide-react'
 import { register, googleAuth, resendVerificationEmail, claimGuestAccount } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 import { useGoogleLogin } from '@react-oauth/google'
@@ -309,7 +309,7 @@ export default function SignUpClient() {
               {isClaimMode ? 'Claim Records' : 'Sign Up'}
             </h1>
             <p className="text-gray-600 mb-8 text-center" style={{ fontFamily: 'var(--font-outfit)' }}>
-              {isClaimMode ? 'Create your account to access your pet\'s records' : 'Register Your PawSync Account'}
+              {isClaimMode ? 'Create your account to access your pet\'s records' : 'Veterinarian Registration'}
             </p>
 
             {/* Claim-mode context banner */}
@@ -331,49 +331,38 @@ export default function SignUpClient() {
 
               {/* User Type Selection — hidden in claim mode (always pet-owner) */}
               {!isClaimMode && <div className="mb-6">
+                {/* Veterinarian registration */}
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-3">I am a...</label>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Pet Owner Button */}
-                  <button
-                    type="button"
-                    onClick={() => { setUserType('pet-owner'); setFieldErrors(prev => ({ ...prev, userType: '' })) }}
-                    className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
-                      fieldErrors.userType && !userType
-                        ? 'border-red-400 bg-white'
-                        : userType === 'pet-owner'
-                          ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="font-medium text-[#4F4F4F]">Pet Owner</span>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      userType === 'pet-owner' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
-                    }`}>
-                      <Heart className="w-5 h-5 text-white" />
-                    </div>
-                  </button>
-
-                  {/* Veterinarian Button */}
-                  <button
-                    type="button"
-                    onClick={() => { setUserType('veterinarian'); setFieldErrors(prev => ({ ...prev, userType: '' })) }}
-                    className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
-                      fieldErrors.userType && !userType
-                        ? 'border-red-400 bg-white'
-                        : userType === 'veterinarian'
-                          ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="font-medium text-[#4F4F4F]">Veterinarian</span>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      userType === 'veterinarian' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
-                    }`}>
-                      <Stethoscope className="w-5 h-5 text-white" />
-                    </div>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => { setUserType('veterinarian'); setFieldErrors(prev => ({ ...prev, userType: '' })) }}
+                  className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 ${
+                    fieldErrors.userType && !userType
+                      ? 'border-red-400 bg-white'
+                      : userType === 'veterinarian'
+                        ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <span className="font-medium text-[#4F4F4F]">Veterinarian</span>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    userType === 'veterinarian' ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]/70'
+                  }`}>
+                    <Stethoscope className="w-5 h-5 text-white" />
+                  </div>
+                </button>
                 {fieldErrors.userType && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.userType}</p>}
+
+                {/* Pet owner notice */}
+                <div className="mt-4 flex gap-3 p-4 bg-[#7FA5A3]/8 border border-[#7FA5A3]/30 rounded-2xl">
+                  <Info className="w-5 h-5 text-[#5A7C7A] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-[#4F4F4F]">Are you a pet owner?</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Pet owner accounts are created by your veterinary clinic. Please contact your clinic and they will send you an activation link via email.
+                    </p>
+                  </div>
+                </div>
               </div>}
 
               {/* Name Inputs - Side by Side */}

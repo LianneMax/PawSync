@@ -22,6 +22,7 @@ import {
   sendClinicClosureCancellation,
   sendClinicClosureRescheduled,
   sendVetTerminated,
+  sendPetOwnerInviteEmail,
 } from '../services/emailService';
 import VetLeave from '../models/VetLeave';
 
@@ -1829,5 +1830,109 @@ export const verifyBranchEmailOTP = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Verify branch OTP error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'Failed to verify OTP' });
+  }
+};
+
+/**
+ * POST /api/clinics/mine/pet-owners
+ * Create a pet owner profile on behalf of a client. Restricted to clinic admins.
+ * The owner receives an invitation email with a secure link to set their own password.
+ * Body: { firstName, lastName, email, contactNumber }
+ */
+export const createPetOwnerProfile = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { firstName, lastName, email, contactNumber } = req.body;
+
+    if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'First name, last name, and email are required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedContact = (contactNumber || '').replace(/\D/g, '') || null;
+
+    // Check for an existing account with this email
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({ status: 'ERROR', message: 'An account with this email address already exists.' });
+    }
+
+    if (normalizedContact) {
+      const existingContact = await User.findOne({ contactNumberNormalized: normalizedContact });
+      if (existingContact) {
+        return res.status(409).json({ status: 'ERROR', message: 'An account with this mobile number already exists.' });
+      }
+    }
+
+    // Resolve the clinic name for the invitation email
+    const clinicId = req.user.clinicId;
+    const clinic = clinicId ? await Clinic.findById(clinicId).select('name') : null;
+    const clinicName = clinic?.name || 'Your veterinary clinic';
+
+    // Create the pet owner account — no password yet, email unverified until activation
+    const newOwner = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: normalizedEmail,
+      contactNumber: normalizedContact,
+      userType: 'pet-owner',
+      isVerified: true,
+      emailVerified: false, // locked until the invite link is used
+    });
+
+    // Generate a 72-hour invite token (same mechanism as email verification)
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
+    newOwner.emailVerificationToken = hashedToken;
+    newOwner.emailVerificationExpires = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
+    await newOwner.save({ validateBeforeSave: false });
+
+    // Send invitation email
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteUrl = `${frontendUrl}/activate-owner?token=${inviteToken}`;
+
+    try {
+      await sendPetOwnerInviteEmail({
+        ownerEmail: normalizedEmail,
+        ownerFirstName: firstName.trim(),
+        ownerLastName: lastName.trim(),
+        clinicName,
+        inviteUrl,
+      });
+    } catch (emailError) {
+      console.error('[createPetOwnerProfile] Invite email failed:', emailError);
+      // Remove the account so the admin can retry cleanly
+      await User.deleteOne({ _id: newOwner._id });
+      return res.status(500).json({ status: 'ERROR', message: 'Failed to send the invitation email. Please try again.' });
+    }
+
+    return res.status(201).json({
+      status: 'SUCCESS',
+      message: `Invitation sent to ${normalizedEmail}. The owner has 72 hours to activate their account.`,
+      data: {
+        owner: {
+          id: newOwner._id,
+          firstName: newOwner.firstName,
+          lastName: newOwner.lastName,
+          email: newOwner.email,
+          contactNumber: newOwner.contactNumber,
+          userType: newOwner.userType,
+          emailVerified: newOwner.emailVerified,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Create pet owner profile error:', error);
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || '';
+      if (field.includes('contactNumber')) {
+        return res.status(409).json({ status: 'ERROR', message: 'This mobile number is already registered.' });
+      }
+      return res.status(409).json({ status: 'ERROR', message: 'This email address is already registered.' });
+    }
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the pet owner profile.' });
   }
 };

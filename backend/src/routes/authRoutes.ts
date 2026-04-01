@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail, activateInvitation, claimGuestAccount } from '../controllers/authController';
+import { register, login, getCurrentUser, logout, forgotPassword, verifyOtp, resetPassword, googleAuth, verifyEmail, resendVerificationEmail, activateInvitation, claimGuestAccount, activatePetOwnerInvite } from '../controllers/authController';
 import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
@@ -85,5 +85,12 @@ router.post('/activate-invitation', activateInvitation);
  * Body: { claimToken, firstName, lastName, password, contactNumber? }
  */
 router.post('/claim-guest', claimGuestAccount);
+
+/**
+ * POST /api/auth/activate-pet-owner-invite
+ * Activate a clinic-created pet owner account via the invite link.
+ * Body: { token, password, confirmPassword }
+ */
+router.post('/activate-pet-owner-invite', activatePetOwnerInvite);
 
 export default router;

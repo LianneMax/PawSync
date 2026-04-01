@@ -112,11 +112,34 @@ export const createPet = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
     }
 
+    // Veterinarians cannot create pet profiles
+    if (req.user.userType === 'veterinarian') {
+      return res.status(403).json({ status: 'ERROR', message: 'Veterinarians are not permitted to create pet profiles.' });
+    }
+
     const {
       name, species, breed, secondaryBreed, sex,
       dateOfBirth, weight, sterilization, microchipNumber,
-      nfcTagId, photo, color, allergies
+      nfcTagId, photo, color, allergies,
+      ownerId: ownerIdFromBody
     } = req.body;
+
+    // Resolve effective ownerId:
+    // - clinic-admin must provide ownerId in the request body (whose pet it is)
+    // - pet-owner always uses their own account id
+    let effectiveOwnerId: string;
+    if (req.user.userType === 'clinic-admin') {
+      if (!ownerIdFromBody) {
+        return res.status(400).json({ status: 'ERROR', message: 'ownerId is required when creating a pet as a clinic admin.' });
+      }
+      const ownerExists = await User.findOne({ _id: ownerIdFromBody, userType: 'pet-owner' });
+      if (!ownerExists) {
+        return res.status(404).json({ status: 'ERROR', message: 'Pet owner not found. Please ensure the owner has an active account.' });
+      }
+      effectiveOwnerId = ownerIdFromBody;
+    } else {
+      effectiveOwnerId = req.user.userId;
+    }
 
     const normalizedName = normalizePetName(name || '');
     const normalizedBreed = normalizeOptionalText(breed);
@@ -131,7 +154,7 @@ export const createPet = async (req: Request, res: Response) => {
 
     if (normalizedMicrochip) {
       const duplicateMicrochip = await Pet.findOne({
-        ownerId: req.user.userId,
+        ownerId: effectiveOwnerId,
         $expr: {
           $eq: [{ $toLower: { $ifNull: ['$microchipNumber', ''] } }, normalizedMicrochip]
         }
@@ -173,7 +196,7 @@ export const createPet = async (req: Request, res: Response) => {
     });
 
     if (duplicatePet) {
-      const sameOwner = duplicatePet.ownerId.toString() === req.user.userId;
+      const sameOwner = duplicatePet.ownerId.toString() === effectiveOwnerId;
       return res.status(409).json({
         status: 'ERROR',
         message: sameOwner
@@ -184,7 +207,7 @@ export const createPet = async (req: Request, res: Response) => {
     }
 
     const pet = await Pet.create({
-      ownerId: req.user.userId,
+      ownerId: effectiveOwnerId,
       name,
       species,
       breed,

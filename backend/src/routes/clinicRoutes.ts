@@ -24,6 +24,7 @@ import {
   applyBranchClosure,
   liftBranchClosure,
   fireVet,
+  createPetOwnerProfile,
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -178,5 +179,12 @@ router.get('/:clinicId/patients', authMiddleware, clinicAdminOnly, getClinicPati
  * Create a new clinic admin account for a branch
  */
 router.post('/clinic-admin', authMiddleware, clinicAdminOnly, mainBranchOnly, createClinicAdmin);
+
+/**
+ * POST /api/clinics/mine/pet-owners
+ * Create a pet owner profile on behalf of a client and send them an activation invite.
+ * Body: { firstName, lastName, email, contactNumber }
+ */
+router.post('/mine/pet-owners', authMiddleware, clinicAdminOnly, createPetOwnerProfile);
 
 export default router;

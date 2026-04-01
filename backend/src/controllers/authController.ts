@@ -131,11 +131,18 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate user type
-    if (!['pet-owner', 'veterinarian'].includes(userType)) {
+    // Validate user type — pet-owner accounts are created exclusively by clinic admins
+    if (userType === 'pet-owner') {
+      return res.status(403).json({
+        status: 'ERROR',
+        message: 'Pet owner accounts are created by your veterinary clinic. Please contact your clinic to get started.'
+      });
+    }
+
+    if (!['veterinarian'].includes(userType)) {
       return res.status(400).json({
         status: 'ERROR',
-        message: 'Invalid user type. Must be "pet-owner" or "veterinarian"'
+        message: 'Invalid user type.'
       });
     }
 
@@ -918,6 +925,75 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
 };
 
 /**
+ * Activate a clinic-created pet owner account via invite link.
+ * POST /api/auth/activate-pet-owner-invite
+ * Body: { token, password, confirmPassword }
+ *
+ * The clinic creates the profile (name, email, contact) and the system sends an
+ * invite link. The owner clicks the link, sets their own password, and is logged in.
+ * No temporary/shared password is ever used.
+ */
+export const activatePetOwnerInvite = async (req: Request, res: Response) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({ status: 'ERROR', message: 'All fields are required.' });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ status: 'ERROR', message: 'Passwords do not match.' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ status: 'ERROR', message: 'Password must be at least 8 characters.' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: new Date() },
+      emailVerified: false,
+      userType: 'pet-owner',
+      isGuest: { $ne: true }, // guest claim uses a separate flow
+    }).select('+emailVerificationToken +emailVerificationExpires +password');
+
+    if (!user) {
+      return res.status(400).json({ status: 'ERROR', message: 'This invitation link is invalid or has expired. Please ask your clinic to resend your invite.' });
+    }
+
+    user.password = password; // pre-save hook hashes this
+    user.emailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    const jwtToken = generateToken(user);
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Your account has been activated. Welcome to PawSync!',
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          userType: user.userType,
+          isVerified: user.isVerified,
+          emailVerified: user.emailVerified,
+          photo: user.photo || null,
+        },
+        token: jwtToken,
+      },
+    });
+  } catch (error) {
+    console.error('Activate pet owner invite error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred during account activation.' });
+  }
+};
+
+/**
  * Google OAuth authentication
  * Accepts a Google access_token, verifies it by calling Google's userinfo endpoint,
  * then creates or finds the user and returns our own JWT.
@@ -968,8 +1044,15 @@ export const googleAuth = async (req: Request, res: Response) => {
 
     if (!user) {
       // Brand-new user — we need a userType to create the account
-      if (!userType || !['pet-owner', 'veterinarian'].includes(userType)) {
-        // Tell the frontend to collect the role first
+      if (!userType || !['veterinarian'].includes(userType)) {
+        // Tell the frontend to collect the role first (vet only)
+        // Pet owners cannot self-register via Google — accounts are clinic-created
+        if (userType === 'pet-owner') {
+          return res.status(403).json({
+            status: 'ERROR',
+            message: 'Pet owner accounts are created by your veterinary clinic. Please contact your clinic to get started.'
+          });
+        }
         return res.status(200).json({
           status: 'NEEDS_USER_TYPE',
           message: 'Please select your account type to continue',
