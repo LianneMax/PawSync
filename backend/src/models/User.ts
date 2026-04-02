@@ -10,6 +10,7 @@ export interface IUser extends Document {
   contactNumberNormalized?: string | null;
   photo?: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
+  inviteStatus?: 'invited' | 'resent' | 'activated' | null;
   isGuest?: boolean;
   claimStatus?: 'unclaimed' | 'unclaimable' | 'invited' | 'claimed' | null;
   guestClinicId?: mongoose.Types.ObjectId | null;
@@ -184,6 +185,16 @@ const UserSchema = new Schema(
       default: null,
       select: false
     },
+    // ── Pet owner onboarding invite status ────────────────────────────────────
+    // Tracks where a clinic-created pet owner is in the activation flow.
+    // 'expired' is NOT stored here — it is derived at read time from
+    // emailVerificationExpires < now && emailVerified === false.
+    inviteStatus: {
+      type: String,
+      enum: ['invited', 'resent', 'activated', null],
+      default: null,
+    },
+
     // ── Guest / Walk-in intake fields ─────────────────────────────────────────
     isGuest: {
       type: Boolean,

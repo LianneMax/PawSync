@@ -85,3 +85,64 @@ export const getClinicPatients = async (
 ): Promise<ClinicPatientsResponse> => {
   return authenticatedFetch(`/clinics/mine/patients`, { method: 'GET' }, token);
 };
+
+// ─── Pet Owner Clients ─────────────────────────────────────────────────────────
+
+export type OwnerInviteStatus = 'invited' | 'resent' | 'expired' | 'activated';
+
+export interface ClinicPetOwner {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  contactNumber: string | null;
+  inviteStatus: OwnerInviteStatus;
+  inviteSentAt: string;
+  lastInviteSentAt: string;
+  activatedAt: string | null;
+  petCount: number;
+}
+
+export interface ClinicPetOwnersResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: {
+    owners: ClinicPetOwner[];
+    total: number;
+  };
+}
+
+/**
+ * Get all clinic-created pet owner profiles with onboarding status
+ */
+export const getClinicPetOwners = async (
+  token?: string
+): Promise<ClinicPetOwnersResponse> => {
+  return authenticatedFetch(`/clinics/mine/pet-owners`, { method: 'GET' }, token);
+};
+
+/**
+ * Create a new pet owner profile and send an activation invite
+ */
+export const createPetOwnerProfile = async (
+  data: { firstName: string; lastName: string; email: string; contactNumber?: string },
+  token?: string
+): Promise<{ status: string; message?: string; data?: { owner: ClinicPetOwner } }> => {
+  return authenticatedFetch(`/clinics/mine/pet-owners`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, token);
+};
+
+/**
+ * Resend the activation invite to a pet owner (invalidates old token)
+ */
+export const resendPetOwnerInvite = async (
+  ownerId: string,
+  token?: string
+): Promise<{ status: string; message?: string }> => {
+  return authenticatedFetch(`/clinics/mine/pet-owners/${ownerId}/resend-invite`, {
+    method: 'POST',
+  }, token);
+};

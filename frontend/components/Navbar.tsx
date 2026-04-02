@@ -25,6 +25,7 @@ import {
   BarChart3,
   Sparkles,
   X,
+  UsersRound,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -76,6 +77,7 @@ const navItemsByUserType: Record<UserType, NavItem[]> = {
   'clinic-admin': [
     { label: 'Dashboard', href: '/clinic-admin', icon: <Home className="w-5 h-5" />, section: 'MAIN MENU' },
     { label: 'Patients', href: '/clinic-admin/patients', icon: <PawPrint className="w-5 h-5" /> },
+    { label: 'Clients', href: '/clinic-admin/clients', icon: <UsersRound className="w-5 h-5" /> },
     { label: 'Appointments', href: '/clinic-admin/appointments', icon: <Calendar className="w-5 h-5" /> },
     { label: 'Medical Records', href: '/clinic-admin/medical-records', icon: <ClipboardList className="w-5 h-5" /> },
     { label: 'Vaccinations', href: '/clinic-admin/vaccinations', icon: <Syringe className="w-5 h-5" /> },

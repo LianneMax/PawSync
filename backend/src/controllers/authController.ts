@@ -966,6 +966,7 @@ export const activatePetOwnerInvite = async (req: Request, res: Response) => {
     user.emailVerified = true;
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
+    user.inviteStatus = 'activated';
     await user.save();
 
     const jwtToken = generateToken(user);

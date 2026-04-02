@@ -1881,6 +1881,7 @@ export const createPetOwnerProfile = async (req: Request, res: Response) => {
       userType: 'pet-owner',
       isVerified: true,
       emailVerified: false, // locked until the invite link is used
+      inviteStatus: 'invited',
     });
 
     // Generate a 72-hour invite token (same mechanism as email verification)
@@ -1934,5 +1935,154 @@ export const createPetOwnerProfile = async (req: Request, res: Response) => {
       return res.status(409).json({ status: 'ERROR', message: 'This email address is already registered.' });
     }
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while creating the pet owner profile.' });
+  }
+};
+
+/**
+ * GET /api/clinics/mine/pet-owners
+ * List all clinic-created pet owner profiles with their computed onboarding status.
+ * Restricted to clinic admins.
+ *
+ * Statuses returned:
+ *   invited   — profile created, first invite sent, token still valid
+ *   resent    — invite was resent at least once, token still valid
+ *   expired   — token expired and account has not been activated (derived on read)
+ *   activated — owner completed account activation
+ */
+export const getClinicPetOwners = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    // Fetch all pet owners who were created via the clinic invite flow (have inviteStatus set)
+    const owners = await User.find({
+      userType: 'pet-owner',
+      inviteStatus: { $ne: null },
+    })
+      .select('+emailVerificationExpires +claimInviteSentAt')
+      .lean();
+
+    const now = new Date();
+
+    // Attach pet counts and compute effective status
+    const petCounts = await Pet.aggregate([
+      { $match: { ownerId: { $in: owners.map((o: any) => o._id) } } },
+      { $group: { _id: '$ownerId', count: { $sum: 1 } } },
+    ]);
+    const petCountMap = new Map(petCounts.map((p: any) => [p._id.toString(), p.count]));
+
+    const result = owners.map((owner: any) => {
+      // Derive 'expired' at read time — don't persist it to avoid stale values
+      const isExpired =
+        owner.inviteStatus !== 'activated' &&
+        owner.emailVerificationExpires &&
+        new Date(owner.emailVerificationExpires) < now;
+
+      const effectiveStatus: string = isExpired ? 'expired' : (owner.inviteStatus ?? 'invited');
+
+      return {
+        id: owner._id,
+        firstName: owner.firstName,
+        lastName: owner.lastName,
+        email: owner.email,
+        contactNumber: owner.contactNumber || null,
+        inviteStatus: effectiveStatus,
+        inviteSentAt: owner.createdAt,
+        lastInviteSentAt: owner.claimInviteSentAt || owner.createdAt,
+        activatedAt: owner.emailVerified ? owner.updatedAt : null,
+        petCount: petCountMap.get(owner._id.toString()) ?? 0,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { owners: result, total: result.length },
+    });
+  } catch (error) {
+    console.error('Get clinic pet owners error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching pet owner profiles.' });
+  }
+};
+
+const RESEND_INVITE_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
+
+/**
+ * POST /api/clinics/mine/pet-owners/:ownerId/resend-invite
+ * Resend the activation invite to a pet owner whose link has expired or was not received.
+ * Restricted to clinic admins. Invalidates the old token immediately.
+ */
+export const resendPetOwnerInvite = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId } = req.params;
+
+    if (!ownerId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Owner ID is required.' });
+    }
+
+    const owner = await User.findOne({ _id: ownerId, userType: 'pet-owner' })
+      .select('+emailVerificationToken +emailVerificationExpires +claimInviteSentAt');
+
+    if (!owner) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet owner not found.' });
+    }
+
+    // If the account is already activated there is nothing to resend
+    if (owner.emailVerified) {
+      return res.status(409).json({ status: 'ERROR', message: 'This account has already been activated. No invite needed.' });
+    }
+
+    // Cooldown check — prevent spamming the owner's inbox
+    const lastSent = owner.claimInviteSentAt ? owner.claimInviteSentAt.getTime() : 0;
+    const msSinceLast = Date.now() - lastSent;
+    if (msSinceLast < RESEND_INVITE_COOLDOWN_MS) {
+      const waitMinutes = Math.ceil((RESEND_INVITE_COOLDOWN_MS - msSinceLast) / 60000);
+      return res.status(429).json({
+        status: 'ERROR',
+        message: `An invite was sent recently. Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before resending.`,
+      });
+    }
+
+    // Resolve clinic name for the email
+    const clinicId = req.user.clinicId;
+    const clinic = clinicId ? await Clinic.findById(clinicId).select('name') : null;
+    const clinicName = clinic?.name || 'Your veterinary clinic';
+
+    // Generate a fresh 72-hour token — this overwrites and invalidates the old one
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
+    owner.emailVerificationToken = hashedToken;
+    owner.emailVerificationExpires = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    owner.claimInviteSentAt = new Date(); // reuse this field as last-invite-sent timestamp
+    owner.inviteStatus = 'resent';
+    await owner.save({ validateBeforeSave: false });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteUrl = `${frontendUrl}/activate-owner?token=${inviteToken}`;
+
+    try {
+      await sendPetOwnerInviteEmail({
+        ownerEmail: owner.email,
+        ownerFirstName: owner.firstName,
+        ownerLastName: owner.lastName,
+        clinicName,
+        inviteUrl,
+      });
+    } catch (emailError) {
+      console.error('[resendPetOwnerInvite] Email failed:', emailError);
+      return res.status(500).json({ status: 'ERROR', message: 'Failed to send the invitation email. Please try again.' });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: `A new activation link has been sent to ${owner.email}. It expires in 72 hours.`,
+    });
+  } catch (error) {
+    console.error('Resend pet owner invite error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while resending the invite.' });
   }
 };
