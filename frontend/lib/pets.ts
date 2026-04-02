@@ -86,6 +86,7 @@ export const createPet = async (petData: {
   photo?: string;
   color?: string;
   allergies?: string[];
+  ownerId?: string; // clinic-admin only — required when creating a pet on behalf of an owner
 }, token?: string): Promise<PetResponse> => {
   return authenticatedFetch('/pets', {
     method: 'POST',

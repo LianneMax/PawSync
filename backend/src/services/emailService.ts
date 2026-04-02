@@ -1556,7 +1556,7 @@ export async function sendPetOwnerInviteEmail(params: {
       html: emailHtml(`
         <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px;">
           <div style="text-align: center; margin-bottom: 28px;">
-            <img src="https://pawsync.app/logo.png" alt="PawSync" width="120" style="max-width:120px;" />
+            <img src="${FRONTEND_URL}/images/logos/pawsync-logo-dark.png" alt="PawSync" width="120" style="max-width:120px;" />
           </div>
           <h2 style="color: #5A7C7A; margin-bottom: 6px;">Welcome to PawSync, ${params.ownerFirstName}!</h2>
           <p style="color: #374151; font-size: 15px;">

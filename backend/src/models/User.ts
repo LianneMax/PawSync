@@ -10,7 +10,7 @@ export interface IUser extends Document {
   contactNumberNormalized?: string | null;
   photo?: string;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
-  inviteStatus?: 'invited' | 'resent' | 'activated' | null;
+  inviteStatus?: 'pending' | 'invited' | 'resent' | 'activated' | null;
   isGuest?: boolean;
   claimStatus?: 'unclaimed' | 'unclaimable' | 'invited' | 'claimed' | null;
   guestClinicId?: mongoose.Types.ObjectId | null;
@@ -191,7 +191,7 @@ const UserSchema = new Schema(
     // emailVerificationExpires < now && emailVerified === false.
     inviteStatus: {
       type: String,
-      enum: ['invited', 'resent', 'activated', null],
+      enum: ['pending', 'invited', 'resent', 'activated', null],
       default: null,
     },
 

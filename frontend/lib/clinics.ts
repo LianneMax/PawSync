@@ -88,7 +88,7 @@ export const getClinicPatients = async (
 
 // ─── Pet Owner Clients ─────────────────────────────────────────────────────────
 
-export type OwnerInviteStatus = 'invited' | 'resent' | 'expired' | 'activated';
+export type OwnerInviteStatus = 'pending' | 'invited' | 'resent' | 'expired' | 'activated';
 
 export interface ClinicPetOwner {
   id: string;
@@ -136,9 +136,11 @@ export const createPetOwnerProfile = async (
 };
 
 /**
- * Resend the activation invite to a pet owner (invalidates old token)
+ * Send or resend the activation invite to a pet owner.
+ * Works for both first-time sends (inviteStatus: 'pending') and resends.
+ * Cooldown is only enforced on resends.
  */
-export const resendPetOwnerInvite = async (
+export const sendPetOwnerInvite = async (
   ownerId: string,
   token?: string
 ): Promise<{ status: string; message?: string }> => {
@@ -146,3 +148,6 @@ export const resendPetOwnerInvite = async (
     method: 'POST',
   }, token);
 };
+
+/** @deprecated use sendPetOwnerInvite */
+export const resendPetOwnerInvite = sendPetOwnerInvite;

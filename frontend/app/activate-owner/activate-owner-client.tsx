@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { PawPrint, Lock, Eye, EyeOff, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -101,7 +102,13 @@ export default function ActivateOwnerClient() {
         {/* Header */}
         <div className="bg-gradient-to-br from-[#476B6B] to-[#5A8A8A] px-8 py-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <PawPrint className="w-7 h-7 text-white" />
+            <Image
+              src="/images/logos/pawsync-logo-white.png"
+              alt="PawSync"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
             <span className="text-white font-bold text-xl tracking-wide">PawSync</span>
           </div>
           <h1 className="text-white text-2xl font-bold mb-1">Activate Your Account</h1>

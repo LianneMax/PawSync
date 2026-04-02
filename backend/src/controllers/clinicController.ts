@@ -1872,7 +1872,8 @@ export const createPetOwnerProfile = async (req: Request, res: Response) => {
     const clinic = clinicId ? await Clinic.findById(clinicId).select('name') : null;
     const clinicName = clinic?.name || 'Your veterinary clinic';
 
-    // Create the pet owner account — no password yet, email unverified until activation
+    // Create the pet owner account — no password yet, no invite sent yet.
+    // The invite is sent only after at least one pet has been added (via sendPetOwnerInvite).
     const newOwner = await User.create({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -1880,39 +1881,13 @@ export const createPetOwnerProfile = async (req: Request, res: Response) => {
       contactNumber: normalizedContact,
       userType: 'pet-owner',
       isVerified: true,
-      emailVerified: false, // locked until the invite link is used
-      inviteStatus: 'invited',
+      emailVerified: false,
+      inviteStatus: 'pending', // awaiting pet registration before invite is sent
     });
-
-    // Generate a 72-hour invite token (same mechanism as email verification)
-    const inviteToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
-    newOwner.emailVerificationToken = hashedToken;
-    newOwner.emailVerificationExpires = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
-    await newOwner.save({ validateBeforeSave: false });
-
-    // Send invitation email
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const inviteUrl = `${frontendUrl}/activate-owner?token=${inviteToken}`;
-
-    try {
-      await sendPetOwnerInviteEmail({
-        ownerEmail: normalizedEmail,
-        ownerFirstName: firstName.trim(),
-        ownerLastName: lastName.trim(),
-        clinicName,
-        inviteUrl,
-      });
-    } catch (emailError) {
-      console.error('[createPetOwnerProfile] Invite email failed:', emailError);
-      // Remove the account so the admin can retry cleanly
-      await User.deleteOne({ _id: newOwner._id });
-      return res.status(500).json({ status: 'ERROR', message: 'Failed to send the invitation email. Please try again.' });
-    }
 
     return res.status(201).json({
       status: 'SUCCESS',
-      message: `Invitation sent to ${normalizedEmail}. The owner has 72 hours to activate their account.`,
+      message: 'Client profile created. Add at least one pet, then send the activation invite.',
       data: {
         owner: {
           id: newOwner._id,
@@ -1922,6 +1897,7 @@ export const createPetOwnerProfile = async (req: Request, res: Response) => {
           contactNumber: newOwner.contactNumber,
           userType: newOwner.userType,
           emailVerified: newOwner.emailVerified,
+          inviteStatus: newOwner.inviteStatus,
         },
       },
     });
@@ -2036,15 +2012,20 @@ export const resendPetOwnerInvite = async (req: Request, res: Response) => {
       return res.status(409).json({ status: 'ERROR', message: 'This account has already been activated. No invite needed.' });
     }
 
-    // Cooldown check — prevent spamming the owner's inbox
-    const lastSent = owner.claimInviteSentAt ? owner.claimInviteSentAt.getTime() : 0;
-    const msSinceLast = Date.now() - lastSent;
-    if (msSinceLast < RESEND_INVITE_COOLDOWN_MS) {
-      const waitMinutes = Math.ceil((RESEND_INVITE_COOLDOWN_MS - msSinceLast) / 60000);
-      return res.status(429).json({
-        status: 'ERROR',
-        message: `An invite was sent recently. Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before resending.`,
-      });
+    // 'pending' means the invite has never been sent — skip cooldown entirely
+    const isFirstSend = owner.inviteStatus === 'pending';
+
+    if (!isFirstSend) {
+      // Cooldown check — prevent spamming the owner's inbox on resends
+      const lastSent = owner.claimInviteSentAt ? owner.claimInviteSentAt.getTime() : 0;
+      const msSinceLast = Date.now() - lastSent;
+      if (msSinceLast < RESEND_INVITE_COOLDOWN_MS) {
+        const waitMinutes = Math.ceil((RESEND_INVITE_COOLDOWN_MS - msSinceLast) / 60000);
+        return res.status(429).json({
+          status: 'ERROR',
+          message: `An invite was sent recently. Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before resending.`,
+        });
+      }
     }
 
     // Resolve clinic name for the email
@@ -2057,8 +2038,8 @@ export const resendPetOwnerInvite = async (req: Request, res: Response) => {
     const hashedToken = crypto.createHash('sha256').update(inviteToken).digest('hex');
     owner.emailVerificationToken = hashedToken;
     owner.emailVerificationExpires = new Date(Date.now() + 72 * 60 * 60 * 1000);
-    owner.claimInviteSentAt = new Date(); // reuse this field as last-invite-sent timestamp
-    owner.inviteStatus = 'resent';
+    owner.claimInviteSentAt = new Date();
+    owner.inviteStatus = isFirstSend ? 'invited' : 'resent';
     await owner.save({ validateBeforeSave: false });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -2079,7 +2060,7 @@ export const resendPetOwnerInvite = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       status: 'SUCCESS',
-      message: `A new activation link has been sent to ${owner.email}. It expires in 72 hours.`,
+      message: `Activation link ${isFirstSend ? 'sent' : 'resent'} to ${owner.email}. It expires in 72 hours.`,
     });
   } catch (error) {
     console.error('Resend pet owner invite error:', error);
