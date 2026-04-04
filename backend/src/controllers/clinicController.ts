@@ -1963,6 +1963,7 @@ export const getClinicPetOwners = async (req: Request, res: Response) => {
         lastName: owner.lastName,
         email: owner.email,
         contactNumber: owner.contactNumber || null,
+        photo: owner.photo || null,
         inviteStatus: effectiveStatus,
         inviteSentAt: owner.createdAt,
         lastInviteSentAt: owner.claimInviteSentAt || owner.createdAt,
@@ -2065,5 +2066,183 @@ export const resendPetOwnerInvite = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Resend pet owner invite error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while resending the invite.' });
+  }
+};
+
+/**
+ * GET /api/clinics/mine/pet-owners/check-availability
+ * Check if an email or phone number is already in use.
+ * Query params: email?, contactNumber?
+ */
+export const checkClientAvailability = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+    const { email, contactNumber } = req.query as { email?: string; contactNumber?: string };
+    const conflicts: Record<string, string> = {};
+
+    if (email?.trim()) {
+      const existing = await User.findOne({ email: email.trim().toLowerCase() });
+      if (existing) conflicts.email = 'This email address is already registered.';
+    }
+    if (contactNumber?.trim()) {
+      const normalized = contactNumber.trim().replace(/\D/g, '');
+      if (normalized) {
+        const existing = await User.findOne({ contactNumberNormalized: normalized });
+        if (existing) conflicts.contactNumber = 'This mobile number is already registered.';
+      }
+    }
+
+    return res.status(200).json({ status: 'SUCCESS', data: { conflicts } });
+  } catch (error) {
+    console.error('Check client availability error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred during availability check.' });
+  }
+};
+
+/**
+ * GET /api/clinics/mine/pet-owners/:ownerId
+ * Get a single pet owner profile with their pets, last visit per pet, and overdue/due-soon vaccinations.
+ */
+export const getSinglePetOwner = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId } = req.params;
+    const owner = await User.findOne({ _id: ownerId, userType: 'pet-owner' })
+      .select('+emailVerificationExpires +claimInviteSentAt')
+      .lean() as any;
+
+    if (!owner) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet owner not found.' });
+    }
+
+    const now = new Date();
+    const isExpired =
+      owner.inviteStatus !== 'activated' &&
+      owner.emailVerificationExpires &&
+      new Date(owner.emailVerificationExpires) < now;
+    const effectiveStatus = isExpired ? 'expired' : (owner.inviteStatus ?? 'invited');
+
+    // Fetch pets
+    const pets = await Pet.find({ ownerId: owner._id }).lean() as any[];
+
+    // Last visit per pet (latest appointment)
+    const Appointment = (await import('../models/Appointment')).default;
+    const lastVisits = await Appointment.aggregate([
+      { $match: { petId: { $in: pets.map((p: any) => p._id) }, status: { $in: ['completed', 'done'] } } },
+      { $sort: { date: -1 } },
+      { $group: { _id: '$petId', lastVisit: { $first: '$date' } } },
+    ]);
+    const lastVisitMap = new Map(lastVisits.map((l: any) => [l._id.toString(), l.lastVisit]));
+
+    // Overdue/due-soon vaccinations per pet
+    const Vaccination = (await import('../models/Vaccination')).default;
+    const soonDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+    const vaccines = await Vaccination.find({
+      petId: { $in: pets.map((p: any) => p._id) },
+      $or: [
+        { status: 'overdue' },
+        { status: 'active', nextDueDate: { $lte: soonDate, $gte: now } },
+      ],
+    }).lean() as any[];
+
+    const vaccinesByPet = new Map<string, any[]>();
+    for (const v of vaccines) {
+      const key = v.petId.toString();
+      if (!vaccinesByPet.has(key)) vaccinesByPet.set(key, []);
+      vaccinesByPet.get(key)!.push({
+        id: v._id,
+        vaccineName: v.vaccineName,
+        nextDueDate: v.nextDueDate,
+        status: v.status,
+      });
+    }
+
+    const petsWithDetails = pets.map((p: any) => ({
+      id: p._id,
+      name: p.name,
+      species: p.species,
+      breed: p.breed,
+      photo: p.photo || null,
+      dateOfBirth: p.dateOfBirth,
+      sex: p.sex,
+      weight: p.weight,
+      lastVisit: lastVisitMap.get(p._id.toString()) || null,
+      dueVaccinations: vaccinesByPet.get(p._id.toString()) || [],
+    }));
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: {
+        owner: {
+          id: owner._id,
+          firstName: owner.firstName,
+          lastName: owner.lastName,
+          email: owner.email,
+          contactNumber: owner.contactNumber || null,
+          photo: owner.photo || null,
+          inviteStatus: effectiveStatus,
+          activatedAt: owner.emailVerified ? owner.updatedAt : null,
+          createdAt: owner.createdAt,
+        },
+        pets: petsWithDetails,
+      },
+    });
+  } catch (error) {
+    console.error('Get single pet owner error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while fetching the owner profile.' });
+  }
+};
+
+/**
+ * POST /api/clinics/mine/pet-owners/:ownerId/send-note
+ * Send a follow-up note email from the clinic to a pet owner.
+ * Body: { note: string, vetName?: string }
+ * The email includes a CTA button for the owner to book an appointment.
+ */
+export const sendOwnerNote = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const { ownerId } = req.params;
+    const { note, vetName } = req.body;
+
+    if (!note?.trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Note message is required.' });
+    }
+
+    const owner = await User.findOne({ _id: ownerId, userType: 'pet-owner' }).lean() as any;
+    if (!owner) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet owner not found.' });
+    }
+
+    const clinicId = req.user.clinicId;
+    const clinic = clinicId ? await Clinic.findById(clinicId).select('name') : null;
+    const clinicName = clinic?.name || 'Your veterinary clinic';
+    const senderName = vetName || clinicName;
+
+    const { sendVetNoteEmail } = await import('../services/emailService');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const bookingUrl = `${frontendUrl}/appointments/new`;
+
+    await sendVetNoteEmail({
+      ownerEmail: owner.email,
+      ownerFirstName: owner.firstName,
+      clinicName,
+      senderName,
+      note: note.trim(),
+      bookingUrl,
+    });
+
+    return res.status(200).json({ status: 'SUCCESS', message: `Note sent to ${owner.email}.` });
+  } catch (error) {
+    console.error('Send owner note error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'Failed to send the note email. Please try again.' });
   }
 };

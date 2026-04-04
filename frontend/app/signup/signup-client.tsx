@@ -359,7 +359,7 @@ export default function SignUpClient() {
                   <div>
                     <p className="text-sm font-medium text-[#4F4F4F]">Are you a pet owner?</p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Pet owner accounts are created by your veterinary clinic. Please contact your clinic and they will send you an activation link via email.
+                      Pet owner accounts are created by your Baivet Clinic Branch. Please contact your clinic and they will send you an activation link via email.
                     </p>
                   </div>
                 </div>

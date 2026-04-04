@@ -16,6 +16,8 @@ import {
   ArrowRight,
   UserCog,
   Nfc,
+  UsersRound,
+  CalendarPlus,
 } from 'lucide-react'
 
 // ==================== TYPES ====================
@@ -247,6 +249,20 @@ export default function ClinicAdminDashboard() {
                 >
                   <PawPrint className="w-5 h-5 text-[#476B6B]" />
                   <span className="text-sm font-medium text-[#4F4F4F]">View Patients</span>
+                </Link>
+                <Link
+                  href="/clinic-admin/clients?addClient=true"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-[#F8F6F2] hover:bg-[#F1F0ED] transition-colors"
+                >
+                  <UsersRound className="w-5 h-5 text-[#476B6B]" />
+                  <span className="text-sm font-medium text-[#4F4F4F]">Add Client</span>
+                </Link>
+                <Link
+                  href="/clinic-admin/appointments?book=true"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-[#F8F6F2] hover:bg-[#F1F0ED] transition-colors"
+                >
+                  <CalendarPlus className="w-5 h-5 text-[#476B6B]" />
+                  <span className="text-sm font-medium text-[#4F4F4F]">Book Appointment</span>
                 </Link>
               </div>
             </div>

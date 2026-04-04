@@ -74,6 +74,38 @@ function OverviewTab({ patient, records, loadingRecords }: {
 
   return (
     <div className="space-y-6">
+      {/* Owner Details — shown first */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <User className="w-4 h-4 text-[#4A8A87]" />
+          <h3 className="text-sm font-semibold text-[#4A8A87] uppercase tracking-wide">Owner Details</h3>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center shrink-0">
+              <span className="text-sm font-semibold text-[#4A8A87]">
+                {patient.owner.firstName[0]}{patient.owner.lastName[0]}
+              </span>
+            </div>
+            <div>
+              <Link
+                href={`/clinic-admin/clients/${patient.owner._id}`}
+                className="text-sm font-semibold text-[#476B6B] hover:underline"
+              >
+                {patient.owner.firstName} {patient.owner.lastName}
+              </Link>
+              <p className="text-xs text-gray-500">{patient.owner.email}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 pt-1 border-t border-gray-200">
+            <div>
+              <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Contact</p>
+              <p className="text-sm text-[#4F4F4F]">{patient.owner.contactNumber || '—'}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Pet Information */}
       <section>
         <div className="flex items-center gap-2 mb-3">
@@ -156,35 +188,6 @@ function OverviewTab({ patient, records, loadingRecords }: {
             No vitals recorded yet
           </div>
         )}
-      </section>
-
-      {/* Owner Details */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <User className="w-4 h-4 text-[#4A8A87]" />
-          <h3 className="text-sm font-semibold text-[#4A8A87] uppercase tracking-wide">Owner Details</h3>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center shrink-0">
-              <span className="text-sm font-semibold text-[#4A8A87]">
-                {patient.owner.firstName[0]}{patient.owner.lastName[0]}
-              </span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[#4F4F4F]">
-                {patient.owner.firstName} {patient.owner.lastName}
-              </p>
-              <p className="text-xs text-gray-500">{patient.owner.email}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 pt-1 border-t border-gray-200">
-            <div>
-              <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Contact</p>
-              <p className="text-sm text-[#4F4F4F]">{patient.owner.contactNumber || '—'}</p>
-            </div>
-          </div>
-        </div>
       </section>
     </div>
   )

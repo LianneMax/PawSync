@@ -27,6 +27,9 @@ import {
   createPetOwnerProfile,
   resendPetOwnerInvite,
   getClinicPetOwners,
+  checkClientAvailability,
+  getSinglePetOwner,
+  sendOwnerNote,
 } from '../controllers/clinicController';
 import { authMiddleware, clinicAdminOnly, mainBranchOnly } from '../middleware/auth';
 
@@ -201,5 +204,23 @@ router.post('/mine/pet-owners', authMiddleware, clinicAdminOnly, createPetOwnerP
  * Invalidates the previous token. Subject to a 15-minute cooldown.
  */
 router.post('/mine/pet-owners/:ownerId/resend-invite', authMiddleware, clinicAdminOnly, resendPetOwnerInvite);
+
+/**
+ * GET /api/clinics/mine/pet-owners/check-availability
+ * Check if an email or phone is already registered. Query: ?email=&contactNumber=
+ */
+router.get('/mine/pet-owners/check-availability', authMiddleware, clinicAdminOnly, checkClientAvailability);
+
+/**
+ * GET /api/clinics/mine/pet-owners/:ownerId
+ * Get full owner profile with pets, last visit, and due vaccinations.
+ */
+router.get('/mine/pet-owners/:ownerId', authMiddleware, clinicAdminOnly, getSinglePetOwner);
+
+/**
+ * POST /api/clinics/mine/pet-owners/:ownerId/send-note
+ * Send a follow-up note email to a pet owner with a booking CTA.
+ */
+router.post('/mine/pet-owners/:ownerId/send-note', authMiddleware, clinicAdminOnly, sendOwnerNote);
 
 export default router;

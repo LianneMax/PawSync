@@ -96,11 +96,44 @@ export interface ClinicPetOwner {
   lastName: string;
   email: string;
   contactNumber: string | null;
+  photo: string | null;
   inviteStatus: OwnerInviteStatus;
   inviteSentAt: string;
   lastInviteSentAt: string;
   activatedAt: string | null;
   petCount: number;
+}
+
+export interface OwnerPetSummary {
+  id: string;
+  name: string;
+  species: 'canine' | 'feline';
+  breed: string;
+  photo: string | null;
+  dateOfBirth: string;
+  sex: string;
+  weight: number;
+  lastVisit: string | null;
+  dueVaccinations: { id: string; vaccineName: string; nextDueDate: string | null; status: string }[];
+}
+
+export interface SingleOwnerResponse {
+  status: 'SUCCESS' | 'ERROR';
+  message?: string;
+  data?: {
+    owner: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      contactNumber: string | null;
+      photo: string | null;
+      inviteStatus: OwnerInviteStatus;
+      activatedAt: string | null;
+      createdAt: string;
+    };
+    pets: OwnerPetSummary[];
+  };
 }
 
 export interface ClinicPetOwnersResponse {
@@ -151,3 +184,41 @@ export const sendPetOwnerInvite = async (
 
 /** @deprecated use sendPetOwnerInvite */
 export const resendPetOwnerInvite = sendPetOwnerInvite;
+
+/**
+ * Check if an email or phone number is already registered (before creating a client).
+ */
+export const checkClientAvailability = async (
+  params: { email?: string; contactNumber?: string },
+  token?: string
+): Promise<{ status: string; data?: { conflicts: Record<string, string> } }> => {
+  const q = new URLSearchParams();
+  if (params.email) q.set('email', params.email);
+  if (params.contactNumber) q.set('contactNumber', params.contactNumber);
+  return authenticatedFetch(`/clinics/mine/pet-owners/check-availability?${q}`, { method: 'GET' }, token);
+};
+
+/**
+ * Get a single pet owner profile with pets, last visit, and due vaccinations.
+ */
+export const getSinglePetOwner = async (
+  ownerId: string,
+  token?: string
+): Promise<SingleOwnerResponse> => {
+  return authenticatedFetch(`/clinics/mine/pet-owners/${ownerId}`, { method: 'GET' }, token);
+};
+
+/**
+ * Send a follow-up note email from the clinic/vet to a pet owner.
+ */
+export const sendOwnerNote = async (
+  ownerId: string,
+  data: { note: string; vetName?: string },
+  token?: string
+): Promise<{ status: string; message?: string }> => {
+  return authenticatedFetch(`/clinics/mine/pet-owners/${ownerId}/send-note`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, token);
+};

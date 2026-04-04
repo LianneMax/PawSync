@@ -1614,3 +1614,47 @@ export async function sendVetTerminated(params: {
   }
 }
 
+// ─── Vet Follow-Up Note to Pet Owner ──────────────────────────────────────────
+
+export async function sendVetNoteEmail(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  clinicName: string;
+  senderName: string;
+  note: string;
+  bookingUrl: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: `A message from ${params.senderName} — ${params.clinicName}`,
+      html: emailHtml(`
+        <div style="max-width:600px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);font-family:'Outfit',sans-serif;">
+          <div style="background:linear-gradient(135deg,#476B6B 0%,#7FA5A3 100%);padding:40px 48px 32px;">
+            <img src="${FRONTEND_URL}/images/logos/pawsync-logo-white.png" alt="PawSync" style="height:36px;margin-bottom:20px;display:block;" />
+            <h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 8px;">You have a message from your clinic</h1>
+            <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;">${params.clinicName}</p>
+          </div>
+          <div style="padding:40px 48px;">
+            <p style="color:#4F4F4F;font-size:15px;margin:0 0 8px;">Hi <strong>${params.ownerFirstName}</strong>,</p>
+            <p style="color:#6B7280;font-size:14px;margin:0 0 24px;"><strong>${params.senderName}</strong> has sent you a follow-up note:</p>
+            <div style="background:#F8F6F2;border-left:4px solid #7FA5A3;border-radius:8px;padding:20px 24px;margin-bottom:32px;">
+              <p style="color:#4F4F4F;font-size:15px;line-height:1.7;margin:0;white-space:pre-line;">${params.note}</p>
+            </div>
+            <p style="color:#6B7280;font-size:14px;margin:0 0 24px;">If you need to schedule an appointment or follow up, you can book directly through PawSync:</p>
+            <div style="text-align:center;margin-bottom:32px;">
+              <a href="${params.bookingUrl}" style="display:inline-block;background:#476B6B;color:#ffffff;font-size:15px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none;">Book an Appointment</a>
+            </div>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 24px;" />
+            <p style="color:#9CA3AF;font-size:12px;text-align:center;margin:0;">This message was sent on behalf of ${params.clinicName} via PawSync. If you believe this was sent in error, please ignore this email.</p>
+          </div>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendVetNoteEmail error:', err);
+    throw err;
+  }
+}
+

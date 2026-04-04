@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -818,14 +819,16 @@ interface ClinicInfo {
   name: string
 }
 
-export default function ClinicAdminAppointmentsPage() {
+function ClinicAdminAppointmentsContent() {
   const { token } = useAuthStore()
   const user = useAuthStore((state) => state.user)
   const isClinicAdmin = user?.userType === 'clinic-admin'
   const isMainBranchAdmin = isClinicAdmin && user?.isMainBranch === true
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('all')
-  
+
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar')
   const [scheduleType, setScheduleType] = useState<'medical' | 'grooming'>('medical')
@@ -834,6 +837,14 @@ export default function ClinicAdminAppointmentsPage() {
   const allAppointmentsRef = useRef<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+
+  // Auto-open the booking modal when navigated from the dashboard quick action
+  useEffect(() => {
+    if (searchParams.get('book') === 'true') {
+      setModalOpen(true)
+      router.replace('/clinic-admin/appointments', { scroll: false })
+    }
+  }, [searchParams, router])
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
 
@@ -2410,6 +2421,14 @@ export default function ClinicAdminAppointmentsPage() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  )
+}
+
+export default function ClinicAdminAppointmentsPage() {
+  return (
+    <Suspense fallback={<DashboardLayout><div className="p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#7FA5A3]" /></div></DashboardLayout>}>
+      <ClinicAdminAppointmentsContent />
+    </Suspense>
   )
 }
 
