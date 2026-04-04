@@ -1011,10 +1011,10 @@ export default function PatientManagementPage() {
       const q = query.toLowerCase()
       filtered = filtered.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.owner.firstName.toLowerCase().includes(q) ||
-          p.owner.lastName.toLowerCase().includes(q) ||
-          p.owner.contactNumber.includes(q) ||
+          p.name?.toLowerCase().includes(q) ||
+          p.owner?.firstName?.toLowerCase().includes(q) ||
+          p.owner?.lastName?.toLowerCase().includes(q) ||
+          p.owner?.contactNumber?.includes(q) ||
           p.microchipNumber?.includes(q)
       )
     }
