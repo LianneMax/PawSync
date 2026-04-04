@@ -33,6 +33,7 @@ import {
   CheckCircle,
   Coffee,
   Syringe,
+  AlertCircle,
   CalendarX,
   Plus,
   Trash2,
@@ -187,6 +188,7 @@ export default function VetAppointmentsPage() {
   const [activeAppointmentTypes, setActiveAppointmentTypes] = useState<string[]>([])
   const [activeAppointmentDate, setActiveAppointmentDate] = useState<string | null>(null)
   const [activeAppointmentMode, setActiveAppointmentMode] = useState<'online' | 'face-to-face' | undefined>(undefined)
+  const [activeAppointmentIsEmergency, setActiveAppointmentIsEmergency] = useState(false)
 
   const { data: apptData, isLoading: loading, mutate: refreshAppointments } = useSWR(
     token ? '/appointments/vet' : null,
@@ -311,6 +313,7 @@ export default function VetAppointmentsPage() {
           setActiveAppointmentTypes(appt.types || [])
           setActiveAppointmentDate(appt.date || null)
           setActiveAppointmentMode(appt.mode)
+          setActiveAppointmentIsEmergency(appt.isEmergency === true)
           setModalOpen(true)
           refreshAppointments()
         }
@@ -335,6 +338,7 @@ export default function VetAppointmentsPage() {
         setActiveAppointmentTypes(appt.types || [])
         setActiveAppointmentDate(appt.date || null)
         setActiveAppointmentMode(appt.mode)
+        setActiveAppointmentIsEmergency(appt.isEmergency === true)
         setModalOpen(true)
       } else {
         toast.error('Could not find the visit record. Please try again.')
@@ -352,6 +356,7 @@ export default function VetAppointmentsPage() {
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
     setActiveAppointmentMode(undefined)
+    setActiveAppointmentIsEmergency(false)
     refreshAppointments()
   }
 
@@ -363,6 +368,7 @@ export default function VetAppointmentsPage() {
     setActiveAppointmentTypes([])
     setActiveAppointmentDate(null)
     setActiveAppointmentMode(undefined)
+    setActiveAppointmentIsEmergency(false)
     refreshAppointments()
   }
 
@@ -634,6 +640,11 @@ export default function VetAppointmentsPage() {
                                           </span>
                                         ) : null
                                       })()}
+                                      {appt.isEmergency && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 font-medium">
+                                          <AlertCircle className="w-3 h-3" /> Emergency
+                                        </span>
+                                      )}
                                       {orderAppointmentTypePills(appt.types).map((t) => (
                                         <span key={t} className="px-2 py-0.5 text-[10px] rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">
                                           {formatAppointmentTypeDisplay(t)}
@@ -986,6 +997,7 @@ export default function VetAppointmentsPage() {
           appointmentTypes={activeAppointmentTypes}
           appointmentDate={activeAppointmentDate}
           appointmentMode={activeAppointmentMode}
+          appointmentIsEmergency={activeAppointmentIsEmergency}
           onComplete={handleModalComplete}
           onClose={handleModalClose}
         />

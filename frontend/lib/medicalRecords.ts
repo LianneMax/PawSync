@@ -178,6 +178,16 @@ export interface MedicalRecord {
     antigenRows?: { disease: string; result: string }[];
     antigenDate?: string;
   } | null;
+  emergencyCase?: {
+    isEmergency: boolean;
+    triageLevel: 'critical' | 'urgent' | 'stable' | '';
+    interventionNotes: string;
+    outcome: 'stabilized' | 'referred' | 'confined' | 'deceased' | 'ongoing' | '';
+    dispositionNotes: string;
+    skipReasons: string[];
+    deferredFields: string[];
+    completedDeferredAt: string | null;
+  } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vaccinations?: any[];
   createdAt: string;
@@ -367,6 +377,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   discharge: boolean;
   scheduledSurgery: boolean;
   immunityTesting: MedicalRecord['immunityTesting'];
+  emergencyCase: MedicalRecord['emergencyCase'];
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

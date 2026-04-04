@@ -2463,6 +2463,7 @@ function ClinicScheduleModal({
   const [hasAutoSelectedDate, setHasAutoSelectedDate] = useState(false)
   const [isWalkIn, setIsWalkIn] = useState(false)
   const [isEmergency, setIsEmergency] = useState(false)
+  const [chiefComplaint, setChiefComplaint] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   // Guest intake mode
@@ -2716,6 +2717,7 @@ function ClinicScheduleModal({
       setSlotsIsClosed(false)
       setIsWalkIn(false)
       setIsEmergency(false)
+      setChiefComplaint('')
       setIsAutoSelectingDate(false)
       setNoAvailableDatesMessage('')
       setHasAutoSelectedDate(false)
@@ -2789,6 +2791,7 @@ function ClinicScheduleModal({
       if (!selectedBranchId) return toast.error('Please select a clinic branch')
       if (!isGroomingOnly && !selectedVetId) return toast.error('Please select a veterinarian')
       if (!isEmergency && selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+      if (!chiefComplaint.trim()) return toast.error('Chief Complaint is required')
       if (!selectedSlot) return toast.error('Please select a time slot')
 
       setSubmitting(true)
@@ -2814,7 +2817,7 @@ function ClinicScheduleModal({
           endTime: selectedSlot.endTime,
           isWalkIn: isEmergency ? true : isWalkIn,
           isEmergency,
-          notes: undefined,
+          notes: chiefComplaint.trim(),
         }
         if (selectedVetId) guestData.vetId = selectedVetId
 
@@ -2898,6 +2901,7 @@ function ClinicScheduleModal({
     }
     if (!mode) return toast.error('Please select a mode of appointment')
     if (!isEmergency && selectedTypes.length === 0) return toast.error('Please select at least one appointment type')
+    if (!chiefComplaint.trim()) return toast.error('Chief Complaint is required')
     if (!selectedSlot) return toast.error('Please select a time slot')
 
     setSubmitting(true)
@@ -2918,6 +2922,7 @@ function ClinicScheduleModal({
         endTime: selectedSlot.endTime,
         isWalkIn,
         isEmergency,
+        notes: chiefComplaint.trim(),
       }
 
       // Only include vetId if it has a value (medical appointments)
@@ -3370,6 +3375,17 @@ function ClinicScheduleModal({
                   categories={serviceCategories}
                 />
               )}
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint <span className="text-red-500">*</span></p>
+              <textarea
+                value={chiefComplaint}
+                onChange={(e) => setChiefComplaint(e.target.value)}
+                placeholder="Describe your pet's main concern or symptoms"
+                rows={3}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] resize-none"
+              />
             </div>
           </div>
 

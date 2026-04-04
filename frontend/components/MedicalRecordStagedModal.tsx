@@ -87,6 +87,7 @@ interface Props {
   appointmentTiterFirst?: boolean
   appointmentDate?: string | null
   appointmentMode?: 'online' | 'face-to-face'
+  appointmentIsEmergency?: boolean
   onComplete: () => void
   onClose: () => void
 }
@@ -118,6 +119,18 @@ const REG_STEP_LABELS: Record<1 | 2 | 3, string> = {
 const REG_STEP_ICONS: Record<1 | 2 | 3, ReactNode> = {
   1: <Stethoscope className="w-4 h-4" />,
   2: <ClipboardList className="w-4 h-4" />,
+  3: <FileCheck className="w-4 h-4" />,
+}
+
+const EMERG_STEP_LABELS: Record<1 | 2 | 3, string> = {
+  1: 'Emergency Triage',
+  2: 'Immediate Care',
+  3: 'Emergency Post-Procedure',
+}
+
+const EMERG_STEP_ICONS: Record<1 | 2 | 3, ReactNode> = {
+  1: <AlertCircle className="w-4 h-4" />,
+  2: <Sparkles className="w-4 h-4" />,
   3: <FileCheck className="w-4 h-4" />,
 }
 
@@ -693,7 +706,7 @@ function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: 
   }
 }
 
-export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, appointmentMode, onComplete, onClose }: Props) {
+export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, appointmentMode, appointmentIsEmergency = false, onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
   const [step, setStep] = useState<StepKey>(1)
   const [pet, setPet] = useState<Pet | null>(null)
@@ -771,6 +784,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const autoDischarge = !confined && !euthanasia
   const billableFieldsLocked = !!appointmentId && recordStage === 'completed' && !confined
   const isOnlineAppointment = appointmentMode === 'online'
+  const isEmergencyVisit = appointmentIsEmergency === true
+  const useEmergencyFlow = isEmergencyVisit && !isVaccinationAppt && !isSurgeryAppt
 
   // Load pet-level vet notes on mount
   useEffect(() => {
@@ -824,6 +839,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
   const [vitalsErrors, setVitalsErrors] = useState<Partial<Record<keyof Vitals, string>>>({})
   const [showRequiredErrors, setShowRequiredErrors] = useState(false)
+  const [emergencyTriageLevel, setEmergencyTriageLevel] = useState<'critical' | 'urgent' | 'stable' | ''>('')
+  const [emergencyInterventionNotes, setEmergencyInterventionNotes] = useState('')
+  const [emergencyOutcome, setEmergencyOutcome] = useState<'stabilized' | 'referred' | 'confined' | 'deceased' | 'ongoing' | ''>('')
+  const [emergencyDispositionNotes, setEmergencyDispositionNotes] = useState('')
+  const [emergencySkipReasons, setEmergencySkipReasons] = useState<string[]>([])
+  const [emergencyDeferredFields, setEmergencyDeferredFields] = useState<string[]>([])
 
   // Step 2 fields
   const [subjective, setSubjective] = useState('')
@@ -1192,6 +1213,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }
       setVisitSummary(r.visitSummary || '')
       setReferral(r.referral ?? false)
+      if (r.emergencyCase) {
+        setEmergencyTriageLevel(r.emergencyCase.triageLevel || '')
+        setEmergencyInterventionNotes(r.emergencyCase.interventionNotes || '')
+        setEmergencyOutcome(r.emergencyCase.outcome || '')
+        setEmergencyDispositionNotes(r.emergencyCase.dispositionNotes || '')
+        setEmergencySkipReasons(Array.isArray(r.emergencyCase.skipReasons) ? r.emergencyCase.skipReasons : [])
+        setEmergencyDeferredFields(Array.isArray(r.emergencyCase.deferredFields) ? r.emergencyCase.deferredFields : [])
+      } else if (useEmergencyFlow) {
+        setEmergencyDeferredFields(['vitals', 'soap'])
+      }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const normalizedMedications = (r.medications || []).map(({ _id, ...rest }: Omit<Medication, '_id'> & { _id?: string }) => rest)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1473,7 +1504,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         if (match) setDeliveryServiceId(match._id)
       }
     }
-  }, [recordId, petId, token, isVaccinationAppt, hasTiterTestingService, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate, appointmentTiterFirst])
+  }, [recordId, petId, token, isVaccinationAppt, hasTiterTestingService, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate, appointmentTiterFirst, useEmergencyFlow])
 
   useEffect(() => {
     loadData()
@@ -1699,6 +1730,33 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (extras.length === 0) return objective
     return objective + (objective ? '\n\n' : '') + `Services availed: ${extras.join(', ')}`
   }
+
+  const buildEmergencyCasePayload = () => {
+    if (!isEmergencyVisit) return undefined
+    const resolvedOutcome = emergencyOutcome || (euthanasia
+      ? 'deceased'
+      : confined
+        ? 'confined'
+        : referral
+          ? 'referred'
+          : 'stabilized')
+    const inferredSkipReasons = emergencyDeferredFields.map((field) => {
+      if (field === 'vitals') return 'Vitals deferred due to active emergency stabilization'
+      if (field === 'soap') return 'Complete SOAP deferred due to active emergency stabilization'
+      return `${field} deferred due to emergency prioritization`
+    })
+    return {
+      isEmergency: true,
+      triageLevel: emergencyTriageLevel,
+      interventionNotes: emergencyInterventionNotes,
+      outcome: resolvedOutcome,
+      dispositionNotes: emergencyDispositionNotes,
+      skipReasons: emergencySkipReasons.length > 0 ? emergencySkipReasons : inferredSkipReasons,
+      deferredFields: emergencyDeferredFields,
+      completedDeferredAt: emergencyDeferredFields.length === 0 ? new Date().toISOString() : null,
+    }
+  }
+
   const buildImmunityTestingPayload = () => {
     if (!showTiterSection && !showAntigenSection) return null
     const lockedSpecies = patientTiterSpecies
@@ -1955,6 +2013,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         assessment,
         plan: effectivePlan,
         immunityTesting: immunityPayload,
+        emergencyCase: buildEmergencyCasePayload(),
         visitSummary,
         medications: effectiveBillablePayload.medications,
         diagnosticTests: diagnosticTestsToSend,
@@ -2014,12 +2073,29 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     const hasVitalsErrors = Object.values(vitalsErrors).some((e) => !!e)
     const missingVitals = REQUIRED_VITAL_KEYS.some((k) => !vitals[k]?.value && vitals[k]?.value !== 0)
     const missingComplaint = !chiefComplaint.trim()
-    if (hasVitalsErrors || missingVitals || missingComplaint) {
-      setShowRequiredErrors(true)
-      toast.error('Please fill in all required fields before proceeding')
-      return
+    const missingEmergencyTriage = useEmergencyFlow && !emergencyTriageLevel
+
+    if (useEmergencyFlow) {
+      if (missingComplaint || missingEmergencyTriage) {
+        setShowRequiredErrors(true)
+        toast.error('Please complete emergency triage fields before proceeding')
+        return
+      }
+    } else {
+      if (hasVitalsErrors || missingVitals || missingComplaint) {
+        setShowRequiredErrors(true)
+        toast.error('Please fill in all required fields before proceeding')
+        return
+      }
     }
     setShowRequiredErrors(false)
+
+    if (useEmergencyFlow) {
+      const deferred = new Set(emergencyDeferredFields)
+      if (missingVitals) deferred.add('vitals')
+      if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) deferred.add('soap')
+      setEmergencyDeferredFields(Array.from(deferred))
+    }
 
     // SOAP template pre-fill — only populate empty fields
     const petName = pet?.name || 'the patient'
@@ -2061,6 +2137,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         stage: 'in_procedure',
         chiefComplaint,
         vitals,
+        emergencyCase: buildEmergencyCasePayload(),
       }, token)
       setHistoryRefresh(prev => prev + 1)
       setStep(2)
@@ -2169,9 +2246,24 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     }
 
     // Validate SOAP notes are filled
-    if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) {
+    if (!useEmergencyFlow && (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim())) {
       toast.error('Please fill in all SOAP notes (Subjective, Objective, Assessment, Plan) before proceeding')
       return
+    }
+
+    if (useEmergencyFlow && !emergencyInterventionNotes.trim()) {
+      toast.error('Please record immediate intervention notes before proceeding')
+      return
+    }
+
+    if (useEmergencyFlow) {
+      const deferred = new Set(emergencyDeferredFields)
+      if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) {
+        deferred.add('soap')
+      } else {
+        deferred.delete('soap')
+      }
+      setEmergencyDeferredFields(Array.from(deferred))
     }
 
     const immunityPayload = buildImmunityTestingPayload()
@@ -2210,6 +2302,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         assessment,
         plan: effectivePlan,
         immunityTesting: immunityPayload,
+        emergencyCase: buildEmergencyCasePayload(),
         diagnosticTests: diagnosticTestsToSend,
         medications: effectiveBillablePayload.medications,
         preventiveCare: effectiveBillablePayload.preventiveCare,
@@ -2340,7 +2433,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     setSaving(true)
     try {
       await trySaveVaccinations()
-      await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
+      await updateMedicalRecord(recordId, { stage: 'post_procedure', emergencyCase: buildEmergencyCasePayload() }, token)
       setHistoryRefresh(prev => prev + 1)
       setStep(4)
     } catch {
@@ -2363,6 +2456,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       }
       await updateMedicalRecord(recordId, {
         stage: 'post_procedure',
+        emergencyCase: buildEmergencyCasePayload(),
         surgeryRecord: {
           surgeryType: selectedSurgery?.name || '',
           vetRemarks: surgeryVetRemarks,
@@ -2381,6 +2475,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const handleCompleteRecord = async () => {
     if (!token) return
     if (!validateDiagnosticTestResults()) return
+
+    if (useEmergencyFlow) {
+      if (!emergencyInterventionNotes.trim()) {
+        toast.error('Emergency intervention notes are required')
+        return
+      }
+      if (!emergencyDispositionNotes.trim()) {
+        toast.error('Emergency disposition notes are required')
+        return
+      }
+    }
 
     if (ultrasoundPregnant && pregnancyConfirmationMethod === 'unknown' && inferPregnancyMethodFromDiagnostics() === 'unknown') {
       toast.error('Please select a pregnancy confirmation method')
@@ -2453,6 +2558,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         visitSummary,
         plan: effectivePlan,
         immunityTesting: immunityPayload,
+        emergencyCase: buildEmergencyCasePayload(),
         medications: effectiveBillablePayload.medications,
         diagnosticTests: diagnosticTestsToSend,
         preventiveCare: sanitizedPreventiveCare,
@@ -2598,6 +2704,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     try {
       const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
       await updateMedicalRecord(recordId, {
+        emergencyCase: buildEmergencyCasePayload(),
         surgeryRecord: {
           surgeryType: selectedSurgery?.name || '',
           vetRemarks: surgeryVetRemarks,
@@ -2735,6 +2842,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 const selectedSurgery = surgeryServices.find((s) => s._id === surgeryTypeId)
                 const xImgs = buildSurgeryImagesPayload()
                 await updateMedicalRecord(recordId, {
+                  emergencyCase: buildEmergencyCasePayload(),
                   surgeryRecord: { surgeryType: selectedSurgery?.name || '', vetRemarks: surgeryVetRemarks, images: xImgs },
                 }, token).catch(() => {})
               }
@@ -2750,8 +2858,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             {((isVaccinationAppt || isSurgeryAppt) ? ([1, 2, 3, 4] as StepKey[]) : ([1, 2, 3] as StepKey[])).map((s, idx, arr) => {
-              const labels = isVaccinationAppt ? VACC_STEP_LABELS : isSurgeryAppt ? SURG_STEP_LABELS : REG_STEP_LABELS as Record<StepKey, string>
-              const icons = isVaccinationAppt ? VACC_STEP_ICONS : isSurgeryAppt ? SURG_STEP_ICONS : REG_STEP_ICONS as Record<StepKey, ReactNode>
+              const labels = isVaccinationAppt
+                ? VACC_STEP_LABELS
+                : isSurgeryAppt
+                  ? SURG_STEP_LABELS
+                  : useEmergencyFlow
+                    ? EMERG_STEP_LABELS
+                    : REG_STEP_LABELS as Record<StepKey, string>
+              const icons = isVaccinationAppt
+                ? VACC_STEP_ICONS
+                : isSurgeryAppt
+                  ? SURG_STEP_ICONS
+                  : useEmergencyFlow
+                    ? EMERG_STEP_ICONS
+                    : REG_STEP_ICONS as Record<StepKey, ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
                   {(() => {
@@ -2957,6 +3077,33 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 )}
               </div>
 
+              {useEmergencyFlow && (
+                <div className="border border-red-200 rounded-2xl p-4 bg-red-50/40 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                    <p className="text-sm font-semibold text-red-700">Emergency Triage</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                      Triage Level <span className="text-[#900B09]">*</span>
+                    </label>
+                    <select
+                      value={emergencyTriageLevel}
+                      onChange={(e) => setEmergencyTriageLevel(e.target.value as 'critical' | 'urgent' | 'stable' | '')}
+                      className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 ${showRequiredErrors && !emergencyTriageLevel ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                    >
+                      <option value="">Select triage level...</option>
+                      <option value="critical">Critical</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="stable">Stable</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-red-700 bg-white border border-red-200 rounded-lg px-3 py-2">
+                    Emergency mode allows immediate progression. Full vitals and complete SOAP can be deferred and completed after stabilization.
+                  </p>
+                </div>
+              )}
+
               {/* Vitals */}
               <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
                 <button
@@ -2991,7 +3138,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       return (
                         <div key={key} className="pt-3 first:pt-0 border-t border-gray-50 first:border-0">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">{label} <span className="text-gray-300">({unit})</span> <span className="text-[#900B09]">*</span></label>
+                            <label className="block text-xs text-gray-400 mb-1">{label} <span className="text-gray-300">({unit})</span> {!useEmergencyFlow && <span className="text-[#900B09]">*</span>}</label>
                             <input
                               type="number"
                               min={min}
@@ -3083,6 +3230,21 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   </div>
                 )}
               </div>
+
+              {useEmergencyFlow && (
+                <div className="border border-red-200 rounded-2xl p-4 bg-red-50/30 space-y-2">
+                  <label className="block text-sm font-semibold text-red-700">
+                    Immediate Intervention Notes <span className="text-[#900B09]">*</span>
+                  </label>
+                  <textarea
+                    value={emergencyInterventionNotes}
+                    onChange={(e) => setEmergencyInterventionNotes(e.target.value)}
+                    rows={3}
+                    className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${showRequiredErrors && !emergencyInterventionNotes.trim() ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                    placeholder="Document stabilization actions, urgent interventions, and key immediate findings..."
+                  />
+                </div>
+              )}
 
               {/* SOAP Notes */}
               <div>
@@ -4520,7 +4682,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     if (!token) return
                     setSaving(true)
                     try {
-                      await updateMedicalRecord(recordId, { stage: 'post_procedure' }, token)
+                      await updateMedicalRecord(recordId, { stage: 'post_procedure', emergencyCase: buildEmergencyCasePayload() }, token)
                       setHistoryRefresh(prev => prev + 1)
                       setStep(4)
                     } catch {
@@ -4719,6 +4881,51 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <span className="font-semibold">Vaccination was skipped</span> due to pet being positive for:{' '}
                     <strong>{vaccinationSkippedDue.join(', ')}</strong>.
                   </p>
+                </div>
+              )}
+
+              {useEmergencyFlow && (
+                <div className="border border-red-200 rounded-2xl p-4 bg-red-50/30 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                    <p className="text-sm font-semibold text-red-700">Emergency Post-Procedure Encoding</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                      Disposition and Owner Communication <span className="text-[#900B09]">*</span>
+                    </label>
+                    <textarea
+                      value={emergencyDispositionNotes}
+                      onChange={(e) => setEmergencyDispositionNotes(e.target.value)}
+                      rows={2}
+                      placeholder="Capture disposition decision, discharge/confine plan, and owner instructions."
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={emergencyDeferredFields.includes('vitals')}
+                        onChange={(e) => {
+                          setEmergencyDeferredFields((prev) => e.target.checked ? Array.from(new Set([...prev, 'vitals'])) : prev.filter((f) => f !== 'vitals'))
+                        }}
+                        className="w-4 h-4 accent-[#476B6B]"
+                      />
+                      Defer full vitals completion
+                    </label>
+                    <label className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={emergencyDeferredFields.includes('soap')}
+                        onChange={(e) => {
+                          setEmergencyDeferredFields((prev) => e.target.checked ? Array.from(new Set([...prev, 'soap'])) : prev.filter((f) => f !== 'soap'))
+                        }}
+                        className="w-4 h-4 accent-[#476B6B]"
+                      />
+                      Defer complete SOAP notes
+                    </label>
+                  </div>
                 </div>
               )}
               {/* Visit Summary */}

@@ -66,6 +66,7 @@ export default function VetAppointmentsPage() {
   const [activePetId, setActivePetId] = useState<string | null>(null)
   const [activeApptTypes, setActiveApptTypes] = useState<string[]>([])
   const [activeApptMode, setActiveApptMode] = useState<'online' | 'face-to-face' | undefined>(undefined)
+  const [activeApptIsEmergency, setActiveApptIsEmergency] = useState(false)
 
   const fetchAppointments = useCallback(async () => {
     if (!token) return
@@ -98,6 +99,7 @@ export default function VetAppointmentsPage() {
           setActivePetId(petId)
           setActiveApptTypes(appt.types || [])
           setActiveApptMode(appt.mode)
+          setActiveApptIsEmergency(appt.isEmergency === true)
           setModalOpen(true)
           fetchAppointments()
         }
@@ -121,6 +123,7 @@ export default function VetAppointmentsPage() {
         setActivePetId(petId)
         setActiveApptTypes(appt.types || [])
         setActiveApptMode(appt.mode)
+        setActiveApptIsEmergency(appt.isEmergency === true)
         setModalOpen(true)
       } else {
         alert('Could not find the visit record. Please try again.')
@@ -139,7 +142,9 @@ export default function VetAppointmentsPage() {
       setActiveRecordId(recordId)
       setActiveAppointmentId(appt._id)
       setActivePetId(petId)
+      setActiveApptTypes(appt.types || [])
       setActiveApptMode(appt.mode)
+      setActiveApptIsEmergency(appt.isEmergency === true)
       setModalOpen(true)
       return
     }
@@ -151,7 +156,9 @@ export default function VetAppointmentsPage() {
         setActiveRecordId(res.data.record._id)
         setActiveAppointmentId(appt._id)
         setActivePetId(petId)
+        setActiveApptTypes(appt.types || [])
         setActiveApptMode(appt.mode)
+        setActiveApptIsEmergency(appt.isEmergency === true)
         setModalOpen(true)
       } else {
         alert('No medical record found for this appointment.')
@@ -166,7 +173,9 @@ export default function VetAppointmentsPage() {
     setActiveRecordId(null)
     setActiveAppointmentId(null)
     setActivePetId(null)
+    setActiveApptTypes([])
     setActiveApptMode(undefined)
+    setActiveApptIsEmergency(false)
     fetchAppointments()
   }
 
@@ -175,7 +184,9 @@ export default function VetAppointmentsPage() {
     setActiveRecordId(null)
     setActiveAppointmentId(null)
     setActivePetId(null)
+    setActiveApptTypes([])
     setActiveApptMode(undefined)
+    setActiveApptIsEmergency(false)
     fetchAppointments()
   }
 
@@ -299,6 +310,12 @@ export default function VetAppointmentsPage() {
                       <div className="min-w-0 flex-1">
                         {/* Types + status */}
                         <div className="flex flex-wrap gap-1 mb-1">
+                          {appt.isEmergency && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                              <AlertCircle className="w-3 h-3" />
+                              Emergency
+                            </span>
+                          )}
                           {appt.types.map((t) => (
                             <span
                               key={t}
@@ -410,6 +427,7 @@ export default function VetAppointmentsPage() {
           petId={activePetId}
           appointmentTypes={activeApptTypes}
           appointmentMode={activeApptMode}
+          appointmentIsEmergency={activeApptIsEmergency}
           onComplete={handleModalComplete}
           onClose={handleModalClose}
         />

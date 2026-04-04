@@ -168,11 +168,10 @@ export const createAppointment = async (req: Request, res: Response) => {
 
     const { petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, crossBranchSurgeryReferral } = req.body;
 
-    if (req.user.userType === 'pet-owner' && (!notes || !String(notes).trim())) {
-      return res.status(400).json({
-        status: 'ERROR',
-        message: 'Chief complaint is required when booking an appointment.'
-      });
+      if (req.user.userType === 'pet-owner') {
+        if (!notes || !String(notes).trim()) {
+          return res.status(400).json({ status: 'ERROR', message: 'Chief Complaint / Reason for Visit is required' });
+        }
     }
 
     if (req.user.userType === 'veterinarian') {
@@ -1541,6 +1540,10 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
 
     let { ownerId, petId, vetId, clinicId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn, isEmergency } = req.body;
 
+    if (!notes || !String(notes).trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Chief Complaint / Reason for Visit is required' });
+    }
+
     if (!ownerId) {
       return res.status(400).json({ status: 'ERROR', message: 'Owner is required' });
     }
@@ -2336,6 +2339,10 @@ export const createGuestIntakeAppointment = async (req: Request, res: Response) 
       // Appointment fields
       vetId, clinicBranchId, mode, types, date, startTime, endTime, notes, isWalkIn, isEmergency,
     } = req.body;
+
+    if (!notes || !String(notes).trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Chief Complaint / Reason for Visit is required' });
+    }
 
     // ── Validate required owner fields ────────────────────────────────────────
     if (!ownerFirstName || !ownerLastName) {

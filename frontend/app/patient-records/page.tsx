@@ -241,7 +241,7 @@ function PatientRecordsPageContent() {
   const [createOpen, setCreateOpen] = useState(false)
 
   // Edit modal (staged visit)
-  const [stagedEdit, setStagedEdit] = useState<{ recordId: string; appointmentId?: string; petId: string; appointmentTypes: string[] } | null>(null)
+  const [stagedEdit, setStagedEdit] = useState<{ recordId: string; appointmentId?: string; petId: string; appointmentTypes: string[]; appointmentIsEmergency?: boolean } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [billingModalOpen, setBillingModalOpen] = useState(false)
   const [billingModalMode, setBillingModalMode] = useState<'view'>('view')
@@ -508,6 +508,10 @@ function PatientRecordsPageContent() {
             (typeof localRec.appointmentId === 'object' && localRec.appointmentId
               ? (localRec.appointmentId as any).types || []
               : []),
+          appointmentIsEmergency: (localRec as any).emergencyCase?.isEmergency === true ||
+            (typeof localRec.appointmentId === 'object' && localRec.appointmentId
+              ? (localRec.appointmentId as any).isEmergency === true
+              : false),
         })
         return
       }
@@ -520,6 +524,7 @@ function PatientRecordsPageContent() {
           appointmentId: rec.appointmentId?._id || (typeof rec.appointmentId === 'string' ? rec.appointmentId : undefined),
           petId: rec.petId?._id || rec.petId,
           appointmentTypes: rec.appointmentId?.types || [],
+          appointmentIsEmergency: (rec as any).emergencyCase?.isEmergency === true || rec.appointmentId?.isEmergency === true,
         })
       } else {
         toast.error(res.message || 'Failed to load record for editing')
@@ -976,6 +981,12 @@ function PatientRecordsPageContent() {
                               Admitted
                             </span>
                           )}
+                          {(currentRecord.emergencyCase?.isEmergency === true || currentRecord.appointmentId?.isEmergency === true) && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 font-semibold uppercase tracking-wide">
+                              <AlertCircle className="w-3 h-3" />
+                              Emergency
+                            </span>
+                          )}
                           {selectedIsLost && (
                             <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
                               Lost
@@ -1157,6 +1168,12 @@ function PatientRecordsPageContent() {
                                   Shared
                                 </span>
                               )}
+                              {(record.emergencyCase?.isEmergency === true || record.appointmentId?.isEmergency === true) && (
+                                <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 font-medium">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Emergency
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-3 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
@@ -1331,6 +1348,7 @@ function PatientRecordsPageContent() {
           appointmentId={stagedEdit.appointmentId}
           petId={stagedEdit.petId}
           appointmentTypes={stagedEdit.appointmentTypes}
+          appointmentIsEmergency={stagedEdit.appointmentIsEmergency}
           onComplete={() => {
             setStagedEdit(null)
             if (selectedPatient) loadRecords(selectedPatient._id)

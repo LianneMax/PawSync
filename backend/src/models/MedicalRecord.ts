@@ -161,6 +161,16 @@ export interface IMedicalRecord extends Document {
   pregnancyLoss?: IPregnancyLoss | null;
   surgeryRecord?: ISurgeryRecord | null;
   immunityTesting?: IImmunityTesting | null;
+  emergencyCase?: {
+    isEmergency: boolean;
+    triageLevel: 'critical' | 'urgent' | 'stable' | '';
+    interventionNotes: string;
+    outcome: 'stabilized' | 'referred' | 'confined' | 'deceased' | 'ongoing' | '';
+    dispositionNotes: string;
+    skipReasons: string[];
+    deferredFields: string[];
+    completedDeferredAt: Date | null;
+  } | null;
   billingId: mongoose.Types.ObjectId | null;
   preventiveAssociatedExclusions: string[];
   followUps: IFollowUp[];
@@ -343,6 +353,20 @@ const ImmunityTestingSchema = new Schema(
     antigenEnabled: { type: Boolean, default: false },
     antigenRows: { type: [ImmunityTestingAntigenRowSchema], default: [] },
     antigenDate: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
+const EmergencyCaseSchema = new Schema(
+  {
+    isEmergency: { type: Boolean, default: false },
+    triageLevel: { type: String, enum: ['critical', 'urgent', 'stable', ''], default: '' },
+    interventionNotes: { type: String, default: '' },
+    outcome: { type: String, enum: ['stabilized', 'referred', 'confined', 'deceased', 'ongoing', ''], default: '' },
+    dispositionNotes: { type: String, default: '' },
+    skipReasons: { type: [String], default: [] },
+    deferredFields: { type: [String], default: [] },
+    completedDeferredAt: { type: Date, default: null },
   },
   { _id: false }
 );
@@ -538,6 +562,10 @@ const MedicalRecordSchema = new Schema(
     },
     immunityTesting: {
       type: ImmunityTestingSchema,
+      default: null,
+    },
+    emergencyCase: {
+      type: EmergencyCaseSchema,
       default: null,
     },
     billingId: {

@@ -463,6 +463,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
     }
 
     let { petId, clinicId, clinicBranchId, vetId, appointmentId } = req.body;
+    let appointmentIsEmergency = false;
     const {
       vitals,
       images,
@@ -493,6 +494,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       clinicId = clinicId || appt.clinicId.toString();
       clinicBranchId = clinicBranchId || (appt.clinicBranchId ? appt.clinicBranchId.toString() : null);
       vetId = vetId || appt.vetId.toString();
+      appointmentIsEmergency = appt.isEmergency === true;
     }
 
     // BR-MR-02: Determine vetId
@@ -553,6 +555,16 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       confinementAction: confinementAction || 'none',
       confinementDays: typeof confinementDays === 'number' ? confinementDays : 0,
       confinementRecordId: confinementRecordId || null,
+      emergencyCase: appointmentIsEmergency ? {
+        isEmergency: true,
+        triageLevel: '',
+        interventionNotes: '',
+        outcome: '',
+        dispositionNotes: '',
+        skipReasons: [],
+        deferredFields: [],
+        completedDeferredAt: null,
+      } : null,
       isCurrent: true
     });
 
@@ -653,14 +665,14 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
-      .populate('appointmentId', 'date startTime types status');
+      .populate('appointmentId', 'date startTime types status isEmergency');
 
     const historicalRecords = await MedicalRecord.find({ ...query, isCurrent: false })
       .select('-images.data -diagnosticTests.images.data -surgeryRecord.images.data')
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
-      .populate('appointmentId', 'date startTime types status')
+      .populate('appointmentId', 'date startTime types status isEmergency')
       .sort({ createdAt: -1 });
 
     const pregnancy = await getPregnancySnapshot(req.params.petId);
@@ -733,7 +745,7 @@ export const getCurrentRecord = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
-      .populate('appointmentId', 'date startTime types status');
+      .populate('appointmentId', 'date startTime types status isEmergency');
 
     if (!record) {
       return res.status(404).json({ status: 'SUCCESS', message: 'No current medical record', data: { record: null } });
@@ -814,7 +826,7 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
-      .populate('appointmentId', 'date startTime types status')
+      .populate('appointmentId', 'date startTime types status isEmergency')
       .sort({ createdAt: -1 });
 
     const pregnancy = await getPregnancySnapshot(req.params.petId);
@@ -951,7 +963,7 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
 
     if (!record) {
       const appointment = await Appointment.findById(req.params.appointmentId)
-        .select('ownerId petId vetId clinicId clinicBranchId status medicalRecordId');
+        .select('ownerId petId vetId clinicId clinicBranchId status medicalRecordId isEmergency');
 
       if (appointment && appointment.vetId && appointment.status === 'in_progress') {
         const [owner, vet] = await Promise.all([
@@ -984,6 +996,16 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
           clinicBranchId: appointment.clinicBranchId,
           appointmentId: appointment._id,
           stage: 'pre_procedure',
+          emergencyCase: appointment.isEmergency ? {
+            isEmergency: true,
+            triageLevel: '',
+            interventionNotes: '',
+            outcome: '',
+            dispositionNotes: '',
+            skipReasons: [],
+            deferredFields: [],
+            completedDeferredAt: null,
+          } : null,
           isCurrent: true,
         });
 
@@ -1066,7 +1088,7 @@ export const getVetMedicalRecords = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name')
-      .populate('appointmentId', 'date startTime types')
+      .populate('appointmentId', 'date startTime types isEmergency')
       .sort({ createdAt: -1 })
       .skip(Number(offset))
       .limit(Number(limit));
@@ -1118,6 +1140,7 @@ export const updateRecord = async (req: Request, res: Response) => {
       stage, chiefComplaint, subjective, assessment, plan,
       medications, diagnosticTests, preventiveCare, preventiveAssociatedExclusions,
       immunityTesting,
+      emergencyCase,
       confinementAction, confinementDays, confinementRecordId,
       referral, discharge, scheduledSurgery,
       surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource
@@ -1155,6 +1178,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (assessment !== undefined) record.assessment = assessment;
     if (plan !== undefined) record.plan = plan;
     if (immunityTesting !== undefined) (record as any).immunityTesting = normalizeImmunityTestingPayload(immunityTesting);
+    if (emergencyCase !== undefined) (record as any).emergencyCase = emergencyCase;
     if (medications !== undefined) record.medications = medications;
     if (diagnosticTests !== undefined) {
       const missingRequiredDiagnosticField = (diagnosticTests || []).find((test: any) => {
