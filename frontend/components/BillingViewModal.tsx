@@ -33,8 +33,8 @@ interface ApiBilling {
   ownerId: { _id: string; firstName: string; lastName: string; email: string }
   petId: { _id: string; name: string; species: string; breed: string }
   vetId: { _id: string; firstName: string; lastName: string }
-  clinicId: { _id: string; name: string }
-  clinicBranchId: { _id: string; name: string }
+  clinicId: { _id: string; name: string; legalBusinessName?: string; logo?: string; businessTaxId?: string; receiptFooterNote?: string; address?: string; phone?: string; email?: string }
+  clinicBranchId: { _id: string; name: string; address?: string; city?: string; province?: string; phone?: string; email?: string }
   medicalRecordId: { _id: string; stage: string } | null
   items: ApiBillingItem[]
   subtotal: number
@@ -243,69 +243,106 @@ export default function BillingViewModal({
   const modalStatus = mapAdminStatus(billing)
   const groupedItems = groupBillingItemsByCategory(billing.items, categoryMap)
 
+  const branch = billing.clinicBranchId
+  const clinic = billing.clinicId
+  const branchAddressParts = [branch?.address, branch?.city, branch?.province].filter(Boolean)
+  const displayAddress = branchAddressParts.length > 0 ? branchAddressParts.join(', ') : clinic?.address
+  const displayPhone = branch?.phone || clinic?.phone
+  const displayEmail = branch?.email || clinic?.email
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm billing-print-root"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative max-h-[90vh] overflow-y-auto billing-print-document ${
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 relative max-h-[92vh] overflow-y-auto billing-print-document ${
           pdfLayout === 'thermal-58' ? 'billing-print-thermal-58' : pdfLayout === 'thermal-80' ? 'billing-print-thermal-80' : 'billing-print-a4'
         }`}
       >
-        {/* Modal header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 pt-5 pb-4 rounded-t-2xl">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          <div className="flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold text-[#4F4F4F]">Billing Details</h2>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAdminStatusStyle(modalStatus)}`}>
-                  {modalStatus}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-0.5 truncate">
-                <span className="font-medium text-[#4F4F4F]">{billing.petId?.name}</span>
-                {billing.petId?.breed ? (
-                  <span className="text-gray-400"> · {billing.petId.species} {billing.petId.breed}</span>
-                ) : null}
-                {' '}&mdash;{' '}
-                {billing.ownerId?.firstName} {billing.ownerId?.lastName}
-              </p>
-            </div>
+        {/* Sticky action bar */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 pt-4 pb-3 rounded-t-2xl flex items-center justify-between gap-3 print:hidden">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h2 className="text-base font-bold text-[#4F4F4F] whitespace-nowrap">Billing Receipt</h2>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getAdminStatusStyle(modalStatus)}`}>
+              {modalStatus}
+            </span>
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-            {billing.vetId?.firstName && (
-              <span>Dr. {billing.vetId.firstName} {billing.vetId.lastName}</span>
-            )}
-            {(billing.serviceDate || billing.createdAt) && (
-              <span>{formatDate(billing.serviceDate || billing.createdAt)}</span>
-            )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <select
+              value={pdfLayout}
+              onChange={(e) => setPdfLayout(e.target.value as 'a4' | 'thermal-80' | 'thermal-58')}
+              className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 bg-white"
+            >
+              <option value="a4">A4</option>
+              <option value="thermal-80">Thermal 80mm</option>
+              <option value="thermal-58">Thermal 58mm</option>
+            </select>
+            <button
+              onClick={() => printReceipt(pdfLayout)}
+              disabled={printing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-60 font-medium rounded-lg transition-colors text-xs"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              {printing ? 'Preparing...' : 'Print'}
+            </button>
+            <button
+              onClick={() => downloadPdf(pdfLayout)}
+              disabled={downloading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#3D5E5C] text-[#3D5E5C] hover:bg-[#f0f7f7] disabled:opacity-60 font-medium rounded-lg transition-colors text-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {downloading ? 'Downloading...' : 'Download'}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
+        {/* Receipt body */}
         <div className="px-6 py-5 space-y-5">
-          <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-gray-400">Receipt No.</p>
-              <p className="text-sm font-semibold text-[#3D5E5C] mt-0.5">{billing.invoiceNumber || billing._id}</p>
+
+          {/* Clinic / Branch header */}
+          <div className="rounded-xl overflow-hidden border border-[#3D5E5C]/20">
+            <div className="bg-[#3D5E5C] px-5 py-4 flex items-start gap-4">
+              {clinic?.logo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={clinic.logo} alt="Clinic logo" className="w-12 h-12 rounded-lg object-contain bg-white/10 flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-base leading-tight truncate">{clinic?.name || 'Clinic'}</p>
+                {branch?.name && (
+                  <p className="text-[#a8c5c3] text-xs mt-0.5 truncate">{branch.name}</p>
+                )}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-[#a8c5c3] text-[10px] uppercase tracking-wide">Invoice No.</p>
+                <p className="text-white font-bold text-sm mt-0.5">{billing.invoiceNumber || billing._id}</p>
+              </div>
             </div>
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-gray-400">Issue Date/Time</p>
-              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{new Date(billing.issueDateTime || billing.createdAt).toLocaleString()}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-gray-400">Due Date</p>
-              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{formatDate(billing.dueDate || billing.serviceDate || billing.createdAt)}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-gray-400">Payment Status</p>
-              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.status === 'paid' ? 'Paid' : 'Pending Payment'}</p>
+            <div className="bg-[#f4f9f8] px-5 py-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-[#4F4F4F]">
+              {displayAddress && (
+                <span className="flex items-start gap-1">
+                  <span className="text-[#3D5E5C] font-medium mt-0.5">📍</span>
+                  <span>{displayAddress}</span>
+                </span>
+              )}
+              {displayPhone && (
+                <span className="flex items-center gap-1">
+                  <span className="text-[#3D5E5C] font-medium">📞</span>
+                  <span>{displayPhone}</span>
+                </span>
+              )}
+              {displayEmail && (
+                <span className="flex items-center gap-1">
+                  <span className="text-[#3D5E5C] font-medium">✉️</span>
+                  <span>{displayEmail}</span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -326,15 +363,51 @@ export default function BillingViewModal({
             </div>
           )}
 
+          {/* Patient & visit info */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 bg-gray-50 rounded-xl px-4 py-3 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-0.5">Patient</p>
+                <p className="text-sm font-semibold text-[#4F4F4F]">{billing.petId?.name || '-'}</p>
+                {billing.petId?.breed && (
+                  <p className="text-xs text-gray-400">{billing.petId.species} · {billing.petId.breed}</p>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-0.5">Owner</p>
+                <p className="text-sm font-semibold text-[#4F4F4F]">{billing.ownerId?.firstName} {billing.ownerId?.lastName}</p>
+                {billing.vetId?.firstName && (
+                  <p className="text-xs text-gray-400">Dr. {billing.vetId.firstName} {billing.vetId.lastName}</p>
+                )}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">Issue Date</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">
+                {new Date(billing.issueDateTime || billing.createdAt).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">Due Date</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{formatDate(billing.dueDate || billing.serviceDate || billing.createdAt)}</p>
+            </div>
+            {billing.serviceLabel && (
+              <div className="col-span-2 bg-gray-50 rounded-xl px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400">Service</p>
+                <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.serviceLabel}</p>
+              </div>
+            )}
+          </div>
+
           {/* Items table */}
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">Product / Service</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500">Qty</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Unit Price</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">Total</th>
+              <thead>
+                <tr className="bg-[#3D5E5C]">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-white">Product / Service</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold text-white">Qty</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-white">Unit Price</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-white">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -346,16 +419,16 @@ export default function BillingViewModal({
                   groupedItems.map(({ category, items: catItems }) => (
                     <React.Fragment key={category}>
                       <tr>
-                        <td colSpan={4} className="px-4 py-1.5 bg-gray-50 border-t border-gray-100">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
+                        <td colSpan={4} className="px-4 py-1.5 bg-[#f4f9f8] border-t border-gray-100">
+                          <p className="text-[10px] font-bold text-[#3D5E5C] uppercase tracking-wide">{category}</p>
                         </td>
                       </tr>
                       {catItems.map((item) => (
-                        <tr key={item._id}>
+                        <tr key={item._id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium text-[#4F4F4F]">{item.name}</td>
-                          <td className="px-4 py-3 text-sm text-center text-[#4F4F4F]">{item.quantity ?? 1}</td>
-                          <td className="px-4 py-3 text-sm text-right text-[#4F4F4F]">₱{item.unitPrice.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-right font-medium text-[#4F4F4F]">
+                          <td className="px-4 py-3 text-sm text-center text-gray-500">{item.quantity ?? 1}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-500">₱{item.unitPrice.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-right font-semibold text-[#4F4F4F]">
                             ₱{((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}
                           </td>
                         </tr>
@@ -368,37 +441,42 @@ export default function BillingViewModal({
           </div>
 
           {/* Order summary */}
-          <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="text-[#4F4F4F] font-medium">₱{billing.subtotal.toLocaleString()}</span>
-            </div>
-            {billing.discount > 0 && (
+          <div className="rounded-xl overflow-hidden border border-gray-200">
+            <div className="px-4 py-3 space-y-2 bg-gray-50">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Discount</span>
-                <span className="text-[#900B09] font-medium">-₱{billing.discount.toLocaleString()}</span>
+                <span className="text-gray-500">Subtotal</span>
+                <span className="text-[#4F4F4F] font-medium">₱{billing.subtotal.toLocaleString()}</span>
               </div>
-            )}
-            <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold">
-              <span className="text-[#3D5A58]">Total Amount Due</span>
-              <span className="text-[#3D5A58] text-base">₱{billing.totalAmountDue.toLocaleString()}</span>
+              {billing.discount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Discount</span>
+                  <span className="text-[#900B09] font-medium">- ₱{billing.discount.toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+            <div className="bg-[#3D5E5C] px-4 py-3 flex justify-between items-center">
+              <span className="text-white font-bold text-sm">Total Amount Due</span>
+              <span className="text-white font-bold text-lg">₱{billing.totalAmountDue.toLocaleString()}</span>
             </div>
           </div>
 
-          {/* Payment details (paid only) */}
-          {billing.status === 'paid' && (
+          {/* Payment details */}
+          {billing.status === 'paid' ? (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2">
-              <p className="text-sm font-semibold text-green-700 mb-1">Payment Received</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                <p className="text-sm font-bold text-green-700">Payment Received</p>
+              </div>
               {billing.amountPaid !== undefined && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Amount Paid</span>
-                  <span className="text-green-700 font-medium">₱{billing.amountPaid.toLocaleString()}</span>
+                  <span className="text-green-700 font-semibold">₱{billing.amountPaid.toLocaleString()}</span>
                 </div>
               )}
               {billing.paymentMethod && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Payment Method</span>
-                  <span className="text-[#4F4F4F]">{PAYMENT_METHOD_LABEL[billing.paymentMethod] ?? billing.paymentMethod}</span>
+                  <span className="text-gray-500">Method</span>
+                  <span className="text-[#4F4F4F] font-medium">{PAYMENT_METHOD_LABEL[billing.paymentMethod] ?? billing.paymentMethod}</span>
                 </div>
               )}
               {billing.paidAt && (
@@ -408,35 +486,21 @@ export default function BillingViewModal({
                 </div>
               )}
             </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex justify-between items-center text-sm">
+              <span className="text-gray-500">Payment Status</span>
+              <span className="font-semibold text-[#4F4F4F]">Pending Payment</span>
+            </div>
           )}
+
+          {/* Footer note */}
+          <p className="text-center text-[10px] text-gray-400 pb-1">
+            {clinic?.receiptFooterNote || 'This receipt is system-generated and valid without signature.'}
+          </p>
         </div>
 
-        <div className="px-6 pb-5 flex flex-wrap gap-2 justify-end print:hidden">
-          <button
-            onClick={() => printReceipt(pdfLayout)}
-            disabled={printing}
-            className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
-          >
-            <Printer className="w-4 h-4" />
-            {printing ? 'Preparing Print...' : 'Print Receipt'}
-          </button>
-          <select
-            value={pdfLayout}
-            onChange={(e) => setPdfLayout(e.target.value as 'a4' | 'thermal-80' | 'thermal-58')}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 bg-white"
-          >
-            <option value="a4">A4 PDF</option>
-            <option value="thermal-80">Thermal 80mm PDF</option>
-            <option value="thermal-58">Thermal 58mm PDF</option>
-          </select>
-          <button
-            onClick={() => downloadPdf(pdfLayout)}
-            disabled={downloading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#3D5E5C] text-[#3D5E5C] hover:bg-[#f0f7f7] disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
-          >
-            <Download className="w-4 h-4" />
-            {downloading ? 'Downloading...' : 'Download PDF'}
-          </button>
+        {/* Bottom close row (mobile) */}
+        <div className="px-6 pb-5 flex justify-end print:hidden">
           <button
             onClick={onClose}
             className="px-8 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold rounded-xl transition-colors text-sm"

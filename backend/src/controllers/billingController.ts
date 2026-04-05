@@ -59,7 +59,7 @@ const POPULATE_BILLING = [
     path: 'clinicId',
     select: 'name legalBusinessName address phone email businessTaxId businessRegistrationNo receiptFooterNote logo',
   },
-  { path: 'clinicBranchId', select: 'name' },
+  { path: 'clinicBranchId', select: 'name address city province phone email' },
   { path: 'medicalRecordId', select: 'stage' },
   { path: 'confinementRecordId', select: 'status admissionDate dischargeDate' },
 ];
@@ -632,7 +632,7 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
     billing.finalizedBy = req.user.userId as any;
     if (amountPaid !== undefined) (billing as any).amountPaid = amountPaid;
     if (paymentMethod !== undefined) (billing as any).paymentMethod = paymentMethod;
-    await billing.save();
+    await billing.save({ validateModifiedOnly: true });
 
     // Auto-complete grooming appointment when billing is paid
     if (billing.appointmentId) {
@@ -827,7 +827,7 @@ export const approveQrPayment = async (req: Request, res: Response) => {
     billing.finalizedBy = req.user.userId as any;
     (billing as any).amountPaid = billing.totalAmountDue;
     billing.pendingQrApproval = false;
-    await billing.save();
+    await billing.save({ validateModifiedOnly: true });
 
     // Auto-complete grooming appointment when billing is paid via QR
     if (billing.appointmentId) {
@@ -973,10 +973,12 @@ export const downloadBillingPdf = async (req: Request, res: Response) => {
     const billing = await Billing.findById(req.params.id).populate([
       { path: 'ownerId', select: 'firstName lastName email' },
       { path: 'petId', select: 'name species breed' },
+      { path: 'vetId', select: 'firstName lastName' },
       {
         path: 'clinicId',
         select: 'name legalBusinessName address phone email businessTaxId businessRegistrationNo receiptFooterNote logo',
       },
+      { path: 'clinicBranchId', select: 'name address city province phone email' },
     ]) as any;
 
     if (!billing) {

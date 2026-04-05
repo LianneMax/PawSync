@@ -27,6 +27,15 @@ interface ClinicLike {
   logo?: string | null;
 }
 
+interface BranchLike {
+  name?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  phone?: string;
+  email?: string;
+}
+
 interface BillingItemLike {
   name: string;
   quantity?: number;
@@ -49,7 +58,9 @@ interface BillingLike {
   items: BillingItemLike[];
   ownerId?: BillingParty;
   petId?: BillingParty;
+  vetId?: BillingParty;
   clinicId?: ClinicLike;
+  clinicBranchId?: BranchLike;
 }
 
 function toPhp(value: number): string {
@@ -150,8 +161,16 @@ export async function generateBillingReceiptPdf(
   const contentWidth = right - left;
 
   const clinic = (billing.clinicId ?? {}) as ClinicLike;
+  const branch = (billing.clinicBranchId ?? {}) as BranchLike;
   const owner = (billing.ownerId ?? {}) as BillingParty;
   const pet = (billing.petId ?? {}) as BillingParty;
+  const vet = (billing.vetId ?? {}) as BillingParty;
+
+  // Branch-level address/contact with fallback to clinic-level
+  const branchAddressParts = [branch.address, branch.city, branch.province].filter(Boolean);
+  const displayAddress = branchAddressParts.length > 0 ? branchAddressParts.join(', ') : (clinic.address || '-');
+  const displayPhone = branch.phone || clinic.phone || '-';
+  const displayEmail = branch.email || clinic.email || null;
 
   let y = doc.page.margins.top;
 
@@ -171,10 +190,15 @@ export async function generateBillingReceiptPdf(
   doc.font('Helvetica').fontSize(page.thermal ? 8 : 10);
   y = doc.y + 2;
 
+  if (branch.name) {
+    y = drawWrapped(doc, `Branch: ${branch.name}`, headerX, y, contentWidth - (headerX - left) - 120);
+    y += 2;
+  }
+
   const legalName = clinic.legalBusinessName || clinic.name || '-';
   y = drawWrapped(doc, `Business Name: ${legalName}`, headerX, y, contentWidth - (headerX - left) - 120);
-  y = drawWrapped(doc, `Address: ${clinic.address || '-'}`, headerX, y + 2, contentWidth - (headerX - left) - 120);
-  y = drawWrapped(doc, `Contact: ${clinic.phone || '-'}${clinic.email ? ` | ${clinic.email}` : ''}`, headerX, y + 2, contentWidth - (headerX - left) - 120);
+  y = drawWrapped(doc, `Address: ${displayAddress}`, headerX, y + 2, contentWidth - (headerX - left) - 120);
+  y = drawWrapped(doc, `Contact: ${displayPhone}${displayEmail ? ` | ${displayEmail}` : ''}`, headerX, y + 2, contentWidth - (headerX - left) - 120);
   y = drawWrapped(doc, `TIN: ${clinic.businessTaxId || '-'}${clinic.businessRegistrationNo ? ` | Reg No: ${clinic.businessRegistrationNo}` : ''}`, headerX, y + 2, contentWidth - (headerX - left) - 120);
 
   doc.font('Helvetica-Bold').fontSize(page.thermal ? 10 : 13);
@@ -209,21 +233,24 @@ export async function generateBillingReceiptPdf(
 
   y = drawWrapped(doc, `Service: ${billing.serviceLabel || '-'}`, left, y + 2, contentWidth);
 
-  y = drawWrapped(doc, 'Notes:', left, y + 6, contentWidth, { continued: false });
+  const vetName = vet.firstName ? `Dr. ${vet.firstName} ${vet.lastName || ''}`.trim() : null;
+  if (vetName) {
+    y = drawWrapped(doc, `Attending Veterinarian: ${vetName}`, left, y + 2, contentWidth);
+  }
 
-  const tableTop = y + 8;
+  const tableTop = y + 10;
   const tableCols = page.thermal
-    ? [0.36, 0.14, 0.09, 0.14, 0.14, 0.13]
-    : [0.44, 0.13, 0.08, 0.12, 0.11, 0.12];
+    ? [0.46, 0.18, 0.12, 0.24]
+    : [0.54, 0.16, 0.10, 0.20];
 
   const colWidths = tableCols.map((r) => contentWidth * r);
-  const colXs = colWidths.reduce<number[]>((acc, width, i) => {
+  const colXs = colWidths.reduce<number[]>((acc, _width, i) => {
     if (i === 0) acc.push(left);
     else acc.push(acc[i - 1] + colWidths[i - 1]);
     return acc;
   }, []);
 
-  const headers = ['Item', 'Unit Price', 'Qty', 'Dispense', 'Injection', 'Total'];
+  const headers = ['Item', 'Unit Price', 'Qty', 'Total'];
 
   let rowY = tableTop;
   const rowHeight = page.thermal ? 16 : 18;
@@ -256,9 +283,7 @@ export async function generateBillingReceiptPdf(
   for (const item of billing.items || []) {
     const qty = item.quantity ?? 1;
     const unitPrice = item.unitPrice ?? 0;
-    const dispenseFee = item.dispenseFee ?? 0;
-    const injectionFee = item.injectionFee ?? 0;
-    const rowTotal = unitPrice * qty + dispenseFee + injectionFee;
+    const rowTotal = unitPrice * qty + (item.dispenseFee ?? 0) + (item.injectionFee ?? 0);
 
     ensureSpace(rowHeight);
 
@@ -272,9 +297,7 @@ export async function generateBillingReceiptPdf(
     });
     doc.text(toMoney(unitPrice), colXs[1] + 4, rowY + 4, { width: colWidths[1] - 8, align: 'right', lineBreak: false, ellipsis: true });
     doc.text(String(qty), colXs[2] + 4, rowY + 4, { width: colWidths[2] - 8, align: 'right', lineBreak: false, ellipsis: true });
-    doc.text(toMoney(dispenseFee), colXs[3] + 4, rowY + 4, { width: colWidths[3] - 8, align: 'right', lineBreak: false, ellipsis: true });
-    doc.text(toMoney(injectionFee), colXs[4] + 4, rowY + 4, { width: colWidths[4] - 8, align: 'right', lineBreak: false, ellipsis: true });
-    doc.text(toMoney(rowTotal), colXs[5] + 4, rowY + 4, { width: colWidths[5] - 8, align: 'right', lineBreak: false, ellipsis: true });
+    doc.text(toMoney(rowTotal), colXs[3] + 4, rowY + 4, { width: colWidths[3] - 8, align: 'right', lineBreak: false, ellipsis: true });
 
     rowY += rowHeight;
   }
