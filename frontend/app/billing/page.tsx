@@ -2740,10 +2740,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
               <Trash2 className="w-4 h-4 mr-2" />
               Delete
             </button>
-            <button className="inline-flex items-center px-4 py-2 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </button>
           </div>
         </div>
 
