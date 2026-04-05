@@ -10,6 +10,28 @@ import ProductService from '../models/ProductService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 
 /**
+ * Get the current NFC tag price from the product catalog.
+ * Used by the frontend to display the fee before the owner submits a request.
+ */
+export const getNfcTagPrice = async (_req: Request, res: Response) => {
+  try {
+    const nfcTagProduct = await ProductService.findOne({ isSystemProduct: true, name: 'NFC Pet Tag' });
+
+    if (!nfcTagProduct) {
+      return res.status(404).json({ status: 'ERROR', message: 'NFC tag product not configured' });
+    }
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      data: { price: nfcTagProduct.price }
+    });
+  } catch (error) {
+    console.error('[NFC Price] Error fetching NFC tag price:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'Failed to fetch NFC tag price' });
+  }
+};
+
+/**
  * Request a new NFC pet tag (by pet owner)
  */
 export const requestPetTag = async (req: Request, res: Response) => {
@@ -22,9 +44,23 @@ export const requestPetTag = async (req: Request, res: Response) => {
     }
 
     const { petId } = req.params;
-    const { reason, clinicBranchId, pickupDate } = req.body;
+    const { reason, clinicBranchId, pickupDate, priceSnapshot } = req.body;
 
-    console.log(`[NFC Request] Pet ID: ${petId}, Reason: ${reason}, Clinic Branch: ${clinicBranchId}, Pickup Date: ${pickupDate}`);
+    console.log(`[NFC Request] Pet ID: ${petId}, Reason: ${reason}, Clinic Branch: ${clinicBranchId}, Pickup Date: ${pickupDate}, Price Snapshot: ${priceSnapshot}`);
+
+    // Validate that the client sent a price snapshot (prevents null billing records)
+    if (priceSnapshot === undefined || priceSnapshot === null || typeof priceSnapshot !== 'number') {
+      return res.status(400).json({ status: 'ERROR', message: 'Price confirmation is required. Please reload and try again.' });
+    }
+
+    // Cross-check the submitted snapshot against the current database price
+    const currentProduct = await ProductService.findOne({ isSystemProduct: true, name: 'NFC Pet Tag' });
+    if (!currentProduct) {
+      return res.status(400).json({ status: 'ERROR', message: 'NFC tag product is not currently available. Please contact the clinic.' });
+    }
+    if (currentProduct.price !== priceSnapshot) {
+      return res.status(409).json({ status: 'ERROR', message: 'The NFC tag price has been updated. Please refresh the page and confirm the new price.' });
+    }
 
     if (!petId) {
       console.log('[NFC Request] No pet ID provided');
@@ -100,7 +136,8 @@ export const requestPetTag = async (req: Request, res: Response) => {
       petId: petId,
       ownerId: req.user.userId,
       clinicId: clinic._id,
-      reason: reason || ''
+      reason: reason || '',
+      priceSnapshot: priceSnapshot
     };
 
     if (finalPickupDate) {

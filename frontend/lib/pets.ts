@@ -122,15 +122,26 @@ export const removePet = async (id: string, reason: string, details?: string, to
 };
 
 /**
- * Request a pet tag for a pet
+ * Fetch the current NFC tag price from the product catalog.
+ * Used to display the fee to the owner before they submit a request.
  */
-export const requestPetTag = async (petId: string, clinicBranchId: string, pickupDate: string, reason?: string, token?: string): Promise<{ status: string; message: string; data?: any }> => {
+export const getNfcTagPrice = async (): Promise<{ status: string; message?: string; data?: { price: number } }> => {
+  return authenticatedFetch('/nfc/tag-price', { method: 'GET' });
+};
+
+/**
+ * Request a pet tag for a pet.
+ * priceSnapshot must be the price value returned by getNfcTagPrice — the backend
+ * will reject requests where the snapshot no longer matches the current price.
+ */
+export const requestPetTag = async (petId: string, clinicBranchId: string, pickupDate: string, reason?: string, token?: string, priceSnapshot?: number): Promise<{ status: string; message: string; data?: any }> => {
   return authenticatedFetch(`/nfc/pet/${petId}/request-tag`, {
     method: 'POST',
     body: JSON.stringify({
       clinicBranchId,
       pickupDate,
-      reason: reason || ''
+      reason: reason || '',
+      priceSnapshot
     })
   }, token);
 };

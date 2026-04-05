@@ -14,7 +14,8 @@ import {
   getAllTagRequests,
   markTagRequestFulfilled,
   cancelTagRequest,
-  getTagRequest
+  getTagRequest,
+  getNfcTagPrice
 } from '../controllers/petTagRequestController';
 import { authMiddleware } from '../middleware/auth';
 import { nfcAuthMiddleware } from '../middleware/nfcAuth';
@@ -72,6 +73,9 @@ router.post('/pet/:petId/write', authMiddleware, startNFCTagWriting);
 router.post('/pet/:petId/record-writing', authMiddleware, recordNFCTagWriting);
 
 // ===== Pet Tag Request Routes =====
+
+// GET /api/nfc/tag-price - Fetch current NFC tag price (public — no auth needed to display price)
+router.get('/tag-price', getNfcTagPrice);
 
 // POST /api/nfc/pet/:petId/request-tag - Pet owner requests an NFC tag
 router.post('/pet/:petId/request-tag', authMiddleware, requestPetTag);

@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, requestPetTag, togglePetLost, type Pet as APIPet } from '@/lib/pets'
-import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X } from 'lucide-react'
+import { getMyPets, requestPetTag, getNfcTagPrice, togglePetLost, type Pet as APIPet } from '@/lib/pets'
+import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -53,6 +53,11 @@ export default function MyPetsPage() {
   const [clinicBranches, setClinicBranches] = useState<ClinicBranch[]>([])
   const [loadingClinics, setLoadingClinics] = useState(false)
   const [togglingLostPetId, setTogglingLostPetId] = useState<string | null>(null)
+  const [nfcTagPrice, setNfcTagPrice] = useState<number | null>(null)
+  const [priceLoading, setPriceLoading] = useState(false)
+  const [priceError, setPriceError] = useState(false)
+  const [feeAgreed, setFeeAgreed] = useState(false)
+  const [feeCheckboxError, setFeeCheckboxError] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
 
   const fetchPets = useCallback(async () => {
@@ -119,6 +124,29 @@ export default function MyPetsPage() {
       setTogglingLostPetId(null)
     }
   }
+
+  // Fetch NFC tag price whenever the request modal is opened
+  useEffect(() => {
+    if (!showConfirmation) return
+    const fetchPrice = async () => {
+      setPriceLoading(true)
+      setPriceError(false)
+      setNfcTagPrice(null)
+      try {
+        const response = await getNfcTagPrice()
+        if (response.status === 'SUCCESS' && typeof response.data?.price === 'number') {
+          setNfcTagPrice(response.data.price)
+        } else {
+          setPriceError(true)
+        }
+      } catch {
+        setPriceError(true)
+      } finally {
+        setPriceLoading(false)
+      }
+    }
+    fetchPrice()
+  }, [showConfirmation])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -442,6 +470,8 @@ export default function MyPetsPage() {
                       onClick={() => {
                         if (isRequestDisabled) return
                         setSelectedPetId(pet._id)
+                        setFeeAgreed(false)
+                        setFeeCheckboxError(false)
                         setShowConfirmation(true)
                       }}
                       disabled={isRequestDisabled}
@@ -603,6 +633,51 @@ export default function MyPetsPage() {
                 </p>
               </div>
             )}
+
+            {/* NFC Tag Price */}
+            <div className="rounded-lg border border-[#C8DCDB] bg-[#EAF4F4] px-4 py-3">
+              <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">NFC Tag Fee</p>
+              {priceLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader className="w-3.5 h-3.5 animate-spin" />
+                  Loading price...
+                </div>
+              ) : priceError ? (
+                <div className="flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  Unable to load price. Please try again later.
+                </div>
+              ) : (
+                <p className="text-lg font-bold text-[#3D5E5C]">
+                  ₱{nfcTagPrice !== null ? nfcTagPrice.toFixed(2) : '—'}
+                </p>
+              )}
+            </div>
+
+            {/* Fee consent checkbox */}
+            <div className="space-y-1">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={feeAgreed}
+                  onChange={(e) => {
+                    setFeeAgreed(e.target.checked)
+                    if (e.target.checked) setFeeCheckboxError(false)
+                  }}
+                  disabled={priceLoading || priceError || nfcTagPrice === null}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3] accent-[#7FA5A3] shrink-0 disabled:opacity-50"
+                />
+                <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors select-none">
+                  I understand and agree to the NFC tag fee.
+                </span>
+              </label>
+              {feeCheckboxError && (
+                <p className="text-xs text-red-500 flex items-center gap-1 pl-7">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  Please agree to the NFC tag fee before proceeding.
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter className="flex gap-2 justify-end">
             <button
@@ -610,6 +685,8 @@ export default function MyPetsPage() {
                 setShowConfirmation(false)
                 setSelectedClinic('')
                 setSelectedPickupDate('')
+                setFeeAgreed(false)
+                setFeeCheckboxError(false)
               }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
@@ -617,41 +694,62 @@ export default function MyPetsPage() {
             </button>
             <button
               onClick={async () => {
-                if (selectedPetId && selectedClinic && selectedPickupDate) {
-                  setIsSubmitting(true);
-                  try {
-                    const selectedBranch = clinicBranches.find(c => c._id === selectedClinic);
-                    const response = await requestPetTag(selectedPetId, selectedClinic, selectedPickupDate, undefined, token ?? undefined);
-                    
-                    if (response.status === 'SUCCESS') {
-                      toast.success('Pet Tag Request Submitted', {
-                        description: `Your request has been submitted. Pickup at ${selectedBranch?.name} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
-                      });
-                      await fetchPets()
-                      setShowConfirmation(false);
-                      setSelectedClinic('');
-                      setSelectedPickupDate('');
-                      setSelectedPetId(null);
-                    } else {
-                      toast.error('Error', { 
-                        description: response.message || 'Failed to submit request' 
-                      });
-                    }
-                  } catch (error) {
-                    console.error('Error submitting pet tag request:', error);
-                    toast.error('Error', { 
-                      description: 'Something went wrong. Please try again.' 
-                    });
-                  } finally {
-                    setIsSubmitting(false);
-                  }
-                } else {
+                // Require fee checkbox before proceeding
+                if (!feeAgreed) {
+                  setFeeCheckboxError(true)
+                  return
+                }
+
+                if (!selectedPetId || !selectedClinic || !selectedPickupDate) {
                   toast.error('Please fill in all fields', {
                     description: 'Select a clinic branch and pickup date to continue.'
-                  });
+                  })
+                  return
+                }
+
+                if (nfcTagPrice === null) {
+                  toast.error('Unable to load price. Please try again later.')
+                  return
+                }
+
+                setIsSubmitting(true)
+                try {
+                  const selectedBranch = clinicBranches.find(c => c._id === selectedClinic)
+                  const response = await requestPetTag(
+                    selectedPetId,
+                    selectedClinic,
+                    selectedPickupDate,
+                    undefined,
+                    token ?? undefined,
+                    nfcTagPrice
+                  )
+
+                  if (response.status === 'SUCCESS') {
+                    toast.success('Pet Tag Request Submitted', {
+                      description: `Your request has been submitted. Pickup at ${selectedBranch?.name} on ${new Date(selectedPickupDate).toLocaleDateString()}.`
+                    })
+                    await fetchPets()
+                    setShowConfirmation(false)
+                    setSelectedClinic('')
+                    setSelectedPickupDate('')
+                    setSelectedPetId(null)
+                    setFeeAgreed(false)
+                    setFeeCheckboxError(false)
+                  } else {
+                    toast.error('Error', {
+                      description: response.message || 'Failed to submit request'
+                    })
+                  }
+                } catch (error) {
+                  console.error('Error submitting pet tag request:', error)
+                  toast.error('Error', {
+                    description: 'Something went wrong. Please try again.'
+                  })
+                } finally {
+                  setIsSubmitting(false)
                 }
               }}
-              disabled={isSubmitting || !selectedClinic || !selectedPickupDate}
+              disabled={isSubmitting || !selectedClinic || !selectedPickupDate || priceLoading || priceError || nfcTagPrice === null}
               className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Submitting...' : 'Request Tag'}

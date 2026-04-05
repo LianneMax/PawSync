@@ -10,6 +10,8 @@ export interface IPetTagRequest extends Document {
   clinicBranchId?: mongoose.Types.ObjectId;
   fulfilledAt?: Date;
   fulfilledBy?: mongoose.Types.ObjectId;
+  /** Price of the NFC tag captured at the moment the request was submitted */
+  priceSnapshot?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +63,11 @@ const PetTagRequestSchema = new Schema(
     fulfilledBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      default: null
+    },
+    /** NFC tag price captured at the time of request — immune to future price changes */
+    priceSnapshot: {
+      type: Number,
       default: null
     }
   },
