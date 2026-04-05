@@ -19,6 +19,7 @@ export interface IClinicBranch extends Document {
   }[];
   isMain: boolean;
   isActive: boolean;
+  manuallyOpenedDate: string | null; // YYYY-MM-DD in PH time
   createdAt: Date;
   updatedAt: Date;
 }
@@ -90,6 +91,10 @@ const ClinicBranchSchema = new Schema(
     isActive: {
       type: Boolean,
       default: true
+    },
+    manuallyOpenedDate: {
+      type: String, // stored as YYYY-MM-DD in PH time
+      default: null
     }
   },
   {

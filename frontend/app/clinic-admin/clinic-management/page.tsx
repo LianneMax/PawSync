@@ -73,6 +73,7 @@ interface Branch {
   openingTime: string
   closingTime: string
   operatingDays: string
+  manuallyOpenedDate?: string | null
   closureDates?: { startDate: string; endDate: string; closureType: 'single-day' | 'date-range'; createdAt: string }[]
 }
 
@@ -97,27 +98,46 @@ function toUtcDateOnly(value: string | Date): Date | null {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0))
 }
 
-function isBranchOpenNow(branch: { isActive: boolean; closureDates?: { startDate: string; endDate: string }[] }): boolean {
+function isBranchOpenNow(branch: {
+  isActive: boolean
+  openingTime?: string
+  closingTime?: string
+  manuallyOpenedDate?: string | null
+  closureDates?: { startDate: string; endDate: string }[]
+}): boolean {
   if (!branch.isActive) return false
-  if (!Array.isArray(branch.closureDates) || branch.closureDates.length === 0) return true
 
-  const now = new Date()
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0))
-  const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999))
+  // PH time = UTC+8
+  const phNow = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const phTodayStr = `${phNow.getUTCFullYear()}-${String(phNow.getUTCMonth() + 1).padStart(2, '0')}-${String(phNow.getUTCDate()).padStart(2, '0')}`
+  const isManuallyOpenedToday = branch.manuallyOpenedDate === phTodayStr
 
-  const isClosedToday = branch.closureDates.some((closure) => {
+  // Check closure dates first — explicit closure always wins
+  const todayStart = new Date(Date.UTC(phNow.getUTCFullYear(), phNow.getUTCMonth(), phNow.getUTCDate(), 0, 0, 0, 0))
+  const todayEnd = new Date(Date.UTC(phNow.getUTCFullYear(), phNow.getUTCMonth(), phNow.getUTCDate(), 23, 59, 59, 999))
+  const isClosedToday = Array.isArray(branch.closureDates) && branch.closureDates.some((closure) => {
     const closureStart = toUtcDateOnly(closure.startDate)
     const closureEndStart = toUtcDateOnly(closure.endDate)
     if (!closureStart || !closureEndStart) return false
-
     const closureEnd = new Date(closureEndStart)
     closureEnd.setUTCHours(23, 59, 59, 999)
-
     return closureStart <= todayEnd && closureEnd >= todayStart
   })
+  if (isClosedToday) return false
 
-  // Reopens automatically the day after the inclusive endDate.
-  return !isClosedToday
+  // If manually opened today, skip operating hours check
+  if (isManuallyOpenedToday) return true
+
+  // Check operating hours
+  const parseHour = (t?: string, fallback = 0) => {
+    if (!t) return fallback
+    const parsed = parseInt(t.split(':')[0], 10)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+  const openHour = parseHour(branch.openingTime, 7)
+  const closeHour = parseHour(branch.closingTime, 17)
+  const currentMinutes = phNow.getUTCHours() * 60 + phNow.getUTCMinutes()
+  return currentMinutes >= openHour * 60 && currentMinutes < closeHour * 60
 }
 
 function StatusBadge({ status }: { status: Veterinarian['status'] }) {
@@ -395,7 +415,7 @@ export default function ClinicManagementPage() {
               phone: b.phone || '',
               hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
               email: b.email || (b.isMain ? (resolvedClinicEmail || user?.email || '') : ''),
-              isOpen: isBranchOpenNow({ isActive: !!b.isActive, closureDates: b.closureDates || [] }),
+              isOpen: isBranchOpenNow({ isActive: !!b.isActive, openingTime: b.openingTime, closingTime: b.closingTime, manuallyOpenedDate: b.manuallyOpenedDate, closureDates: b.closureDates || [] }),
               city: b.city || '',
               province: b.province || '',
               openingTime: b.openingTime || '',
@@ -684,13 +704,11 @@ export default function ClinicManagementPage() {
       )
       if (res.status === 'SUCCESS') {
         const updatedClosures = res.data?.closureDates ?? []
+        const manuallyOpenedDate = res.data?.manuallyOpenedDate ?? null
         setBranches((prev) => prev.map((b) => {
           if (b.id !== branch.id) return b
-          return {
-            ...b,
-            closureDates: updatedClosures,
-            isOpen: isBranchOpenNow({ isActive: b.isActive, closureDates: updatedClosures }),
-          }
+          const updated = { ...b, closureDates: updatedClosures, manuallyOpenedDate }
+          return { ...updated, isOpen: isBranchOpenNow({ isActive: b.isActive, openingTime: b.openingTime, closingTime: b.closingTime, manuallyOpenedDate, closureDates: updatedClosures }) }
         }))
       }
     } catch (err) {
@@ -779,7 +797,7 @@ export default function ClinicManagementPage() {
           return {
             ...b,
             closureDates: updatedClosures,
-            isOpen: isBranchOpenNow({ isActive: b.isActive, closureDates: updatedClosures }),
+            isOpen: isBranchOpenNow({ isActive: b.isActive, openingTime: b.openingTime, closingTime: b.closingTime, manuallyOpenedDate: null, closureDates: updatedClosures }),
           }
         }))
         resetCloseBranchState()

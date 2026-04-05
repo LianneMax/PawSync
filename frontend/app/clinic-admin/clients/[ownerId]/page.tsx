@@ -50,17 +50,21 @@ function calculateAge(dateOfBirth: string): string {
 // ==================== STATUS BADGE ====================
 
 const STATUS_CONFIG: Record<string, { label: string; classes: string; icon: React.ReactNode }> = {
-  pending:   { label: 'Pending',   classes: 'bg-blue-50 text-blue-700 border border-blue-200',   icon: <Clock className="w-3 h-3" /> },
-  invited:   { label: 'Pending',   classes: 'bg-blue-50 text-blue-700 border border-blue-200',   icon: <Clock className="w-3 h-3" /> },
-  resent:    { label: 'Pending',   classes: 'bg-blue-50 text-blue-700 border border-blue-200',   icon: <Clock className="w-3 h-3" /> },
+  pending:   { label: 'Pending',   classes: '', icon: <Clock className="w-3 h-3" /> },
+  invited:   { label: 'Pending',   classes: '', icon: <Clock className="w-3 h-3" /> },
+  resent:    { label: 'Pending',   classes: '', icon: <Clock className="w-3 h-3" /> },
   expired:   { label: 'Expired',   classes: 'bg-red-50 text-red-700 border border-red-200',     icon: <AlertCircle className="w-3 h-3" /> },
-  activated: { label: 'Activated', classes: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle className="w-3 h-3" /> },
+  activated: { label: 'Activated', classes: '', icon: <CheckCircle className="w-3 h-3" /> },
 }
 
 function StatusBadge({ status }: { status: OwnerInviteStatus }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending
+  const isActivated = status === 'activated'
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.classes}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.classes}`}
+      style={isActivated ? { backgroundColor: '#D5F4D2', color: '#35785C' } : ['pending', 'invited', 'resent'].includes(status) ? { backgroundColor: '#C5D8FF', color: '#4569B1' } : undefined}
+    >
       {cfg.icon}{cfg.label}
     </span>
   )
@@ -333,7 +337,10 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ ownerId
           <div className="space-y-8">
             {/* Owner Header Card */}
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-              <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] px-8 py-6">
+              <div className="relative bg-linear-to-r from-[#476B6B] to-[#7FA5A3] px-8 py-6">
+                <div className="absolute top-4 right-6">
+                  <StatusBadge status={data.owner.inviteStatus as OwnerInviteStatus} />
+                </div>
                 <div className="flex items-center gap-5">
                   {data.owner.photo ? (
                     <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-3 border-white/30">
@@ -359,9 +366,6 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ ownerId
                     {data.owner.contactNumber && (
                       <p className="text-white/80 text-sm">{data.owner.contactNumber}</p>
                     )}
-                  </div>
-                  <div className="shrink-0">
-                    <StatusBadge status={data.owner.inviteStatus as OwnerInviteStatus} />
                   </div>
                 </div>
               </div>

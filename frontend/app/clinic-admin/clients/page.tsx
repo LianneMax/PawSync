@@ -59,7 +59,7 @@ function toDisplayStatus(status: OwnerInviteStatus): DisplayStatus {
 const STATUS_CONFIG: Record<DisplayStatus, { label: string; classes: string; icon: React.ReactNode }> = {
   pending: {
     label: 'Pending',
-    classes: 'bg-blue-50 text-blue-700 border border-blue-200',
+    classes: '',
     icon: <Clock className="w-3 h-3" />,
   },
   expired: {
@@ -69,7 +69,7 @@ const STATUS_CONFIG: Record<DisplayStatus, { label: string; classes: string; ico
   },
   activated: {
     label: 'Activated',
-    classes: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    classes: '',
     icon: <CheckCircle className="w-3 h-3" />,
   },
 }
@@ -77,8 +77,12 @@ const STATUS_CONFIG: Record<DisplayStatus, { label: string; classes: string; ico
 function StatusBadge({ status }: { status: OwnerInviteStatus }) {
   const ds = toDisplayStatus(status)
   const cfg = STATUS_CONFIG[ds]
+  const isActivated = ds === 'activated'
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.classes}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.classes}`}
+      style={isActivated ? { backgroundColor: '#D5F4D2', color: '#35785C' } : ds === 'pending' ? { backgroundColor: '#C5D8FF', color: '#4569B1' } : undefined}
+    >
       {cfg.icon}
       {cfg.label}
     </span>

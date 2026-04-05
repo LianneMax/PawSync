@@ -26,6 +26,9 @@ interface DashboardStats {
   totalVeterinarians: number
   activeBranches: number
   pendingApplications: number
+  totalClients: number
+  totalPets: number
+  isOpenNow: boolean
 }
 
 interface ApplicationItem {
@@ -94,6 +97,9 @@ export default function ClinicAdminDashboard() {
     totalVeterinarians: 0,
     activeBranches: 0,
     pendingApplications: 0,
+    totalClients: 0,
+    totalPets: 0,
+    isOpenNow: false,
   })
   const [pendingApps, setPendingApps] = useState<ApplicationItem[]>([])
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
@@ -131,9 +137,10 @@ export default function ClinicAdminDashboard() {
   }, [token])
 
   const statCards = [
-    { label: 'Total Veterinarians', value: stats.totalVeterinarians.toString(), icon: Users, color: 'bg-green-50', iconColor: 'text-green-600' },
-    { label: 'Active Branches', value: stats.activeBranches.toString(), icon: Building2, color: 'bg-blue-50', iconColor: 'text-blue-600' },
-    { label: 'Pending Applications', value: stats.pendingApplications.toString(), icon: Clock, color: 'bg-yellow-50', iconColor: 'text-yellow-600' },
+    { label: 'Total Veterinarians', value: stats.totalVeterinarians.toString(), icon: Users, color: 'bg-red-50', iconColor: 'text-red-400' },
+    { label: 'Total Clients', value: stats.totalClients.toString(), icon: UsersRound, color: 'bg-yellow-50', iconColor: 'text-yellow-500' },
+    { label: 'Total Pets', value: stats.totalPets.toString(), icon: PawPrint, color: 'bg-green-50', iconColor: '', iconStyle: { color: '#35785C' } },
+    { label: 'Active Branches', value: stats.activeBranches.toString(), icon: Building2, color: 'bg-blue-50', iconColor: 'text-blue-500' },
   ]
 
   return (
@@ -141,23 +148,41 @@ export default function ClinicAdminDashboard() {
       <div className="p-6 lg:p-8">
         {/* Welcome Banner */}
         <div className="bg-linear-to-r from-[#476B6B] to-[#7FA5A3] rounded-2xl p-8 mb-8">
-          <h1
-            className="text-3xl text-white mb-2"
-            style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
-          >
-            Welcome back, {clinicName}!
-          </h1>
-          <p className="text-white/80 text-sm">
-            You have {todayAppointments.length} appointments scheduled for today{pendingApps.length > 0 ? ` and ${pendingApps.length} pending vet application${pendingApps.length !== 1 ? 's' : ''} to review` : ''}.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1
+                className="text-3xl text-white mb-2"
+                style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
+              >
+                Welcome back, {clinicName}!
+              </h1>
+              <p className="text-white/80 text-sm">
+                You have {todayAppointments.length} appointments scheduled for today{pendingApps.length > 0 ? ` and ${pendingApps.length} pending vet application${pendingApps.length !== 1 ? 's' : ''} to review` : ''}.
+              </p>
+            </div>
+            {!loading && (
+              <div
+                className="shrink-0 flex items-center gap-2.5 pl-5 pr-6 py-2 rounded-full text-sm font-bold"
+                style={stats.isOpenNow
+                  ? { backgroundColor: '#D5F4D2', color: '#35785C' }
+                  : { backgroundColor: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.65)' }}
+              >
+                <span
+                  className={`w-3 h-3 rounded-full shrink-0 ${stats.isOpenNow ? 'animate-pulse' : ''}`}
+                  style={{ backgroundColor: stats.isOpenNow ? '#35785C' : 'rgba(255,255,255,0.5)' }}
+                />
+                {stats.isOpenNow ? 'Open' : 'Closed'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {statCards.map((stat) => (
             <div key={stat.label} className="bg-white rounded-2xl p-6 shadow-sm">
               <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
-                <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
+                <stat.icon className={`w-5 h-5 ${stat.iconColor}`} style={(stat as any).iconStyle} />
               </div>
               <p className="text-3xl font-bold text-[#4F4F4F]">{loading ? '-' : stat.value}</p>
               <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
@@ -278,6 +303,7 @@ export default function ClinicAdminDashboard() {
                   Review All <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
+
               <div className="divide-y divide-gray-50">
                 {loading ? (
                   <div className="px-6 py-8 text-center">

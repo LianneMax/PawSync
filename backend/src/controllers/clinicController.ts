@@ -868,12 +868,17 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
     const assignmentFilter: any = { clinicId: clinic._id, isActive: true, petId: null };
     if (branchId) assignmentFilter.clinicBranchId = branchId;
 
-    const [branchCount, activeAssignments, pendingApplicationCount] = await Promise.all([
+    const [branchCount, activeAssignments, pendingApplicationCount, totalClients, totalPets, activeBranchDoc] = await Promise.all([
       branchId
         ? ClinicBranch.countDocuments({ _id: branchId, clinicId: clinic._id, isActive: true })
         : ClinicBranch.countDocuments({ clinicId: clinic._id, isActive: true }),
       AssignedVet.find(assignmentFilter).select('vetId').lean(),
       VetApplication.countDocuments({ ...vetAppFilter, status: 'pending' }),
+      User.countDocuments({ userType: 'pet-owner', inviteStatus: { $ne: null } }),
+      Pet.countDocuments({}),
+      branchId
+        ? ClinicBranch.findById(branchId).select('name openingTime closingTime operatingDays closureDates manuallyOpenedDate').lean()
+        : ClinicBranch.findOne({ clinicId: clinic._id, isMain: true, isActive: true }).select('name openingTime closingTime operatingDays closureDates manuallyOpenedDate').lean(),
     ]);
 
     const uniqueVetIds = new Set(
@@ -882,12 +887,40 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
         .filter(Boolean)
     );
 
+    // Determine if clinic is open now (PH time = UTC+8)
+    const phNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const phTodayStr = `${phNow.getUTCFullYear()}-${String(phNow.getUTCMonth() + 1).padStart(2, '0')}-${String(phNow.getUTCDate()).padStart(2, '0')}`;
+    const manuallyOpenedDate: string | null = (activeBranchDoc as any)?.manuallyOpenedDate ?? null;
+    const isManuallyOpenedToday = manuallyOpenedDate === phTodayStr;
+
+    const phHour = phNow.getUTCHours();
+    const phMinute = phNow.getUTCMinutes();
+    const parseHour = (t?: string | null, fallback = 0) => {
+      if (!t) return fallback;
+      const parsed = parseInt(t.split(':')[0], 10);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const openHour = parseHour((activeBranchDoc as any)?.openingTime, 7);
+    const closeHour = parseHour((activeBranchDoc as any)?.closingTime, 17);
+    const currentMinutes = phHour * 60 + phMinute;
+
+    // Check closure dates
+    const todayStart = new Date(Date.UTC(phNow.getUTCFullYear(), phNow.getUTCMonth(), phNow.getUTCDate(), 0, 0, 0, 0));
+    const todayEnd = new Date(Date.UTC(phNow.getUTCFullYear(), phNow.getUTCMonth(), phNow.getUTCDate(), 23, 59, 59, 999));
+    const closureDates: any[] = (activeBranchDoc as any)?.closureDates ?? [];
+    const isClosedByDate = closureDates.some((c: any) => {
+      const s = new Date(c.startDate);
+      const e = new Date(c.endDate);
+      return s <= todayEnd && e >= todayStart;
+    });
+
+    // Manually opened today overrides everything except an explicit closure
+    const isOpenNow = isManuallyOpenedToday
+      ? !isClosedByDate
+      : !isClosedByDate && currentMinutes >= openHour * 60 && currentMinutes < closeHour * 60;
+
     // Get branch name if branch-specific
-    let branchName = null;
-    if (branchId) {
-      const branch = await ClinicBranch.findById(branchId).select('name');
-      branchName = branch?.name || null;
-    }
+    const branchName = (activeBranchDoc as any)?.name || null;
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -901,6 +934,9 @@ export const getClinicDashboardStats = async (req: Request, res: Response) => {
           totalVeterinarians: uniqueVetIds.size,
           activeBranches: branchCount,
           pendingApplications: pendingApplicationCount,
+          totalClients,
+          totalPets,
+          isOpenNow,
         }
       }
     });
@@ -1678,6 +1714,8 @@ export const applyBranchClosure = async (req: Request, res: Response) => {
       ...(branch.closureDates || []),
       { startDate, endDate, closureType, createdAt: new Date() },
     ] as any;
+    // Clear manual override when explicitly closing
+    (branch as any).manuallyOpenedDate = null;
     await branch.save();
 
     return res.status(200).json({
@@ -1730,12 +1768,16 @@ export const liftBranchClosure = async (req: Request, res: Response) => {
     });
 
     branch.closureDates = remaining as any;
+    // Persist today's PH date so the branch stays open even on non-operating days
+    const phToday = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const phTodayStr = `${phToday.getUTCFullYear()}-${String(phToday.getUTCMonth() + 1).padStart(2, '0')}-${String(phToday.getUTCDate()).padStart(2, '0')}`;
+    (branch as any).manuallyOpenedDate = phTodayStr;
     await branch.save();
 
     return res.status(200).json({
       status: 'SUCCESS',
       message: 'Branch closure lifted successfully',
-      data: { closureDates: remaining },
+      data: { closureDates: remaining, manuallyOpenedDate: phTodayStr },
     });
   } catch (error) {
     console.error('Lift branch closure error:', error);
