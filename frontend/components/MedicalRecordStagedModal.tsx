@@ -3084,19 +3084,21 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     <p className="text-sm font-semibold text-[#900B09]">Emergency Triage</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">
                       Triage Level <span className="text-[#900B09]">*</span>
                     </label>
-                    <select
+                    <DropdownField
                       value={emergencyTriageLevel}
-                      onChange={(e) => setEmergencyTriageLevel(e.target.value as 'critical' | 'urgent' | 'stable' | '')}
-                      className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 ${showRequiredErrors && !emergencyTriageLevel ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
-                    >
-                      <option value="">Select triage level...</option>
-                      <option value="critical">Critical</option>
-                      <option value="urgent">Urgent</option>
-                      <option value="stable">Stable</option>
-                    </select>
+                      onValueChange={(value) => setEmergencyTriageLevel(value as 'critical' | 'urgent' | 'stable' | '')}
+                      options={[
+                        { value: '', label: 'Select triage level...' },
+                        { value: 'critical', label: 'Critical' },
+                        { value: 'urgent', label: 'Urgent' },
+                        { value: 'stable', label: 'Stable' },
+                      ]}
+                      className={`w-full bg-white border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 ${showRequiredErrors && !emergencyTriageLevel ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                      placeholder="Select triage level..."
+                    />
                   </div>
                   <p className="text-xs text-[#900B09] bg-white border border-[#900B09]/20 rounded-lg px-3 py-2">
                     Emergency mode allows immediate progression. Full vitals and complete SOAP can be deferred and completed after stabilization.
@@ -3240,7 +3242,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     value={emergencyInterventionNotes}
                     onChange={(e) => setEmergencyInterventionNotes(e.target.value)}
                     rows={3}
-                    className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${showRequiredErrors && !emergencyInterventionNotes.trim() ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                    className={`w-full bg-white border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${showRequiredErrors && !emergencyInterventionNotes.trim() ? 'border-[#900B09] focus:ring-[#900B09]' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                     placeholder="Document stabilization actions, urgent interventions, and key immediate findings..."
                   />
                 </div>
@@ -4899,7 +4901,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       onChange={(e) => setEmergencyDispositionNotes(e.target.value)}
                       rows={2}
                       placeholder="Capture disposition decision, discharge/confine plan, and owner instructions."
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] resize-none"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
