@@ -17,6 +17,7 @@ import {
   getPetsForOwner,
   cancelAppointment,
   rescheduleAppointment,
+  transferAppointmentVet,
   clinicCheckInAppointment,
   updateAppointmentStatus,
   type Appointment,
@@ -359,6 +360,7 @@ function CalendarGridView({
   onDateChange,
   vets,
   onReschedule,
+  onTransfer,
   onCancel,
   onCheckIn,
   scheduleType,
@@ -369,6 +371,7 @@ function CalendarGridView({
   onDateChange: (date: string) => void
   vets: BranchVet[]
   onReschedule: (appt: Appointment) => void
+  onTransfer: (appt: Appointment) => void
   onCancel: (id: string) => void
   onCheckIn: (id: string) => void
   scheduleType: 'medical' | 'grooming'
@@ -760,6 +763,15 @@ function CalendarGridView({
                                     </button>
                                   </>
                                 )}
+                                {['pending', 'confirmed', 'rescheduled'].includes(appt.status) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onTransfer(appt)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-500 transition-all duration-200"
+                                  >
+                                    Transfer Vet
+                                  </button>
+                                )}
                                 {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
                                   <button
                                     type="button"
@@ -854,6 +866,7 @@ function ClinicAdminAppointmentsContent() {
 
   // Reschedule modal
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
+  const [transferTarget, setTransferTarget] = useState<Appointment | null>(null)
 
   // Guest claim invite / update email
   const [guestInviteTarget, setGuestInviteTarget] = useState<Appointment | null>(null)
@@ -1970,6 +1983,7 @@ function ClinicAdminAppointmentsContent() {
             onDateChange={setCalendarDate}
             vets={allVets}
             onReschedule={setRescheduleTarget}
+            onTransfer={setTransferTarget}
             onCancel={handleCancel}
             onCheckIn={handleCheckIn}
             scheduleType={scheduleType}
@@ -2092,7 +2106,7 @@ function ClinicAdminAppointmentsContent() {
                           )}
                         </div>
                       ) : (
-                        (appt.status === 'confirmed' || appt.status === 'pending' || appt.status === 'in_clinic') && (
+                        (appt.status === 'confirmed' || appt.status === 'pending' || appt.status === 'rescheduled' || appt.status === 'in_clinic') && (
                           <div className="flex items-center gap-2 flex-wrap justify-end">
                             {(appt.status === 'confirmed' || appt.status === 'pending') && (
                               <>
@@ -2109,6 +2123,14 @@ function ClinicAdminAppointmentsContent() {
                                   Reschedule
                                 </button>
                               </>
+                            )}
+                            {['pending', 'confirmed', 'rescheduled'].includes(appt.status) && (
+                                <button
+                                  onClick={() => setTransferTarget(appt)}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-500 transition-all duration-200"
+                                >
+                                  Transfer Vet
+                                </button>
                             )}
                             {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
                               <button
@@ -2198,6 +2220,15 @@ function ClinicAdminAppointmentsContent() {
         onClose={() => setRescheduleTarget(null)}
         onRescheduled={() => {
           setRescheduleTarget(null)
+          loadAppointments()
+        }}
+      />
+
+      <TransferVetModal
+        appointment={transferTarget}
+        onClose={() => setTransferTarget(null)}
+        onTransferred={() => {
+          setTransferTarget(null)
           loadAppointments()
         }}
       />
@@ -3922,6 +3953,176 @@ function RescheduleModal({
               className="px-6 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
             >
               {submitting ? 'Rescheduling...' : 'Reschedule'}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function TransferVetModal({
+  appointment,
+  onClose,
+  onTransferred,
+}: {
+  appointment: Appointment | null
+  onClose: () => void
+  onTransferred: () => void
+}) {
+  const { token } = useAuthStore()
+  const [availableVets, setAvailableVets] = useState<BranchVet[]>([])
+  const [selectedVetId, setSelectedVetId] = useState('')
+  const [reason, setReason] = useState('')
+  const [loadingVets, setLoadingVets] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!appointment) return
+
+    const branchId = appointment.clinicBranchId?._id || appointment.clinicBranchId
+    if (!branchId) {
+      setAvailableVets([])
+      return
+    }
+
+    let mounted = true
+    const loadVets = async () => {
+      setLoadingVets(true)
+      setSelectedVetId('')
+      setReason('')
+      try {
+        const res = await getVetsForBranch(String(branchId), token || undefined)
+        if (!mounted) return
+        if (res.status === 'SUCCESS' && res.data?.vets) {
+          const currentVetId = appointment.vetId?._id || appointment.vetId
+          const filtered = res.data.vets.filter((vet) => String(vet._id) !== String(currentVetId))
+          setAvailableVets(filtered)
+        } else {
+          setAvailableVets([])
+        }
+      } catch {
+        if (mounted) setAvailableVets([])
+      } finally {
+        if (mounted) setLoadingVets(false)
+      }
+    }
+
+    loadVets()
+
+    return () => {
+      mounted = false
+    }
+  }, [appointment, token])
+
+  const handleTransfer = async () => {
+    if (!appointment || !selectedVetId) return
+
+    setSubmitting(true)
+    try {
+      const res = await transferAppointmentVet(
+        appointment._id,
+        {
+          newVetId: selectedVetId,
+          reason: reason.trim() || undefined,
+        },
+        token || undefined,
+      )
+
+      if (res.status === 'SUCCESS') {
+        toast.success('Appointment transferred successfully')
+        onTransferred()
+      } else {
+        toast.error(res.message || 'Failed to transfer appointment')
+      }
+    } catch {
+      toast.error('An error occurred while transferring appointment')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={!!appointment} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden rounded-2xl [&>button]:hidden">
+        <DialogTitle className="sr-only">Transfer Appointment Vet</DialogTitle>
+
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 className="text-xl font-bold text-[#2C3E2D]">Transfer Appointment</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 pt-2 space-y-4">
+          {appointment && (
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <p className="text-xs text-gray-400 uppercase font-medium mb-2">Appointment</p>
+              <p className="text-sm font-semibold text-[#4F4F4F]">{appointment.petId?.name || 'Pet'}</p>
+              <p className="text-xs text-gray-500">Owner: {appointment.ownerId?.firstName} {appointment.ownerId?.lastName}</p>
+              <p className="text-xs text-gray-500 mt-1">Current Vet: Dr. {appointment.vetId?.firstName || 'N/A'} {appointment.vetId?.lastName || ''}</p>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar className="w-3 h-3" /> {formatDate(appointment.date)}
+                </span>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {formatSlotTime(appointment.startTime)} - {formatSlotTime(appointment.endTime)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div>
+            {loadingVets ? (
+              <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                <div className="w-4 h-4 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                Loading veterinarians...
+              </div>
+            ) : availableVets.length === 0 ? (
+              <div className="px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
+                No available veterinarians for transfer.
+              </div>
+            ) : (
+              <Dropdown
+                label="Assign to Veterinarian"
+                value={selectedVetId}
+                placeholder="Select veterinarian"
+                options={availableVets.map((vet) => ({
+                  value: vet._id,
+                  label: `Dr. ${vet.firstName} ${vet.lastName}`,
+                }))}
+                onSelect={setSelectedVetId}
+              />
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Reason (optional)</p>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              placeholder="Provide context for this transfer"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3] resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <button
+              onClick={handleTransfer}
+              disabled={submitting || !selectedVetId || availableVets.length === 0}
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Transferring...' : 'Transfer Appointment'}
             </button>
             <button
               onClick={onClose}

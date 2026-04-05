@@ -248,6 +248,93 @@ export async function sendAppointmentReassigned(params: {
   }
 }
 
+// ─── Appointment Transferred (Manual Reassignment) ───────────────────────────
+
+export async function sendAppointmentTransferred(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  previousVetName: string;
+  newVetName: string;
+  clinicName: string;
+  date: Date | string;
+  startTime: string;
+  types: string[];
+  reason?: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'PawSync – Veterinarian Updated for Your Appointment',
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Veterinarian Updated</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>Your appointment for <strong>${params.petName}</strong> has been reassigned to a different veterinarian.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Previous Vet:</strong> Dr. ${params.previousVetName}</p>
+            <p style="margin: 4px 0;"><strong>New Vet:</strong> Dr. ${params.newVetName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
+            ${params.reason ? `<p style="margin: 4px 0;"><strong>Reason for Transfer:</strong> ${params.reason}</p>` : ''}
+          </div>
+          <p style="color: #666;">Your appointment date and time remain unchanged unless otherwise notified.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentTransferred error:', err);
+  }
+}
+
+// ─── New Vet Assignment Notice ───────────────────────────────────────────────
+
+export async function sendAppointmentAssignedToVet(params: {
+  vetEmail: string;
+  vetFirstName: string;
+  petName: string;
+  ownerName: string;
+  previousVetName: string;
+  clinicName: string;
+  date: Date | string;
+  startTime: string;
+  types: string[];
+  reason?: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.vetEmail,
+      subject: `PawSync – Appointment Assigned: ${params.petName}`,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Appointment Assigned to You</h2>
+          <p>Hi Dr. ${params.vetFirstName},</p>
+          <p>An appointment has been reassigned to you.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Patient:</strong> ${params.petName}</p>
+            <p style="margin: 4px 0;"><strong>Owner:</strong> ${params.ownerName}</p>
+            <p style="margin: 4px 0;"><strong>Previous Vet:</strong> Dr. ${params.previousVetName}</p>
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
+            ${params.reason ? `<p style="margin: 4px 0;"><strong>Reason for Transfer:</strong> ${params.reason}</p>` : ''}
+          </div>
+          <p style="color: #666;">Please review this appointment in PawSync and prepare accordingly.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendAppointmentAssignedToVet error:', err);
+  }
+}
+
 // ─── Appointment Cancelled – Vet on Leave ─────────────────────────────────────
 
 export async function sendVetLeaveCancellation(params: {

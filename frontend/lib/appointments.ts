@@ -252,6 +252,20 @@ export const rescheduleAppointment = async (id: string, data: { date: string; st
   }, token);
 };
 
+/**
+ * Transfer an appointment to another veterinarian (clinic admin)
+ */
+export const transferAppointmentVet = async (
+  id: string,
+  data: { newVetId: string; reason?: string },
+  token?: string
+) => {
+  return authenticatedFetch(`/appointments/${id}/transfer-vet`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }, token);
+};
+
 // ==================== GUEST INTAKE ====================
 
 export interface GuestOwnerData {

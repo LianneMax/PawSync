@@ -13,7 +13,14 @@ import MedicalRecord from '../models/MedicalRecord';
 import Billing from '../models/Billing';
 import ProductService from '../models/ProductService';
 import AuditTrail from '../models/AuditTrail';
-import { sendAppointmentBooked, sendAppointmentCancelled, sendAppointmentDisplacedByEmergency, sendGuestClaimInviteEmail } from '../services/emailService';
+import {
+  sendAppointmentBooked,
+  sendAppointmentCancelled,
+  sendAppointmentDisplacedByEmergency,
+  sendGuestClaimInviteEmail,
+  sendAppointmentTransferred,
+  sendAppointmentAssignedToVet,
+} from '../services/emailService';
 import VetLeave from '../models/VetLeave';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
@@ -1393,6 +1400,197 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Reschedule appointment error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while rescheduling' });
+  }
+};
+
+/**
+ * Transfer an appointment to another veterinarian (clinic admin only).
+ * This is independent of resignation/leave workflows.
+ */
+export const transferAppointmentVet = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    if (req.user.userType !== 'clinic-admin') {
+      return res.status(403).json({ status: 'ERROR', message: 'Only clinic admins can transfer appointments' });
+    }
+
+    const { newVetId, reason } = req.body;
+    if (!newVetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'New veterinarian is required' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ status: 'ERROR', message: 'Appointment not found' });
+    }
+
+    if ((appointment.clinicId as any).toString() !== (clinic._id as any).toString()) {
+      return res.status(403).json({ status: 'ERROR', message: 'Not authorized to transfer this appointment' });
+    }
+
+    if (req.user.clinicBranchId && !req.user.isMainBranch) {
+      if (appointment.clinicBranchId?.toString() !== req.user.clinicBranchId.toString()) {
+        return res.status(403).json({ status: 'ERROR', message: 'Not authorized to transfer appointments outside your branch' });
+      }
+    }
+
+    if (!['pending', 'confirmed', 'rescheduled'].includes(appointment.status)) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Only pending, confirmed, or rescheduled appointments can be transferred',
+      });
+    }
+
+    if (!appointment.vetId) {
+      return res.status(400).json({ status: 'ERROR', message: 'This appointment has no assigned veterinarian to transfer' });
+    }
+
+    const previousVetId = appointment.vetId.toString();
+    if (previousVetId === String(newVetId)) {
+      return res.status(400).json({ status: 'ERROR', message: 'Please select a different veterinarian' });
+    }
+
+    const newVet = await User.findById(newVetId).select('firstName lastName email userType');
+    if (!newVet || newVet.userType !== 'veterinarian') {
+      return res.status(404).json({ status: 'ERROR', message: 'Selected veterinarian not found' });
+    }
+
+    const vetAssignment = await AssignedVet.findOne({
+      vetId: newVetId,
+      clinicId: appointment.clinicId,
+      clinicBranchId: appointment.clinicBranchId,
+      isActive: true,
+      petId: null,
+    });
+
+    if (!vetAssignment) {
+      return res.status(400).json({ status: 'ERROR', message: 'Selected veterinarian is not active in this branch' });
+    }
+
+    const conflict = await Appointment.findOne({
+      _id: { $ne: appointment._id },
+      vetId: newVetId,
+      date: appointment.date,
+      startTime: appointment.startTime,
+      status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'] },
+    }).select('_id');
+
+    if (conflict) {
+      return res.status(409).json({ status: 'ERROR', message: 'Selected veterinarian is not available at this time' });
+    }
+
+    appointment.vetId = newVet._id as any;
+    await appointment.save();
+
+    const [owner, pet, previousVet, branch] = await Promise.all([
+      User.findById(appointment.ownerId).select('firstName lastName email'),
+      Pet.findById(appointment.petId).select('name'),
+      User.findById(previousVetId).select('firstName lastName'),
+      ClinicBranch.findById(appointment.clinicBranchId).select('name'),
+    ]);
+
+    const petName = (pet as any)?.name || 'your pet';
+    const previousVetName = `${(previousVet as any)?.firstName || ''} ${(previousVet as any)?.lastName || ''}`.trim() || 'previous veterinarian';
+    const newVetName = `${newVet.firstName || ''} ${newVet.lastName || ''}`.trim();
+    const ownerName = `${(owner as any)?.firstName || ''} ${(owner as any)?.lastName || ''}`.trim() || 'Pet Owner';
+    const dateLabel = new Date(appointment.date).toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    if (owner) {
+      await createNotification(
+        appointment.ownerId.toString(),
+        'appointment_reassigned',
+        'Appointment Reassigned',
+        `Your appointment for ${petName} on ${dateLabel} has been reassigned to Dr. ${newVetName}.`,
+        {
+          appointmentId: appointment._id,
+          previousVetId,
+          newVetId,
+          reason: reason ? String(reason) : undefined,
+        }
+      );
+
+      try {
+        await sendAppointmentTransferred({
+          ownerEmail: (owner as any).email,
+          ownerFirstName: (owner as any).firstName,
+          petName,
+          previousVetName,
+          newVetName,
+          clinicName: (branch as any)?.name || 'your clinic',
+          date: appointment.date,
+          startTime: appointment.startTime,
+          types: appointment.types,
+          reason: reason ? String(reason) : undefined,
+        });
+      } catch (emailErr) {
+        console.error('[Appointments] sendAppointmentTransferred email failed (non-fatal):', emailErr);
+      }
+    }
+
+    await createNotification(
+      String(newVet._id),
+      'appointment_reassigned',
+      'Appointment Assigned to You',
+      `${petName} (${ownerName}) has been assigned to you on ${dateLabel} at ${appointment.startTime}.`,
+      {
+        appointmentId: appointment._id,
+        previousVetId,
+        transferredBy: req.user.userId,
+        reason: reason ? String(reason) : undefined,
+      }
+    );
+
+    try {
+      await sendAppointmentAssignedToVet({
+        vetEmail: newVet.email,
+        vetFirstName: newVet.firstName,
+        petName,
+        ownerName,
+        previousVetName,
+        clinicName: (branch as any)?.name || 'your clinic',
+        date: appointment.date,
+        startTime: appointment.startTime,
+        types: appointment.types,
+        reason: reason ? String(reason) : undefined,
+      });
+    } catch (emailErr) {
+      console.error('[Appointments] sendAppointmentAssignedToVet email failed (non-fatal):', emailErr);
+    }
+
+    await AuditTrail.create({
+      action: 'appointment_transferred_manual',
+      actorUserId: req.user.userId,
+      targetUserId: String(newVet._id),
+      clinicId: appointment.clinicId,
+      clinicBranchId: appointment.clinicBranchId,
+      metadata: {
+        appointmentId: appointment._id,
+        petId: appointment.petId,
+        ownerId: appointment.ownerId,
+        previousVetId,
+        newVetId,
+        reason: reason ? String(reason) : null,
+      },
+    });
+
+    return res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Appointment transferred successfully',
+      data: { appointment },
+    });
+  } catch (error) {
+    console.error('Transfer appointment vet error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while transferring the appointment' });
   }
 };
 

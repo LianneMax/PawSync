@@ -15,6 +15,7 @@ import {
   getClinicAppointments,
   getNextAppointment,
   getAppointmentById,
+  transferAppointmentVet,
   getClinicBranches,
   getVetsByBranchId,
   createGuestIntakeAppointment,
@@ -147,5 +148,11 @@ router.patch('/:id/status', authMiddleware, updateAppointmentStatus);
  * Reschedule an appointment (clinic admin or pet owner; owner enforces 4-hr + 1-reschedule rules)
  */
 router.patch('/:id/reschedule', authMiddleware, rescheduleAppointment);
+
+/**
+ * PATCH /api/appointments/:id/transfer-vet
+ * Transfer an appointment to a different veterinarian (clinic admin)
+ */
+router.patch('/:id/transfer-vet', authMiddleware, clinicAdminOnly, transferAppointmentVet);
 
 export default router;
