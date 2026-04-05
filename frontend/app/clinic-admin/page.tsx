@@ -137,7 +137,7 @@ export default function ClinicAdminDashboard() {
   }, [token])
 
   const statCards = [
-    { label: 'Total Veterinarians', value: stats.totalVeterinarians.toString(), icon: Users, color: 'bg-red-50', iconColor: 'text-red-400' },
+    { label: 'Total Veterinarians', value: stats.totalVeterinarians.toString(), icon: Users, color: 'bg-[#F4D3D2]', iconColor: 'text-[#900B09]' },
     { label: 'Total Clients', value: stats.totalClients.toString(), icon: UsersRound, color: 'bg-yellow-50', iconColor: 'text-yellow-500' },
     { label: 'Total Pets', value: stats.totalPets.toString(), icon: PawPrint, color: 'bg-green-50', iconColor: '', iconStyle: { color: '#35785C' } },
     { label: 'Active Branches', value: stats.activeBranches.toString(), icon: Building2, color: 'bg-blue-50', iconColor: 'text-blue-500' },
@@ -333,7 +333,7 @@ export default function ClinicAdminDashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FFF5CB] text-[#DD9730]">
                             Pending
                           </span>
                           <p className="text-xs text-gray-500 mt-1">{date}</p>

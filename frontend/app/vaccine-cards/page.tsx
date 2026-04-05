@@ -129,7 +129,7 @@ function ClosedCard({ pet, vaccinations, onClick }: { pet: Pet; vaccinations: Va
                     key={vax._id}
                     className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full leading-none ${
                       isNegative
-                        ? 'bg-red-100 text-red-800'
+                        ? 'bg-[#F4D3D2] text-[#900B09]'
                         : isPending
                         ? 'bg-gray-100 text-gray-500'
                         : 'bg-green-100 text-green-800'
@@ -490,7 +490,7 @@ function OpenCardModal({ petData, onClose }: { petData: PetWithVax; onClose: () 
                               <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
                                 {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
                               </p>
-                              <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
+                              <p className={`text-[14px] font-normal ${isNegative ? 'text-[#900B09]' : 'text-[#4F4F4F]'}`}>
                                 {formatMonthYear(dateToShow)}
                               </p>
                             </div>

@@ -638,7 +638,7 @@ export default function BillingFromRecordModal({
                                 <td className="px-4 py-3 text-right">
                                   <button
                                     onClick={() => removeItem(item.tempId)}
-                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="p-1.5 text-gray-400 hover:text-[#900B09] hover:bg-[#F4D3D2] rounded-lg transition-colors"
                                     title="Remove"
                                   >
                                     <X className="w-3.5 h-3.5" />

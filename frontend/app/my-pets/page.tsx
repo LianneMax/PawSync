@@ -382,7 +382,7 @@ export default function MyPetsPage() {
 
                 {/* Lost badge */}
                 {pet.isLost && pet.isAlive && pet.status !== 'deceased' && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FEE2E2] border border-[#900B09] text-[#900B09] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#F4D3D2] border border-[#900B09] text-[#900B09] text-[10px] font-semibold px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap z-10">
                     <AlertTriangle className="w-3 h-3" />
                     Marked as Lost
                   </div>
@@ -643,7 +643,7 @@ export default function MyPetsPage() {
                   Loading price...
                 </div>
               ) : priceError ? (
-                <div className="flex items-center gap-2 text-sm text-red-600">
+                <div className="flex items-center gap-2 text-sm text-[#900B09]">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   Unable to load price. Please try again later.
                 </div>
@@ -672,7 +672,7 @@ export default function MyPetsPage() {
                 </span>
               </label>
               {feeCheckboxError && (
-                <p className="text-xs text-red-500 flex items-center gap-1 pl-7">
+                <p className="text-xs text-[#900B09] flex items-center gap-1 pl-7">
                   <AlertCircle className="w-3 h-3 shrink-0" />
                   Please agree to the NFC tag fee before proceeding.
                 </p>

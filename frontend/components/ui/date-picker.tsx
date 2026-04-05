@@ -150,7 +150,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
       <div className={cn(
         "relative flex items-center w-full bg-gray-50 border shadow-xs shadow-black/5 focus-within:ring-2 focus-within:ring-[#7FA5A3] focus-within:border-transparent transition-all",
         compact ? 'h-8 rounded-lg' : 'h-13 rounded-xl',
-        error ? 'border-red-400' : 'border-gray-200',
+        error ? 'border-[#900B09]/20' : 'border-gray-200',
       )}>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -206,7 +206,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
         )}
       </div>
 
-      {error && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+      {error && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
     </div>
   );
 }

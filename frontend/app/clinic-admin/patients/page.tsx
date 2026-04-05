@@ -295,11 +295,11 @@ function MedicalRecordTab({ records, loading }: { records: MedicalRecord[]; load
                     {/* Vet Notes (clinic admin can see) */}
                     {record.vetNotes && (
                       <div>
-                        <p className="text-xs font-semibold text-amber-600 uppercase mb-1 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                        <p className="text-xs font-semibold text-[#DD9730] uppercase mb-1 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#DD9730] inline-block" />
                           Vet Notes (Private)
                         </p>
-                        <p className="text-sm text-gray-700 bg-amber-50 border border-amber-100 rounded-lg p-3 whitespace-pre-wrap">
+                        <p className="text-sm text-gray-700 bg-[#FFF5CB] rounded-lg p-3 whitespace-pre-wrap">
                           {record.vetNotes}
                         </p>
                       </div>
@@ -668,12 +668,12 @@ function ScanModal({ open, onClose, scanMode, scanStatus, onScanComplete }: Scan
 
         {/* Error State */}
         {scanStatus === 'error' && scanError && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="bg-[#F4D3D2] rounded-lg p-4 mb-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[#900B09] shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-red-900 text-sm">Scan Failed</h3>
-                <p className="text-red-700 text-xs mt-1">{scanError}</p>
+                <h3 className="font-semibold text-[#900B09] text-sm">Scan Failed</h3>
+                <p className="text-[#900B09] text-xs mt-1">{scanError}</p>
               </div>
             </div>
           </div>
@@ -942,7 +942,7 @@ function getNormalizedPatientStatus(patient: ClinicPatientWithStatus): Exclude<P
 function getStatusBadgeClasses(status: Exclude<PatientStatusFilter, 'All'>): string {
   if (status === 'Confined') return 'bg-blue-100 text-blue-700'
   if (status === 'Lost') return 'text-[#900B09]'
-  if (status === 'Deceased') return 'bg-amber-100 text-amber-700'
+  if (status === 'Deceased') return 'bg-[#FFF5CB] text-[#DD9730]'
   if (status === 'Relocated') return 'bg-orange-100 text-orange-700'
   return 'bg-emerald-100 text-emerald-700'
 }
@@ -1254,7 +1254,7 @@ export default function PatientManagementPage() {
                         className={`absolute top-4 right-6 inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide border-0 ${
                           getStatusBadgeClasses(petStatus)
                         }`}
-                        style={petStatus === 'Lost' ? { backgroundColor: '#FEE2E2' } : undefined}
+                        style={petStatus === 'Lost' ? { backgroundColor: '#F4D3D2' } : undefined}
                       >
                         {petStatus}
                       </Badge>

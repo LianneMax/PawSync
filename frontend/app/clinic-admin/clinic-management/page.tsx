@@ -145,17 +145,17 @@ function StatusBadge({ status }: { status: Veterinarian['status'] }) {
     status === 'Active'
       ? 'text-green-600'
       : status === 'On Leave'
-        ? 'text-red-500'
+        ? 'text-[#900B09]'
         : status === 'Resignation Notice'
-          ? 'text-amber-600'
+          ? 'text-[#DD9730]'
           : 'text-gray-500'
   const dotStyles =
     status === 'Active'
       ? 'bg-green-500'
       : status === 'On Leave'
-        ? 'bg-red-500'
+        ? 'bg-[#F4D3D2]'
         : status === 'Resignation Notice'
-          ? 'bg-amber-500'
+          ? 'bg-[#DD9730]'
           : 'bg-gray-400'
 
   return (
@@ -1024,7 +1024,7 @@ export default function ClinicManagementPage() {
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex items-center justify-between gap-2 min-w-[180px] px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                          className="inline-flex items-center justify-between gap-2 min-w-45 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                           aria-label="Filter vets by branch"
                         >
                           <span className="truncate">
@@ -1096,9 +1096,9 @@ export default function ClinicManagementPage() {
                                     vet.status === 'Active'
                                       ? 'bg-green-500'
                                       : vet.status === 'On Leave'
-                                        ? 'bg-red-500'
+                                        ? 'bg-[#F4D3D2]'
                                         : vet.status === 'Resignation Notice'
-                                          ? 'bg-amber-500'
+                                          ? 'bg-[#DD9730]'
                                           : 'bg-gray-400'
                                   }`}
                                 />
@@ -1116,7 +1116,7 @@ export default function ClinicManagementPage() {
                               <>
                                 <button
                                   onClick={() => { setSelectedVet(vet); setRemoveVetOpen(true) }}
-                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  className="p-1.5 text-gray-400 hover:text-[#900B09] hover:bg-[#F4D3D2] rounded-lg transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -1207,7 +1207,7 @@ export default function ClinicManagementPage() {
                       {branch.isOpen ? (
                         <button
                           onClick={() => openCloseBranch(branch)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#DD9730] border border-[#DD9730]/30 rounded-lg hover:bg-[#FFF5CB] transition-colors"
                         >
                           <AlertTriangle className="w-3.5 h-3.5" /> Close Clinic
                         </button>
@@ -1230,7 +1230,7 @@ export default function ClinicManagementPage() {
                       {!branch.isMain && (
                         <button
                           onClick={() => openRemoveBranch(branch)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-[#900B09] hover:bg-[#F4D3D2] rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1261,7 +1261,7 @@ export default function ClinicManagementPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#4F4F4F]">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <AlertTriangle className="w-5 h-5 text-[#DD9730]" />
               Close Clinic Branch
             </DialogTitle>
           </DialogHeader>
@@ -1337,7 +1337,7 @@ export default function ClinicManagementPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                      <div className="rounded-xl bg-[#FFF5CB] p-4 text-sm text-[#DD9730]">
                         {affectedAppointments.length} appointment(s) will be affected by this closure.
                       </div>
 
@@ -1357,7 +1357,7 @@ export default function ClinicManagementPage() {
                             onClick={() => setClosureAction('cancel')}
                             className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
                               closureAction === 'cancel'
-                                ? 'bg-red-50 border-red-300 text-red-700'
+                                ? 'bg-[#F4D3D2] border-[#900B09]/30 text-[#900B09]'
                                 : 'bg-white border-gray-200 text-[#4F4F4F] hover:bg-gray-50'
                             }`}
                           >
@@ -1403,7 +1403,7 @@ export default function ClinicManagementPage() {
               )}
 
               {closureError && (
-                <p className="text-sm text-red-600">{closureError}</p>
+                <p className="text-sm text-[#900B09]">{closureError}</p>
               )}
 
               <div className="flex gap-3 pt-2">
@@ -1473,7 +1473,7 @@ export default function ClinicManagementPage() {
 
           {/* Error message */}
           {inviteErrorMsg && (
-            <p className="text-sm text-red-500 mt-1">{inviteErrorMsg}</p>
+            <p className="text-sm text-[#900B09] mt-1">{inviteErrorMsg}</p>
           )}
 
           {/* Vet list */}
@@ -1542,8 +1542,8 @@ export default function ClinicManagementPage() {
           </DialogHeader>
 
           <div className="text-center py-4">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-7 h-7 text-red-400" />
+            <div className="w-16 h-16 bg-[#F4D3D2] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-7 h-7 text-[#900B09]" />
             </div>
             <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">Terminate this veterinarian?</h3>
             <p className="text-sm text-gray-500">
@@ -1565,7 +1565,7 @@ export default function ClinicManagementPage() {
           )}
 
           <div className="mt-2">
-            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Transfer records to <span className="text-red-500">*</span></p>
+            <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Transfer records to <span className="text-[#900B09]">*</span></p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -1599,7 +1599,7 @@ export default function ClinicManagementPage() {
           </div>
 
           {fireVetError && (
-            <p className="text-sm text-red-600 mt-1">{fireVetError}</p>
+            <p className="text-sm text-[#900B09] mt-1">{fireVetError}</p>
           )}
 
           <div className="flex gap-3 mt-4">
@@ -1613,7 +1613,7 @@ export default function ClinicManagementPage() {
             <button
               onClick={handleFireVet}
               disabled={firingVet || !fireReplacementVetId}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#900B09] rounded-xl hover:bg-[#720907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {firingVet ? 'Terminating...' : 'Terminate Veterinarian'}
             </button>
@@ -1641,7 +1641,7 @@ export default function ClinicManagementPage() {
 
           <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0">
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={editForm.name}
@@ -1650,7 +1650,7 @@ export default function ClinicManagementPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={editForm.address}
@@ -1764,16 +1764,16 @@ export default function ClinicManagementPage() {
 
             <div className={`grid grid-cols-2 gap-4 transition-opacity ${editIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-[#900B09]">*</span></label>
                 <input type="time" value={editForm.openingTime} onChange={(e) => setEditForm({...editForm, openingTime: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time <span className="text-[#900B09]">*</span></label>
                 <input type="time" value={editForm.closingTime} onChange={(e) => setEditForm({...editForm, closingTime: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
               </div>
             </div>
             <div className={`transition-opacity ${editIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-[#900B09]">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
                   const isSelected = editForm.operatingDays.includes(day)
@@ -1832,7 +1832,7 @@ export default function ClinicManagementPage() {
           <div className="space-y-4 px-6 py-4 overflow-y-auto flex-1 min-h-0">
             {/* Branch Name */}
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Name <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={addForm.name}
@@ -1842,14 +1842,14 @@ export default function ClinicManagementPage() {
                 }}
                 onBlur={() => touchAddField('name')}
                 placeholder="e.g. PawSync Makati Branch"
-                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.name && addFormErrors.name ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.name && addFormErrors.name ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               />
-              {addFormTouched.name && addFormErrors.name && <p className="text-xs text-red-500 mt-1">{addFormErrors.name}</p>}
+              {addFormTouched.name && addFormErrors.name && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.name}</p>}
             </div>
 
             {/* Street Address */}
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Street Address <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={addForm.address}
@@ -1859,22 +1859,22 @@ export default function ClinicManagementPage() {
                 }}
                 onBlur={() => touchAddField('address')}
                 placeholder="e.g. 123 Main St, Brgy. San Antonio"
-                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.address && addFormErrors.address ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.address && addFormErrors.address ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               />
-              {addFormTouched.address && addFormErrors.address && <p className="text-xs text-red-500 mt-1">{addFormErrors.address}</p>}
+              {addFormTouched.address && addFormErrors.address && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.address}</p>}
             </div>
 
             {/* City / Province */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-[#900B09]">*</span></label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
                       disabled={!addForm.province}
                       className={`w-full px-4 py-2.5 border rounded-xl text-sm bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between ${
-                        addFormTouched.city && addFormErrors.city ? 'border-red-400 text-[#4F4F4F]' : 'border-gray-200 text-[#4F4F4F]'
+                        addFormTouched.city && addFormErrors.city ? 'border-[#900B09]/40 text-[#4F4F4F]' : 'border-gray-200 text-[#4F4F4F]'
                       } disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed`}
                     >
                       <span className="truncate">{addForm.city || 'Select city'}</span>
@@ -1897,16 +1897,16 @@ export default function ClinicManagementPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {addFormTouched.city && addFormErrors.city && <p className="text-xs text-red-500 mt-1">{addFormErrors.city}</p>}
+                {addFormTouched.city && addFormErrors.city && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.city}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Province/Region <span className="text-[#900B09]">*</span></label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
                       className={`w-full px-4 py-2.5 border rounded-xl text-sm bg-white hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] flex items-center justify-between ${
-                        addFormTouched.province && addFormErrors.province ? 'border-red-400 text-[#4F4F4F]' : 'border-gray-200 text-[#4F4F4F]'
+                        addFormTouched.province && addFormErrors.province ? 'border-[#900B09]/40 text-[#4F4F4F]' : 'border-gray-200 text-[#4F4F4F]'
                       }`}
                     >
                       <span className="truncate">{addForm.province || 'Select province'}</span>
@@ -1932,13 +1932,13 @@ export default function ClinicManagementPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {addFormTouched.province && addFormErrors.province && <p className="text-xs text-red-500 mt-1">{addFormErrors.province}</p>}
+                {addFormTouched.province && addFormErrors.province && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.province}</p>}
               </div>
             </div>
 
             {/* Phone Number */}
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Phone Number <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={addForm.phone}
@@ -1948,14 +1948,14 @@ export default function ClinicManagementPage() {
                 }}
                 onBlur={() => touchAddField('phone')}
                 placeholder="e.g. 0917-123-4567"
-                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.phone && addFormErrors.phone ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.phone && addFormErrors.phone ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               />
-              {addFormTouched.phone && addFormErrors.phone && <p className="text-xs text-red-500 mt-1">{addFormErrors.phone}</p>}
+              {addFormTouched.phone && addFormErrors.phone && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.phone}</p>}
             </div>
 
             {/* Email Address + OTP */}
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Email Address <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Branch Email Address <span className="text-[#900B09]">*</span></label>
               <div className="flex gap-2">
                 <input
                   type="email"
@@ -1967,7 +1967,7 @@ export default function ClinicManagementPage() {
                   }}
                   onBlur={() => touchAddField('email')}
                   placeholder="e.g. branch@clinic.com"
-                  className={`flex-1 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.email && addFormErrors.email ? 'border-red-400' : otpVerified ? 'border-green-400' : 'border-gray-200'}`}
+                  className={`flex-1 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.email && addFormErrors.email ? 'border-[#900B09]/40' : otpVerified ? 'border-green-400' : 'border-gray-200'}`}
                 />
                 {otpVerified ? (
                   <span className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-xl shrink-0">
@@ -1984,15 +1984,15 @@ export default function ClinicManagementPage() {
                   </button>
                 )}
               </div>
-              {addFormTouched.email && addFormErrors.email && <p className="text-xs text-red-500 mt-1">{addFormErrors.email}</p>}
+              {addFormTouched.email && addFormErrors.email && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.email}</p>}
               {!otpVerified && addForm.email && !addFormErrors.email && (
-                <p className="text-xs text-amber-600 mt-1">Click &quot;Send OTP&quot; to verify this email before saving.</p>
+                <p className="text-xs text-[#DD9730] mt-1">Click &quot;Send OTP&quot; to verify this email before saving.</p>
               )}
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Password <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Password <span className="text-[#900B09]">*</span></label>
               <input
                 type="password"
                 value={addForm.adminPassword}
@@ -2002,9 +2002,9 @@ export default function ClinicManagementPage() {
                 }}
                 onBlur={() => touchAddField('adminPassword')}
                 placeholder="Min. 8 characters"
-                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminPassword && addFormErrors.adminPassword ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.adminPassword && addFormErrors.adminPassword ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               />
-              {addFormTouched.adminPassword && addFormErrors.adminPassword && <p className="text-xs text-red-500 mt-1">{addFormErrors.adminPassword}</p>}
+              {addFormTouched.adminPassword && addFormErrors.adminPassword && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.adminPassword}</p>}
               <p className="text-xs text-gray-400 mt-1">This password will be used to log in as the branch admin.</p>
             </div>
 
@@ -2032,7 +2032,7 @@ export default function ClinicManagementPage() {
 
             <div className={`grid grid-cols-2 gap-4 transition-opacity ${addIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-[#900B09]">*</span></label>
                 <input
                   type="time"
                   value={addForm.openingTime}
@@ -2041,12 +2041,12 @@ export default function ClinicManagementPage() {
                     if (addFormTouched.openingTime) setAddFormErrors(prev => ({ ...prev, openingTime: validateAddField('openingTime', e.target.value) }))
                   }}
                   onBlur={() => touchAddField('openingTime')}
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.openingTime && addFormErrors.openingTime ? 'border-red-400' : 'border-gray-200'}`}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.openingTime && addFormErrors.openingTime ? 'border-[#900B09]/40' : 'border-gray-200'}`}
                 />
-                {addFormTouched.openingTime && addFormErrors.openingTime && <p className="text-xs text-red-500 mt-1">{addFormErrors.openingTime}</p>}
+                {addFormTouched.openingTime && addFormErrors.openingTime && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.openingTime}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Closing Time <span className="text-[#900B09]">*</span></label>
                 <input
                   type="time"
                   value={addForm.closingTime}
@@ -2055,13 +2055,13 @@ export default function ClinicManagementPage() {
                     if (addFormTouched.closingTime) setAddFormErrors(prev => ({ ...prev, closingTime: validateAddField('closingTime', e.target.value) }))
                   }}
                   onBlur={() => touchAddField('closingTime')}
-                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.closingTime && addFormErrors.closingTime ? 'border-red-400' : 'border-gray-200'}`}
+                  className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm ${addFormTouched.closingTime && addFormErrors.closingTime ? 'border-[#900B09]/40' : 'border-gray-200'}`}
                 />
-                {addFormTouched.closingTime && addFormErrors.closingTime && <p className="text-xs text-red-500 mt-1">{addFormErrors.closingTime}</p>}
+                {addFormTouched.closingTime && addFormErrors.closingTime && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.closingTime}</p>}
               </div>
             </div>
             <div className={`transition-opacity ${addIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Operating Days <span className="text-[#900B09]">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
                   const isSelected = addForm.operatingDays.includes(day)
@@ -2088,12 +2088,12 @@ export default function ClinicManagementPage() {
                   )
                 })}
               </div>
-              {addFormTouched.operatingDays && addFormErrors.operatingDays && <p className="text-xs text-red-500 mt-1">{addFormErrors.operatingDays}</p>}
+              {addFormTouched.operatingDays && addFormErrors.operatingDays && <p className="text-xs text-[#900B09] mt-1">{addFormErrors.operatingDays}</p>}
             </div>
           </div>
 
           {addFormErrors.general && (
-            <div className="mx-6 mb-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+            <div className="mx-6 mb-2 px-4 py-2.5 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl text-sm text-[#900B09]">
               {addFormErrors.general}
             </div>
           )}
@@ -2137,9 +2137,9 @@ export default function ClinicManagementPage() {
                 onChange={(e) => { setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError('') }}
                 placeholder="Enter 6-digit OTP"
                 maxLength={6}
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-lg tracking-widest text-center font-mono ${otpError ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-lg tracking-widest text-center font-mono ${otpError ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               />
-              {otpError && <p className="text-xs text-red-500 mt-1">{otpError}</p>}
+              {otpError && <p className="text-xs text-[#900B09] mt-1">{otpError}</p>}
             </div>
             <p className="text-xs text-gray-400">
               Code expires in 10 minutes.{' '}
@@ -2179,8 +2179,8 @@ export default function ClinicManagementPage() {
           </DialogHeader>
 
           <div className="text-center py-4">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-7 h-7 text-red-500" />
+            <div className="w-16 h-16 bg-[#F4D3D2] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-7 h-7 text-[#900B09]" />
             </div>
             <h3 className="text-lg font-semibold text-[#4F4F4F] mb-2">Remove this branch?</h3>
             <p className="text-sm text-gray-500">This action cannot be undone.</p>
@@ -2212,7 +2212,7 @@ export default function ClinicManagementPage() {
               {!removeBranchLoading && (removeBranchStats?.vets ?? 0) > 0 && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
-                    Reassign all vets to <span className="text-red-500">*</span>
+                    Reassign all vets to <span className="text-[#900B09]">*</span>
                   </label>
                   <select
                     value={reassignVetsToBranchId}
@@ -2231,7 +2231,7 @@ export default function ClinicManagementPage() {
               {!removeBranchLoading && (removeBranchStats?.patients ?? 0) > 0 && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
-                    Transfer patient records to <span className="text-red-500">*</span>
+                    Transfer patient records to <span className="text-[#900B09]">*</span>
                   </label>
                   <select
                     value={transferToBranchId}
@@ -2260,7 +2260,7 @@ export default function ClinicManagementPage() {
                 ((removeBranchStats?.vets ?? 0) > 0 && !reassignVetsToBranchId) ||
                 ((removeBranchStats?.patients ?? 0) > 0 && !transferToBranchId)
               }
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#900B09] rounded-xl hover:bg-[#720907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Remove Branch
             </button>

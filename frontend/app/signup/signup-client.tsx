@@ -324,7 +324,7 @@ export default function SignUpClient() {
             <form onSubmit={handleSubmit} noValidate>
               {/* Server Error Message */}
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded-xl text-sm">
+                <div className="mb-4 p-3 bg-[#F4D3D2] border border-[#900B09]/20 text-[#900B09] rounded-xl text-sm">
                   {error}
                 </div>
               )}
@@ -338,7 +338,7 @@ export default function SignUpClient() {
                   onClick={() => { setUserType('veterinarian'); setFieldErrors(prev => ({ ...prev, userType: '' })) }}
                   className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 ${
                     fieldErrors.userType && !userType
-                      ? 'border-red-400 bg-white'
+                      ? 'border-[#900B09]/20 bg-white'
                       : userType === 'veterinarian'
                         ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                         : 'border-gray-200 bg-white hover:border-gray-300'
@@ -351,7 +351,7 @@ export default function SignUpClient() {
                     <Stethoscope className="w-5 h-5 text-white" />
                   </div>
                 </button>
-                {fieldErrors.userType && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.userType}</p>}
+                {fieldErrors.userType && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.userType}</p>}
 
                 {/* Pet owner notice */}
                 <div className="mt-4 flex gap-3 p-4 bg-[#7FA5A3]/8 border border-[#7FA5A3]/30 rounded-2xl">
@@ -375,10 +375,10 @@ export default function SignUpClient() {
                       placeholder="First Name"
                       value={firstName}
                       onChange={(e) => { setFirstName(e.target.value); setFieldErrors(prev => ({ ...prev, firstName: '' })) }}
-                      className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.firstName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                      className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.firstName ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                     />
                   </div>
-                  {fieldErrors.firstName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.firstName}</p>}
+                  {fieldErrors.firstName && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.firstName}</p>}
                 </div>
                 <div>
                   <div className="relative">
@@ -388,10 +388,10 @@ export default function SignUpClient() {
                       placeholder="Last Name"
                       value={lastName}
                       onChange={(e) => { setLastName(e.target.value); setFieldErrors(prev => ({ ...prev, lastName: '' })) }}
-                      className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.lastName ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                      className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.lastName ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                     />
                   </div>
-                  {fieldErrors.lastName && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.lastName}</p>}
+                  {fieldErrors.lastName && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.lastName}</p>}
                 </div>
               </div>
 
@@ -407,11 +407,11 @@ export default function SignUpClient() {
                     value={email}
                     readOnly={isClaimMode}
                     onChange={(e) => { if (!isClaimMode) { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })) } }}
-                    className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 transition-all ${isClaimMode ? 'bg-[#7FA5A3]/10 border-[#7FA5A3]/30 text-[#5A7C7A] cursor-not-allowed' : `bg-gray-100 ${fieldErrors.email ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]`}`}
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 transition-all ${isClaimMode ? 'bg-[#7FA5A3]/10 border-[#7FA5A3]/30 text-[#5A7C7A] cursor-not-allowed' : `bg-gray-100 ${fieldErrors.email ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]`}`}
                   />
                 </div>
                 {isClaimMode && <p className="text-xs text-[#5A7C7A] mt-1 ml-1">This email is pre-filled from your guest record and cannot be changed.</p>}
-                {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
+                {fieldErrors.email && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.email}</p>}
               </div>
 
               {/* Mobile Number Input — optional in claim mode */}
@@ -425,10 +425,10 @@ export default function SignUpClient() {
                     placeholder={isClaimMode ? 'Mobile Number (optional)' : 'Mobile Number'}
                     value={mobileNumber}
                     onChange={(e) => { setMobileNumber(e.target.value); setFieldErrors(prev => ({ ...prev, mobileNumber: '' })) }}
-                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.mobileNumber ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.mobileNumber ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                 </div>
-                {fieldErrors.mobileNumber && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.mobileNumber}</p>}
+                {fieldErrors.mobileNumber && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.mobileNumber}</p>}
               </div>
 
               {/* Password Input */}
@@ -442,7 +442,7 @@ export default function SignUpClient() {
                     placeholder="Create Password"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })) }}
-                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.password ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.password ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                   <button
                     type="button"
@@ -452,7 +452,7 @@ export default function SignUpClient() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {fieldErrors.password && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.password}</p>}
+                {fieldErrors.password && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.password}</p>}
               </div>
 
               {/* Confirm Password Input */}
@@ -466,7 +466,7 @@ export default function SignUpClient() {
                     placeholder="Confirm Password"
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, confirmPassword: '' })) }}
-                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.confirmPassword ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.confirmPassword ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                   <button
                     type="button"
@@ -476,7 +476,7 @@ export default function SignUpClient() {
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.confirmPassword}</p>}
+                {fieldErrors.confirmPassword && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.confirmPassword}</p>}
               </div>
 
               {/* Submit Button */}

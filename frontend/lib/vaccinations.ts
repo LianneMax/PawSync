@@ -288,7 +288,7 @@ export function getStatusLabel(status: Vaccination['status']): string {
 export function getStatusClasses(status: Vaccination['status']): string {
   const classes: Record<Vaccination['status'], string> = {
     active: 'bg-green-100 text-green-700 border-green-200',
-    expired: 'bg-red-100 text-red-700 border-red-200',
+    expired: 'bg-[#F4D3D2] text-[#900B09] border-[#900B09]/20',
     overdue: 'bg-orange-100 text-orange-700 border-orange-200',
     pending: 'bg-blue-100 text-blue-700 border-blue-200',
   };

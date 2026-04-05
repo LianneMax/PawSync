@@ -53,7 +53,7 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string; icon: Reac
   pending:   { label: 'Pending',   classes: '', icon: <Clock className="w-3 h-3" /> },
   invited:   { label: 'Pending',   classes: '', icon: <Clock className="w-3 h-3" /> },
   resent:    { label: 'Pending',   classes: '', icon: <Clock className="w-3 h-3" /> },
-  expired:   { label: 'Expired',   classes: 'bg-red-50 text-red-700 border border-red-200',     icon: <AlertCircle className="w-3 h-3" /> },
+  expired:   { label: 'Expired',   classes: 'bg-[#F4D3D2] text-[#900B09]',     icon: <AlertCircle className="w-3 h-3" /> },
   activated: { label: 'Activated', classes: '', icon: <CheckCircle className="w-3 h-3" /> },
 }
 
@@ -100,7 +100,7 @@ function PetCard({ pet }: { pet: OwnerPetSummary }) {
           <p className="text-sm text-gray-500 capitalize">{pet.species} · {pet.breed}</p>
         </div>
         {hasDueVaccines && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-semibold shrink-0">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#FFF5CB] text-[#DD9730] rounded-full text-xs font-semibold shrink-0">
             <Syringe className="w-3 h-3" />
             Vaccine Due
           </span>
@@ -133,16 +133,16 @@ function PetCard({ pet }: { pet: OwnerPetSummary }) {
       {/* Due vaccinations */}
       {hasDueVaccines && (
         <div className="px-5 pb-5">
-          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <p className="text-xs font-semibold text-[#DD9730] uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <Syringe className="w-3.5 h-3.5" /> Due / Overdue Vaccinations
           </p>
           <div className="space-y-2">
             {pet.dueVaccinations.map((v) => (
-              <div key={v.id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              <div key={v.id} className="flex items-center justify-between bg-[#FFF5CB] rounded-lg px-3 py-2">
                 <p className="text-sm font-medium text-[#4F4F4F]">{v.vaccineName}</p>
                 <div className="flex items-center gap-2 shrink-0">
                   {v.status === 'overdue' && (
-                    <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">Overdue</span>
+                    <span className="text-xs font-semibold text-[#900B09] bg-[#F4D3D2] border border-[#900B09]/20 px-2 py-0.5 rounded-full">Overdue</span>
                   )}
                   <span className="text-xs text-gray-500">{formatDate(v.nextDueDate)}</span>
                 </div>
@@ -267,7 +267,7 @@ function SendNotePanel({ ownerId, token }: { ownerId: string; token: string | nu
         {/* Note textarea */}
         <div>
           <label className="block text-xs font-medium text-[#4F4F4F] mb-1">
-            Note <span className="text-red-500">*</span>
+            Note <span className="text-[#900B09]">*</span>
           </label>
           <textarea
             value={note}

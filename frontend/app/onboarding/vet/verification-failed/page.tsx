@@ -115,7 +115,7 @@ export default function VerificationFailedPage() {
                 </div>
                 <div className="flex justify-between items-center py-1.5">
                   <span className="text-sm text-gray-500">Status</span>
-                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#F4D3D2] text-[#CC6462] text-xs font-medium rounded-full">
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#F4D3D2] text-[#900B09] text-xs font-medium rounded-full">
                     <XCircle className="w-3.5 h-3.5" />
                     Not Verified
                   </span>
@@ -124,8 +124,8 @@ export default function VerificationFailedPage() {
             </div>
 
             {/* Rejection Reason */}
-            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-2xl p-4 mb-4">
-              <p className="text-sm font-semibold text-[#CC6462] mb-1">Reason for Rejection:</p>
+            <div className="bg-[#F4D3D2] border border-[#900B09] rounded-2xl p-4 mb-4">
+              <p className="text-sm font-semibold text-[#900B09] mb-1">Reason for Rejection:</p>
               <p className="text-sm text-[#4F4F4F]">
                 {submissionData?.rejectionReason || '—'}
               </p>

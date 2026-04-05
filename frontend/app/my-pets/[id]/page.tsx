@@ -1189,7 +1189,7 @@ export default function PetProfilePage() {
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Sighting Locations</h3>
                       <p className="text-xs text-gray-400 mb-3">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1" />
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#F4D3D2] mr-1" />
                         Red = most recent &nbsp;·&nbsp;
                         <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1" />
                         Blue = earlier sightings
@@ -1232,7 +1232,7 @@ export default function PetProfilePage() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1.5">
                                       {idx === 0 && (
-                                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm" />
+                                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#F4D3D2] shadow-sm" />
                                       )}
                                       {idx > 0 && (
                                         <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
@@ -1420,7 +1420,7 @@ export default function PetProfilePage() {
             {/* Clinic Branch Selection */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-600">
-                Select Pickup Location <span className="text-red-500">*</span>
+                Select Pickup Location <span className="text-[#900B09]">*</span>
               </label>
               <div className="relative">
                 <button
@@ -1483,7 +1483,7 @@ export default function PetProfilePage() {
             {/* Pickup Date */}
             <div className="space-y-2">
               <label htmlFor="pickup-date" className="text-sm font-semibold text-gray-600">
-                Pickup Date <span className="text-red-500">*</span>
+                Pickup Date <span className="text-[#900B09]">*</span>
               </label>
               <DatePicker
                 value={pickupDate}
@@ -1680,7 +1680,7 @@ export default function PetProfilePage() {
             </div>
 
             {/* Warning info */}
-            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
+            <div className="bg-[#F4D3D2] border border-[#900B09] rounded-xl p-3 flex gap-2.5">
               <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
               <p className="text-xs text-[#900B09]">
                 Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.
@@ -1734,8 +1734,8 @@ export default function PetProfilePage() {
 
           {/* Info Box */}
           {!removeBillingBlocked && (
-            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
-              <p className="text-sm font-semibold text-[#B71C1C] mb-2">This action cannot be undone</p>
+            <div className="bg-[#F4D3D2] border border-[#900B09] rounded-xl p-4 mb-4">
+              <p className="text-sm font-semibold text-[#900B09] mb-2">This action cannot be undone</p>
               <p className="text-xs text-[#4F4F4F] leading-relaxed">
                 This will permanently affect your pet&apos;s profile. Records are kept for veterinary reference. Marking as deceased is irreversible. Transferring ownership requires a settled bill.
               </p>
@@ -1827,8 +1827,8 @@ export default function PetProfilePage() {
 
           {/* Error */}
           {removeError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-              <p className="text-sm text-red-600">{removeError}</p>
+            <div className="bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-3 mb-4">
+              <p className="text-sm text-[#900B09]">{removeError}</p>
             </div>
           )}
 

@@ -168,7 +168,7 @@ export default function VetDashboardPage() {
   const displayName = user ? `Dr. ${user.lastName}` : 'Dr.'
 
   const stats = [
-    { label: 'Total Patients', value: loading ? '—' : String(totalPatients), icon: Users, bg: 'bg-red-50', iconColor: 'text-red-400' },
+    { label: 'Total Patients', value: loading ? '—' : String(totalPatients), icon: Users, bg: 'bg-[#F4D3D2]', iconColor: 'text-[#900B09]' },
     { label: "Today's Appointments", value: loading ? '—' : String(todayCount), icon: Calendar, bg: 'bg-yellow-50', iconColor: 'text-yellow-500' },
     { label: 'Vaccines Due This Week', value: loading ? '—' : String(vaccinesDueCount), icon: Syringe, bg: 'bg-green-50', iconColor: 'text-green-500' },
     { label: 'In Confinement', value: String(inConfinementCount), icon: Heart, bg: 'bg-blue-50', iconColor: 'text-blue-400' },

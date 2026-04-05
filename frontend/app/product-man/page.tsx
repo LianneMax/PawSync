@@ -1143,7 +1143,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
               {branchLoading ? (
                 <p className="text-xs text-gray-400 py-1">Loading branches...</p>
               ) : branchFetchError ? (
-                <p className="text-xs text-red-400 py-1">Failed to load branches. Please close and try again.</p>
+                <p className="text-xs text-[#900B09] py-1">Failed to load branches. Please close and try again.</p>
               ) : localBranches.length === 0 ? (
                 <p className="text-xs text-gray-400 py-1">No branches found.</p>
               ) : (
@@ -1182,7 +1182,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
             </div>
           )}
 
-          {error && <p className="text-red-500 text-xs">{error}</p>}
+          {error && <p className="text-[#900B09] text-xs">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-7">
@@ -2028,7 +2028,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
             </div>
           )}
 
-          {error && <p className="text-red-500 text-xs">{error}</p>}
+          {error && <p className="text-[#900B09] text-xs">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-7">
@@ -2125,7 +2125,7 @@ function EditVaccinePriceModal({ vaccine, token, onClose, onSaved }: EditVaccine
             min="0"
             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-[#476B6B] focus:ring-2 focus:ring-[#476B6B]/10 transition-all"
           />
-          {error && <p className="text-red-500 text-xs mt-1.5">{error}</p>}
+          {error && <p className="text-[#900B09] text-xs mt-1.5">{error}</p>}
         </div>
 
         <div className="flex gap-3">
@@ -2499,7 +2499,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
               <button
                 onClick={handleDelete}
                 disabled={selected.size === 0}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#900B09] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -2512,7 +2512,7 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
           {loading ? (
             <div className="py-16 text-center text-sm text-gray-400">Loading...</div>
           ) : error ? (
-            <div className="py-16 text-center text-sm text-red-400">{error}</div>
+            <div className="py-16 text-center text-sm text-[#900B09]">{error}</div>
           ) : (
             <table className="w-full">
               <thead>
@@ -2926,7 +2926,7 @@ function VaccinesTab({ token }: { token: string | null }) {
           {loading ? (
             <div className="py-16 text-center text-sm text-gray-400">Loading vaccines...</div>
           ) : error ? (
-            <div className="py-16 text-center text-sm text-red-400">{error}</div>
+            <div className="py-16 text-center text-sm text-[#900B09]">{error}</div>
           ) : (
             <table className="w-full">
               <thead>

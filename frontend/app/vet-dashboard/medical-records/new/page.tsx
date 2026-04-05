@@ -424,7 +424,7 @@ function MedicalRecordFormInner() {
 
         {/* Error */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          <div className="mb-4 p-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl text-[#900B09] text-sm">
             {error}
           </div>
         )}
@@ -546,7 +546,7 @@ function MedicalRecordFormInner() {
                       placeholder={placeholder}
                       value={String(vitals[key]?.value ?? '')}
                       onChange={(e) => handleVitalChange(key, 'value', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                     />
                     <input
                       type="text"
@@ -556,7 +556,7 @@ function MedicalRecordFormInner() {
                       className="w-full px-3 py-1.5 border-x border-b border-gray-200 rounded-b-lg text-xs text-gray-500 focus:outline-none focus:border-[#476B6B] -mt-px"
                     />
                     {vitalsErrors[key] && (
-                      <p className="text-xs text-red-500 mt-1">{vitalsErrors[key]}</p>
+                      <p className="text-xs text-[#900B09] mt-1">{vitalsErrors[key]}</p>
                     )}
                   </div>
                 ))}

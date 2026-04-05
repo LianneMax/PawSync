@@ -102,7 +102,7 @@ function SpeciesBadge({ species }: { species: string[] }) {
         <span
           key={s}
           className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
-            s === 'dog' ? 'bg-amber-100 text-amber-700' :
+            s === 'dog' ? 'bg-[#FFF5CB] text-[#DD9730]' :
             s === 'cat' ? 'bg-purple-100 text-purple-700' :
             'bg-teal-100 text-teal-700'
           }`}
@@ -305,7 +305,7 @@ export default function VaccineTypesPage() {
             <Loader className="w-6 h-6 text-[#7FA5A3] animate-spin" />
           </div>
         ) : error ? (
-          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+          <div className="flex items-center gap-3 bg-[#F4D3D2] rounded-xl p-4 text-[#900B09] text-sm">
             <AlertCircle className="w-5 h-5 shrink-0" />
             {error}
           </div>
@@ -405,7 +405,7 @@ export default function VaccineTypesPage() {
                 </div>
               )}
               {saveError && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">
+                <div className="flex items-center gap-2 bg-[#F4D3D2] rounded-xl p-3 text-[#900B09] text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {saveError}
                 </div>
@@ -414,7 +414,7 @@ export default function VaccineTypesPage() {
               {/* Name */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                  Vaccine Name <span className="text-red-400">*</span>
+                  Vaccine Name <span className="text-[#900B09]">*</span>
                 </label>
                 <input
                   type="text"
@@ -428,7 +428,7 @@ export default function VaccineTypesPage() {
               {/* Species */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                  Species <span className="text-red-400">*</span>
+                  Species <span className="text-[#900B09]">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {SPECIES_OPTIONS.map((s) => (
@@ -456,7 +456,7 @@ export default function VaccineTypesPage() {
               {/* Protection Duration */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                  Protection Duration <span className="text-red-400">*</span>
+                  Protection Duration <span className="text-[#900B09]">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {VALIDITY_OPTIONS.map((opt) => (
@@ -490,7 +490,7 @@ export default function VaccineTypesPage() {
                 <div className="grid grid-cols-2 gap-3 pl-2">
                   <div>
                     <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                      Total Doses in Series <span className="text-red-400">*</span>
+                      Total Doses in Series <span className="text-[#900B09]">*</span>
                     </label>
                     <input
                       type="number"
@@ -504,7 +504,7 @@ export default function VaccineTypesPage() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                      Interval Between Doses (days) <span className="text-red-400">*</span>
+                      Interval Between Doses (days) <span className="text-[#900B09]">*</span>
                     </label>
                     <input
                       type="number"
@@ -533,7 +533,7 @@ export default function VaccineTypesPage() {
               {form.boosterValid && (
                 <div className="pl-2">
                   <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-                    Booster Interval (days) <span className="text-red-400">*</span>
+                    Booster Interval (days) <span className="text-[#900B09]">*</span>
                   </label>
                   <input
                     type="number"

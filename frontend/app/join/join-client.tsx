@@ -28,7 +28,7 @@ export default function JoinClient() {
     return (
       <div className="min-h-screen bg-[#7FA5A3] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
-          <XCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
+          <XCircle className="w-14 h-14 text-[#900B09] mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">Invalid Link</h2>
           <p className="text-gray-500 text-sm">This invitation link is missing or malformed.</p>
         </div>
@@ -115,7 +115,7 @@ export default function JoinClient() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">First Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">First Name <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={firstName}
@@ -126,7 +126,7 @@ export default function JoinClient() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Last Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Last Name <span className="text-[#900B09]">*</span></label>
               <input
                 type="text"
                 value={lastName}
@@ -139,7 +139,7 @@ export default function JoinClient() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Password <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Password <span className="text-[#900B09]">*</span></label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -156,7 +156,7 @@ export default function JoinClient() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Confirm Password <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Confirm Password <span className="text-[#900B09]">*</span></label>
             <div className="relative">
               <input
                 type={showConfirm ? 'text' : 'password'}
@@ -173,13 +173,13 @@ export default function JoinClient() {
           </div>
 
           {(errorMessage || status === 'error') && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-              <p className="text-sm text-red-600">{errorMessage}</p>
+            <div className="bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-3">
+              <p className="text-sm text-[#900B09]">{errorMessage}</p>
               {status === 'error' && (
                 <button
                   type="button"
                   onClick={() => { setStatus('form'); setErrorMessage('') }}
-                  className="text-xs text-red-500 underline mt-1"
+                  className="text-xs text-[#900B09] underline mt-1"
                 >
                   Try again
                 </button>

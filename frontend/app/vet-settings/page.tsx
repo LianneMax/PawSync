@@ -260,11 +260,11 @@ export default function VetSettingsPage() {
                           setProfileErrors(prev => ({ ...prev, firstName: false }))
                         }}
                         className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                          profileErrors.firstName ? 'border-red-400' : 'border-gray-200'
+                          profileErrors.firstName ? 'border-[#900B09]/20' : 'border-gray-200'
                         }`}
                       />
                       {profileErrors.firstName && (
-                        <p className="text-xs text-red-500 mt-1">First name is required</p>
+                        <p className="text-xs text-[#900B09] mt-1">First name is required</p>
                       )}
                     </div>
 
@@ -280,11 +280,11 @@ export default function VetSettingsPage() {
                           setProfileErrors(prev => ({ ...prev, lastName: false }))
                         }}
                         className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                          profileErrors.lastName ? 'border-red-400' : 'border-gray-200'
+                          profileErrors.lastName ? 'border-[#900B09]/20' : 'border-gray-200'
                         }`}
                       />
                       {profileErrors.lastName && (
-                        <p className="text-xs text-red-500 mt-1">Last name is required</p>
+                        <p className="text-xs text-[#900B09] mt-1">Last name is required</p>
                       )}
                     </div>
                   </div>
@@ -303,14 +303,14 @@ export default function VetSettingsPage() {
                         setProfileErrors(prev => ({ ...prev, email: false, emailFormat: false }))
                       }}
                       className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                        profileErrors.email || profileErrors.emailFormat ? 'border-red-400' : 'border-gray-200'
+                        profileErrors.email || profileErrors.emailFormat ? 'border-[#900B09]/20' : 'border-gray-200'
                       }`}
                     />
                     {profileErrors.email && (
-                      <p className="text-xs text-red-500 mt-1">Email is required</p>
+                      <p className="text-xs text-[#900B09] mt-1">Email is required</p>
                     )}
                     {profileErrors.emailFormat && (
-                      <p className="text-xs text-red-500 mt-1">Please enter a valid email</p>
+                      <p className="text-xs text-[#900B09] mt-1">Please enter a valid email</p>
                     )}
                   </div>
 
@@ -365,11 +365,11 @@ export default function VetSettingsPage() {
                         setPasswordErrors(prev => ({ ...prev, currentPassword: false }))
                       }}
                       className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                        passwordErrors.currentPassword ? 'border-red-400' : 'border-gray-200'
+                        passwordErrors.currentPassword ? 'border-[#900B09]/20' : 'border-gray-200'
                       }`}
                     />
                     {passwordErrors.currentPassword && (
-                      <p className="text-xs text-red-500 mt-1">Current password is required</p>
+                      <p className="text-xs text-[#900B09] mt-1">Current password is required</p>
                     )}
                   </div>
 
@@ -386,14 +386,14 @@ export default function VetSettingsPage() {
                         setPasswordErrors(prev => ({ ...prev, newPassword: false, newPasswordLength: false }))
                       }}
                       className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                        passwordErrors.newPassword || passwordErrors.newPasswordLength ? 'border-red-400' : 'border-gray-200'
+                        passwordErrors.newPassword || passwordErrors.newPasswordLength ? 'border-[#900B09]/20' : 'border-gray-200'
                       }`}
                     />
                     {passwordErrors.newPassword && (
-                      <p className="text-xs text-red-500 mt-1">New password is required</p>
+                      <p className="text-xs text-[#900B09] mt-1">New password is required</p>
                     )}
                     {passwordErrors.newPasswordLength && (
-                      <p className="text-xs text-red-500 mt-1">Password must be at least 6 characters</p>
+                      <p className="text-xs text-[#900B09] mt-1">Password must be at least 6 characters</p>
                     )}
                   </div>
 
@@ -410,14 +410,14 @@ export default function VetSettingsPage() {
                         setPasswordErrors(prev => ({ ...prev, confirmPassword: false, passwordMismatch: false }))
                       }}
                       className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                        passwordErrors.confirmPassword || passwordErrors.passwordMismatch ? 'border-red-400' : 'border-gray-200'
+                        passwordErrors.confirmPassword || passwordErrors.passwordMismatch ? 'border-[#900B09]/20' : 'border-gray-200'
                       }`}
                     />
                     {passwordErrors.confirmPassword && (
-                      <p className="text-xs text-red-500 mt-1">Please confirm your password</p>
+                      <p className="text-xs text-[#900B09] mt-1">Please confirm your password</p>
                     )}
                     {passwordErrors.passwordMismatch && (
-                      <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                      <p className="text-xs text-[#900B09] mt-1">Passwords do not match</p>
                     )}
                   </div>
                 </div>

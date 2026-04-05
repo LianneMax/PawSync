@@ -99,13 +99,13 @@ export default function VetVaccineSchedulePage() {
               <p className="text-xs text-blue-600 mt-1">vaccine{upcomingSchedule.length !== 1 ? 's' : ''}</p>
             </div>
 
-            <div className="bg-linear-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+            <div className="bg-linear-to-br from-[#F4D3D2] to-[#F4D3D2] rounded-2xl p-6 border border-[#900B09]/20">
               <div className="flex items-center gap-3 mb-2">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">Overdue</p>
+                <AlertCircle className="w-5 h-5 text-[#900B09]" />
+                <p className="text-xs font-semibold text-[#900B09] uppercase tracking-wide">Overdue</p>
               </div>
-              <p className="text-3xl font-bold text-red-700">{overdueVaccines.length}</p>
-              <p className="text-xs text-red-600 mt-1">need immediate attention</p>
+              <p className="text-3xl font-bold text-[#900B09]">{overdueVaccines.length}</p>
+              <p className="text-xs text-[#900B09] mt-1">need immediate attention</p>
             </div>
 
             <div className="bg-linear-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
@@ -145,8 +145,8 @@ export default function VetVaccineSchedulePage() {
               onClick={() => setFilterStatus('urgent')}
               className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
                 filterStatus === 'urgent'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-red-300'
+                  ? 'bg-[#F4D3D2] text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-[#900B09]/20'
               }`}
             >
               Urgent ({overdueVaccines.length + urgentVaccines.length})
@@ -211,7 +211,7 @@ export default function VetVaccineSchedulePage() {
                     const daysUntil = getDaysUntilDue(vaccine.nextDueDate);
                     const statusColor =
                       daysUntil <= 0
-                        ? 'bg-red-50 text-red-700'
+                        ? 'bg-[#F4D3D2] text-[#900B09]'
                         : daysUntil <= 7
                           ? 'bg-orange-50 text-orange-700'
                           : 'bg-blue-50 text-blue-700';

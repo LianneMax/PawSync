@@ -64,7 +64,7 @@ const STATUS_CONFIG: Record<DisplayStatus, { label: string; classes: string; ico
   },
   expired: {
     label: 'Expired',
-    classes: 'bg-red-50 text-red-700 border border-red-200',
+    classes: 'bg-[#F4D3D2] text-[#900B09]',
     icon: <AlertCircle className="w-3 h-3" />,
   },
   activated: {
@@ -90,7 +90,7 @@ function StatusBadge({ status }: { status: OwnerInviteStatus }) {
 }
 
 const canSendInvite = (status: OwnerInviteStatus) =>
-  status !== 'activated'
+  toDisplayStatus(status) === 'expired'
 
 // ==================== CREATE OWNER MODAL (3-step) ====================
 
@@ -140,7 +140,7 @@ function PetForm({
       {/* Species */}
       <div>
         <label className="block text-xs font-medium text-[#4F4F4F] mb-2">
-          Species <span className="text-red-500">*</span>
+          Species <span className="text-[#900B09]">*</span>
         </label>
         <div className="grid grid-cols-2 gap-3">
           {(['canine', 'feline'] as const).map((s) => (
@@ -150,7 +150,7 @@ function PetForm({
               onClick={() => updatePet('species', s)}
               className={`p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
                 petErrors.species && !pet.species
-                  ? 'border-red-400'
+                  ? 'border-[#900B09]/40'
                   : pet.species === s
                     ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                     : 'border-gray-200 hover:border-gray-300'
@@ -167,7 +167,7 @@ function PetForm({
             </button>
           ))}
         </div>
-        {petErrors.species && <p className="text-xs text-red-500 mt-1">Please select a species</p>}
+        {petErrors.species && <p className="text-xs text-[#900B09] mt-1">Please select a species</p>}
       </div>
 
       {/* Photo */}
@@ -198,9 +198,9 @@ function PetForm({
           placeholder="Pet name *"
           value={pet.name}
           onChange={(e) => updatePet('name', e.target.value)}
-          className={`w-full px-4 py-2.5 bg-gray-50 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${petErrors.name ? 'border-red-400' : 'border-gray-200'}`}
+          className={`w-full px-4 py-2.5 bg-gray-50 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${petErrors.name ? 'border-[#900B09]/40' : 'border-gray-200'}`}
         />
-        {petErrors.name && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+        {petErrors.name && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
       </div>
 
       {/* Breeds */}
@@ -219,7 +219,7 @@ function PetForm({
             placeholder="Primary Breed *"
             error={petErrors.breed}
           />
-          {petErrors.breed && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+          {petErrors.breed && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
         </div>
         <BreedCombobox
           species={pet.species}
@@ -243,7 +243,7 @@ function PetForm({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm flex items-center justify-between ${petErrors.sex ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm flex items-center justify-between ${petErrors.sex ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               >
                 <span className={pet.sex ? 'text-gray-900' : 'text-gray-400'}>
                   {pet.sex ? (pet.sex === 'male' ? 'Male' : 'Female') : 'Sex *'}
@@ -258,7 +258,7 @@ function PetForm({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          {petErrors.sex && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+          {petErrors.sex && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
         </div>
 
         <div>
@@ -266,7 +266,7 @@ function PetForm({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm flex items-center justify-between ${petErrors.sterilization ? 'border-red-400' : 'border-gray-200'}`}
+                className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm flex items-center justify-between ${petErrors.sterilization ? 'border-[#900B09]/40' : 'border-gray-200'}`}
               >
                 <span className={pet.sterilization ? 'text-gray-900' : 'text-gray-400'} style={{ fontSize: '12px' }}>
                   {pet.sterilization
@@ -294,7 +294,7 @@ function PetForm({
             </DropdownMenuContent>
           </DropdownMenu>
           {!pet.sex && <p className="text-xs text-gray-400 mt-1 ml-1">Select sex first</p>}
-          {petErrors.sterilization && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+          {petErrors.sterilization && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
         </div>
 
         <div>
@@ -303,9 +303,9 @@ function PetForm({
             placeholder="Weight (kg) *"
             value={pet.weight}
             onChange={(e) => updatePet('weight', e.target.value)}
-            className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${petErrors.weight ? 'border-red-400' : 'border-gray-200'}`}
+            className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${petErrors.weight ? 'border-[#900B09]/40' : 'border-gray-200'}`}
           />
-          {petErrors.weight && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+          {petErrors.weight && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
         </div>
       </div>
 
@@ -318,7 +318,7 @@ function PetForm({
           error={petErrors.dateOfBirth || petErrors.dateOfBirthFuture}
         />
         {petErrors.dateOfBirthFuture
-          ? <p className="text-xs text-red-500 mt-1 ml-1">Date of birth cannot be in the future</p>
+          ? <p className="text-xs text-[#900B09] mt-1 ml-1">Date of birth cannot be in the future</p>
           : <p className="text-xs text-gray-400 mt-1 ml-1">If unsure, enter an approximate date</p>}
       </div>
 
@@ -566,31 +566,31 @@ function CreateOwnerModal({ open, onClose, onCreated, token }: CreateOwnerModalP
           <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-[#4F4F4F] mb-1">First Name <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium text-[#4F4F4F] mb-1">First Name <span className="text-[#900B09]">*</span></label>
                 <input
                   type="text"
                   value={firstName}
                   onChange={(e) => { setFirstName(e.target.value); setOwnerErrors(p => ({ ...p, firstName: '' })) }}
                   placeholder="e.g. Maria"
-                  className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.firstName ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.firstName ? 'border-[#900B09]/40 bg-[#F4D3D2]' : 'border-gray-200'}`}
                 />
-                {ownerErrors.firstName && <p className="text-xs text-red-500 mt-1">{ownerErrors.firstName}</p>}
+                {ownerErrors.firstName && <p className="text-xs text-[#900B09] mt-1">{ownerErrors.firstName}</p>}
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#4F4F4F] mb-1">Last Name <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-medium text-[#4F4F4F] mb-1">Last Name <span className="text-[#900B09]">*</span></label>
                 <input
                   type="text"
                   value={lastName}
                   onChange={(e) => { setLastName(e.target.value); setOwnerErrors(p => ({ ...p, lastName: '' })) }}
                   placeholder="e.g. Santos"
-                  className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.lastName ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.lastName ? 'border-[#900B09]/40 bg-[#F4D3D2]' : 'border-gray-200'}`}
                 />
-                {ownerErrors.lastName && <p className="text-xs text-red-500 mt-1">{ownerErrors.lastName}</p>}
+                {ownerErrors.lastName && <p className="text-xs text-[#900B09] mt-1">{ownerErrors.lastName}</p>}
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#4F4F4F] mb-1">Email Address <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-[#4F4F4F] mb-1">Email Address <span className="text-[#900B09]">*</span></label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -598,10 +598,10 @@ function CreateOwnerModal({ open, onClose, onCreated, token }: CreateOwnerModalP
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setOwnerErrors(p => ({ ...p, email: '' })) }}
                   placeholder="client@email.com"
-                  className={`w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.email ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  className={`w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.email ? 'border-[#900B09]/40 bg-[#F4D3D2]' : 'border-gray-200'}`}
                 />
               </div>
-              {ownerErrors.email && <p className="text-xs text-red-500 mt-1">{ownerErrors.email}</p>}
+              {ownerErrors.email && <p className="text-xs text-[#900B09] mt-1">{ownerErrors.email}</p>}
             </div>
 
             <div>
@@ -615,10 +615,10 @@ function CreateOwnerModal({ open, onClose, onCreated, token }: CreateOwnerModalP
                   value={contactNumber}
                   onChange={(e) => { setContactNumber(e.target.value); setOwnerErrors(p => ({ ...p, contactNumber: '' })) }}
                   placeholder="e.g. 09171234567"
-                  className={`w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.contactNumber ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  className={`w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${ownerErrors.contactNumber ? 'border-[#900B09]/40 bg-[#F4D3D2]' : 'border-gray-200'}`}
                 />
               </div>
-              {ownerErrors.contactNumber && <p className="text-xs text-red-500 mt-1">{ownerErrors.contactNumber}</p>}
+              {ownerErrors.contactNumber && <p className="text-xs text-[#900B09] mt-1">{ownerErrors.contactNumber}</p>}
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -1028,10 +1028,10 @@ function ClientsPageContent() {
             <button
               onClick={handleResendAll}
               disabled={resendingAll}
-              className="flex items-center gap-2 px-4 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-full text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-60 whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-1.5 bg-[#FFF5CB] text-[#DD9730] rounded-full text-sm font-semibold hover:bg-[#fff0a8] transition-colors disabled:opacity-60 whitespace-nowrap"
             >
               {resendingAll
-                ? <div className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                ? <div className="w-3.5 h-3.5 border-2 border-[#900B09]/20 border-t-transparent rounded-full animate-spin" />
                 : <RefreshCw className="w-3.5 h-3.5" />}
               Resend All ({expiredCount})
             </button>

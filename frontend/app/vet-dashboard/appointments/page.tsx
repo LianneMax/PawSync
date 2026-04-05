@@ -26,7 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-blue-100 text-blue-700 border-blue-300',
   in_clinic: 'bg-cyan-100 text-cyan-700 border-cyan-300',
   in_progress: 'bg-indigo-100 text-indigo-700 border-indigo-300',
-  cancelled: 'bg-red-100 text-red-700 border-red-300',
+  cancelled: 'bg-[#F4D3D2] text-[#900B09] border-[#900B09]/20',
   completed: 'bg-green-100 text-green-700 border-green-300',
 }
 
@@ -311,7 +311,7 @@ export default function VetAppointmentsPage() {
                         {/* Types + status */}
                         <div className="flex flex-wrap gap-1 mb-1">
                           {appt.isEmergency && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F4D3D2] text-[#900B09] rounded-full text-xs font-medium">
                               <AlertCircle className="w-3 h-3" />
                               Emergency
                             </span>

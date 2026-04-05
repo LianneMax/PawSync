@@ -102,9 +102,9 @@ export default function NfcManagePage() {
 
             {/* Report Tag Lost */}
             {hasTag && (
-              <button className="w-full bg-white rounded-2xl border border-gray-200 p-6 text-left hover:bg-red-50 hover:border-red-200 transition-colors group">
+              <button className="w-full bg-white rounded-2xl border border-gray-200 p-6 text-left hover:bg-[#F4D3D2] hover:border-[#900B09]/20 transition-colors group">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                  <div className="w-12 h-12 bg-[#F4D3D2] rounded-xl flex items-center justify-center group-hover:bg-[#F4D3D2] transition-colors">
                     <AlertTriangle className="w-6 h-6 text-[#900B09]" />
                   </div>
                   <div>

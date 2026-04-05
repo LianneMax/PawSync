@@ -78,21 +78,21 @@ function VaccineStatus({ vax }: { vax: Vaccination }) {
           <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
             {expired ? 'Protection Ended' : 'Protected Until'}
           </p>
-          <p className={`text-xs font-bold ${expired ? 'text-[#983232]' : 'text-[#1a1a1a]'}`}>
+          <p className={`text-xs font-bold ${expired ? 'text-[#900B09]' : 'text-[#1a1a1a]'}`}>
             {formatMonthYear(expiry)}
           </p>
         </>
       ) : nextDue ? (
         <>
           <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Booster Due</p>
-          <p className={`text-xs font-bold ${isExpired(nextDue) ? 'text-[#983232]' : 'text-amber-600'}`}>
+          <p className={`text-xs font-bold ${isExpired(nextDue) ? 'text-[#900B09]' : 'text-amber-600'}`}>
             {formatMonthYear(nextDue)}
           </p>
         </>
       ) : (
         <>
           <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
-          <p className={`text-xs font-bold ${vax.status === 'overdue' ? 'text-[#983232]' : 'text-blue-500'}`}>
+          <p className={`text-xs font-bold ${vax.status === 'overdue' ? 'text-[#900B09]' : 'text-blue-500'}`}>
             {getStatusLabel(vax.status)}
           </p>
         </>
@@ -205,7 +205,7 @@ export default function VaccineCardPage() {
         <h1 className="text-xl font-bold text-[#4F4F4F] mb-5">Vaccine Card</h1>
 
         {error && (
-          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm mb-5">
+          <div className="flex items-center gap-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-4 text-[#900B09] text-sm mb-5">
             <AlertCircle className="w-5 h-5 shrink-0" />
             {error}
           </div>
@@ -413,7 +413,7 @@ function DetailRow({ label, value, highlight }: { label: string; value: string; 
     <div className="flex items-start justify-between gap-4">
       <p className="text-xs text-gray-400 shrink-0 w-36">{label}</p>
       <p className={`text-sm font-semibold text-right ${
-        highlight === 'red' ? 'text-red-500' : highlight === 'green' ? 'text-green-600' : 'text-[#1a1a1a]'
+        highlight === 'red' ? 'text-[#900B09]' : highlight === 'green' ? 'text-green-600' : 'text-[#1a1a1a]'
       }`}>
         {value}
       </p>

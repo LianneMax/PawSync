@@ -332,7 +332,7 @@ function ClinicMedicalRecordFormInner() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
+          <div className="mb-4 p-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl text-[#900B09] text-sm">{error}</div>
         )}
         {success && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
@@ -480,7 +480,7 @@ function ClinicMedicalRecordFormInner() {
                       placeholder={placeholder}
                       value={String(vitals[key]?.value ?? '')}
                       onChange={(e) => handleVitalChange(key, 'value', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                     />
                     <input
                       type="text"
@@ -490,7 +490,7 @@ function ClinicMedicalRecordFormInner() {
                       className="w-full px-3 py-1.5 border-x border-b border-gray-200 rounded-b-lg text-xs text-gray-500 focus:outline-none focus:border-[#476B6B] -mt-px"
                     />
                     {vitalsErrors[key] && (
-                      <p className="text-xs text-red-500 mt-1">{vitalsErrors[key]}</p>
+                      <p className="text-xs text-[#900B09] mt-1">{vitalsErrors[key]}</p>
                     )}
                   </div>
                 ))}
@@ -525,7 +525,7 @@ function ClinicMedicalRecordFormInner() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+              <label className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
                 <EyeOff className="w-3 h-3" />
                 Internal Notes <span className="text-gray-400">(private — not visible to pet owner)</span>
               </label>

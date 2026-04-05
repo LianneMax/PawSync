@@ -159,7 +159,7 @@ export default function BillingViewModal({
         onClick={onClose}
       >
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 text-center">
-          <p className="text-red-500 text-sm">Failed to load billing details.</p>
+          <p className="text-[#900B09] text-sm">Failed to load billing details.</p>
           <button
             onClick={onClose}
             className="mt-4 px-6 py-2 bg-[#3D5E5C] text-white rounded-xl text-sm"
@@ -284,7 +284,7 @@ export default function BillingViewModal({
             {billing.discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Discount</span>
-                <span className="text-red-500 font-medium">-₱{billing.discount.toLocaleString()}</span>
+                <span className="text-[#900B09] font-medium">-₱{billing.discount.toLocaleString()}</span>
               </div>
             )}
             <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold">

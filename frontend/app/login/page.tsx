@@ -471,7 +471,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} noValidate>
               {/* Error Message */}
               {error && (
-                <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+                <div className="mb-4 p-4 bg-[#F4D3D2] border border-[#900B09]/20 text-[#900B09] rounded-xl">
                   {error}
                 </div>
               )}
@@ -487,10 +487,10 @@ export default function LoginPage() {
                     placeholder="Email"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })) }}
-                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.email ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    className={`w-full pl-12 pr-4 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.email ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                 </div>
-                {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.email}</p>}
+                {fieldErrors.email && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.email}</p>}
               </div>
 
               {/* Password Input */}
@@ -504,7 +504,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })) }}
-                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.password ? 'border-red-400' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
+                    className={`w-full pl-12 pr-12 py-4 bg-gray-100 rounded-xl border-2 ${fieldErrors.password ? 'border-[#900B09]/20' : 'border-transparent'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all`}
                   />
                   <button
                     type="button"
@@ -514,7 +514,7 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {fieldErrors.password && <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.password}</p>}
+                {fieldErrors.password && <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.password}</p>}
               </div>
 
               {/* Remember Me & Forgot Password */}
@@ -748,7 +748,7 @@ export default function LoginPage() {
                 <div className="flex gap-4 items-start">
                   <div className="flex-1">
                     {modalError && (
-                      <p className="text-red-500 text-sm mb-2">{modalError}</p>
+                      <p className="text-[#900B09] text-sm mb-2">{modalError}</p>
                     )}
 
                     {/* Email fieldset */}
@@ -816,7 +816,7 @@ export default function LoginPage() {
                 </p>
 
                 {modalError && (
-                  <p className="text-red-500 text-sm mb-3">{modalError}</p>
+                  <p className="text-[#900B09] text-sm mb-3">{modalError}</p>
                 )}
 
                 {/* OTP Inputs */}
@@ -873,7 +873,7 @@ export default function LoginPage() {
                 </p>
 
                 {modalError && (
-                  <p className="text-red-500 text-sm mb-3">{modalError}</p>
+                  <p className="text-[#900B09] text-sm mb-3">{modalError}</p>
                 )}
 
                 {/* New Password fieldset */}

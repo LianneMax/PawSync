@@ -344,10 +344,10 @@ function NewMedicalRecordPage() {
                             value={vitals[row.key].value}
                             onChange={(e) => handleVitalValue(row.key, e.target.value)}
                             placeholder={row.placeholder}
-                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#7FA5A3] transition-colors ${vitalsErrors[row.key] ? 'border-red-400' : 'border-gray-200'}`}
+                            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#7FA5A3] transition-colors ${vitalsErrors[row.key] ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                           />
                           {vitalsErrors[row.key] && (
-                            <p className="text-xs text-red-500 mt-1">{vitalsErrors[row.key]}</p>
+                            <p className="text-xs text-[#900B09] mt-1">{vitalsErrors[row.key]}</p>
                           )}
                         </>
                       ) : (
@@ -430,7 +430,7 @@ function NewMedicalRecordPage() {
                     />
                     <button
                       onClick={() => removeImage(img.id)}
-                      className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                      className="absolute top-2 right-2 w-7 h-7 bg-[#F4D3D2] text-white rounded-full flex items-center justify-center hover:bg-[#F4D3D2] transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>

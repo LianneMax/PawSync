@@ -108,7 +108,7 @@ function SpeciesBadge({ species }: { species: string[] }) {
     : species.map((s) => ({
         key: s,
         label: SPECIES_LABEL[s] ?? s,
-        cls: s === 'dog' ? 'bg-amber-100 text-amber-700' : s === 'cat' ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700',
+        cls: s === 'dog' ? 'bg-[#FFF5CB] text-[#DD9730]' : s === 'cat' ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700',
       }))
   return (
     <div className="flex gap-1 flex-wrap">
@@ -493,7 +493,7 @@ export default function ClinicAdminVaccinationsPage() {
                         </div>
                         <p className="text-sm text-gray-700 font-medium">{v.vaccineName}</p>
                         <p className="text-xs text-gray-400 mt-1">Given: {formatDate(v.dateAdministered)} · Expires: {formatDate(v.expiryDate)}</p>
-                        {v.nextDueDate && <p className="text-xs text-amber-500 font-medium mt-0.5">Booster Due: {formatDate(v.nextDueDate)}</p>}
+                        {v.nextDueDate && <p className="text-xs text-[#DD9730] font-medium mt-0.5">Booster Due: {formatDate(v.nextDueDate)}</p>}
                       </div>
 
                       {/* Desktop row */}
@@ -517,7 +517,7 @@ export default function ClinicAdminVaccinationsPage() {
                           {formatDate(v.dateAdministered)}
                         </div>
                         <p className="text-xs text-gray-500">{formatDate(v.expiryDate)}</p>
-                        <p className="text-xs text-amber-500 font-medium">{v.nextDueDate ? formatDate(v.nextDueDate) : '—'}</p>
+                        <p className="text-xs text-[#DD9730] font-medium">{v.nextDueDate ? formatDate(v.nextDueDate) : '—'}</p>
                         <span className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getStatusClasses(v.status)}`}>
                           {getStatusLabel(v.status)}
                         </span>
@@ -538,7 +538,7 @@ export default function ClinicAdminVaccinationsPage() {
                 <Loader className="w-6 h-6 text-[#7FA5A3] animate-spin" />
               </div>
             ) : typesError ? (
-              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+              <div className="flex items-center gap-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-4 text-[#900B09] text-sm">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 {typesError}
               </div>
@@ -578,7 +578,7 @@ export default function ClinicAdminVaccinationsPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => setDeleteTypeTarget(vt)}
-                        className="p-2 rounded-xl hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                        className="p-2 rounded-xl hover:bg-[#F4D3D2] text-gray-300 hover:text-[#900B09] transition-colors"
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -618,8 +618,8 @@ export default function ClinicAdminVaccinationsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-red-500" />
+              <div className="w-10 h-10 bg-[#F4D3D2] rounded-xl flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-[#900B09]" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-[#4F4F4F]">Delete Vaccine Type</h2>
@@ -640,7 +640,7 @@ export default function ClinicAdminVaccinationsPage() {
               <button
                 onClick={handleDeleteVaccineType}
                 disabled={deletingType}
-                className="px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium bg-[#F4D3D2] text-white rounded-xl hover:bg-[#F4D3D2] transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {deletingType && <Loader className="w-4 h-4 animate-spin" />}
                 Delete
@@ -666,7 +666,7 @@ export default function ClinicAdminVaccinationsPage() {
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                  Vaccine Name <span className="text-red-500">*</span>
+                  Vaccine Name <span className="text-[#900B09]">*</span>
                 </label>
                 <input
                   type="text"
@@ -699,7 +699,7 @@ export default function ClinicAdminVaccinationsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                  Protection Duration <span className="text-red-500">*</span>
+                  Protection Duration <span className="text-[#900B09]">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {VALIDITY_OPTIONS.map((opt) => (
@@ -860,7 +860,7 @@ export default function ClinicAdminVaccinationsPage() {
 
               {form.boosterValid && (
                 <div>
-                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Booster Interval (days) <span className="text-red-400">*</span></label>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Booster Interval (days) <span className="text-[#900B09]">*</span></label>
                   <input
                     type="number" min="1" value={form.boosterIntervalDays}
                     onChange={(e) => setForm((p) => ({ ...p, boosterIntervalDays: e.target.value }))}
@@ -932,7 +932,7 @@ export default function ClinicAdminVaccinationsPage() {
               </div>
 
               {saveError && (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <div className="flex items-center gap-2 p-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl text-[#900B09] text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />{saveError}
                 </div>
               )}

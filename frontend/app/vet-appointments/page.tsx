@@ -55,7 +55,7 @@ const statusColors: Record<string, { bg: string; text: string; border: string; d
   in_clinic: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500', dot: 'bg-blue-500' },
   in_progress: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500', dot: 'bg-indigo-500' },
   completed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500', dot: 'bg-blue-500' },
-  cancelled: { bg: 'bg-[#F4D3D2]', text: 'text-[#983232]', border: 'border-l-[#983232]', dot: 'bg-[#983232]' },
+  cancelled: { bg: 'bg-[#F4D3D2]', text: 'text-[#900B09]', border: 'border-l-[#900B09]', dot: 'bg-[#900B09]' },
 }
 
 // ==================== HELPERS ====================
@@ -388,8 +388,8 @@ export default function VetAppointmentsPage() {
         
         toast(
           <div className="flex gap-2">
-            <div className="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-              <X className="w-4 h-4 text-red-600" />
+            <div className="shrink-0 w-8 h-8 rounded-full bg-[#F4D3D2] flex items-center justify-center">
+              <X className="w-4 h-4 text-[#900B09]" />
             </div>
             <div className="flex-1">
               <p className="font-medium">Appointment Cancelled</p>
@@ -561,10 +561,10 @@ export default function VetAppointmentsPage() {
                       style={{ top: `calc(${timelinePercentage}%)` }}
                     >
                       <div className="relative flex items-center">
-                        <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
+                        <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-[#900B09] bg-white leading-none">
                           {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                         </span>
-                        <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
+                        <div className="flex-1 h-0.5 bg-[#F4D3D2] shadow-sm" />
                       </div>
                     </div>
                   )}
@@ -641,7 +641,7 @@ export default function VetAppointmentsPage() {
                                         ) : null
                                       })()}
                                       {appt.isEmergency && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 font-medium">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-[#F4D3D2] text-[#900B09] font-medium">
                                           <AlertCircle className="w-3 h-3" /> Emergency
                                         </span>
                                       )}
@@ -684,7 +684,7 @@ export default function VetAppointmentsPage() {
                                       {appt.status !== 'in_clinic' && appt.status !== 'in_progress' && (
                                         <button
                                           onClick={() => handleCancel(appt._id)}
-                                          className="px-3 py-1 text-[10px] font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                                          className="px-3 py-1 text-[10px] font-medium rounded-lg border border-[#900B09]/20 text-[#900B09] hover:bg-[#F4D3D2] transition-colors"
                                         >
                                           Cancel
                                         </button>
@@ -756,9 +756,9 @@ export default function VetAppointmentsPage() {
                           onClick={() => setCalendarDate(dateStr)}
                           className={`w-8 h-8 rounded-full text-xs font-medium transition-all flex items-center justify-center
                             ${isSelected
-                              ? isLeave ? 'bg-red-400 text-white' : 'bg-[#7FA5A3] text-white'
+                              ? isLeave ? 'bg-[#F4D3D2] text-white' : 'bg-[#7FA5A3] text-white'
                               : isLeave
-                              ? 'bg-red-50 text-red-500 ring-1 ring-red-200'
+                              ? 'bg-[#F4D3D2] text-[#900B09] ring-1 ring-[#900B09]/30'
                               : isToday
                               ? 'bg-[#7FA5A3]/15 text-[#476B6B] font-bold'
                               : 'text-[#4F4F4F] hover:bg-gray-100'
@@ -770,7 +770,7 @@ export default function VetAppointmentsPage() {
                           <div className="w-1 h-1 rounded-full bg-[#7FA5A3] mt-0.5" />
                         )}
                         {isLeave && !isSelected && (
-                          <div className="w-1 h-1 rounded-full bg-red-400 mt-0.5" />
+                          <div className="w-1 h-1 rounded-full bg-[#F4D3D2] mt-0.5" />
                         )}
                       </div>
                     )
@@ -890,7 +890,7 @@ export default function VetAppointmentsPage() {
                         <div key={leave._id} className="flex items-start justify-between gap-2 pb-2 border-b border-gray-100 last:border-b-0 last:pb-0">
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#F4D3D2] shrink-0" />
                               <p className="text-xs font-medium text-[#4F4F4F] truncate">{dateLabel}</p>
                             </div>
                             {leave.affectedAppointmentCount > 0 && (
@@ -905,7 +905,7 @@ export default function VetAppointmentsPage() {
                           <button
                             onClick={() => handleCancelLeave(leave._id)}
                             disabled={cancellingLeaveId === leave._id}
-                            className="shrink-0 p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                            className="shrink-0 p-1 rounded-lg hover:bg-[#F4D3D2] text-gray-400 hover:text-[#900B09] transition-colors disabled:opacity-40"
                             title="Cancel leave"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -1028,7 +1028,7 @@ export default function VetAppointmentsPage() {
           <DialogTitle className="sr-only">Cancel Appointment</DialogTitle>
           <div className="p-6">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 bg-[#FEE2E2] rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-[#F4D3D2] rounded-full flex items-center justify-center">
                 <X className="w-6 h-6 text-[#900B09]" />
               </div>
             </div>

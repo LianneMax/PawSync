@@ -474,7 +474,7 @@ export default function PetProfilePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-lg text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <AlertCircle className="w-12 h-12 text-[#900B09] mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Pet Not Found</h1>
           <p className="text-gray-600">{error || 'This pet profile could not be found.'}</p>
         </div>
@@ -640,7 +640,7 @@ export default function PetProfilePage() {
               </span>
             )}
             {vaccinationStatus === 'overdue' && (
-              <span className="text-xs font-semibold text-red-700 bg-red-100 border border-red-200 px-3 py-1 rounded-full">
+              <span className="text-xs font-semibold text-[#900B09] bg-[#F4D3D2] border border-[#900B09]/20 px-3 py-1 rounded-full">
                 Overdue
               </span>
             )}
@@ -695,7 +695,7 @@ export default function PetProfilePage() {
                               <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
                                 {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
                               </p>
-                              <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
+                              <p className={`text-[14px] font-normal ${isNegative ? 'text-[#900B09]' : 'text-[#4F4F4F]'}`}>
                                 {formatMonthYear(dateToShow)}
                               </p>
                             </div>
@@ -1038,7 +1038,7 @@ export default function PetProfilePage() {
               />
             </div>
 
-            <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
+            <div className="bg-[#F4D3D2] border border-[#900B09] rounded-xl p-3 flex gap-2.5">
               <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
               <p className="text-xs text-[#900B09]">
                 Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.

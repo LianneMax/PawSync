@@ -467,7 +467,7 @@ function ProductItemRow({
       </td>
       <td className="px-4 py-3 text-sm text-[#4F4F4F]">Php {item.price.toLocaleString()}</td>
       <td className="px-4 py-3">
-        <button onClick={() => onRemove(item._id)} className="text-gray-400 hover:text-red-500 transition-colors">
+        <button onClick={() => onRemove(item._id)} className="text-gray-400 hover:text-[#900B09] transition-colors">
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M9 9l6 6M15 9l-6 6" />
@@ -884,7 +884,7 @@ function CreateBillingModal({
                 </div>
                 <div className="flex justify-between text-sm mb-3">
                   <span className="text-gray-500">Discount</span>
-                  <span className="text-red-500 font-medium">-₱ {discount.toLocaleString()}</span>
+                  <span className="text-[#900B09] font-medium">-₱ {discount.toLocaleString()}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between text-sm font-semibold">
                   <span className="text-[#4F4F4F]">Total Amount Due</span>
@@ -1091,8 +1091,8 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {error && (
-          <div className="mx-8 mb-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-500 text-xs">{error}</p>
+          <div className="mx-8 mb-3 px-4 py-2 bg-[#F4D3D2] border border-[#900B09]/20 rounded-lg">
+            <p className="text-[#900B09] text-xs">{error}</p>
           </div>
         )}
 
@@ -1143,7 +1143,7 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
                         {editPreview && (
                           <button
                             onClick={() => { setEditImageData(null); setEditPreview(null) }}
-                            className="mt-1 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                            className="mt-1 text-xs text-gray-400 hover:text-[#900B09] transition-colors"
                           >
                             Remove image
                           </button>
@@ -1212,7 +1212,7 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
                         <button
                           onClick={() => handleDelete(item._id)}
                           disabled={deletingId === item._id}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          className="p-2 text-gray-400 hover:text-[#900B09] hover:bg-[#F4D3D2] rounded-lg transition-colors disabled:opacity-50"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1229,7 +1229,7 @@ function ViewQRsModal({ onClose }: { onClose: () => void }) {
 
       {previewItem && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setPreviewItem(null) }}
         >
           <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6">
@@ -1402,14 +1402,14 @@ function UploadQRModal({ onClose }: { onClose: () => void }) {
             {preview && (
               <button
                 onClick={() => { setImageData(null); setPreview(null) }}
-                className="mt-2 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                className="mt-2 text-xs text-gray-400 hover:text-[#900B09] transition-colors"
               >
                 Remove image
               </button>
             )}
           </div>
 
-          {error && <p className="text-red-500 text-xs">{error}</p>}
+          {error && <p className="text-[#900B09] text-xs">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-7">
@@ -1608,7 +1608,7 @@ function ViewBillingModal({
             {billing.discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Discount</span>
-                <span className="text-red-500 font-medium">-₱{billing.discount.toLocaleString()}</span>
+                <span className="text-[#900B09] font-medium">-₱{billing.discount.toLocaleString()}</span>
               </div>
             )}
             <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold">
@@ -1879,7 +1879,7 @@ function PayNowModal({
               </div>
             )}
 
-            {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+            {error && <p className="text-[#900B09] text-xs mb-3">{error}</p>}
 
             <div className="flex gap-3">
               <button
@@ -1929,7 +1929,7 @@ function PayNowModal({
             {/* Screenshot upload */}
             <div className="mb-5">
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">
-                Upload Payment Screenshot <span className="text-red-500">*</span>
+                Upload Payment Screenshot <span className="text-[#900B09]">*</span>
               </label>
               <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#7FA5A3] hover:bg-gray-50 transition-all p-4">
                 {screenshotPreview ? (
@@ -1946,14 +1946,14 @@ function PayNowModal({
               {screenshotPreview && (
                 <button
                   onClick={() => { setScreenshot(null); setScreenshotPreview(null) }}
-                  className="mt-1 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                  className="mt-1 text-xs text-gray-400 hover:text-[#900B09] transition-colors"
                 >
                   Remove
                 </button>
               )}
             </div>
 
-            {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+            {error && <p className="text-[#900B09] text-xs mb-3">{error}</p>}
 
             <div className="flex gap-3">
               <button
@@ -1999,7 +1999,7 @@ function PayNowModal({
 
       {previewItem && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setPreviewItem(null) }}
         >
           <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6">
@@ -2235,7 +2235,7 @@ function MarkAsPaidModal({
             </div>
           )}
 
-          {error && <p className="text-red-500 text-xs">{error}</p>}
+          {error && <p className="text-[#900B09] text-xs">{error}</p>}
         </div>
 
         <div className="flex gap-3 mt-7">
@@ -2372,7 +2372,7 @@ function ApproveQRPaymentModal({
             )}
           </div>
 
-          {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+          {error && <p className="text-[#900B09] text-xs mb-3">{error}</p>}
 
           <div className="flex gap-3">
             <button
@@ -2385,7 +2385,7 @@ function ApproveQRPaymentModal({
             <button
               onClick={handleReject}
               disabled={submitting}
-              className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+              className="flex-1 bg-[#F4D3D2] hover:bg-[#F4D3D2] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
             >
               {submitting && action === 'reject' ? 'Rejecting…' : 'Reject'}
             </button>
@@ -2626,7 +2626,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
               className="w-full h-11 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
             />
           </div>
-          <div className="flex items-center gap-3 min-w-[420px] justify-end">
+          <div className="flex items-center gap-3 min-w-105 justify-end">
             <div className="w-48 flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500 shrink-0">From</span>
               <DatePicker
@@ -2652,7 +2652,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-200 min-h-[520px]">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 min-h-130">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>

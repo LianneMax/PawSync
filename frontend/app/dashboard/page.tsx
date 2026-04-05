@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -447,9 +447,9 @@ function PetDetailModal({
             <div className="border border-gray-200 rounded-xl p-4">
               <p className="font-semibold text-[#4F4F4F] text-sm">NFC Tag Status</p>
               <p className="text-xs text-gray-400 mb-3">Tag ID: {pet.nfcTagId}</p>
-              <div className={`rounded-lg p-3 mb-3 ${pet.isLost ? 'bg-red-50' : 'bg-[#F8F6F2]'}`}>
+              <div className={`rounded-lg p-3 mb-3 ${pet.isLost ? 'bg-[#F4D3D2]' : 'bg-[#F8F6F2]'}`}>
                 <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${pet.isLost ? 'bg-red-500' : 'bg-[#679D82] animate-pulse'}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full ${pet.isLost ? 'bg-[#F4D3D2]' : 'bg-[#679D82] animate-pulse'}`} />
                   <p className="text-sm font-medium text-[#4F4F4F]">
                     {pet.isLost ? 'LOST - Showing Lost Pet Alert' : 'Normal - Showing Pet Profile'}
                   </p>
@@ -570,7 +570,7 @@ function PetDetailModal({
             )}
             {!isDeceased && (
               <button
-                className="w-full border border-red-200 rounded-xl p-4 text-left hover:bg-red-50 transition-colors flex items-center justify-between"
+                className="w-full border border-[#900B09]/20 rounded-xl p-4 text-left hover:bg-[#F4D3D2] transition-colors flex items-center justify-between"
                 onClick={() => onRemovePet(pet)}
               >
                 <div>
@@ -763,7 +763,7 @@ function ReportLostPetModal({
           </div>
 
           {/* Warning */}
-          <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-3 flex gap-2.5">
+          <div className="bg-[#F4D3D2] border border-[#900B09] rounded-xl p-3 flex gap-2.5">
             <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
             <p className="text-xs text-[#900B09]">
               Marking as lost will update your pet&apos;s NFC tag. Anyone who scans it will see a lost pet alert and can share their location with you.
@@ -1009,8 +1009,8 @@ function RemovePetModal({
 
         {/* Info Box */}
         {!billingBlocked && (
-          <div className="bg-[#F4D3D2] border border-[#CC6462] rounded-xl p-4 mb-4">
-            <p className="text-sm font-semibold text-[#B71C1C] mb-2">
+          <div className="bg-[#F4D3D2] border border-[#900B09] rounded-xl p-4 mb-4">
+            <p className="text-sm font-semibold text-[#900B09] mb-2">
               This action cannot be undone
             </p>
             <p className="text-xs text-[#4F4F4F] leading-relaxed">
@@ -1118,8 +1118,8 @@ function RemovePetModal({
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-3 mb-4">
+            <p className="text-sm text-[#900B09]">{error}</p>
           </div>
         )}
 
@@ -1572,7 +1572,7 @@ export default function DashboardPage() {
                           : appt.status === 'PENDING'
                             ? 'bg-yellow-100 text-yellow-700'
                             : appt.status === 'CANCELLED'
-                              ? 'bg-red-100 text-red-700'
+                              ? 'bg-[#F4D3D2] text-[#900B09]'
                               : 'bg-gray-100 text-gray-600'
                     }`}
                   >

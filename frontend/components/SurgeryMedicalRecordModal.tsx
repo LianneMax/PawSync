@@ -177,7 +177,7 @@ export default function SurgeryMedicalRecordModal({
             {/* Surgery Type */}
             <div>
               <label className="text-sm font-semibold text-[#2C3E2D] mb-2 block">
-                Surgery Type <span className="text-red-500">*</span>
+                Surgery Type <span className="text-[#900B09]">*</span>
               </label>
               {loading ? (
                 <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm text-gray-400">
@@ -237,7 +237,7 @@ export default function SurgeryMedicalRecordModal({
                         <button
                           type="button"
                           onClick={() => removeImage(img.type)}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-[#F4D3D2] text-white flex items-center justify-center hover:bg-[#F4D3D2] transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>

@@ -244,7 +244,7 @@ function ForgotPasswordModal({
                 placeholder="your@email.com"
               />
             </div>
-            {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+            {error && <p className="text-[#900B09] text-xs mt-2">{error}</p>}
             <button
               onClick={handleSendOtp}
               disabled={loading}
@@ -292,7 +292,7 @@ function ForgotPasswordModal({
                 </button>
               )}
             </div>
-            {error && <p className="text-red-500 text-xs mb-3 text-center">{error}</p>}
+            {error && <p className="text-[#900B09] text-xs mb-3 text-center">{error}</p>}
             <button
               onClick={handleVerifyOtp}
               disabled={loading || otp.join('').length < 6}
@@ -348,7 +348,7 @@ function ForgotPasswordModal({
                 </div>
               </div>
             </div>
-            {error && <p className="text-red-500 text-xs mt-3">{error}</p>}
+            {error && <p className="text-[#900B09] text-xs mt-3">{error}</p>}
             <button
               onClick={handleResetPassword}
               disabled={loading}
@@ -645,7 +645,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                     <button
                       type="button"
                       onClick={() => setPendingPhoto(null)}
-                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                      className="text-xs text-gray-400 hover:text-[#900B09] transition-colors"
                     >
                       Cancel
                     </button>
@@ -667,7 +667,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       : resignationStatus === 'pending'
                         ? 'bg-amber-100 text-amber-700'
                         : resignationStatus === 'rejected'
-                          ? 'bg-red-100 text-red-700'
+                          ? 'bg-[#F4D3D2] text-[#900B09]'
                           : 'bg-gray-100 text-gray-600'
                   }`}>
                     {resignationStatus === 'approved'
@@ -712,9 +712,9 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       type="text"
                       value={firstName}
                       onChange={(e) => { setFirstName(e.target.value); setProfileErrors((p) => ({ ...p, firstName: '' })) }}
-                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.firstName ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.firstName ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                     />
-                    {profileErrors.firstName && <p className="text-red-500 text-xs mt-1">{profileErrors.firstName}</p>}
+                    {profileErrors.firstName && <p className="text-[#900B09] text-xs mt-1">{profileErrors.firstName}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Last Name</label>
@@ -722,9 +722,9 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       type="text"
                       value={lastName}
                       onChange={(e) => { setLastName(e.target.value); setProfileErrors((p) => ({ ...p, lastName: '' })) }}
-                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.lastName ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.lastName ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                     />
-                    {profileErrors.lastName && <p className="text-red-500 text-xs mt-1">{profileErrors.lastName}</p>}
+                    {profileErrors.lastName && <p className="text-[#900B09] text-xs mt-1">{profileErrors.lastName}</p>}
                   </div>
                 </div>
 
@@ -737,9 +737,9 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                     type="email"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setProfileErrors((p) => ({ ...p, email: '' })) }}
-                    className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.email ? 'border-red-400' : 'border-gray-200'}`}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.email ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                   />
-                  {profileErrors.email && <p className="text-red-500 text-xs mt-1">{profileErrors.email}</p>}
+                  {profileErrors.email && <p className="text-[#900B09] text-xs mt-1">{profileErrors.email}</p>}
                 </div>
 
                 <div>
@@ -752,7 +752,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                     onChange={(phone) => { setContactNumber(phone); setProfileErrors((p) => ({ ...p, contactNumber: '' })) }}
                     placeholder="Enter phone number"
                   />
-                  {profileErrors.contactNumber && <p className="text-red-500 text-xs mt-1">{profileErrors.contactNumber}</p>}
+                  {profileErrors.contactNumber && <p className="text-[#900B09] text-xs mt-1">{profileErrors.contactNumber}</p>}
                   <p className="text-xs text-gray-400 mt-2">Philippine mobile number (e.g. 9XX XXX XXXX)</p>
                 </div>
               </div>
@@ -786,7 +786,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       type={showCurrent ? 'text' : 'password'}
                       value={currentPassword}
                       onChange={(e) => { setCurrentPassword(e.target.value); setPasswordErrors((p) => ({ ...p, currentPassword: '' })) }}
-                      className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${passwordErrors.currentPassword ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${passwordErrors.currentPassword ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                       placeholder="Enter current password"
                     />
                     <button
@@ -797,7 +797,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {passwordErrors.currentPassword && <p className="text-red-500 text-xs mt-1">{passwordErrors.currentPassword}</p>}
+                  {passwordErrors.currentPassword && <p className="text-[#900B09] text-xs mt-1">{passwordErrors.currentPassword}</p>}
                 </div>
 
                 {/* New Password */}
@@ -808,7 +808,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       type={showNew ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => { setNewPassword(e.target.value); setPasswordErrors((p) => ({ ...p, newPassword: '' })) }}
-                      className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${passwordErrors.newPassword ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${passwordErrors.newPassword ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                       placeholder="At least 6 characters"
                     />
                     <button
@@ -819,7 +819,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {passwordErrors.newPassword && <p className="text-red-500 text-xs mt-1">{passwordErrors.newPassword}</p>}
+                  {passwordErrors.newPassword && <p className="text-[#900B09] text-xs mt-1">{passwordErrors.newPassword}</p>}
                 </div>
 
                 {/* Confirm Password */}
@@ -830,7 +830,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       type={showConfirm ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => { setConfirmPassword(e.target.value); setPasswordErrors((p) => ({ ...p, confirmPassword: '' })) }}
-                      className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${passwordErrors.confirmPassword ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full px-4 py-3 pr-11 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${passwordErrors.confirmPassword ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                       placeholder="Repeat new password"
                     />
                     <button
@@ -841,7 +841,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                       {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {passwordErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{passwordErrors.confirmPassword}</p>}
+                  {passwordErrors.confirmPassword && <p className="text-[#900B09] text-xs mt-1">{passwordErrors.confirmPassword}</p>}
                 </div>
               </div>
 

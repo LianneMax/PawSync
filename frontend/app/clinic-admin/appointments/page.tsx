@@ -77,11 +77,11 @@ const appointmentModes = [
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
   confirmed: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
-  pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500' },
+  pending: { bg: 'bg-[#FFF5CB]', text: 'text-[#DD9730]', border: 'border-l-[#DD9730]' },
   in_clinic: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
   in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-l-purple-500' },
   completed: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-l-gray-400' },
-  cancelled: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-l-red-500' },
+  cancelled: { bg: 'bg-[#F4D3D2]', text: 'text-[#900B09]', border: 'border-l-[#900B09]' },
 }
 
 // ==================== HELPERS ====================
@@ -480,10 +480,10 @@ function CalendarGridView({
                   style={{ top: `calc(${timelinePercentage}%)` }}
                 >
                   <div className="relative flex items-center">
-                    <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
+                    <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-[#900B09] bg-white leading-none">
                       {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}
                     </span>
-                    <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
+                    <div className="flex-1 h-0.5 bg-[#F4D3D2] shadow-sm" />
                   </div>
                 </div>
               )}
@@ -509,7 +509,7 @@ function CalendarGridView({
                         return (
                           <div
                             key={appt._id}
-                            className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
+                            className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-[#900B09] bg-[#F4D3D2]' : `${colors.border} ${colors.bg}`}`}
                           >
                             <p className="text-xs font-medium text-[#4F4F4F] truncate">
                               {appt.petId?.name || 'Pet'}
@@ -521,7 +521,7 @@ function CalendarGridView({
                               <span className="text-[10px] text-gray-400">
                                 {formatSlotTime(appt.startTime)}
                               </span>
-                              <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
+                              <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-[#900B09]' : colors.text}`}>
                                 {appt.isEmergency ? 'Emergency' : appt.status}
                               </span>
                             </div>
@@ -530,7 +530,7 @@ function CalendarGridView({
                                 {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
                               </span>
                               {appt.isEmergency && (
-                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
+                                <span className="px-1.5 py-0.5 text-[9px] rounded bg-[#F4D3D2] text-[#900B09] font-medium">
                                   Emergency
                                 </span>
                               )}
@@ -568,7 +568,7 @@ function CalendarGridView({
                                 <button
                                   type="button"
                                   onClick={() => onCancel(appt._id)}
-                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                  className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#900B09]/30 text-[#900B09] hover:bg-[#F4D3D2] hover:border-[#900B09] transition-all duration-200"
                                 >
                                   Cancel
                                 </button>
@@ -671,10 +671,10 @@ function CalendarGridView({
                 style={{ top: `calc(${timelinePercentage}%)` }}
               >
                 <div className="relative flex items-center">
-                  <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
+                  <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-[#900B09] bg-white leading-none">
                     {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </span>
-                  <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
+                  <div className="flex-1 h-0.5 bg-[#F4D3D2] shadow-sm" />
                 </div>
               </div>
             )}
@@ -703,7 +703,7 @@ function CalendarGridView({
                           return (
                             <div
                               key={appt._id}
-                              className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-red-500 bg-red-50' : `${colors.border} ${colors.bg}`}`}
+                              className={`rounded-lg px-2.5 py-1.5 mb-1 border-l-[3px] ${appt.isEmergency ? 'border-l-[#900B09] bg-[#F4D3D2]' : `${colors.border} ${colors.bg}`}`}
                             >
                               <p className="text-xs font-medium text-[#4F4F4F] truncate">
                                 {appt.petId?.name || 'Pet'}
@@ -715,7 +715,7 @@ function CalendarGridView({
                                 <span className="text-[10px] text-gray-400">
                                   {formatSlotTime(appt.startTime)}
                                 </span>
-                                <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-red-700' : colors.text}`}>
+                                <span className={`text-[10px] font-medium capitalize ${appt.isEmergency ? 'text-[#900B09]' : colors.text}`}>
                                   {appt.isEmergency ? 'Emergency' : appt.status}
                                 </span>
                               </div>
@@ -724,7 +724,7 @@ function CalendarGridView({
                                   {appt.mode === 'face-to-face' ? 'Face to Face' : 'Online'}
                                 </span>
                                 {appt.isEmergency && (
-                                  <span className="px-1.5 py-0.5 text-[9px] rounded bg-red-100 text-red-700 font-medium">
+                                  <span className="px-1.5 py-0.5 text-[9px] rounded bg-[#F4D3D2] text-[#900B09] font-medium">
                                     Emergency
                                   </span>
                                 )}
@@ -764,7 +764,7 @@ function CalendarGridView({
                                   <button
                                     type="button"
                                     onClick={() => onCancel(appt._id)}
-                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border border-[#900B09]/30 text-[#900B09] hover:bg-[#F4D3D2] hover:border-[#900B09] transition-all duration-200"
                                   >
                                     Cancel
                                   </button>
@@ -798,7 +798,7 @@ function CalendarGridView({
           <span className="text-[10px] text-gray-500">In Progress</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-red-500" />
+          <div className="w-3 h-3 rounded-sm bg-[#F4D3D2]" />
           <span className="text-[10px] text-gray-500">Emergency</span>
         </div>
       </div>
@@ -1165,8 +1165,8 @@ function ClinicAdminAppointmentsContent() {
         
         toast(
           <div className="flex gap-2">
-            <div className="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-              <X className="w-4 h-4 text-red-600" />
+            <div className="shrink-0 w-8 h-8 rounded-full bg-[#F4D3D2] flex items-center justify-center">
+              <X className="w-4 h-4 text-[#900B09]" />
             </div>
             <div className="flex-1">
               <p className="font-medium">Appointment Cancelled</p>
@@ -2016,7 +2016,7 @@ function ClinicAdminAppointmentsContent() {
                   <div className="flex items-center gap-3">
                     <div className="flex flex-wrap gap-1">
                       {appt.isEmergency && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#F4D3D2] text-[#900B09]">Emergency</span>
                       )}
                       {appt.isWalkIn && !appt.isEmergency && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700">Walk-In</span>
@@ -2046,10 +2046,10 @@ function ClinicAdminAppointmentsContent() {
                     </div>
                     <span className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${
                       appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                      appt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      appt.status === 'pending' ? 'bg-[#FFF5CB] text-[#DD9730]' :
                       appt.status === 'in_clinic' ? 'bg-blue-100 text-blue-700' :
                       appt.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                      appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      appt.status === 'cancelled' ? 'bg-[#F4D3D2] text-[#900B09]' :
                       appt.status === 'completed' ? 'bg-gray-100 text-gray-600' :
                       'bg-gray-100 text-gray-600'
                     }`}>
@@ -2077,7 +2077,7 @@ function ClinicAdminAppointmentsContent() {
                           {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
                             <button
                               onClick={() => handleCancel(appt._id)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#900B09]/30 text-[#900B09] hover:bg-[#F4D3D2] hover:border-[#900B09] transition-all duration-200"
                             >
                               Cancel
                             </button>
@@ -2113,7 +2113,7 @@ function ClinicAdminAppointmentsContent() {
                             {(appt.status === 'confirmed' || appt.status === 'in_clinic') && (
                               <button
                                 onClick={() => handleCancel(appt._id)}
-                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 hover:border-red-500 transition-all duration-200"
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#900B09]/30 text-[#900B09] hover:bg-[#F4D3D2] hover:border-[#900B09] transition-all duration-200"
                               >
                                 Cancel
                               </button>
@@ -2207,7 +2207,7 @@ function ClinicAdminAppointmentsContent() {
         <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
           <div className="p-6">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 bg-[#FEE2E2] rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-[#F4D3D2] rounded-full flex items-center justify-center">
                 <X className="w-6 h-6 text-[#900B09]" />
               </div>
             </div>
@@ -2317,15 +2317,15 @@ function ClinicAdminAppointmentsContent() {
             ) : null}
 
             {scanError && (
-              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
-                <p className="text-sm font-medium text-red-700 mb-1">Scan Failed</p>
-                <p className="text-xs text-red-600">{scanError}</p>
+              <div className="mb-6 p-4 rounded-xl bg-[#F4D3D2] border border-[#900B09]/20">
+                <p className="text-sm font-medium text-[#900B09] mb-1">Scan Failed</p>
+                <p className="text-xs text-[#900B09]">{scanError}</p>
               </div>
             )}
 
             {isCheckingInFromScan && (
-              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <p className="text-sm font-medium text-amber-700">Processing scan...</p>
+              <div className="mb-6 p-4 rounded-xl bg-[#FFF5CB]">
+                <p className="text-sm font-medium text-[#DD9730]">Processing scan...</p>
               </div>
             )}
 
@@ -2864,10 +2864,10 @@ function ClinicScheduleModal({
           if (res.data?.nameDuplicateWarning) {
             toast(
               <div className="flex gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-[#DD9730] shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-medium text-amber-800">Duplicate name warning</p>
-                  <p className="text-sm text-amber-700">{res.data.nameDuplicateWarning}</p>
+                  <p className="text-sm text-[#DD9730]">{res.data.nameDuplicateWarning}</p>
                 </div>
               </div>,
               { duration: 8000 }
@@ -2878,10 +2878,10 @@ function ClinicScheduleModal({
           if (isEmergency && rescheduled.length > 0) {
             toast(
               <div className="flex gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-[#DD9730] shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-medium text-amber-800">Appointments rescheduled</p>
-                  <p className="text-sm text-amber-700">{rescheduled.length} appointment{rescheduled.length > 1 ? 's were' : ' was'} rescheduled for the emergency. Owners have been notified.</p>
+                  <p className="text-sm text-[#DD9730]">{rescheduled.length} appointment{rescheduled.length > 1 ? 's were' : ' was'} rescheduled for the emergency. Owners have been notified.</p>
                 </div>
               </div>,
               { duration: 10000 }
@@ -2973,10 +2973,10 @@ function ClinicScheduleModal({
             .join(', ')
           toast(
             <div className="flex gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-[#DD9730] shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium text-amber-800">Appointments rescheduled</p>
-                <p className="text-sm text-amber-700">{rescheduled.length} appointment{rescheduled.length > 1 ? 's were' : ' was'} automatically rescheduled to accommodate the emergency: {names}. Owners have been notified.</p>
+                <p className="text-sm text-[#DD9730]">{rescheduled.length} appointment{rescheduled.length > 1 ? 's were' : ' was'} automatically rescheduled to accommodate the emergency: {names}. Owners have been notified.</p>
               </div>
             </div>,
             { duration: 10000 }
@@ -3067,9 +3067,9 @@ function ClinicScheduleModal({
           {/* Left: Form Fields */}
           <div className="flex-1 space-y-5">
             {!isGuestMode && selectedPetIsDeceased && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="bg-[#FFF5CB] rounded-lg p-3">
                 <p className="text-sm text-amber-800 font-medium">⚠️ This pet is marked as deceased</p>
-                <p className="text-xs text-amber-700 mt-1">Appointments cannot be scheduled for deceased pets.</p>
+                <p className="text-xs text-[#DD9730] mt-1">Appointments cannot be scheduled for deceased pets.</p>
               </div>
             )}
 
@@ -3097,11 +3097,11 @@ function ClinicScheduleModal({
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">First Name <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">First Name <span className="text-[#900B09]">*</span></label>
                       <input type="text" value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Last Name <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Last Name <span className="text-[#900B09]">*</span></label>
                       <input type="text" value={guestLastName} onChange={e => setGuestLastName(e.target.value)} placeholder="Last name" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
                     </div>
                     <div>
@@ -3114,7 +3114,7 @@ function ClinicScheduleModal({
                     </div>
                   </div>
                   {!guestEmail.trim() && (
-                    <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                    <p className="text-xs text-[#DD9730] mt-1.5 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" /> Without email, owner status will be <strong>Unclaimable</strong> until updated later.
                     </p>
                   )}
@@ -3127,21 +3127,21 @@ function ClinicScheduleModal({
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Pet Name <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Pet Name <span className="text-[#900B09]">*</span></label>
                       <input type="text" value={guestPetName} onChange={e => setGuestPetName(e.target.value)} placeholder="e.g. Buddy" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
                     </div>
                     <Dropdown label="Species *" value={guestPetSpecies} placeholder="Select species" options={[{ value: 'canine', label: 'Canine (Dog)' }, { value: 'feline', label: 'Feline (Cat)' }]} onSelect={(v) => { setGuestPetSpecies(v as 'canine' | 'feline'); setGuestPetBreed('') }} />
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Breed <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Breed <span className="text-[#900B09]">*</span></label>
                       <BreedCombobox species={guestPetSpecies || null} value={guestPetBreed} onChange={setGuestPetBreed} placeholder="Select Breed *" />
                     </div>
                     <Dropdown label="Sex *" value={guestPetSex} placeholder="Select sex" options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} onSelect={(v) => { setGuestPetSex(v as 'male' | 'female'); setGuestPetSterilization('') }} />
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Date of Birth <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Date of Birth <span className="text-[#900B09]">*</span></label>
                       <input type="date" value={guestPetDob} onChange={e => setGuestPetDob(e.target.value)} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Weight (kg) <span className="text-red-500">*</span></label>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Weight (kg) <span className="text-[#900B09]">*</span></label>
                       <input type="number" min="0.1" step="0.1" value={guestPetWeight} onChange={e => setGuestPetWeight(e.target.value)} placeholder="e.g. 5.5" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
                     </div>
                     <Dropdown
@@ -3298,7 +3298,7 @@ function ClinicScheduleModal({
             </div>
 
             {!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="rounded-lg border border-[#900B09]/20 bg-[#F4D3D2] px-3 py-2 text-sm text-[#900B09]">
                 Vet unavailable after {selectedVetUnavailableAfter.toLocaleDateString('en-US')}. Choose another veterinarian or earlier date.
               </div>
             )}
@@ -3343,7 +3343,7 @@ function ClinicScheduleModal({
                       }
                     }
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isEmergency ? 'bg-red-500' : 'bg-gray-200'}`}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${isEmergency ? 'bg-[#F4D3D2]' : 'bg-gray-200'}`}
                 >
                   <span
                     className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${isEmergency ? 'translate-x-4' : 'translate-x-0'}`}
@@ -3351,15 +3351,15 @@ function ClinicScheduleModal({
                 </button>
                 <span className="text-sm font-semibold text-[#2C3E2D]">Emergency</span>
                 {isEmergency && (
-                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Emergency</span>
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#F4D3D2] text-[#900B09]">Emergency</span>
                 )}
               </div>
 
               {/* Emergency warning */}
               {isEmergency && (
-                <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
-                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-700">This will override any existing booking for the selected time slot. Affected appointments will be flagged for review after saving.</p>
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#900B09]">This will override any existing booking for the selected time slot. Affected appointments will be flagged for review after saving.</p>
                 </div>
               )}
             </div>
@@ -3368,7 +3368,7 @@ function ClinicScheduleModal({
             <div>
               <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Type of Appointment</p>
               {isEmergency ? (
-                <div className="px-4 py-2.5 border border-red-300 rounded-xl bg-red-50 text-sm text-red-700 font-medium flex items-center gap-2">
+                <div className="px-4 py-2.5 border border-[#900B09]/30 rounded-xl bg-[#F4D3D2] text-sm text-[#900B09] font-medium flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" />
                   Emergency
                 </div>
@@ -3391,7 +3391,7 @@ function ClinicScheduleModal({
             </div>
 
             <div>
-              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint <span className="text-red-500">*</span></p>
+              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint <span className="text-[#900B09]">*</span></p>
               <textarea
                 value={chiefComplaint}
                 onChange={(e) => setChiefComplaint(e.target.value)}
@@ -3477,7 +3477,7 @@ function ClinicScheduleModal({
 
                             let bg = 'bg-[#7FA5A3] hover:bg-[#6b9391] cursor-pointer text-white'
                             if (isUnavailable && !isOverridable) bg = 'bg-[#900B09] text-white cursor-default'
-                            if (isOverridable) bg = 'bg-amber-400 hover:bg-amber-500 cursor-pointer text-white'
+                            if (isOverridable) bg = 'bg-[#DD9730] hover:bg-[#c4861e] cursor-pointer text-white'
                             if (isSelected) bg = 'bg-gray-300 text-gray-600 cursor-pointer'
 
                             return (

@@ -496,7 +496,7 @@ export default function MedicalRecordReportPage() {
                             <td className="py-2">
                               <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                                 med.status === 'active' ? 'bg-green-50 text-green-700' :
-                                med.status === 'discontinued' ? 'bg-red-50 text-red-600' :
+                                med.status === 'discontinued' ? 'bg-[#F4D3D2] text-[#900B09]' :
                                 'bg-gray-50 text-gray-500'
                               }`}>{med.status}</span>
                             </td>
@@ -708,7 +708,7 @@ export default function MedicalRecordReportPage() {
                         <p className={`text-sm font-semibold capitalize ${
                           record.pregnancyDelivery.motherCondition === 'stable' ? 'text-green-700' :
                           record.pregnancyDelivery.motherCondition === 'recovering' ? 'text-blue-700' :
-                          'text-red-700'
+                          'text-[#900B09]'
                         }`}>
                           {record.pregnancyDelivery.motherCondition}
                         </p>
@@ -816,7 +816,7 @@ export default function MedicalRecordReportPage() {
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                             vac.status === 'active' ? 'bg-green-50 text-green-700' :
-                            vac.status === 'expired' ? 'bg-red-50 text-red-700' :
+                            vac.status === 'expired' ? 'bg-[#F4D3D2] text-[#900B09]' :
                             vac.status === 'overdue' ? 'bg-amber-50 text-amber-700' :
                             'bg-gray-50 text-gray-600'
                           }`}>
@@ -1002,11 +1002,11 @@ export default function MedicalRecordReportPage() {
                     </div>
                   )}
                   {record.scheduledSurgery && (
-                    <div className="border border-red-200 rounded-xl bg-red-50/30 p-4 flex items-start gap-3">
-                      <Scissors className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="border border-[#900B09]/20 rounded-xl bg-[#F4D3D2]/30 p-4 flex items-start gap-3">
+                      <Scissors className="w-5 h-5 text-[#900B09] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-red-900 uppercase tracking-wider">Surgery Scheduled</p>
-                        <p className="text-sm text-red-700 mt-1">Surgical procedure has been recommended</p>
+                        <p className="text-xs font-semibold text-[#900B09] uppercase tracking-wider">Surgery Scheduled</p>
+                        <p className="text-sm text-[#900B09] mt-1">Surgical procedure has been recommended</p>
                       </div>
                     </div>
                   )}

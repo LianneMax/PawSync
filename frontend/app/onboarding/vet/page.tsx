@@ -424,9 +424,9 @@ export default function VetOnboardingPage() {
                       placeholder="First Name*"
                       value={firstName}
                       onChange={(e) => { setFirstName(e.target.value); setErrors(prev => ({ ...prev, firstName: false })) }}
-                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.firstName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.firstName ? 'border-[#900B09]/20' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                     />
-                    {errors.firstName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                    {errors.firstName && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
                   </div>
                   <div>
                     <input
@@ -434,9 +434,9 @@ export default function VetOnboardingPage() {
                       placeholder="Last Name*"
                       value={lastName}
                       onChange={(e) => { setLastName(e.target.value); setErrors(prev => ({ ...prev, lastName: false })) }}
-                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.lastName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.lastName ? 'border-[#900B09]/20' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                     />
-                    {errors.lastName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                    {errors.lastName && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
                   </div>
                 </div>
 
@@ -447,9 +447,9 @@ export default function VetOnboardingPage() {
                       placeholder="Middle Name*"
                       value={middleName}
                       onChange={(e) => { setMiddleName(e.target.value); setErrors(prev => ({ ...prev, middleName: false })) }}
-                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.middleName ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                      className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.middleName ? 'border-[#900B09]/20' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                     />
-                    {errors.middleName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                    {errors.middleName && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
                   </div>
                   <input
                     type="text"
@@ -478,12 +478,12 @@ export default function VetOnboardingPage() {
                       setPrcNumber(val)
                       setErrors(prev => ({ ...prev, prcNumber: false, prcNumberFormat: false }))
                     }}
-                    className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.prcNumber || errors.prcNumberFormat ? 'border-red-400' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
+                    className={`w-full px-4 py-4 bg-white rounded-xl border ${errors.prcNumber || errors.prcNumberFormat ? 'border-[#900B09]/20' : 'border-gray-200'} focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all`}
                   />
                   {errors.prcNumber
-                    ? <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>
+                    ? <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>
                     : errors.prcNumberFormat
-                    ? <p className="text-xs text-red-500 mt-1 ml-1">PRC license number must be exactly 7 digits</p>
+                    ? <p className="text-xs text-[#900B09] mt-1 ml-1">PRC license number must be exactly 7 digits</p>
                     : <p className="text-xs text-gray-500 mt-1 ml-1">Enter your 7-digit PRC license number for Veterinary Medicine</p>
                   }
                 </div>
@@ -519,9 +519,9 @@ export default function VetOnboardingPage() {
                       minDate={registrationDate ? (() => { const d = new Date(registrationDate); d.setDate(d.getDate() + 1); return d })() : undefined}
                     />
                     {errors.expirationDateExpired ? (
-                      <p className="text-xs text-red-500 mt-1 ml-1">Your license has already expired</p>
+                      <p className="text-xs text-[#900B09] mt-1 ml-1">Your license has already expired</p>
                     ) : errors.expirationDateBeforeReg ? (
-                      <p className="text-xs text-red-500 mt-1 ml-1">Expiry must be after the registration date</p>
+                      <p className="text-xs text-[#900B09] mt-1 ml-1">Expiry must be after the registration date</p>
                     ) : !errors.expirationDate && (
                       <p className="text-xs text-gray-500 mt-1 ml-1">
                         When your current license expires
@@ -560,7 +560,7 @@ export default function VetOnboardingPage() {
                     }
                   }}
                 />
-                {errors.prcIdPhoto && <p className="text-xs text-red-500 mt-1 ml-1">PRC ID Photo is required</p>}
+                {errors.prcIdPhoto && <p className="text-xs text-[#900B09] mt-1 ml-1">PRC ID Photo is required</p>}
               </div>
 
               {/* Action Buttons */}
@@ -730,8 +730,8 @@ export default function VetOnboardingPage() {
 
             {/* Submit Error */}
             {submitError && (
-              <div className="mb-4 p-4 bg-[#F4D3D2] border border-[#CC6462] rounded-xl">
-                <p className="text-sm text-[#CC6462]">{submitError}</p>
+              <div className="mb-4 p-4 bg-[#F4D3D2] border border-[#900B09] rounded-xl">
+                <p className="text-sm text-[#900B09]">{submitError}</p>
               </div>
             )}
 
@@ -772,8 +772,8 @@ export default function VetOnboardingPage() {
           </p>
 
           {submitError && (
-            <div className="mb-4 p-3 bg-[#F4D3D2] border border-[#CC6462] rounded-xl">
-              <p className="text-sm text-[#CC6462]">{submitError}</p>
+            <div className="mb-4 p-3 bg-[#F4D3D2] border border-[#900B09] rounded-xl">
+              <p className="text-sm text-[#900B09]">{submitError}</p>
             </div>
           )}
 

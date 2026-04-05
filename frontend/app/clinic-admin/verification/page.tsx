@@ -69,7 +69,7 @@ function VerificationStatusBadge({ status }: { status: VerificationRequest['stat
   const styles = {
     pending: 'bg-orange-100 text-orange-700',
     verified: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
+    rejected: 'bg-[#F4D3D2] text-[#900B09]',
   }
   const labels = {
     pending: 'Pending',
@@ -299,7 +299,7 @@ export default function VerificationPage() {
                           <button
                             onClick={() => handleRejectResignation(item._id)}
                             disabled={actionLoading}
-                            className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-50"
+                            className="px-4 py-2 text-sm font-medium text-white bg-[#900B09] rounded-xl hover:bg-[#720907] disabled:opacity-50"
                           >
                             Reject
                           </button>
@@ -401,9 +401,9 @@ export default function VerificationPage() {
 
                   {/* Rejected reason */}
                   {req.status === 'rejected' && req.rejectionReason && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-                      <p className="text-sm font-medium text-red-700 mb-1">Rejection Reason</p>
-                      <p className="text-sm text-red-600">{req.rejectionReason}</p>
+                    <div className="bg-[#F4D3D2] rounded-xl p-4 mb-4">
+                      <p className="text-sm font-medium text-[#900B09] mb-1">Rejection Reason</p>
+                      <p className="text-sm text-[#900B09]">{req.rejectionReason}</p>
                     </div>
                   )}
 
@@ -423,7 +423,7 @@ export default function VerificationPage() {
                       <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
                         <button
                           onClick={() => { setSelectedRequest(req); setRejectOpen(true) }}
-                          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors"
+                          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#900B09] rounded-xl hover:bg-[#720907] transition-colors"
                         >
                           <XCircle className="w-4 h-4" /> Reject
                         </button>
@@ -469,14 +469,14 @@ export default function VerificationPage() {
             </p>
             <div>
               <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
-                Reason for Rejection <span className="text-red-500">*</span>
+                Reason for Rejection <span className="text-[#900B09]">*</span>
               </label>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="e.g., The uploaded PRC ID photo is blurry and the license number is not clearly visible..."
                 rows={4}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 text-sm resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#900B09]/30 text-sm resize-none"
               />
             </div>
           </div>
@@ -488,7 +488,7 @@ export default function VerificationPage() {
             <button
               onClick={handleReject}
               disabled={!rejectionReason.trim() || actionLoading}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#900B09] rounded-xl hover:bg-[#720907] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {actionLoading ? 'Rejecting...' : 'Reject Verification'}
             </button>

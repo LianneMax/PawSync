@@ -251,7 +251,7 @@ export default function ReferralModal({
             </div>
 
             {validationError && (
-              <div className="flex items-center gap-2 text-red-600 text-xs">
+              <div className="flex items-center gap-2 text-[#900B09] text-xs">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {validationError}
               </div>

@@ -70,7 +70,7 @@ export default function HelloButtonTest() {
       </div>
 
       {status && (
-        <div className={`p-4 mb-6 rounded ${status.includes('✅') ? 'bg-green-100' : 'bg-red-100'}`}>
+        <div className={`p-4 mb-6 rounded ${status.includes('✅') ? 'bg-green-100' : 'bg-[#F4D3D2]'}`}>
           <p className="text-center font-semibold">{status}</p>
         </div>
       )}

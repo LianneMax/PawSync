@@ -165,7 +165,7 @@ function getNotificationIcon(type: NotificationType) {
     case 'appointment_scheduled':
       return <IconBubble icon={CalendarCheck} bg="bg-[#DBEAFE]" fg="text-[#1D4ED8]" />
     case 'appointment_cancelled':
-      return <IconBubble icon={CalendarX} bg="bg-[#FEE2E2]" fg="text-[#DC2626]" />
+      return <IconBubble icon={CalendarX} bg="bg-[#F4D3D2]" fg="text-[#DC2626]" />
     case 'appointment_completed':
       return <IconBubble icon={CheckCircle2} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
     case 'appointment_reminder':
@@ -181,7 +181,7 @@ function getNotificationIcon(type: NotificationType) {
     case 'vaccine_due':
       return <IconBubble icon={Syringe} bg="bg-[#FEF9C3]" fg="text-[#CA8A04]" />
     case 'pet_lost':
-      return <IconBubble icon={PawPrint} bg="bg-[#FEE2E2]" fg="text-[#DC2626]" />
+      return <IconBubble icon={PawPrint} bg="bg-[#F4D3D2]" fg="text-[#DC2626]" />
     case 'pet_found':
       return <IconBubble icon={CheckCheck} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
     case 'clinic_new_appointment_booked':
@@ -205,7 +205,7 @@ function getNotificationIcon(type: NotificationType) {
     case 'pregnancy_due_soon':
       return <IconBubble icon={Clock} bg="bg-[#FFF7ED]" fg="text-[#EA580C]" />
     case 'pregnancy_overdue':
-      return <IconBubble icon={AlertTriangle} bg="bg-[#FEE2E2]" fg="text-[#B91C1C]" />
+      return <IconBubble icon={AlertTriangle} bg="bg-[#F4D3D2]" fg="text-[#B91C1C]" />
     case 'clinic_qr_payment_submitted':
       return <IconBubble icon={QrCode} bg="bg-[#ECFEFF]" fg="text-[#0F766E]" />
     case 'vet_resignation_submitted':
@@ -213,7 +213,7 @@ function getNotificationIcon(type: NotificationType) {
     case 'vet_resignation_approved':
       return <IconBubble icon={UserCheck} bg="bg-[#DCFCE7]" fg="text-[#15803D]" />
     case 'vet_resignation_rejected':
-      return <IconBubble icon={UserX} bg="bg-[#FEE2E2]" fg="text-[#DC2626]" />
+      return <IconBubble icon={UserX} bg="bg-[#F4D3D2]" fg="text-[#DC2626]" />
     case 'vet_resigned':
       return <IconBubble icon={UserMinus} bg="bg-[#F1F5F9]" fg="text-[#475569]" />
     case 'clinic_vet_resignation_review':

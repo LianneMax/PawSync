@@ -81,7 +81,7 @@ export default function VaccineCalendar({
   };
 
   const getUrgencyColor = (daysUntilDue: number) => {
-    if (daysUntilDue <= 7) return 'text-red-600 bg-red-50 border-red-200';
+    if (daysUntilDue <= 7) return 'text-[#900B09] bg-[#F4D3D2] border-[#900B09]/20';
     if (daysUntilDue <= 14) return 'text-orange-600 bg-orange-50 border-orange-200';
     if (daysUntilDue <= 30) return 'text-blue-600 bg-blue-50 border-blue-200';
     return 'text-green-600 bg-green-50 border-green-200';
@@ -171,7 +171,7 @@ export default function VaccineCalendar({
                       </div>
                       <div className="shrink-0">
                         {daysUntil <= 7 ? (
-                          <AlertCircle className="w-5 h-5 text-red-600" />
+                          <AlertCircle className="w-5 h-5 text-[#900B09]" />
                         ) : (
                           <Clock className="w-5 h-5 text-gray-400" />
                         )}
@@ -180,7 +180,7 @@ export default function VaccineCalendar({
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-600">
                         {daysUntil <= 0 ? (
-                          <span className="text-red-600 font-semibold">{isExpiring ? 'Already Expired' : 'Overdue'}</span>
+                          <span className="text-[#900B09] font-semibold">{isExpiring ? 'Already Expired' : 'Overdue'}</span>
                         ) : (
                           <span>
                             {daysUntil === 1 ? `${typeLabel} tomorrow` : `${typeLabel} in ${daysUntil} days`}
@@ -262,7 +262,7 @@ export default function VaccineCalendar({
             <p className="text-xs text-gray-600">Total Due</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-red-600">
+            <p className="text-2xl font-bold text-[#900B09]">
               {upcomingVaccines.filter((v) => getDaysUntilDue(v.nextDueDate) <= 7).length}
             </p>
             <p className="text-xs text-gray-600">Within 7 Days</p>

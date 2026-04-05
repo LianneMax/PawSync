@@ -447,7 +447,7 @@ export default function ClinicVaccinationFormClient() {
       )}
 
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm mb-5">
+        <div className="flex items-center gap-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-4 text-[#900B09] text-sm mb-5">
           <AlertCircle className="w-5 h-5 shrink-0" />
           {error}
         </div>
@@ -573,7 +573,7 @@ export default function ClinicVaccinationFormClient() {
           {/* Vaccine Type */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-              Vaccine Type <span className="text-red-400">*</span>
+              Vaccine Type <span className="text-[#900B09]">*</span>
             </label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild disabled={isViewOnly}>
@@ -658,9 +658,9 @@ export default function ClinicVaccinationFormClient() {
             {selectedVaccineType && dateAdministered && (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {computedExpiryDate && (
-                  <div className="bg-[#F4D3D2] border border-[#983232] rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-[#983232] uppercase tracking-wide font-semibold mb-0.5">Expires</p>
-                    <p className="text-xs font-bold text-[#983232]">{computedExpiryDate}</p>
+                  <div className="bg-[#F4D3D2] border border-[#900B09] rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-[#900B09] uppercase tracking-wide font-semibold mb-0.5">Expires</p>
+                    <p className="text-xs font-bold text-[#900B09]">{computedExpiryDate}</p>
                   </div>
                 )}
                 {(nextDueDate || computedNextDueDate) && (
@@ -687,7 +687,7 @@ export default function ClinicVaccinationFormClient() {
               <div className={`mt-2 flex items-start gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium ${
                 ageValid
                   ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-700'
+                  : 'bg-[#F4D3D2] border-[#900B09]/20 text-[#900B09]'
               }`}>
                 {ageValid
                   ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
@@ -701,7 +701,7 @@ export default function ClinicVaccinationFormClient() {
           {/* Date Administered */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">
-              Date Administered <span className="text-red-400">*</span>
+              Date Administered <span className="text-[#900B09]">*</span>
             </label>
             <DatePicker
               value={dateAdministered}
@@ -712,7 +712,7 @@ export default function ClinicVaccinationFormClient() {
               className="w-full"
             />
             {dateAdminError && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <p className="text-xs text-[#900B09] mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {dateAdminError}
               </p>
@@ -734,7 +734,7 @@ export default function ClinicVaccinationFormClient() {
                 className="w-full"
               />
               {nextDueDateError && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <p className="text-xs text-[#900B09] mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   {nextDueDateError}
                 </p>

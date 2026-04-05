@@ -271,7 +271,7 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
                                   <p className="text-[12px] text-[#959595] uppercase tracking-wide mb-0.5">
                                     {isNegative ? 'EXPIRED' : 'VALID UNTIL'}
                                   </p>
-                                  <p className={`text-[14px] font-normal ${isNegative ? 'text-[#983232]' : 'text-[#4F4F4F]'}`}>
+                                  <p className={`text-[14px] font-normal ${isNegative ? 'text-[#900B09]' : 'text-[#4F4F4F]'}`}>
                                     {formatMonthYear(dateToShow)}
                                   </p>
                                 </div>
@@ -390,14 +390,14 @@ export default function VaccineCardPreview({ petId, token, refreshKey, sticky = 
                           <p style={{ fontFamily: 'var(--font-outfit)' }} className="text-[9px] text-gray-400 uppercase tracking-wide mb-1 font-medium">
                             {isExpired(vax.expiryDate) ? 'Expired' : 'Valid Until'}
                           </p>
-                          <p style={{ fontFamily: 'var(--font-outfit)' }} className={`text-xs font-bold ${isExpired(vax.expiryDate) ? 'text-[#983232]' : 'text-[#1a1a1a]'}`}>
+                          <p style={{ fontFamily: 'var(--font-outfit)' }} className={`text-xs font-bold ${isExpired(vax.expiryDate) ? 'text-[#900B09]' : 'text-[#1a1a1a]'}`}>
                             {formatMonthYear(vax.expiryDate)}
                           </p>
                         </>
                       ) : (
                         <>
                           <p style={{ fontFamily: 'var(--font-outfit)' }} className="text-[9px] text-gray-400 uppercase tracking-wide mb-1 font-medium">Status</p>
-                          <p style={{ fontFamily: 'var(--font-outfit)' }} className={`text-xs font-bold ${vax.status === 'overdue' ? 'text-[#983232]' : 'text-blue-500'}`}>
+                          <p style={{ fontFamily: 'var(--font-outfit)' }} className={`text-xs font-bold ${vax.status === 'overdue' ? 'text-[#900B09]' : 'text-blue-500'}`}>
                             {getStatusLabel(vax.status)}
                           </p>
                         </>
@@ -441,7 +441,7 @@ function DetailRow({ label, value, highlight }: { label: string; value: string; 
     <div className="flex items-start justify-between gap-4">
       <p className="text-xs text-gray-400 shrink-0 w-36">{label}</p>
       <p className={`text-sm font-semibold text-right ${
-        highlight === 'red' ? 'text-red-500' : highlight === 'green' ? 'text-green-600' : 'text-[#1a1a1a]'
+        highlight === 'red' ? 'text-[#900B09]' : highlight === 'green' ? 'text-green-600' : 'text-[#1a1a1a]'
       }`}>
         {value}
       </p>

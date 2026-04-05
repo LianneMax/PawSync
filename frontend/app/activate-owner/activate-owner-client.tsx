@@ -28,7 +28,7 @@ export default function ActivateOwnerClient() {
     return (
       <div className="min-h-screen bg-[#7FA5A3] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
-          <XCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
+          <XCircle className="w-14 h-14 text-[#900B09] mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[#4F4F4F] mb-2">Invalid Link</h2>
           <p className="text-gray-500 text-sm mb-6">This invitation link is missing or malformed. Please check your email for the correct link.</p>
           <Link href="/login" className="text-[#5A7C7A] text-sm hover:underline">Back to Login</Link>
@@ -124,7 +124,7 @@ export default function ActivateOwnerClient() {
           {/* Password */}
           <div>
             <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
-              Password <span className="text-red-500">*</span>
+              Password <span className="text-[#900B09]">*</span>
             </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -134,7 +134,7 @@ export default function ActivateOwnerClient() {
                 onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })) }}
                 placeholder="Min. 8 characters"
                 className={`w-full pl-11 pr-11 py-3 border-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${
-                  fieldErrors.password ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                  fieldErrors.password ? 'border-[#900B09]/20 bg-[#F4D3D2]' : 'border-gray-200'
                 }`}
               />
               <button
@@ -146,14 +146,14 @@ export default function ActivateOwnerClient() {
               </button>
             </div>
             {fieldErrors.password && (
-              <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.password}</p>
+              <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.password}</p>
             )}
           </div>
 
           {/* Confirm Password */}
           <div>
             <label className="block text-sm font-medium text-[#4F4F4F] mb-1">
-              Confirm Password <span className="text-red-500">*</span>
+              Confirm Password <span className="text-[#900B09]">*</span>
             </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -163,7 +163,7 @@ export default function ActivateOwnerClient() {
                 onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, confirmPassword: '' })) }}
                 placeholder="Re-enter your password"
                 className={`w-full pl-11 pr-11 py-3 border-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${
-                  fieldErrors.confirmPassword ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                  fieldErrors.confirmPassword ? 'border-[#900B09]/20 bg-[#F4D3D2]' : 'border-gray-200'
                 }`}
               />
               <button
@@ -175,21 +175,21 @@ export default function ActivateOwnerClient() {
               </button>
             </div>
             {fieldErrors.confirmPassword && (
-              <p className="text-xs text-red-500 mt-1 ml-1">{fieldErrors.confirmPassword}</p>
+              <p className="text-xs text-[#900B09] mt-1 ml-1">{fieldErrors.confirmPassword}</p>
             )}
           </div>
 
           {/* Error */}
           {(errorMessage || status === 'error') && (
-            <div className="flex gap-3 bg-red-50 border border-red-200 rounded-xl p-3">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex gap-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl p-3">
+              <AlertCircle className="w-5 h-5 text-[#900B09] shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm text-red-600">{errorMessage}</p>
+                <p className="text-sm text-[#900B09]">{errorMessage}</p>
                 {status === 'error' && (
                   <button
                     type="button"
                     onClick={() => { setStatus('form'); setErrorMessage('') }}
-                    className="text-xs text-red-500 underline mt-1"
+                    className="text-xs text-[#900B09] underline mt-1"
                   >
                     Try again
                   </button>

@@ -473,8 +473,8 @@ function MyAppointmentsPageContent() {
         
         toast(
           <div className="flex gap-2">
-            <div className="shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-              <X className="w-4 h-4 text-red-600" />
+            <div className="shrink-0 w-8 h-8 rounded-full bg-[#F4D3D2] flex items-center justify-center">
+              <X className="w-4 h-4 text-[#900B09]" />
             </div>
             <div className="flex-1">
               <p className="font-medium">Appointment Cancelled</p>
@@ -511,7 +511,7 @@ function MyAppointmentsPageContent() {
 
         {/* Rule 1: Unpaid bills warning banner */}
         {hasUnpaidBills && (
-          <div className="mt-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <div className="mt-4 flex items-start gap-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl px-4 py-3 text-sm text-[#900B09]">
             <X className="w-4 h-4 shrink-0 mt-0.5" />
             <span>You have unpaid bills. Please settle them before booking a new appointment.</span>
           </div>
@@ -794,7 +794,7 @@ function MyAppointmentsPageContent() {
                       getDisplayStatus(appt) === 'confirmed' ? 'bg-green-100 text-green-700' :
                       getDisplayStatus(appt) === 'completed' ? 'bg-green-100 text-green-700' :
                       getDisplayStatus(appt) === 'pending' ? 'bg-amber-100 text-amber-700' :
-                      getDisplayStatus(appt) === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      getDisplayStatus(appt) === 'cancelled' ? 'bg-[#F4D3D2] text-[#900B09]' :
                       'bg-gray-100 text-gray-600'
                     }`}>
                       {getDisplayStatus(appt) === 'in_progress' ? 'In Progress' :
@@ -834,7 +834,7 @@ function MyAppointmentsPageContent() {
                               handleCancel(appt._id)
                             }}
                             title={cancelAllowed ? 'Cancel appointment' : 'Cannot cancel within 4 hours of appointment'}
-                            className={`text-xs font-medium ${cancelAllowed ? 'text-red-500 hover:text-red-700' : 'text-gray-400 cursor-not-allowed'}`}
+                            className={`text-xs font-medium ${cancelAllowed ? 'text-[#900B09] hover:text-[#900B09]' : 'text-gray-400 cursor-not-allowed'}`}
                           >
                             Cancel
                           </button>
@@ -920,7 +920,7 @@ function MyAppointmentsPageContent() {
         <DialogContent className="max-w-md p-0 gap-0 rounded-2xl [&>button]:hidden">
           <div className="p-6">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 bg-[#FEE2E2] rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-[#F4D3D2] rounded-full flex items-center justify-center">
                 <X className="w-6 h-6 text-[#900B09]" />
               </div>
             </div>
@@ -1710,7 +1710,7 @@ function ScheduleModal({
             </div>
 
             {!isGroomingOnly && isSelectedDateBeyondVetEnd && selectedVetUnavailableAfter && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="rounded-lg border border-[#900B09]/20 bg-[#F4D3D2] px-3 py-2 text-sm text-[#900B09]">
                 Vet unavailable after {selectedVetUnavailableAfter.toLocaleDateString('en-US')}. Choose another veterinarian or earlier date.
               </div>
             )}
@@ -1746,7 +1746,7 @@ function ScheduleModal({
             </div>
 
             <div>
-              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint <span className="text-red-500">*</span></p>
+              <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Chief Complaint <span className="text-[#900B09]">*</span></p>
               <textarea
                 value={chiefComplaint}
                 onChange={(e) => setChiefComplaint(e.target.value)}
@@ -2042,7 +2042,7 @@ function PetOwnerRescheduleModal({
                           className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                             isSelected ? 'bg-gray-300 text-gray-600' :
                             usable ? 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]' :
-                            'bg-red-100 text-red-400 cursor-not-allowed'
+                            'bg-[#F4D3D2] text-[#900B09] cursor-not-allowed'
                           }`}
                         >
                           {formatSlotTime(slot.startTime)}

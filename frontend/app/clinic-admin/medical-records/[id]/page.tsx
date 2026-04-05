@@ -635,9 +635,9 @@ export default function ClinicAdminMedicalRecordViewPage() {
                       <p className="text-xs text-gray-500 mb-1">Still Births</p>
                       <p className="text-sm font-bold text-[#4F4F4F]">{record.pregnancyDelivery.stillBirths ?? 0}</p>
                     </div>
-                    <div className={`rounded-xl p-3 ${record.pregnancyDelivery.motherCondition === 'stable' ? 'bg-green-50 border border-green-100' : record.pregnancyDelivery.motherCondition === 'critical' ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
+                    <div className={`rounded-xl p-3 ${record.pregnancyDelivery.motherCondition === 'stable' ? 'bg-green-50 border border-green-100' : record.pregnancyDelivery.motherCondition === 'critical' ? 'bg-[#F4D3D2] border border-[#900B09]/20' : 'bg-[#FFF5CB]'}`}>
                       <p className="text-xs text-gray-500 mb-1">Mother Condition</p>
-                      <p className={`text-sm font-semibold capitalize ${record.pregnancyDelivery.motherCondition === 'stable' ? 'text-green-700' : record.pregnancyDelivery.motherCondition === 'critical' ? 'text-red-700' : 'text-amber-700'}`}>{record.pregnancyDelivery.motherCondition}</p>
+                      <p className={`text-sm font-semibold capitalize ${record.pregnancyDelivery.motherCondition === 'stable' ? 'text-green-700' : record.pregnancyDelivery.motherCondition === 'critical' ? 'text-[#900B09]' : 'text-[#DD9730]'}`}>{record.pregnancyDelivery.motherCondition}</p>
                     </div>
                     {record.pregnancyDelivery.vetRemarks && (
                       <div className="col-span-full bg-[#F8F6F2] rounded-xl p-3">

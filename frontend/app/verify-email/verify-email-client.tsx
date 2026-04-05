@@ -114,8 +114,8 @@ export default function VerifyEmailClient() {
         {/* Error */}
         {status === 'error' && (
           <>
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <XCircle className="w-8 h-8 text-red-400" />
+            <div className="w-16 h-16 bg-[#F4D3D2] rounded-full flex items-center justify-center mx-auto mb-4">
+              <XCircle className="w-8 h-8 text-[#900B09]" />
             </div>
             <h1 className="text-2xl text-[#5A7C7A] mb-2" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
               Link Expired

@@ -108,7 +108,7 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
           aria-expanded={open}
           className={cn(
             'w-full h-13 px-4 rounded-xl bg-gray-50 hover:bg-gray-50 text-base font-normal shadow-xs shadow-black/5',
-            error ? 'border-red-400' : 'border-gray-200',
+            error ? 'border-[#900B09]/20' : 'border-gray-200',
             !value && 'text-gray-400',
             className,
           )}
@@ -142,7 +142,7 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
           </CommandList>
         </Command>
       </PopoverContent>
-      {error && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+      {error && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
     </Popover>
   );
 }

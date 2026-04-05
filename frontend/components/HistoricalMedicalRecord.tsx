@@ -62,7 +62,7 @@ export function HistoricalMedicalRecord({
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+      <div className="flex items-center gap-2 p-4 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl text-[#900B09]">
         <AlertCircle className="w-4 h-4 shrink-0" />
         {error}
       </div>
@@ -176,7 +176,7 @@ export function HistoricalMedicalRecord({
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Allergies</p>
                 <div className="flex flex-wrap gap-2">
                   {pet.allergies.map((allergy, i) => (
-                    <div key={i} className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                    <div key={i} className="px-2 py-1 bg-[#F4D3D2] text-[#900B09] rounded-full text-xs font-medium">
                       {allergy}
                     </div>
                   ))}
@@ -317,8 +317,8 @@ export function HistoricalMedicalRecord({
                                   <span
                                     className={`px-2 py-1 rounded-full text-xs font-medium ${
                                       entry.kind === 'titer'
-                                        ? (row.result === 'positive' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')
-                                        : (row.result === 'positive' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700')
+                                        ? (row.result === 'positive' ? 'bg-green-100 text-green-700' : 'bg-[#F4D3D2] text-[#900B09]')
+                                        : (row.result === 'positive' ? 'bg-[#F4D3D2] text-[#900B09]' : 'bg-green-100 text-green-700')
                                     }`}
                                   >
                                     {row.result === 'positive' ? 'Positive' : 'Negative'}
@@ -527,7 +527,7 @@ export function HistoricalMedicalRecord({
                           ? 'bg-green-100 text-green-700'
                           : med.status === 'completed'
                           ? 'bg-gray-100 text-gray-700'
-                          : 'bg-red-100 text-red-700'
+                          : 'bg-[#F4D3D2] text-[#900B09]'
                       }`}
                     >
                       {med.status}

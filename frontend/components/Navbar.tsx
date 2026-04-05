@@ -331,7 +331,7 @@ export default function Navbar({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600"
+                    className="text-[#900B09] focus:text-[#900B09]"
                     onSelect={() => {
                       logout()
                       router.push('/login')

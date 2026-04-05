@@ -373,7 +373,7 @@ function PetOnboardingContent() {
             <form onSubmit={handleSubmit} noValidate>
               {/* Error Message */}
               {submitError && (
-                <div className="mb-6 p-3 bg-red-50 border border-red-300 text-red-700 rounded-xl text-sm">
+                <div className="mb-6 p-3 bg-[#F4D3D2] border border-[#900B09]/20 text-[#900B09] rounded-xl text-sm">
                   {submitError}
                 </div>
               )}
@@ -390,9 +390,9 @@ function PetOnboardingContent() {
                     placeholder="Full name*"
                     value={fullName}
                     onChange={(e) => { setFullName(e.target.value); setErrors(prev => ({ ...prev, fullName: false })) }}
-                    className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.fullName ? 'border-red-400' : 'border-gray-200'}`}
+                    className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.fullName ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                   />
-                  {errors.fullName && <p className="text-xs text-red-500 mt-1 ml-1">This field is required</p>}
+                  {errors.fullName && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -434,7 +434,7 @@ function PetOnboardingContent() {
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 text-base flex items-center justify-between ${errors.sex ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 text-base flex items-center justify-between ${errors.sex ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                         >
                           <span className={sex ? 'text-gray-900' : 'text-gray-500'}>
                             {sex ? (sex === 'male' ? 'Male' : 'Female') : 'Sex*'}
@@ -452,7 +452,7 @@ function PetOnboardingContent() {
                         </DropdownMenuRadioGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    {errors.sex && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+                    {errors.sex && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
                   </div>
 
                   <div>
@@ -460,7 +460,7 @@ function PetOnboardingContent() {
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 text-base flex items-center justify-between ${errors.sterilization ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 text-base flex items-center justify-between ${errors.sterilization ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                         >
                           <span className={sterilization ? 'text-gray-900' : 'text-gray-500'}>
                             {sterilization ? sterilization.charAt(0).toUpperCase() + sterilization.slice(1) : 'Sterilization*'}
@@ -489,7 +489,7 @@ function PetOnboardingContent() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                     {!sex && <p className="text-xs text-gray-500 mt-1 ml-1">Select sex first</p>}
-                    {errors.sterilization && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+                    {errors.sterilization && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
                   </div>
 
                   <div>
@@ -498,9 +498,9 @@ function PetOnboardingContent() {
                       placeholder="Weight (kg)*"
                       value={weight}
                       onChange={(e) => { setWeight(e.target.value); setErrors(prev => ({ ...prev, weight: false })) }}
-                      className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.weight ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.weight ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                     />
-                    {errors.weight && <p className="text-xs text-red-500 mt-1 ml-1">Required</p>}
+                    {errors.weight && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
                   </div>
                 </div>
 
@@ -512,7 +512,7 @@ function PetOnboardingContent() {
                     error={errors.dateOfBirth || errors.dateOfBirthFuture}
                   />
                   {errors.dateOfBirthFuture
-                    ? <p className="text-xs text-red-500 mt-1 ml-1">Date of birth cannot be in the future</p>
+                    ? <p className="text-xs text-[#900B09] mt-1 ml-1">Date of birth cannot be in the future</p>
                     : !errors.dateOfBirth && <p className="text-xs text-gray-500 mt-1 ml-1">If unsure, enter an approximate date</p>
                   }
                 </div>

@@ -100,7 +100,7 @@ const roleContent: Record<
 
 const powerFeatures = [
   {
-    icon: <MapPin className="w-6 h-6 text-[#983232]" />,
+    icon: <MapPin className="w-6 h-6 text-[#900B09]" />,
     iconBg: 'bg-[#F5E0DE]',
     title: 'Lost Pet Recovery',
     description: 'Mark pets as lost and track last scanned location on map',
@@ -538,7 +538,7 @@ export default function Home() {
             {nfcStatus === 'error' && (
               <div className="flex flex-col items-center text-center py-4">
                 <div className="w-20 h-20 bg-[#F5E0DE] rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
-                  <Smartphone className="w-10 h-10 text-[#983232]" />
+                  <Smartphone className="w-10 h-10 text-[#900B09]" />
                 </div>
 
                 <h3 className="text-xl font-bold text-[#476B6B] mb-2">
@@ -582,7 +582,7 @@ export default function Home() {
             {nfcStatus === 'unsupported' && qrStatus === 'idle' && (
               <div className="flex flex-col items-center text-center py-4">
                 <div className="w-20 h-20 bg-[#F5E0DE] rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
-                  <Smartphone className="w-10 h-10 text-[#983232]" />
+                  <Smartphone className="w-10 h-10 text-[#900B09]" />
                 </div>
 
                 <h3 className="text-xl font-bold text-[#476B6B] mb-2">
@@ -639,7 +639,7 @@ export default function Home() {
             {qrStatus === 'error' && (
               <div className="flex flex-col items-center text-center py-4">
                 <div className="w-20 h-20 bg-[#F5E0DE] rounded-full flex items-center justify-center mb-6 animate-[slowPulse_3s_ease-in-out_infinite]">
-                  <Camera className="w-10 h-10 text-[#983232]" />
+                  <Camera className="w-10 h-10 text-[#900B09]" />
                 </div>
 
                 <h3 className="text-xl font-bold text-[#476B6B] mb-2">

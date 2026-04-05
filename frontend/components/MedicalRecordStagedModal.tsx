@@ -2879,7 +2879,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     return (
                       <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                         isSkippedVaccStep
-                          ? 'bg-red-100 text-red-700'
+                          ? 'bg-[#F4D3D2] text-[#900B09]'
                           : s === step
                           ? 'bg-[#476B6B] text-white'
                           : s < step
@@ -3078,10 +3078,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </div>
 
               {useEmergencyFlow && (
-                <div className="border border-red-200 rounded-2xl p-4 bg-red-50/40 space-y-3">
+                <div className="border border-[#900B09]/20 rounded-2xl p-4 bg-[#F4D3D2]/40 space-y-3">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-600" />
-                    <p className="text-sm font-semibold text-red-700">Emergency Triage</p>
+                    <AlertCircle className="w-4 h-4 text-[#900B09]" />
+                    <p className="text-sm font-semibold text-[#900B09]">Emergency Triage</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -3098,7 +3098,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <option value="stable">Stable</option>
                     </select>
                   </div>
-                  <p className="text-xs text-red-700 bg-white border border-red-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-[#900B09] bg-white border border-[#900B09]/20 rounded-lg px-3 py-2">
                     Emergency mode allows immediate progression. Full vitals and complete SOAP can be deferred and completed after stabilization.
                   </p>
                 </div>
@@ -3232,8 +3232,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               </div>
 
               {useEmergencyFlow && (
-                <div className="border border-red-200 rounded-2xl p-4 bg-red-50/30 space-y-2">
-                  <label className="block text-sm font-semibold text-red-700">
+                <div className="border border-[#900B09]/20 rounded-2xl p-4 bg-[#F4D3D2]/30 space-y-2">
+                  <label className="block text-sm font-semibold text-[#900B09]">
                     Immediate Intervention Notes <span className="text-[#900B09]">*</span>
                   </label>
                   <textarea
@@ -3318,16 +3318,16 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
               {/* ── EMERGENCY SURGERY ── */}
               {!isSurgeryAppt && (
-                <div className="border border-red-200 rounded-2xl overflow-hidden bg-red-50/30">
-                  <div className="px-4 py-3 border-b border-red-100 flex items-center justify-between">
+                <div className="border border-[#900B09]/20 rounded-2xl overflow-hidden bg-[#F4D3D2]/30">
+                  <div className="px-4 py-3 border-b border-[#900B09]/20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Scissors className="w-4 h-4 text-red-600" />
+                      <Scissors className="w-4 h-4 text-[#900B09]" />
                       <div>
-                        <p className="text-sm font-semibold text-red-700">Emergency Surgery</p>
-                        <p className="text-[11px] text-red-500">Flag this case for immediate surgical intervention</p>
+                        <p className="text-sm font-semibold text-[#900B09]">Emergency Surgery</p>
+                        <p className="text-[11px] text-[#900B09]">Flag this case for immediate surgical intervention</p>
                       </div>
                     </div>
-                    <label className="flex items-center gap-2 text-xs font-medium text-red-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs font-medium text-[#900B09] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={emergencySurgery}
@@ -3342,7 +3342,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             setSurgeryServicesLoading(false)
                           }
                         }}
-                        className="w-4 h-4 accent-red-600"
+                        className="w-4 h-4 accent-[#900B09]"
                       />
                       Requires Emergency Surgery
                     </label>
@@ -3356,10 +3356,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           value={emergencySurgeryNotes}
                           onChange={(e) => setEmergencySurgeryNotes(e.target.value)}
                           placeholder="Describe the finding or condition that requires emergency surgery…"
-                          className="w-full border border-red-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-400 resize-none"
+                          className="w-full border border-[#900B09]/20 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#900B09]/30 resize-none"
                         />
                       </div>
-                      <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      <p className="text-xs text-[#900B09] bg-[#F4D3D2] border border-[#900B09]/20 rounded-lg px-3 py-2">
                         Proceeding will add an Emergency Surgery step to this visit. Document the surgery details before completing the record.
                       </p>
                       <button
@@ -3471,7 +3471,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                         className="w-16 border border-gray-200 rounded px-2 py-1 bg-white text-center focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                                       />
                                     </td>
-                                    <td className={`px-2 py-1.5 font-medium ${computed.status === 'Positive' ? 'text-green-600' : computed.status === 'Negative' ? 'text-red-600' : 'text-gray-400'}`}>
+                                    <td className={`px-2 py-1.5 font-medium ${computed.status === 'Positive' ? 'text-green-600' : computed.status === 'Negative' ? 'text-[#900B09]' : 'text-gray-400'}`}>
                                       {computed.status || '-'}
                                     </td>
                                     <td className="px-2 py-1.5 text-gray-700">{computed.action || '-'}</td>
@@ -3510,7 +3510,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               <button
                                 type="button"
                                 onClick={() => setTiterImages((prev) => prev.filter((_, i) => i !== idx))}
-                                className="text-gray-400 hover:text-red-500"
+                                className="text-gray-400 hover:text-[#900B09]"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -3577,7 +3577,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                       ))
                                     }}
                                     className={`border rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${
-                                      row.result === 'Positive' ? 'border-red-300 text-red-700' :
+                                      row.result === 'Positive' ? 'border-[#900B09]/20 text-[#900B09]' :
                                       row.result === 'Negative' ? 'border-green-300 text-green-700' :
                                       'border-gray-200 text-gray-500'
                                     }`}
@@ -3594,7 +3594,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       </div>
 
                       {antigenRows.some((r) => r.result === 'Positive') && (
-                        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        <p className="text-xs text-[#900B09] bg-[#F4D3D2] border border-[#900B09]/20 rounded-lg px-3 py-2">
                           Vaccination will be skipped due to positive result for: <strong>{antigenRows.filter((r) => r.result === 'Positive').map((r) => r.disease).join(', ')}</strong>
                         </p>
                       )}
@@ -3642,7 +3642,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               })
                               return next
                             })
-                          }} className="text-[#900B09] hover:text-red-600">
+                          }} className="text-[#900B09] hover:text-[#900B09]">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -3712,7 +3712,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                     const updated = [...prev]
                                     updated[i].images = (updated[i].images || []).filter((_, j) => j !== imgIdx) as any
                                     return updated
-                                  })} className="text-blue-400 hover:text-red-500">
+                                  })} className="text-blue-400 hover:text-[#900B09]">
                                     <X className="w-3 h-3" />
                                   </button>
                                 </div>
@@ -3755,7 +3755,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       <div className="space-y-3 pt-1">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Confirmation Method <span className="text-red-500">*</span></label>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Method <span className="text-[#900B09]">*</span></label>
                             <DropdownField
                               value={pregnancyConfirmationMethod}
                               onValueChange={(value) => {
@@ -3808,7 +3808,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 }
                               }}
                               placeholder="Select method"
-                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${pregMethodError ? 'border-red-400' : 'border-gray-200'}`}
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${pregMethodError ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                               options={[
                                 { value: 'unknown', label: 'Unknown / Not specified' },
                                 { value: 'ultrasound', label: 'Ultrasound' },
@@ -3817,10 +3817,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 { value: 'external_documentation', label: 'External Documentation' },
                               ]}
                             />
-                            {pregMethodError && <p className="text-xs text-red-600 mt-1">{pregMethodError}</p>}
+                            {pregMethodError && <p className="text-xs text-[#900B09] mt-1">{pregMethodError}</p>}
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">Confirmation Source <span className="text-red-500">*</span></label>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmation Source <span className="text-[#900B09]">*</span></label>
                             <DropdownField
                               value={pregnancyConfirmationSource}
                               onValueChange={(value) => {
@@ -3828,7 +3828,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 if (value !== 'unknown') setPregSourceError('')
                               }}
                               placeholder="Select source"
-                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${pregSourceError ? 'border-red-400' : 'border-gray-200'}`}
+                              className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${pregSourceError ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                               options={[
                                 { value: 'this_clinic', label: 'This Clinic' },
                                 { value: 'external_clinic', label: 'External Clinic' },
@@ -3836,17 +3836,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 { value: 'unknown', label: 'Unknown' },
                               ]}
                             />
-                            {pregSourceError && <p className="text-xs text-red-600 mt-1">{pregSourceError}</p>}
+                            {pregSourceError && <p className="text-xs text-[#900B09] mt-1">{pregSourceError}</p>}
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs text-gray-500">Gestation Date <span className="text-red-500">*</span></label>
+                            <label className="text-xs text-gray-500">Gestation Date <span className="text-[#900B09]">*</span></label>
                             {(() => { const days = getGestationAgeDays(); return days !== null && days >= 0 ? <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{days}d pregnant</span> : null })()}
                           </div>
-                          <div className={gestationDateError ? 'ring-1 ring-red-400 rounded-lg' : ''}>
+                          <div className={gestationDateError ? 'ring-1 ring-[#900B09]/30 rounded-lg' : ''}>
                             <DatePicker
                               value={gestationDate}
                               onChange={(value) => {
@@ -3860,11 +3860,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               className="w-full"
                             />
                           </div>
-                          {gestationDateError && <p className="text-xs text-red-600 mt-1">{gestationDateError}</p>}
+                          {gestationDateError && <p className="text-xs text-[#900B09] mt-1">{gestationDateError}</p>}
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Expected Due Date <span className="text-red-500">*</span></label>
-                          <div className={expectedDueDateFieldError ? 'ring-1 ring-red-400 rounded-lg' : ''}>
+                          <label className="block text-xs text-gray-500 mb-1">Expected Due Date <span className="text-[#900B09]">*</span></label>
+                          <div className={expectedDueDateFieldError ? 'ring-1 ring-[#900B09]/30 rounded-lg' : ''}>
                             <DatePicker
                               value={expectedDueDate}
                               onChange={(value) => {
@@ -3877,14 +3877,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             />
                           </div>
                           {expectedDueDateFieldError && (
-                            <p className="text-xs text-red-600 mt-1">{expectedDueDateFieldError}</p>
+                            <p className="text-xs text-[#900B09] mt-1">{expectedDueDateFieldError}</p>
                           )}
                           {!expectedDueDateFieldError && pregnancyDateError() && (
-                            <p className="text-xs text-red-600 mt-1">{pregnancyDateError()}</p>
+                            <p className="text-xs text-[#900B09] mt-1">{pregnancyDateError()}</p>
                           )}
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Litter Number <span className="text-red-500">*</span></label>
+                          <label className="block text-xs text-gray-500 mb-1">Litter Number <span className="text-[#900B09]">*</span></label>
                           <input
                             type="number"
                             min="0"
@@ -3895,7 +3895,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               setLitterNumberError('')
                             }}
                             placeholder={litterNumberNA ? 'N/A' : 'e.g. 1'}
-                            className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${litterNumberError ? 'border-red-400' : 'border-gray-200'} ${litterNumberNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                            className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${litterNumberError ? 'border-[#900B09]/20' : 'border-gray-200'} ${litterNumberNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                           />
                           {litterNumberNAAllowed && (
                             <label className="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
@@ -3915,7 +3915,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             </label>
                           )}
                           {litterNumberError && (
-                            <p className="text-xs text-red-600 mt-1">{litterNumberError}</p>
+                            <p className="text-xs text-[#900B09] mt-1">{litterNumberError}</p>
                           )}
                         </div>
                         </div>
@@ -4041,8 +4041,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   <div className="px-4 py-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Delivery Date <span className="text-red-500">*</span></label>
-                        <div className={deliveryDateFieldError ? 'ring-1 ring-red-400 rounded-lg' : ''}>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Date <span className="text-[#900B09]">*</span></label>
+                        <div className={deliveryDateFieldError ? 'ring-1 ring-[#900B09]/30 rounded-lg' : ''}>
                           <DatePicker
                             value={deliveryDate}
                             onChange={(value) => {
@@ -4054,13 +4054,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             className="w-full"
                           />
                         </div>
-                        {deliveryDateFieldError && <p className="text-xs text-red-600 mt-1">{deliveryDateFieldError}</p>}
+                        {deliveryDateFieldError && <p className="text-xs text-[#900B09] mt-1">{deliveryDateFieldError}</p>}
                         {!deliveryDateFieldError && deliveryDateError() && (
-                          <p className="text-xs text-red-600 mt-1">{deliveryDateError()}</p>
+                          <p className="text-xs text-[#900B09] mt-1">{deliveryDateError()}</p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Delivery Type <span className="text-red-500">*</span></label>
+                        <label className="block text-xs text-gray-500 mb-1">Delivery Type <span className="text-[#900B09]">*</span></label>
                         <DropdownField
                           value={deliveryServiceId}
                           onValueChange={(v) => {
@@ -4068,13 +4068,13 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             if (v) setDeliveryTypeError('')
                           }}
                           placeholder="Select delivery type"
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${deliveryTypeError ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${deliveryTypeError ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                           options={pregnancyDeliveryServices.map(s => ({ value: s._id, label: s.name }))}
                         />
-                        {deliveryTypeError && <p className="text-xs text-red-600 mt-1">{deliveryTypeError}</p>}
+                        {deliveryTypeError && <p className="text-xs text-[#900B09] mt-1">{deliveryTypeError}</p>}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Live Births <span className="text-red-500">*</span></label>
+                        <label className="block text-xs text-gray-500 mb-1">Live Births <span className="text-[#900B09]">*</span></label>
                         <input
                           type="number"
                           min="0"
@@ -4084,12 +4084,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             if (e.target.value !== '') setLiveBirthsError('')
                           }}
                           placeholder="0"
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${liveBirthsError ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${liveBirthsError ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                         />
-                        {liveBirthsError && <p className="text-xs text-red-600 mt-1">{liveBirthsError}</p>}
+                        {liveBirthsError && <p className="text-xs text-[#900B09] mt-1">{liveBirthsError}</p>}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Still Births <span className="text-red-500">*</span></label>
+                        <label className="block text-xs text-gray-500 mb-1">Still Births <span className="text-[#900B09]">*</span></label>
                         <input
                           type="number"
                           min="0"
@@ -4099,12 +4099,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             if (e.target.value !== '') setStillBirthsError('')
                           }}
                           placeholder="0"
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${stillBirthsError ? 'border-red-400' : 'border-gray-200'}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${stillBirthsError ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                         />
-                        {stillBirthsError && <p className="text-xs text-red-600 mt-1">{stillBirthsError}</p>}
+                        {stillBirthsError && <p className="text-xs text-[#900B09] mt-1">{stillBirthsError}</p>}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Labor Duration (hours) <span className="text-red-500">*</span></label>
+                        <label className="block text-xs text-gray-500 mb-1">Labor Duration (hours) <span className="text-[#900B09]">*</span></label>
                         <input
                           type="number"
                           min="0"
@@ -4117,7 +4117,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             setLaborDurationError('')
                           }}
                           placeholder={laborDurationNA ? 'N/A' : 'e.g. 3'}
-                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${laborDurationError ? 'border-red-400' : 'border-gray-200'} ${laborDurationNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                          className={`w-full border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] ${laborDurationError ? 'border-[#900B09]/20' : 'border-gray-200'} ${laborDurationNA ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                         />
                         {laborDurationNAAllowed && (
                           <label className="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
@@ -4137,7 +4137,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           </label>
                         )}
                         {laborDurationError && (
-                          <p className="text-xs text-red-600 mt-1">{laborDurationError}</p>
+                          <p className="text-xs text-[#900B09] mt-1">{laborDurationError}</p>
                         )}
                       </div>
                       <div>
@@ -4195,7 +4195,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       const totalBirths = (parseInt(liveBirths) || 0) + (parseInt(stillBirths) || 0)
                       const matched = totalBirths === effectiveLitterNumber
                       return (
-                        <p className={`text-xs px-3 py-2 rounded-lg border ${matched ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
+                        <p className={`text-xs px-3 py-2 rounded-lg border ${matched ? 'text-green-700 bg-green-50 border-green-200' : 'text-[#900B09] bg-[#F4D3D2] border-[#900B09]/20'}`}>
                           {matched
                             ? `Total births match the litter number (${effectiveLitterNumber}).`
                             : `Total births (${totalBirths}) must equal the litter number (${effectiveLitterNumber}). Adjust live or still births.`}
@@ -4265,7 +4265,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               <p className="text-xs font-semibold text-gray-700">{v.name}</p>
                               <p className="text-[10px] text-gray-500">
                                 {isOverdue
-                                  ? <span className="text-red-600 font-medium">Overdue{v.nextDueDate ? ` since ${new Date(v.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span>
+                                  ? <span className="text-[#900B09] font-medium">Overdue{v.nextDueDate ? ` since ${new Date(v.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span>
                                   : <span className="text-orange-600">Due {v.nextDueDate ? new Date(v.nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'soon'}</span>
                                 }
                               </p>
@@ -4325,18 +4325,18 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 if (issues.length === 0) return null
 
                 return (
-                  <div className="border border-red-200 rounded-2xl overflow-hidden bg-red-50/50">
-                    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-red-100">
-                      <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                      <span className="text-xs font-semibold text-red-800">Vaccination Not Recommended</span>
+                  <div className="border border-[#900B09]/20 rounded-2xl overflow-hidden bg-[#F4D3D2]/50">
+                    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-[#900B09]/20">
+                      <AlertCircle className="w-4 h-4 text-[#900B09] shrink-0" />
+                      <span className="text-xs font-semibold text-[#900B09]">Vaccination Not Recommended</span>
                     </div>
                     <div className="px-4 py-3 space-y-1">
                       {issues.map((issue, idx) => (
-                        <p key={idx} className="text-xs text-red-700 flex items-start gap-1.5">
-                          <span className="text-red-400 mt-0.5">•</span> {issue}
+                        <p key={idx} className="text-xs text-[#900B09] flex items-start gap-1.5">
+                          <span className="text-[#900B09] mt-0.5">•</span> {issue}
                         </p>
                       ))}
-                      <p className="text-[10px] text-red-600 mt-2 pt-1 border-t border-red-100">
+                      <p className="text-[10px] text-[#900B09] mt-2 pt-1 border-t border-[#900B09]/20">
                         The pet does not meet eligibility criteria. You may discard the vaccination and proceed to Post-Procedure below.
                       </p>
                     </div>
@@ -4424,7 +4424,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <button
                             type="button"
                             onClick={() => setVaccines((prev) => prev.filter((_, j) => j !== i))}
-                            className="text-[#900B09] hover:text-red-600"
+                            className="text-[#900B09] hover:text-[#900B09]"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -4533,9 +4533,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             </div>
                           )}
                           {vt.isSeries && expiry && (
-                            <div className="bg-[#F4D3D2] border border-[#983232] rounded-lg p-2">
-                              <p className="text-[9px] font-bold text-[#983232] uppercase tracking-wide">Next Expiry</p>
-                              <p className="font-bold text-[#983232] text-xs mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            <div className="bg-[#F4D3D2] border border-[#900B09] rounded-lg p-2">
+                              <p className="text-[9px] font-bold text-[#900B09] uppercase tracking-wide">Next Expiry</p>
+                              <p className="font-bold text-[#900B09] text-xs mt-0.5">{expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                             </div>
                           )}
                         </div>
@@ -4546,7 +4546,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs ${
                           ageValidation.isValid
                             ? 'bg-green-50 border border-green-200 text-green-700'
-                            : 'bg-red-50 border border-red-200 text-red-700'
+                            : 'bg-[#F4D3D2] border border-[#900B09]/20 text-[#900B09]'
                         }`}>
                           {ageValidation.isValid
                             ? <CheckCircle className="w-3.5 h-3.5 shrink-0" />
@@ -4579,7 +4579,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 className="w-full"
                               />
                               {dateInFuture && (
-                                <p className="text-[10px] text-red-500 mt-0.5">Date cannot be in the future.</p>
+                                <p className="text-[10px] text-[#900B09] mt-0.5">Date cannot be in the future.</p>
                               )}
                             </div>
                             {showNextDueField && (
@@ -4599,7 +4599,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                   className="w-full"
                                 />
                                 {nextDueInvalid && (
-                                  <p className="text-[10px] text-red-500 mt-0.5">Must be after date administered.</p>
+                                  <p className="text-[10px] text-[#900B09] mt-0.5">Must be after date administered.</p>
                                 )}
                               </div>
                             )}
@@ -4691,7 +4691,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                       setSaving(false)
                     }
                   }}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#900B09] font-medium border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#900B09] font-medium border border-gray-200 hover:border-[#900B09]/20 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   <X className="w-3 h-3" /> Discard Vaccination
                 </button>
@@ -4732,7 +4732,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {/* Surgery Type */}
                   <div>
                     <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                      Surgery Type <span className="text-red-500">*</span>
+                      Surgery Type <span className="text-[#900B09]">*</span>
                     </label>
                     {surgeryServicesLoading ? (
                       <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-400">
@@ -4757,7 +4757,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 setSurgeryTypeId('')
                                 setSurgeryTypeError(true)
                               }}
-                              className="px-3 py-2.5 text-sm text-gray-600 hover:text-red-600 transition-colors"
+                              className="px-3 py-2.5 text-sm text-gray-600 hover:text-[#900B09] transition-colors"
                               title="Clear selection"
                             >
                               ✕
@@ -4806,7 +4806,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 onClick={() => setSurgeryImages((prev) =>
                                   prev.map((i) => i.type === img.type ? { type: img.type, file: null, preview: null } : i)
                                 )}
-                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-[#F4D3D2] text-white flex items-center justify-center hover:bg-[#F4D3D2] transition-colors"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -4847,7 +4847,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   {/* Vet Remarks */}
                   <div>
                     <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                      Vet Remarks <span className="text-red-500">*</span>
+                      Vet Remarks <span className="text-[#900B09]">*</span>
                     </label>
                     <textarea
                       value={surgeryVetRemarks}
@@ -4875,9 +4875,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             <>
               {/* Vaccination skipped notice */}
               {isVaccinationAppt && vaccinationSkippedDue.length > 0 && (
-                <div className="border border-red-200 rounded-2xl px-4 py-3 bg-red-50 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-800">
+                <div className="border border-[#900B09]/20 rounded-2xl px-4 py-3 bg-[#F4D3D2] flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-[#900B09] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#900B09]">
                     <span className="font-semibold">Vaccination was skipped</span> due to pet being positive for:{' '}
                     <strong>{vaccinationSkippedDue.join(', ')}</strong>.
                   </p>
@@ -4885,10 +4885,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               )}
 
               {useEmergencyFlow && (
-                <div className="border border-red-200 rounded-2xl p-4 bg-red-50/30 space-y-3">
+                <div className="border border-[#900B09]/20 rounded-2xl p-4 bg-[#F4D3D2]/30 space-y-3">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-600" />
-                    <p className="text-sm font-semibold text-red-700">Emergency Post-Procedure Encoding</p>
+                    <AlertCircle className="w-4 h-4 text-[#900B09]" />
+                    <p className="text-sm font-semibold text-[#900B09]">Emergency Post-Procedure Encoding</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -4950,11 +4950,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   value={visitSummary}
                   onChange={(e) => { setVisitSummary(e.target.value); if (e.target.value.trim()) setVisitSummaryError(false) }}
                   rows={3}
-                  className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 resize-none ${visitSummaryError ? 'border-red-400 focus:ring-red-300' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 resize-none ${visitSummaryError ? 'border-[#900B09]/20 focus:ring-[#900B09]/30' : 'border-gray-200 focus:ring-[#7FA5A3]'}`}
                   placeholder="Brief summary of today's visit, key findings, outcome…"
                 />
                 {visitSummaryError && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-[#900B09] mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
                     This field is required.
                   </p>
@@ -5016,7 +5016,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 <button
                                   type="button"
                                   onClick={() => setCarryoverMeds((prev) => prev.map((c, j) => j === i ? { ...c, action: 'stop' } : c))}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${item.action === 'stop' ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-red-400'}`}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${item.action === 'stop' ? 'bg-[#F4D3D2] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-[#900B09]/20'}`}
                                 >
                                   Stop
                                 </button>
@@ -5069,7 +5069,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               })
                               return next
                             })
-                          }} className="text-[#900B09] hover:text-red-600">
+                          }} className="text-[#900B09] hover:text-[#900B09]">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -5274,8 +5274,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           )
                         })()}
                         {capsuleWarnings[i] && (
-                          <div className="flex items-start gap-1.5 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
+                          <div className="flex items-start gap-1.5 text-[11px] text-[#900B09] bg-[#F4D3D2] border border-[#900B09]/20 rounded-lg px-3 py-2">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#900B09]" />
                             <span>{capsuleWarnings[i]}</span>
                           </div>
                         )}
@@ -5391,7 +5391,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                 })
                                 return next
                               })
-                            }} className="text-[#900B09] hover:text-red-600">
+                            }} className="text-[#900B09] hover:text-[#900B09]">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -5469,7 +5469,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                         <p className="text-xs font-semibold text-[#4F4F4F]">{selectedInj.name}</p>
                                         <button
                                           onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, selectedInj._id!]))}
-                                          className="text-[#900B09] hover:text-red-600"
+                                          className="text-[#900B09] hover:text-[#900B09]"
                                           title="Remove from billing"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
@@ -5545,7 +5545,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                       <p className="text-xs font-semibold text-[#4F4F4F]">{selectedMed.name}</p>
                                       <button
                                         onClick={() => setPreventiveAssociatedExclusions((prev) => new Set([...prev, selectedMed._id!]))}
-                                        className="text-[#900B09] hover:text-red-600"
+                                        className="text-[#900B09] hover:text-[#900B09]"
                                         title="Remove from billing"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -5646,7 +5646,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     {images.map((img, i) => (
                       <div key={i} className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2 py-1">
                         <span className="text-xs text-gray-600">{img.description}</span>
-                        <button onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500">
+                        <button onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-[#900B09]">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -5734,15 +5734,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         checked={surgery}
                         onCheckedChange={handleSurgeryChange}
                         disabled={euthanasia}
-                        className="data-checked:bg-red-500"
+                        className="data-checked:bg-[#F4D3D2]"
                       />
                     </div>
 
                     {/* Euthanasia Toggle */}
-                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
+                    <div className="flex items-center justify-between p-3 bg-[#F4D3D2] rounded-xl border border-[#900B09]/20">
                       <div>
-                        <p className="text-xs font-semibold text-red-700">Euthanasia</p>
-                        <p className="text-[10px] text-red-400">
+                        <p className="text-xs font-semibold text-[#900B09]">Euthanasia</p>
+                        <p className="text-[10px] text-[#900B09]">
                           {euthanasia
                             ? 'Pet will be marked as deceased and service will be billed'
                             : 'Mark pet for humane euthanasia service'}
@@ -5926,7 +5926,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
             <div>
               <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                Surgery Type <span className="text-red-500">*</span>
+                Surgery Type <span className="text-[#900B09]">*</span>
               </label>
               {surgeryServicesLoading ? (
                 <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-400">
@@ -5967,7 +5967,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <button
                           type="button"
                           onClick={() => setSurgeryImages((prev) => prev.map((i) => i.type === img.type ? { type: img.type, file: null, preview: null } : i))}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-[#F4D3D2] text-white flex items-center justify-center hover:bg-[#F4D3D2] transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -6003,7 +6003,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
             <div>
               <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">
-                Vet Remarks <span className="text-red-500">*</span>
+                Vet Remarks <span className="text-[#900B09]">*</span>
               </label>
               <textarea
                 value={surgeryVetRemarks}

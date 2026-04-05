@@ -608,11 +608,11 @@ export default function ClinicNfcManagementPage() {
               {currentWrite.status === 'error' && (
                 <>
                   <div className="flex justify-center mb-6">
-                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
-                      <AlertCircle className="w-8 h-8 text-red-500" />
+                    <div className="w-16 h-16 rounded-full bg-[#F4D3D2] flex items-center justify-center">
+                      <AlertCircle className="w-8 h-8 text-[#900B09]" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-center text-red-600 mb-2">
+                  <h3 className="text-xl font-bold text-center text-[#900B09] mb-2">
                     Write Failed
                   </h3>
                   <p className="text-center text-gray-600 mb-4">
@@ -620,7 +620,7 @@ export default function ClinicNfcManagementPage() {
                   </p>
                   <button
                     onClick={() => setCurrentWrite(null)}
-                    className="w-full py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                    className="w-full py-2 bg-[#F4D3D2] text-white rounded-lg font-semibold hover:bg-[#F4D3D2] transition-colors"
                   >
                     Close
                   </button>

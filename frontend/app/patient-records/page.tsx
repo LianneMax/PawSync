@@ -719,7 +719,7 @@ function PatientRecordsPageContent() {
                       onClick={() => handleSelectPatient(pet)}
                       className={`rounded-2xl p-5 shadow-sm text-left hover:shadow-md transition-all ${
                         pet.isConfined ? 'bg-blue-50 border-2 border-blue-300 hover:ring-1 hover:ring-blue-400/40'
-                        : isLost ? 'bg-red-50 border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
+                        : isLost ? 'bg-[#F4D3D2] border-2 border-[#900B09]/40 hover:ring-1 hover:ring-[#900B09]/30'
                         : isDeceased ? 'bg-amber-50 border-2 border-amber-300 hover:ring-1 hover:ring-amber-400/40'
                         : isRelocated ? 'bg-orange-50 border-2 border-orange-300 hover:ring-1 hover:ring-orange-400/40'
                         : pet.isReferral ? 'bg-teal-50 border-2 border-teal-200 hover:ring-1 hover:ring-teal-400/40'
@@ -732,7 +732,7 @@ function PatientRecordsPageContent() {
                         ) : (
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                             pet.isConfined ? 'bg-blue-100'
-                            : isLost ? 'bg-red-100'
+                            : isLost ? 'bg-[#F4D3D2]'
                             : isDeceased ? 'bg-amber-100'
                             : isRelocated ? 'bg-orange-100'
                             : pet.isReferral ? 'bg-teal-100'
@@ -757,7 +757,7 @@ function PatientRecordsPageContent() {
                               </span>
                             )}
                             {isLost && (
-                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: '#F4D3D2', color: '#900B09' }}>
                                 Lost
                               </span>
                             )}
@@ -826,7 +826,7 @@ function PatientRecordsPageContent() {
                               <td className="px-4 py-3">
                                 <span className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded-full font-semibold uppercase tracking-wide ${
                                   normalizedStatus === 'Confined' ? 'bg-blue-100 text-blue-700'
-                                  : normalizedStatus === 'Lost' ? 'bg-red-100 text-red-700'
+                                  : normalizedStatus === 'Lost' ? 'bg-[#F4D3D2] text-[#900B09]'
                                   : normalizedStatus === 'Deceased' ? 'bg-amber-100 text-amber-700'
                                   : normalizedStatus === 'Relocated' ? 'bg-orange-100 text-orange-700'
                                   : 'bg-emerald-100 text-emerald-700'
@@ -982,13 +982,13 @@ function PatientRecordsPageContent() {
                             </span>
                           )}
                           {(currentRecord.emergencyCase?.isEmergency === true || currentRecord.appointmentId?.isEmergency === true) && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 font-semibold uppercase tracking-wide">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-[#F4D3D2] text-[#900B09] font-semibold uppercase tracking-wide">
                               <AlertCircle className="w-3 h-3" />
                               Emergency
                             </span>
                           )}
                           {selectedIsLost && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide" style={{ backgroundColor: '#FEE2E2', color: '#900B09' }}>
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide" style={{ backgroundColor: '#F4D3D2', color: '#900B09' }}>
                               Lost
                             </span>
                           )}
@@ -1169,7 +1169,7 @@ function PatientRecordsPageContent() {
                                 </span>
                               )}
                               {(record.emergencyCase?.isEmergency === true || record.appointmentId?.isEmergency === true) && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 font-medium">
+                                <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-[#F4D3D2] text-[#900B09] font-medium">
                                   <AlertCircle className="w-3 h-3" />
                                   Emergency
                                 </span>
@@ -2481,7 +2481,7 @@ function ViewRecordModal({
                             <td className="py-2">
                               <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                                 med.status === 'active' ? 'bg-green-50 text-green-700' :
-                                med.status === 'discontinued' ? 'bg-red-50 text-red-600' :
+                                med.status === 'discontinued' ? 'bg-[#F4D3D2] text-[#900B09]' :
                                 'bg-gray-50 text-gray-500'
                               }`}>{med.status}</span>
                             </td>
@@ -2687,7 +2687,7 @@ function ViewRecordModal({
                         <p className={`text-sm font-semibold capitalize ${
                           record.pregnancyDelivery.motherCondition === 'stable' ? 'text-green-700' :
                           record.pregnancyDelivery.motherCondition === 'recovering' ? 'text-blue-700' :
-                          'text-red-700'
+                          'text-[#900B09]'
                         }`}>
                           {record.pregnancyDelivery.motherCondition}
                         </p>
@@ -2792,7 +2792,7 @@ function ViewRecordModal({
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                             vac.status === 'active' ? 'bg-green-50 text-green-700' :
-                            vac.status === 'expired' ? 'bg-red-50 text-red-700' :
+                            vac.status === 'expired' ? 'bg-[#F4D3D2] text-[#900B09]' :
                             vac.status === 'overdue' ? 'bg-amber-50 text-amber-700' :
                             'bg-gray-50 text-gray-600'
                           }`}>
@@ -2987,11 +2987,11 @@ function ViewRecordModal({
                     </div>
                   )}
                   {record.scheduledSurgery && (
-                    <div className="border border-red-200 rounded-xl bg-red-50/30 p-4 flex items-start gap-3">
-                      <Scissors className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="border border-[#900B09]/20 rounded-xl bg-[#F4D3D2]/30 p-4 flex items-start gap-3">
+                      <Scissors className="w-5 h-5 text-[#900B09] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-red-900 uppercase tracking-wider">Surgery Scheduled</p>
-                        <p className="text-sm text-red-700 mt-1">Surgical procedure has been recommended</p>
+                        <p className="text-xs font-semibold text-[#900B09] uppercase tracking-wider">Surgery Scheduled</p>
+                        <p className="text-sm text-[#900B09] mt-1">Surgical procedure has been recommended</p>
                       </div>
                     </div>
                   )}
@@ -3355,7 +3355,7 @@ function FollowUpRecordModal({
           {/* Owner Observations — structured */}
           <div className="space-y-3">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Owner's Observations <span className="text-red-500">*</span></h3>
+              <h3 className="text-base font-semibold text-gray-900">Owner's Observations <span className="text-[#900B09]">*</span></h3>
               <p className="text-sm text-gray-500 mt-1">Fill in what the pet owner reports since the last visit.</p>
             </div>
 
@@ -3632,7 +3632,7 @@ function FollowUpRecordModal({
                         )}
                       </div>
                       <div>
-                        <label className={fieldLabelCls}>Overall Impression <span className="text-red-500">*</span></label>
+                        <label className={fieldLabelCls}>Overall Impression <span className="text-[#900B09]">*</span></label>
                         {chipGroup(obs.overallImpression, v => setField('overallImpression', v), ['Better', 'Same', 'Worse'])}
                       </div>
                     </div>

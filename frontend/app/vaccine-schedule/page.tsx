@@ -140,15 +140,15 @@ export default function VaccineSchedulePage() {
                   <p className="text-xs text-blue-600 mt-1">upcoming vaccine{upcomingVaccines.length !== 1 ? 's' : ''}</p>
                 </div>
 
-                <div className="bg-linear-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+                <div className="bg-linear-to-br from-[#F4D3D2] to-[#F4D3D2] rounded-2xl p-6 border border-[#900B09]/20">
                   <div className="flex items-center gap-3 mb-2">
-                    <AlertCircle className="w-5 h-5 text-red-600" />
-                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wide">Urgent</p>
+                    <AlertCircle className="w-5 h-5 text-[#900B09]" />
+                    <p className="text-xs font-semibold text-[#900B09] uppercase tracking-wide">Urgent</p>
                   </div>
-                  <p className="text-3xl font-bold text-red-700">
+                  <p className="text-3xl font-bold text-[#900B09]">
                     {overduevaccines.length + urgentVaccines.length}
                   </p>
-                  <p className="text-xs text-red-600 mt-1">
+                  <p className="text-xs text-[#900B09] mt-1">
                     {overduevaccines.length > 0 ? `${overduevaccines.length} overdue` : ''}
                     {overduevaccines.length > 0 && urgentVaccines.length > 0 ? ', ' : ''}
                     {urgentVaccines.length > 0 ? `${urgentVaccines.length} due within 7 days` : ''}
