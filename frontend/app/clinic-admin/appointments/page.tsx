@@ -387,7 +387,8 @@ function CalendarGridView({
   const hourSpan = Math.max(1, closeHour - openHour)
   const hours = Array.from({ length: hourSpan }, (_, i) => i + openHour)
 
-  const selectedDateObject = new Date(selectedDate)
+  const [selYear, selMonth, selDay] = selectedDate.split('-').map(Number)
+  const selectedDateObject = new Date(selYear, selMonth - 1, selDay)
   const selectedDayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][selectedDateObject.getDay()]
   const branchOperatingDays = activeBranch?.operatingDays || []
   const isBranchOpenOnSelectedDate = branchOperatingDays.length === 0 || branchOperatingDays.includes(selectedDayName)
@@ -416,10 +417,13 @@ function CalendarGridView({
     year: 'numeric',
   })
 
-  const isViewingToday = selectedDate === toYmd(new Date())
-  const currentHour = currentTime.getHours()
-  const currentMinute = currentTime.getMinutes()
-  const isCurrentTimeVisible = isViewingToday && isBranchOpenOnSelectedDate && currentHour >= openHour && currentHour < closeHour
+  // PH time = UTC+8, fixed offset — avoids toLocaleString parsing quirks
+  const phNow = new Date(currentTime.getTime() + 8 * 60 * 60 * 1000)
+  const currentHour = phNow.getUTCHours()
+  const currentMinute = phNow.getUTCMinutes()
+  const phDateStr = `${phNow.getUTCFullYear()}-${String(phNow.getUTCMonth() + 1).padStart(2, '0')}-${String(phNow.getUTCDate()).padStart(2, '0')}`
+  const isViewingToday = selectedDate === phDateStr
+  const isCurrentTimeVisible = isViewingToday && currentHour >= openHour && currentHour < closeHour
   const timelinePercentage = isCurrentTimeVisible
     ? ((currentHour - openHour + currentMinute / 60) / hourSpan) * 100
     : 0
@@ -477,7 +481,7 @@ function CalendarGridView({
                 >
                   <div className="relative flex items-center">
                     <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-red-500 bg-white leading-none">
-                      {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}
                     </span>
                     <div className="flex-1 h-0.5 bg-red-500 shadow-sm" />
                   </div>
