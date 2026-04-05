@@ -209,6 +209,15 @@ export const getSinglePetOwner = async (
 };
 
 /**
+ * Get approved veterinarians for the authenticated clinic admin's clinic/branch.
+ */
+export const getClinicVets = async (
+  token?: string
+): Promise<{ status: string; data?: { vets: BranchVet[] } }> => {
+  return authenticatedFetch(`/clinics/mine/vets`, { method: 'GET' }, token);
+};
+
+/**
  * Send a follow-up note email from the clinic/vet to a pet owner.
  */
 export const sendOwnerNote = async (

@@ -7,16 +7,25 @@ import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import {
   ArrowLeft, Mail, Phone, PawPrint, Calendar, Syringe,
-  AlertCircle, Clock, CheckCircle, Send, User,
+  AlertCircle, Clock, CheckCircle, Send, User, ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getSinglePetOwner,
   sendOwnerNote,
+  getClinicVets,
   type SingleOwnerResponse,
   type OwnerPetSummary,
   type OwnerInviteStatus,
 } from '@/lib/clinics'
+
+interface ClinicVet {
+  _id: string        // assignment ID
+  vetId: string      // vet user ID
+  name: string       // pre-formatted "Dr. First Last"
+  email: string
+  status: string
+}
 
 // ==================== HELPERS ====================
 
@@ -146,19 +155,39 @@ function PetCard({ pet }: { pet: OwnerPetSummary }) {
 
 function SendNotePanel({ ownerId, token }: { ownerId: string; token: string | null }) {
   const [note, setNote] = useState('')
-  const [vetName, setVetName] = useState('')
+  const [selectedVetId, setSelectedVetId] = useState<string>('') // '' = clinic name
+  const [vets, setVets] = useState<ClinicVet[]>([])
+  const [loadingVets, setLoadingVets] = useState(true)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (!token) return
+    getClinicVets(token)
+      .then((res) => {
+        if (res.status === 'SUCCESS' && res.data?.vets) {
+          // Only show active vets in the dropdown
+          setVets((res.data.vets as unknown as ClinicVet[]).filter((v) => v.status === 'Active'))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingVets(false))
+  }, [token])
+
+  const selectedVet = vets.find((v) => v._id === selectedVetId) ?? null
+  const senderLabel = selectedVet ? selectedVet.name : 'Clinic'
 
   const handleSend = async () => {
     if (!note.trim()) { toast.error('Please enter a note message.'); return }
     if (!token) { toast.error('Not authenticated.'); return }
     setSending(true)
     try {
-      const res = await sendOwnerNote(ownerId, { note: note.trim(), vetName: vetName.trim() || undefined }, token)
+      const vetName = selectedVet?.name ?? undefined
+      const res = await sendOwnerNote(ownerId, { note: note.trim(), vetName }, token)
       if (res.status === 'SUCCESS') {
         toast.success('Note sent to the owner via email.')
         setNote('')
-        setVetName('')
+        setSelectedVetId('')
       } else {
         toast.error(res.message || 'Failed to send note.')
       }
@@ -179,18 +208,59 @@ function SendNotePanel({ ownerId, token }: { ownerId: string; token: string | nu
         This sends an email directly to the owner with your note. The email includes a button for them to book an appointment.
       </p>
       <div className="space-y-3">
-        <div>
+        {/* Vet dropdown */}
+        <div className="relative">
           <label className="block text-xs font-medium text-[#4F4F4F] mb-1">
-            From (optional) <span className="text-gray-400 font-normal">— e.g. Dr. Santos</span>
+            Sending as
           </label>
-          <input
-            type="text"
-            value={vetName}
-            onChange={(e) => setVetName(e.target.value)}
-            placeholder="Leave blank to use clinic name"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-          />
+          <button
+            type="button"
+            disabled={loadingVets}
+            onClick={() => setDropdownOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] disabled:opacity-60"
+          >
+            <span className="text-[#4F4F4F]">
+              {loadingVets ? 'Loading vets…' : senderLabel}
+            </span>
+            <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+          </button>
+
+          {dropdownOpen && !loadingVets && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setSelectedVetId(''); setDropdownOpen(false) }}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                  selectedVetId === ''
+                    ? 'bg-[#7FA5A3]/10 text-[#476B6B] font-medium'
+                    : 'text-[#4F4F4F] hover:bg-gray-50'
+                }`}
+              >
+                Clinic
+              </button>
+              {vets.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-gray-400">No active vets assigned.</p>
+              ) : (
+                vets.map((vet) => (
+                  <button
+                    key={vet._id}
+                    type="button"
+                    onClick={() => { setSelectedVetId(vet._id); setDropdownOpen(false) }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      selectedVetId === vet._id
+                        ? 'bg-[#7FA5A3]/10 text-[#476B6B] font-medium'
+                        : 'text-[#4F4F4F] hover:bg-gray-50'
+                    }`}
+                  >
+                    {vet.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Note textarea */}
         <div>
           <label className="block text-xs font-medium text-[#4F4F4F] mb-1">
             Note <span className="text-red-500">*</span>
@@ -203,6 +273,7 @@ function SendNotePanel({ ownerId, token }: { ownerId: string; token: string | nu
             className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] resize-none"
           />
         </div>
+
         <button
           onClick={handleSend}
           disabled={sending || !note.trim()}

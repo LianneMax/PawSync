@@ -865,9 +865,9 @@ function PatientDrawer({
                 </div>
               )}
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-[#4F4F4F] leading-tight">
+                <SheetTitle className="text-lg font-bold text-[#4F4F4F] leading-tight">
                   Patient Profile — {patient.name}
-                </h2>
+                </SheetTitle>
                 <p className="text-xs text-gray-500 capitalize mt-0.5">
                   {patient.species} · {patient.breed}
                 </p>

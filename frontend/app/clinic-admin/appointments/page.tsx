@@ -1137,17 +1137,7 @@ function ClinicAdminAppointmentsContent() {
         })
         setAppointments(filtered)
 
-        // On initial calendar load, auto-navigate to the first active appointment's date
-        if (activeTab === 'upcoming' && viewMode === 'calendar' && filtered.length > 0) {
-          const firstConfirmed = filtered.find((a) => ['confirmed', 'in_clinic', 'in_progress', 'pending', 'rescheduled'].includes(a.status))
-          if (firstConfirmed) {
-            const apptDate = new Date(firstConfirmed.date).toISOString().split('T')[0]
-            setCalendarDate((prev) => {
-              const today = new Date().toISOString().split('T')[0]
-              return prev === today ? apptDate : prev
-            })
-          }
-        }
+
       }
     } catch { /* silent */ }
     finally { setLoading(false) }

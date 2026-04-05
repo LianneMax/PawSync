@@ -10,7 +10,7 @@ import PageHeader from '@/components/PageHeader'
 import {
   Search, UserPlus, RefreshCw, Mail, Phone, PawPrint,
   CheckCircle, Clock, AlertCircle, Send, X,
-  ArrowLeft, ArrowRight, ChevronDown, Dog, Cat,
+  ArrowLeft, ArrowRight, ChevronDown, Dog, Cat, Plus,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -721,6 +721,108 @@ function CreateOwnerModal({ open, onClose, onCreated, token }: CreateOwnerModalP
   )
 }
 
+// ==================== ADD PET MODAL ====================
+
+interface AddPetModalProps {
+  open: boolean
+  onClose: () => void
+  onCreated: () => void
+  token: string | null
+  owner: ClinicPetOwner | null
+}
+
+function AddPetModal({ open, onClose, onCreated, token, owner }: AddPetModalProps) {
+  const [pet, setPet] = useState<PetFormState>(EMPTY_PET)
+  const [petErrors, setPetErrors] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(false)
+
+  const reset = () => { setPet(EMPTY_PET); setPetErrors({}) }
+  const handleClose = () => { reset(); onClose() }
+
+  const updatePet = (field: keyof PetFormState, value: any) => {
+    setPet((prev) => {
+      const updated = { ...prev, [field]: value }
+      if (field === 'sex') updated.sterilization = ''
+      return updated
+    })
+    setPetErrors((prev) => ({ ...prev, [field]: false }))
+  }
+
+  const handleSubmit = async () => {
+    const errors = validatePet(pet)
+    if (Object.keys(errors).length > 0) { setPetErrors(errors); return }
+    if (!owner || !token) return
+    setLoading(true)
+    try {
+      const res = await createPet({
+        ownerId: owner.id,
+        name: pet.name.trim(),
+        species: pet.species!,
+        breed: pet.breed,
+        secondaryBreed: pet.secondaryBreed || undefined,
+        sex: pet.sex as 'male' | 'female',
+        dateOfBirth: pet.dateOfBirth,
+        weight: parseFloat(pet.weight),
+        sterilization: pet.sterilization as any,
+        photo: pet.photo || undefined,
+        color: pet.color || undefined,
+      }, token)
+      if (res.status !== 'SUCCESS') {
+        toast.error(res.message || 'Failed to create pet profile.')
+        return
+      }
+      toast.success(`Pet added to ${owner.firstName} ${owner.lastName}.`)
+      reset()
+      onCreated()
+      onClose()
+    } catch {
+      toast.error('An unexpected error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!open || !owner) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold text-[#4F4F4F]">Add Pet</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Adding a pet for {owner.firstName} {owner.lastName}</p>
+          </div>
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+          <PetForm pet={pet} petErrors={petErrors} updatePet={updatePet} />
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 px-4 py-2.5 bg-[#476B6B] hover:bg-[#3d5c5c] text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading
+              ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
+              : <><Plus className="w-4 h-4" />Add Pet</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ==================== OWNER AVATAR ====================
 
 function OwnerAvatar({ owner }: { owner: ClinicPetOwner }) {
@@ -762,6 +864,7 @@ function ClientsPageContent() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [addPetTarget, setAddPetTarget] = useState<ClinicPetOwner | null>(null)
   const [sendingInviteId, setSendingInviteId] = useState<string | null>(null)
   const [resendingAll, setResendingAll] = useState(false)
 
@@ -957,13 +1060,13 @@ function ClientsPageContent() {
           </div>
 
           {/* Table Header */}
-          <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1.5fr_1.5fr_40px] gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">
+          <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1.5fr_1.5fr_120px] gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">
             <span>Client</span>
             <span>Contact</span>
             <span>Pets</span>
             <span>Last Action</span>
             <span>Status</span>
-            <span />
+            <span>Actions</span>
           </div>
 
           {/* List */}
@@ -1008,29 +1111,52 @@ function ClientsPageContent() {
                           <span className="flex items-center gap-1"><PawPrint className="w-3 h-3" />{owner.petCount} pet{owner.petCount !== 1 ? 's' : ''}</span>
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(owner.lastInviteSentAt)}</span>
                         </div>
-                        {canSendInvite(owner.inviteStatus) && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleSendInvite(owner)}
-                                disabled={sendingInviteId === owner.id}
-                                className="p-2 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors disabled:opacity-50"
-                              >
-                                {sendingInviteId === owner.id
-                                  ? <div className="w-3.5 h-3.5 border-2 border-[#476B6B] border-t-transparent rounded-full animate-spin" />
-                                  : <Send className="w-3.5 h-3.5" />}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" sideOffset={6}>
-                              {owner.inviteStatus === 'pending' ? 'Send Invite' : 'Resend Invite'}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {canSendInvite(owner.inviteStatus) && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleSendInvite(owner)}
+                                  disabled={sendingInviteId === owner.id}
+                                  className="flex items-center justify-center p-2 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors disabled:opacity-50"
+                                >
+                                  {sendingInviteId === owner.id
+                                    ? <div className="w-3.5 h-3.5 border-2 border-[#476B6B] border-t-transparent rounded-full animate-spin" />
+                                    : <Send className="w-3.5 h-3.5" />}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" sideOffset={6}>
+                                {owner.inviteStatus === 'pending' ? 'Send Invite' : 'Resend Invite'}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {canSendInvite(owner.inviteStatus) ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => setAddPetTarget(owner)}
+                                  className="flex items-center justify-center p-2 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" sideOffset={6}>Add Pet</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <button
+                              onClick={() => setAddPetTarget(owner)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors text-xs font-semibold"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add Pet
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Desktop */}
-                    <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1.5fr_1.5fr_40px] gap-4 items-center">
+                    <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1.5fr_1.5fr_120px] gap-4 items-center">
                       <div className="flex items-center gap-3 min-w-0">
                         <OwnerAvatar owner={owner} />
                         <div className="min-w-0">
@@ -1061,26 +1187,47 @@ function ClientsPageContent() {
 
                       <div><StatusBadge status={owner.inviteStatus} /></div>
 
-                      <div className="flex justify-end">
+                      <div className="flex items-center gap-1.5 w-full">
                         {canSendInvite(owner.inviteStatus) ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleSendInvite(owner)}
-                                disabled={sendingInviteId === owner.id}
-                                className="p-2 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors disabled:opacity-50"
-                              >
-                                {sendingInviteId === owner.id
-                                  ? <div className="w-3.5 h-3.5 border-2 border-[#476B6B] border-t-transparent rounded-full animate-spin" />
-                                  : <Send className="w-3.5 h-3.5" />}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" sideOffset={6}>
-                              {owner.inviteStatus === 'pending' ? 'Send Invite' : 'Resend Invite'}
-                            </TooltipContent>
-                          </Tooltip>
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleSendInvite(owner)}
+                                  disabled={sendingInviteId === owner.id}
+                                  className="flex flex-1 items-center justify-center py-1.5 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors disabled:opacity-50"
+                                >
+                                  {sendingInviteId === owner.id
+                                    ? <div className="w-3.5 h-3.5 border-2 border-[#476B6B] border-t-transparent rounded-full animate-spin" />
+                                    : <Send className="w-3.5 h-3.5" />}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" sideOffset={6}>
+                                {owner.inviteStatus === 'pending' ? 'Send Invite' : 'Resend Invite'}
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => setAddPetTarget(owner)}
+                                  className="flex flex-1 items-center justify-center py-1.5 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" sideOffset={6}>
+                                Add Pet
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
                         ) : (
-                          <span className="w-8" />
+                          <button
+                            onClick={() => setAddPetTarget(owner)}
+                            className="flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[#476B6B] border border-[#476B6B]/30 hover:bg-[#476B6B]/5 transition-colors text-xs font-semibold"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Pet
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1106,6 +1253,14 @@ function ClientsPageContent() {
         onClose={() => setCreateModalOpen(false)}
         onCreated={fetchOwners}
         token={token}
+      />
+
+      <AddPetModal
+        open={addPetTarget !== null}
+        onClose={() => setAddPetTarget(null)}
+        onCreated={fetchOwners}
+        token={token}
+        owner={addPetTarget}
       />
     </DashboardLayout>
   )
