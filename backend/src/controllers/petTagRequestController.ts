@@ -8,6 +8,7 @@ import Appointment from '../models/Appointment';
 import Billing from '../models/Billing';
 import ProductService from '../models/ProductService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
+import { generateNextInvoiceNumber } from '../services/invoiceNumberService';
 
 /**
  * Get the current NFC tag price from the product catalog.
@@ -198,7 +199,11 @@ export const requestPetTag = async (req: Request, res: Response) => {
         }
 
         if (billingBranchId) {
+          const invoiceNumber = await generateNextInvoiceNumber(clinic._id);
           await Billing.create({
+            invoiceNumber,
+            issueDateTime: new Date(),
+            dueDate: new Date(),
             ownerId: req.user.userId,
             petId: petId,
             vetId: null,

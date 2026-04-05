@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Printer, Download } from 'lucide-react'
 import { refreshBillingPrices } from '@/lib/billingSync'
 import { useAuthStore } from '@/store/authStore'
 
@@ -27,6 +27,9 @@ interface ApiBillingItem {
 
 interface ApiBilling {
   _id: string
+  invoiceNumber?: string
+  issueDateTime?: string
+  dueDate?: string
   ownerId: { _id: string; firstName: string; lastName: string; email: string }
   petId: { _id: string; name: string; species: string; breed: string }
   vetId: { _id: string; firstName: string; lastName: string }
@@ -109,7 +112,73 @@ export default function BillingViewModal({
   const { token } = useAuthStore()
   const [billing, setBilling] = useState<ApiBilling | null>(null)
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
+  const [printing, setPrinting] = useState(false)
+  const [pdfLayout, setPdfLayout] = useState<'a4' | 'thermal-80' | 'thermal-58'>('a4')
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(new Map())
+
+  const fetchReceiptBlob = async (layout: 'a4' | 'thermal-80' | 'thermal-58' = 'a4') => {
+    if (!billing) return
+    const res = await fetch(`${API_BASE}/billings/${billing._id}/download-pdf?layout=${layout}`, {
+      headers: authHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to download receipt')
+    return res.blob()
+  }
+
+  const downloadPdf = async (layout: 'a4' | 'thermal-80' | 'thermal-58' = 'a4') => {
+    if (!billing) return
+    setDownloading(true)
+    try {
+      const blob = await fetchReceiptBlob(layout)
+      if (!blob) return
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const issue = new Date(billing.issueDateTime || billing.createdAt).toISOString().slice(0, 10).replace(/-/g, '')
+      a.href = url
+      a.download = `receipt-${billing.invoiceNumber || billing._id}-${issue}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error(error)
+      window.alert('Unable to download receipt PDF right now.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const printReceipt = async (layout: 'a4' | 'thermal-80' | 'thermal-58' = 'a4') => {
+    if (!billing) return
+    setPrinting(true)
+    try {
+      const blob = await fetchReceiptBlob(layout)
+      if (!blob) return
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      if (!printWindow) {
+        window.alert('Please allow pop-ups to print the receipt.')
+        window.URL.revokeObjectURL(url)
+        return
+      }
+      const cleanup = () => window.URL.revokeObjectURL(url)
+      printWindow.addEventListener('afterprint', cleanup, { once: true })
+      setTimeout(() => {
+        try {
+          printWindow.focus()
+          printWindow.print()
+        } catch {
+          cleanup()
+        }
+      }, 500)
+    } catch (error) {
+      console.error(error)
+      window.alert('Unable to print receipt right now.')
+    } finally {
+      setPrinting(false)
+    }
+  }
 
   useEffect(() => {
     const run = async () => {
@@ -176,10 +245,14 @@ export default function BillingViewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm billing-print-root"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative max-h-[90vh] overflow-y-auto">
+      <div
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative max-h-[90vh] overflow-y-auto billing-print-document ${
+          pdfLayout === 'thermal-58' ? 'billing-print-thermal-58' : pdfLayout === 'thermal-80' ? 'billing-print-thermal-80' : 'billing-print-a4'
+        }`}
+      >
         {/* Modal header */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 pt-5 pb-4 rounded-t-2xl">
           <button
@@ -217,6 +290,25 @@ export default function BillingViewModal({
         </div>
 
         <div className="px-6 py-5 space-y-5">
+          <div className="grid grid-cols-2 gap-3 text-xs text-gray-500">
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">Receipt No.</p>
+              <p className="text-sm font-semibold text-[#3D5E5C] mt-0.5">{billing.invoiceNumber || billing._id}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">Issue Date/Time</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{new Date(billing.issueDateTime || billing.createdAt).toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">Due Date</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{formatDate(billing.dueDate || billing.serviceDate || billing.createdAt)}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">Payment Status</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.status === 'paid' ? 'Paid' : 'Pending Payment'}</p>
+            </div>
+          </div>
+
           {/* Status banners */}
           {billing.status === 'pending_payment' && billing.medicalRecordId && billing.medicalRecordId.stage !== 'completed' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-xs text-yellow-700">
@@ -319,7 +411,32 @@ export default function BillingViewModal({
           )}
         </div>
 
-        <div className="px-6 pb-5 flex justify-end">
+        <div className="px-6 pb-5 flex flex-wrap gap-2 justify-end print:hidden">
+          <button
+            onClick={() => printReceipt(pdfLayout)}
+            disabled={printing}
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
+          >
+            <Printer className="w-4 h-4" />
+            {printing ? 'Preparing Print...' : 'Print Receipt'}
+          </button>
+          <select
+            value={pdfLayout}
+            onChange={(e) => setPdfLayout(e.target.value as 'a4' | 'thermal-80' | 'thermal-58')}
+            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 bg-white"
+          >
+            <option value="a4">A4 PDF</option>
+            <option value="thermal-80">Thermal 80mm PDF</option>
+            <option value="thermal-58">Thermal 58mm PDF</option>
+          </select>
+          <button
+            onClick={() => downloadPdf(pdfLayout)}
+            disabled={downloading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#3D5E5C] text-[#3D5E5C] hover:bg-[#f0f7f7] disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" />
+            {downloading ? 'Downloading...' : 'Download PDF'}
+          </button>
           <button
             onClick={onClose}
             className="px-8 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white font-semibold rounded-xl transition-colors text-sm"

@@ -9,6 +9,8 @@ import { sendBillingPaidReceipt } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { syncBillingFromRecord } from './medicalRecordController';
+import { generateNextInvoiceNumber } from '../services/invoiceNumberService';
+import { generateBillingReceiptPdf, ReceiptLayout } from '../services/billingPdfService';
 
 const APPT_TYPE_DISPLAY: Record<string, string> = {
   'consultation':             'General Consultation',
@@ -53,7 +55,10 @@ const POPULATE_BILLING = [
   { path: 'ownerId', select: 'firstName lastName email' },
   { path: 'petId', select: 'name species breed' },
   { path: 'vetId', select: 'firstName lastName userType' },
-  { path: 'clinicId', select: 'name' },
+  {
+    path: 'clinicId',
+    select: 'name legalBusinessName address phone email businessTaxId businessRegistrationNo receiptFooterNote logo',
+  },
   { path: 'clinicBranchId', select: 'name' },
   { path: 'medicalRecordId', select: 'stage' },
   { path: 'confinementRecordId', select: 'status admissionDate dischargeDate' },
@@ -84,6 +89,30 @@ const refreshBillingIfNeeded = async (billing: any) => {
 
 const refreshBillingsIfNeeded = async (billings: any[] = []) =>
   Promise.all(billings.map((billing) => refreshBillingIfNeeded(billing)));
+
+function computeItemTotal(item: any): number {
+  const unitPrice = Number(item?.unitPrice || 0);
+  const quantity = Number(item?.quantity || 1);
+  const dispenseFee = Number(item?.dispenseFee || 0);
+  const injectionFee = Number(item?.injectionFee || 0);
+  return unitPrice * quantity + dispenseFee + injectionFee;
+}
+
+function computeSubtotal(items: any[] = []): number {
+  return items.reduce((sum, item) => sum + computeItemTotal(item), 0);
+}
+
+function isReceiptLayout(value: unknown): value is ReceiptLayout {
+  return value === 'a4' || value === 'thermal-58' || value === 'thermal-80';
+}
+
+function sanitizeFileNamePart(value: string): string {
+  return value
+    .replace(/[^a-z0-9_-]+/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+}
 
 /**
  * POST /api/billings
@@ -158,7 +187,7 @@ export const createBilling = async (req: Request, res: Response) => {
       linkedRecord?.confinementRecordId ||
       null;
 
-    const subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
+    const subtotal = computeSubtotal(items);
     const totalAmountDue = Math.max(0, subtotal - discount);
 
     // Auto-generate serviceLabel from item names; fall back to appointment types when needed.
@@ -176,7 +205,12 @@ export const createBilling = async (req: Request, res: Response) => {
       }
     }
 
+    const generatedInvoiceNumber = await generateNextInvoiceNumber(clinicId);
+
     const billing = await Billing.create({
+      invoiceNumber: generatedInvoiceNumber,
+      issueDateTime: new Date(),
+      dueDate: resolvedServiceDate,
       ownerId,
       petId,
       vetId: vetId || null,
@@ -391,7 +425,12 @@ export const getBillingByMedicalRecord = async (req: Request, res: Response) => 
       return res.status(404).json({ status: 'ERROR', message: 'No billing record found for this medical record' });
     }
 
-    const refreshedBilling = await refreshBillingIfNeeded(billing);
+    let refreshedBilling = await refreshBillingIfNeeded(billing);
+    if (refreshedBilling && !(refreshedBilling as any).invoiceNumber) {
+      (refreshedBilling as any).invoiceNumber = await generateNextInvoiceNumber((refreshedBilling as any).clinicId?._id || refreshedBilling.clinicId);
+      await (refreshedBilling as any).save();
+      refreshedBilling = await Billing.findById(billing._id).populate(POPULATE_BILLING);
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -454,7 +493,12 @@ export const getBillingById = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
     }
 
-    const refreshedBilling = await refreshBillingIfNeeded(billing);
+    let refreshedBilling = await refreshBillingIfNeeded(billing);
+    if (refreshedBilling && !(refreshedBilling as any).invoiceNumber) {
+      (refreshedBilling as any).invoiceNumber = await generateNextInvoiceNumber((refreshedBilling as any).clinicId?._id || refreshedBilling.clinicId);
+      await (refreshedBilling as any).save();
+      refreshedBilling = await Billing.findById(billing._id).populate(POPULATE_BILLING);
+    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -490,8 +534,15 @@ export const updateBilling = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
     }
 
+    if (billing.status === 'paid' || billing.isFinalized) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Paid invoices are finalized and cannot be modified',
+      });
+    }
+
     // Clinic admin: update any field
-    const { ownerId, petId, vetId, clinicBranchId, confinementRecordId, items, discount, serviceLabel, serviceDate } = req.body;
+    const { ownerId, petId, vetId, clinicBranchId, confinementRecordId, items, discount, serviceLabel, serviceDate, dueDate } = req.body;
 
     const previousConfinementRecordId = billing.confinementRecordId ? billing.confinementRecordId.toString() : null;
 
@@ -502,11 +553,12 @@ export const updateBilling = async (req: Request, res: Response) => {
     if (confinementRecordId !== undefined) billing.confinementRecordId = confinementRecordId;
     if (serviceLabel !== undefined) billing.serviceLabel = serviceLabel;
     if (serviceDate !== undefined) billing.serviceDate = serviceDate;
+    if (dueDate !== undefined) (billing as any).dueDate = dueDate;
 
     if (items !== undefined) {
       billing.items = items;
       const discountValue = discount !== undefined ? discount : billing.discount;
-      billing.subtotal = items.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
+      billing.subtotal = computeSubtotal(items);
       billing.discount = discountValue;
       billing.totalAmountDue = Math.max(0, billing.subtotal - billing.discount);
     } else if (discount !== undefined) {
@@ -575,6 +627,9 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
 
     billing.status = 'paid';
     billing.paidAt = new Date();
+    billing.isFinalized = true;
+    billing.finalizedAt = new Date();
+    billing.finalizedBy = req.user.userId as any;
     if (amountPaid !== undefined) (billing as any).amountPaid = amountPaid;
     if (paymentMethod !== undefined) (billing as any).paymentMethod = paymentMethod;
     await billing.save();
@@ -767,6 +822,9 @@ export const approveQrPayment = async (req: Request, res: Response) => {
     billing.status = 'paid';
     billing.paidAt = new Date();
     billing.paymentMethod = 'qr';
+    billing.isFinalized = true;
+    billing.finalizedAt = new Date();
+    billing.finalizedBy = req.user.userId as any;
     (billing as any).amountPaid = billing.totalAmountDue;
     billing.pendingQrApproval = false;
     await billing.save();
@@ -898,5 +956,63 @@ export const deleteBillings = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Delete billings error:', error);
     return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting billing records' });
+  }
+};
+
+/**
+ * GET /api/billings/:id/download-pdf
+ * Download legal-ready receipt PDF in A4 (default) or thermal widths.
+ * Query: ?layout=a4|thermal-58|thermal-80
+ */
+export const downloadBillingPdf = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const billing = await Billing.findById(req.params.id).populate([
+      { path: 'ownerId', select: 'firstName lastName email' },
+      { path: 'petId', select: 'name species breed' },
+      {
+        path: 'clinicId',
+        select: 'name legalBusinessName address phone email businessTaxId businessRegistrationNo receiptFooterNote logo',
+      },
+    ]) as any;
+
+    if (!billing) {
+      return res.status(404).json({ status: 'ERROR', message: 'Billing record not found' });
+    }
+
+    const isOwner = billing.ownerId?._id?.toString() === req.user.userId;
+    const isVet = billing.vetId ? billing.vetId.toString() === req.user.userId : false;
+    const isClinicStaff = req.user.userType === 'clinic-admin';
+    if (!isOwner && !isVet && !isClinicStaff) {
+      return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
+    }
+
+    // Backward compatibility for historical rows created before invoice numbering rollout.
+    if (!billing.invoiceNumber) {
+      billing.invoiceNumber = await generateNextInvoiceNumber(billing.clinicId._id || billing.clinicId);
+      await billing.save();
+    }
+
+    const requestedLayout = req.query.layout;
+    const layout: ReceiptLayout = isReceiptLayout(requestedLayout) ? requestedLayout : 'a4';
+
+    const pdfBuffer = await generateBillingReceiptPdf(billing, { layout });
+
+    const petName = sanitizeFileNamePart(billing.petId?.name || 'pet');
+    const issued = new Date(billing.issueDateTime || billing.createdAt || new Date())
+      .toISOString()
+      .slice(0, 10)
+      .replace(/-/g, '');
+    const filename = `receipt-${billing.invoiceNumber}-${petName}-${issued}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(pdfBuffer);
+  } catch (error) {
+    console.error('Download billing PDF error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while generating the receipt PDF' });
   }
 };

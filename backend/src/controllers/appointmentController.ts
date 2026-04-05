@@ -18,6 +18,7 @@ import VetLeave from '../models/VetLeave';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { getClinicForAdmin } from './clinicController';
+import { generateNextInvoiceNumber } from '../services/invoiceNumberService';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -1132,7 +1133,11 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
         // Auto-create a billing record linked to this medical record
         const existingBilling = await Billing.findOne({ medicalRecordId: record._id });
         if (!existingBilling) {
+          const invoiceNumber = await generateNextInvoiceNumber(appointment.clinicId);
           const billing = await Billing.create({
+            invoiceNumber,
+            issueDateTime: new Date(),
+            dueDate: resolvedServiceDate,
             ownerId: appointment.ownerId,
             petId: appointment.petId,
             vetId: appointment.vetId,
@@ -1159,7 +1164,11 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
         // Auto-create billing if it doesn't exist yet for this record
         const existingBilling = await Billing.findOne({ medicalRecordId: existingRecord._id });
         if (!existingBilling) {
+          const invoiceNumber = await generateNextInvoiceNumber(appointment.clinicId);
           const billing = await Billing.create({
+            invoiceNumber,
+            issueDateTime: new Date(),
+            dueDate: resolvedServiceDate,
             ownerId: appointment.ownerId,
             petId: appointment.petId,
             vetId: appointment.vetId,

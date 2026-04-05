@@ -259,6 +259,53 @@ html {
   animation: slide-down 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #ffffff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .billing-print-root,
+  .billing-print-root * {
+    visibility: visible;
+  }
+
+  .billing-print-root {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: #ffffff !important;
+  }
+
+  .billing-print-document {
+    margin: 0 auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    max-width: none !important;
+    width: 190mm !important;
+  }
+
+  .billing-print-document.billing-print-thermal-80 {
+    width: 80mm !important;
+  }
+
+  .billing-print-document.billing-print-thermal-58 {
+    width: 58mm !important;
+  }
+}
+
 @keyframes toast-slide-in-right {
   from {
     transform: var(--y) translateX(100%);

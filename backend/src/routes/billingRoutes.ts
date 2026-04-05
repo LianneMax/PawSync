@@ -13,6 +13,7 @@ import {
   approveQrPayment,
   rejectQrPayment,
   deleteBillings,
+  downloadBillingPdf,
 } from '../controllers/billingController';
 import {
   authMiddleware,
@@ -66,6 +67,10 @@ router.post('/:id/approve-qr-payment', authMiddleware, clinicAdminOnly, approveQ
 // Clinic admin — reject QR payment so pet owner can re-submit
 // POST /api/billings/:id/reject-qr-payment
 router.post('/:id/reject-qr-payment', authMiddleware, clinicAdminOnly, rejectQrPayment);
+
+// Authenticated user with access — download billing PDF receipt
+// GET /api/billings/:id/download-pdf
+router.get('/:id/download-pdf', authMiddleware, downloadBillingPdf);
 
 // Clinic admin — get single billing
 // GET /api/billings/:id

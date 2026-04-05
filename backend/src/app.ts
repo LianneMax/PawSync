@@ -40,9 +40,13 @@ export function createApp() {
     'http://127.0.0.1:3000',
   ]);
 
+  const isAllowedDevOrigin = (origin: string): boolean => {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  };
+
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || allowedOrigins.has(origin) || isAllowedDevOrigin(origin)) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));

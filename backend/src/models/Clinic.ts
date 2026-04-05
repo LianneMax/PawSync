@@ -7,6 +7,10 @@ export interface IClinic extends Document {
   address: string | null;
   phone: string | null;
   email: string | null;
+  legalBusinessName: string | null;
+  businessTaxId: string | null;
+  businessRegistrationNo: string | null;
+  receiptFooterNote: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +44,26 @@ const ClinicSchema = new Schema(
       type: String,
       default: null,
       lowercase: true
+    },
+    legalBusinessName: {
+      type: String,
+      default: null,
+      trim: true
+    },
+    businessTaxId: {
+      type: String,
+      default: null,
+      trim: true
+    },
+    businessRegistrationNo: {
+      type: String,
+      default: null,
+      trim: true
+    },
+    receiptFooterNote: {
+      type: String,
+      default: null,
+      trim: true
     },
     isActive: {
       type: Boolean,

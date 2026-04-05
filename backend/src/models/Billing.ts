@@ -7,9 +7,14 @@ export interface IBillingItem {
   type: 'Service' | 'Product';
   unitPrice: number;
   quantity: number;
+  dispenseFee?: number;
+  injectionFee?: number;
 }
 
 export interface IBilling extends Document {
+  invoiceNumber: string;
+  issueDateTime: Date;
+  dueDate: Date;
   ownerId: mongoose.Types.ObjectId;
   petId: mongoose.Types.ObjectId;
   vetId: mongoose.Types.ObjectId | null;
@@ -31,6 +36,9 @@ export interface IBilling extends Document {
   qrPaymentProof: string | null;
   qrPaymentSubmittedAt: Date | null;
   pendingQrApproval: boolean;
+  isFinalized: boolean;
+  finalizedAt: Date | null;
+  finalizedBy: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,12 +74,35 @@ const BillingItemSchema = new Schema(
       default: 1,
       min: 0,
     },
+    dispenseFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    injectionFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { _id: true }
 );
 
 const BillingSchema = new Schema(
   {
+    invoiceNumber: {
+      type: String,
+      required: [true, 'Invoice number is required'],
+      trim: true,
+    },
+    issueDateTime: {
+      type: Date,
+      default: Date.now,
+    },
+    dueDate: {
+      type: Date,
+      default: Date.now,
+    },
     ownerId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -178,14 +209,31 @@ const BillingSchema = new Schema(
       default: false,
       index: true,
     },
+    isFinalized: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    finalizedAt: {
+      type: Date,
+      default: null,
+    },
+    finalizedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
 
+BillingSchema.index({ clinicId: 1, invoiceNumber: 1 }, { unique: true });
+
 // Clinic admin view: all billings for a clinic, sorted by latest
 BillingSchema.index({ clinicId: 1, status: 1, createdAt: -1 });
+BillingSchema.index({ clinicId: 1, isFinalized: 1, createdAt: -1 });
 // Vet view: billings assigned to this vet
 BillingSchema.index({ vetId: 1, status: 1, createdAt: -1 });
 // Pet owner view: invoices for this owner
