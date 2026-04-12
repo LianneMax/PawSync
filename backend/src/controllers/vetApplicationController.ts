@@ -142,14 +142,39 @@ export const approveApplication = async (req: Request, res: Response) => {
 
     // Auto-assign the vet to the branch
     const branch = await ClinicBranch.findById(application.branchId);
-    await AssignedVet.create({
+
+    // Deactivate any existing active assignment at a different branch
+    const existingAssignment = await AssignedVet.findOne({
       vetId: application.vetId,
-      clinicId: clinic._id,
-      clinicBranchId: application.branchId,
-      clinicName: clinic.name,
-      clinicAddress: branch?.address || null,
-      assignedAt: new Date()
+      clinicBranchId: { $ne: application.branchId },
+      isActive: true,
+      petId: null
     });
+    if (existingAssignment) {
+      existingAssignment.isActive = false;
+      await existingAssignment.save();
+      if (existingAssignment.clinicBranchId) {
+        await updateBranchStatus(existingAssignment.clinicBranchId.toString());
+      }
+    }
+
+    // Only create if not already assigned to this branch
+    const alreadyAssigned = await AssignedVet.findOne({
+      vetId: application.vetId,
+      clinicBranchId: application.branchId,
+      isActive: true,
+      petId: null
+    });
+    if (!alreadyAssigned) {
+      await AssignedVet.create({
+        vetId: application.vetId,
+        clinicId: clinic._id,
+        clinicBranchId: application.branchId,
+        clinicName: clinic.name,
+        clinicAddress: branch?.address || null,
+        assignedAt: new Date()
+      });
+    }
 
     // Update branch status to active since it now has a vet assigned
     await updateBranchStatus(application.branchId.toString());
