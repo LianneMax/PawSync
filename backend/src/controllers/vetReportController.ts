@@ -5,7 +5,12 @@ import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import User from '../models/User';
 
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL,
+    })
+  : null;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -288,7 +293,7 @@ export const generateReport = async (req: Request, res: Response) => {
     const prompt = buildAIPrompt(pet, record, vet, report.vetContextNotes);
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
