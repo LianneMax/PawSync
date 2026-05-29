@@ -8,12 +8,14 @@ import {
   getVetReport,
   updateVetReport,
   generateVetReport,
+  humanizeVetReport,
   shareVetReport,
   formatReportDate,
   SECTION_LABELS,
   SECTION_KEYS,
   type VetReport,
   type VetReportSections,
+  type OwnerSummary,
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
@@ -30,6 +32,12 @@ import {
   X,
   Check,
   ExternalLink,
+  Users,
+  Search,
+  Activity,
+  Heart,
+  FileText,
+  TrendingUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -111,9 +119,61 @@ function ContextPrompt({
   )
 }
 
+const OWNER_SUMMARY_CONFIG = [
+  { key: 'whatWeFound' as const, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800' },
+  { key: 'testResultsExplained' as const, label: 'Test Results Explained', Icon: Activity, bg: 'bg-purple-50', border: 'border-purple-200', ic: 'text-purple-600', tc: 'text-purple-800' },
+  { key: 'whatsHappeningInTheirBody' as const, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800' },
+  { key: 'theDiagnosis' as const, label: 'The Diagnosis', Icon: FileText, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800' },
+  { key: 'theTreatmentPlan' as const, label: 'The Treatment Plan', Icon: CheckCircle2, bg: 'bg-green-50', border: 'border-green-200', ic: 'text-green-600', tc: 'text-green-800' },
+  { key: 'whatToExpect' as const, label: 'What to Expect', Icon: TrendingUp, bg: 'bg-indigo-50', border: 'border-indigo-200', ic: 'text-indigo-600', tc: 'text-indigo-800' },
+]
+
+function HumanizeSection({
+  onHumanize,
+  humanizing,
+  hasOwnerSummary,
+  disabled,
+}: {
+  onHumanize: () => void
+  humanizing: boolean
+  hasOwnerSummary: boolean
+  disabled: boolean
+}) {
+  return (
+    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Users className="w-4 h-4 text-emerald-500" />
+        <span className="text-sm font-semibold text-emerald-700">Owner Summary</span>
+        {hasOwnerSummary && (
+          <span className="text-xs text-emerald-500 ml-auto flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Ready
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-emerald-600 mb-3">
+        Translate clinical findings into plain, compassionate language for the pet owner.
+      </p>
+      <button
+        onClick={onHumanize}
+        disabled={humanizing || disabled}
+        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      >
+        {humanizing ? (
+          <><RefreshCw className="w-4 h-4 animate-spin" /> Translating…</>
+        ) : (
+          <><Users className="w-4 h-4" /> {hasOwnerSummary ? 'Regenerate Owner Summary' : 'Generate Owner Summary'}</>
+        )}
+      </button>
+      {disabled && !humanizing && (
+        <p className="text-xs text-emerald-500 mt-2 text-center">Generate the clinical report first</p>
+      )}
+    </div>
+  )
+}
+
 // ─── Report Preview (formatted document view) ────────────────────────────────
 
-function ReportPreview({ report }: { report: VetReport }) {
+function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSummary: OwnerSummary | null }) {
   const pet = report.petId
   const vet = report.vetId
 
@@ -145,6 +205,31 @@ function ReportPreview({ report }: { report: VetReport }) {
           <p><strong>Known Allergies:</strong> {pet.allergies.join(', ')}</p>
         )}
       </div>
+
+      {ownerSummary && (
+        <>
+          <div className="mb-6">
+            <p className="font-bold text-sm mb-1 text-emerald-700">For the Pet Owner</p>
+            <p className="text-xs text-gray-500 font-sans mb-4">Plain-language summary visible to the owner when shared.</p>
+            <div className="grid grid-cols-1 gap-3 font-sans">
+              {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
+                const content = ownerSummary[key]
+                if (!content?.trim()) return null
+                return (
+                  <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
+                    <div className={`flex items-center gap-2 mb-2 ${tc}`}>
+                      <Icon className={`w-4 h-4 ${ic}`} />
+                      <span className="font-semibold text-sm">{label}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div className="border-t border-gray-200 my-6" />
+        </>
+      )}
 
       <p className="font-bold mb-4">Veterinarian Interpretation:</p>
 
@@ -183,8 +268,10 @@ export default function ReportEditorPage() {
   const [report, setReport] = useState<VetReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [humanizing, setHumanizing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState<'edit' | 'preview'>('edit')
+  const [ownerSummary, setOwnerSummary] = useState<OwnerSummary | null>(null)
 
   // Local editable state
   const [title, setTitle] = useState('')
@@ -209,6 +296,7 @@ export default function ReportEditorPage() {
       setTitle(r.title)
       setContextNotes(r.vetContextNotes)
       setSections(r.sections)
+      setOwnerSummary(r.ownerSummary ?? null)
     } catch {
       toast.error('Failed to load report')
     } finally {
@@ -299,6 +387,20 @@ export default function ReportEditorPage() {
       toast.error(e.message || 'Generation failed')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  const handleHumanize = async () => {
+    setHumanizing(true)
+    try {
+      const updated = await humanizeVetReport(id, token || undefined)
+      setReport(updated)
+      setOwnerSummary(updated.ownerSummary ?? null)
+      toast.success('Owner summary generated!')
+    } catch (e: any) {
+      toast.error(e.message || 'Humanization failed')
+    } finally {
+      setHumanizing(false)
     }
   }
 
@@ -481,7 +583,7 @@ export default function ReportEditorPage() {
         </div>
 
         {view === 'preview' ? (
-          <ReportPreview report={{ ...report, sections, title }} />
+          <ReportPreview report={{ ...report, sections, title }} ownerSummary={ownerSummary} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: AI prompt */}
@@ -501,9 +603,26 @@ export default function ReportEditorPage() {
                 </div>
               )}
 
-              {/* Metadata */}
+              {/* Owner summary section */}
               {!generating && (
-                <div className="text-xs text-gray-400 space-y-1">
+                <div className="mt-4">
+                  <HumanizeSection
+                    onHumanize={handleHumanize}
+                    humanizing={humanizing}
+                    hasOwnerSummary={!!ownerSummary}
+                    disabled={!hasContent}
+                  />
+                  {humanizing && (
+                    <div className="mt-3 border border-emerald-100 rounded-xl p-4 bg-white flex items-center">
+                      <AILoadingState />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Metadata */}
+              {!generating && !humanizing && (
+                <div className="text-xs text-gray-400 space-y-1 mt-4">
                   <p>Report date: {formatReportDate(report.reportDate)}</p>
                   <p>Status: <span className="capitalize">{report.status}</span></p>
                   {report.sharedWithOwner && report.sharedAt && (

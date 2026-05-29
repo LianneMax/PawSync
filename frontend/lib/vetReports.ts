@@ -13,6 +13,15 @@ export interface VetReportSections {
   prognosis: string;
 }
 
+export interface OwnerSummary {
+  whatWeFound: string;
+  testResultsExplained: string;
+  whatsHappeningInTheirBody: string;
+  theDiagnosis: string;
+  theTreatmentPlan: string;
+  whatToExpect: string;
+}
+
 export interface VetReport {
   _id: string;
   petId: {
@@ -40,6 +49,7 @@ export interface VetReport {
   reportDate: string;
   vetContextNotes: string;
   sections: VetReportSections;
+  ownerSummary?: OwnerSummary | null;
   isAIGenerated: boolean;
   status: 'draft' | 'finalized';
   sharedWithOwner: boolean;
@@ -152,6 +162,20 @@ export async function generateVetReport(id: string, token?: string): Promise<Vet
   return json.data;
 }
 
+export async function humanizeVetReport(id: string, token?: string): Promise<VetReport> {
+  const res = await authenticatedFetch(
+    `${API}/api/vet-reports/${id}/humanize`,
+    { method: 'POST' },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Humanization failed');
+  }
+  const json = await res.json();
+  return json.data;
+}
+
 export async function shareVetReport(
   id: string,
   shared: boolean,
@@ -180,6 +204,17 @@ export function formatReportDate(dateStr: string): string {
     year: 'numeric',
   });
 }
+
+export const OWNER_SUMMARY_LABELS: Record<keyof OwnerSummary, string> = {
+  whatWeFound: 'What We Found',
+  testResultsExplained: 'Test Results Explained',
+  whatsHappeningInTheirBody: "What's Happening in Their Body",
+  theDiagnosis: 'The Diagnosis',
+  theTreatmentPlan: 'The Treatment Plan',
+  whatToExpect: 'What to Expect',
+};
+
+export const OWNER_SUMMARY_KEYS = Object.keys(OWNER_SUMMARY_LABELS) as (keyof OwnerSummary)[];
 
 export const SECTION_LABELS: Record<keyof VetReportSections, string> = {
   clinicalSummary: 'I. Clinical Summary',

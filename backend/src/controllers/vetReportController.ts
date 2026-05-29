@@ -23,6 +23,40 @@ function calcAge(dob: Date): string {
   return `${years} year${years !== 1 ? 's' : ''} and ${months} month${months !== 1 ? 's' : ''}`;
 }
 
+function buildHumanizePrompt(sections: any, petName: string, petType: string): string {
+  return `Below is a formal veterinary diagnostic report for a pet owner. Translate each section into plain, friendly language a non-medical pet owner can understand. Keep it honest but compassionate. Use "${petName}" or "your ${petType}" naturally throughout.
+
+Clinical Summary:
+"${sections.clinicalSummary || '(not available)'}"
+
+Laboratory Interpretation:
+"${sections.laboratoryInterpretation || '(not available)'}"
+
+Diagnostic Integration:
+"${sections.diagnosticIntegration || '(not available)'}"
+
+Assessment:
+"${sections.assessment || '(not available)'}"
+
+Management Plan:
+"${sections.managementPlan || '(not available)'}"
+
+Prognosis:
+"${sections.prognosis || '(not available)'}"
+
+---
+Rewrite each section in plain language for the pet owner. Output ONLY this JSON object:
+
+{
+  "whatWeFound": "A warm, plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
+  "testResultsExplained": "Explain the lab results in simple terms. What does each result mean for ${petName}'s health? Use a conversational tone.",
+  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
+  "theDiagnosis": "State the diagnoses in plain language. What condition does ${petName} have and what does it mean for daily life?",
+  "theTreatmentPlan": "List each medication and what it does for ${petName} in simple terms. Make it feel like a care guide.",
+  "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}. What should the owner watch out for? End on a hopeful but realistic note."
+}`;
+}
+
 function buildAIPrompt(
   pet: any,
   record: any,
@@ -328,6 +362,84 @@ export const generateReport = async (req: Request, res: Response) => {
       prognosis: sections.prognosis ?? '',
     };
     report.isAIGenerated = true;
+    await report.save();
+
+    res.json({ status: 'OK', data: report });
+  } catch (err: any) {
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+// ─── AI HUMANIZE (owner summary) ─────────────────────────────────────────────
+
+export const humanizeReport = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ status: 'ERROR', message: 'OpenAI API key not configured' });
+    }
+
+    const report = await VetReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    const hasContent = Object.values(report.sections).some((v) => (v as string)?.trim());
+    if (!hasContent) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Generate the clinical report first before creating an owner summary.',
+      });
+    }
+
+    const pet = await Pet.findById(report.petId).lean() as any;
+    if (!pet) {
+      return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
+    }
+
+    if (!openai) {
+      return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
+    }
+
+    const petType = pet.species === 'canine' ? 'dog' : 'cat';
+    const prompt = buildHumanizePrompt(report.sections, pet.name, petType);
+
+    const completion = await openai.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a compassionate veterinary health communicator. Your job is to translate formal veterinary diagnostic reports into plain, warm, easy-to-understand language for pet owners who have no medical background. Avoid jargon. Use simple words. Always reassure where appropriate without downplaying serious findings. Output valid JSON only — no markdown fences, no extra text.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.4,
+      max_tokens: 2000,
+    });
+
+    const raw = completion.choices[0]?.message?.content?.trim() ?? '';
+
+    let parsed: Record<string, string>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return res.status(502).json({
+        status: 'ERROR',
+        message: 'AI returned an unexpected response. Please try again.',
+        raw,
+      });
+    }
+
+    report.ownerSummary = {
+      whatWeFound: parsed.whatWeFound ?? '',
+      testResultsExplained: parsed.testResultsExplained ?? '',
+      whatsHappeningInTheirBody: parsed.whatsHappeningInTheirBody ?? '',
+      theDiagnosis: parsed.theDiagnosis ?? '',
+      theTreatmentPlan: parsed.theTreatmentPlan ?? '',
+      whatToExpect: parsed.whatToExpect ?? '',
+    };
     await report.save();
 
     res.json({ status: 'OK', data: report });

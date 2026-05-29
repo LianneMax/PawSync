@@ -60,6 +60,8 @@ import {
   Scissors,
   LayoutGrid,
   List,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import { getVaccinationsByPet, getVaccinationsByMedicalRecord, getStatusClasses, getStatusLabel, type Vaccination } from '@/lib/vaccinations'
 import { toast } from 'sonner'
@@ -76,6 +78,7 @@ import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 import { getReferredPets } from '@/lib/referrals'
+import { createVetReport, generateVetReport } from '@/lib/vetReports'
 
 
 // ==================== TYPES ====================
@@ -264,6 +267,20 @@ function PatientRecordsPageContent() {
   const [loadingVaccinations, setLoadingVaccinations] = useState(false)
   const [pendingReleaseRequest, setPendingReleaseRequest] = useState<{ confinementRecordId: string; requestedAt?: string | null } | null>(null)
   const [confirmingRelease, setConfirmingRelease] = useState(false)
+  const [generatingReportId, setGeneratingReportId] = useState<string | null>(null)
+
+  const handleGenerateReport = async (record: MedicalRecord) => {
+    const petId = typeof record.petId === 'object' ? (record.petId as any)._id : record.petId as string
+    setGeneratingReportId(record._id)
+    try {
+      const report = await createVetReport({ petId, medicalRecordId: record._id }, token!)
+      await generateVetReport(report._id, token!)
+      window.location.href = `/vet-dashboard/reports/${report._id}`
+    } catch {
+      toast.error('Failed to generate report')
+      setGeneratingReportId(null)
+    }
+  }
 
   // Load patients from vet's appointments + referred pets
   const loadPatients = useCallback(async () => {
@@ -1101,6 +1118,17 @@ function PatientRecordsPageContent() {
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-3">
                         <button
+                          onClick={() => handleGenerateReport(currentRecord)}
+                          disabled={generatingReportId === currentRecord._id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          title="Generate AI report"
+                        >
+                          {generatingReportId === currentRecord._id
+                            ? <><RefreshCw className="w-3 h-3 animate-spin" /> Generating…</>
+                            : <><Sparkles className="w-3 h-3" /> Generate Report</>
+                          }
+                        </button>
+                        <button
                           onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
                           className={`p-2 rounded-lg transition-colors ${
                             currentRecord.sharedWithOwner
@@ -1228,6 +1256,17 @@ function PatientRecordsPageContent() {
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                            <button
+                              onClick={() => handleGenerateReport(record)}
+                              disabled={generatingReportId === record._id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                              title="Generate AI report"
+                            >
+                              {generatingReportId === record._id
+                                ? <><RefreshCw className="w-3 h-3 animate-spin" /> Generating…</>
+                                : <><Sparkles className="w-3 h-3" /> Generate Report</>
+                              }
+                            </button>
                             <button
                               onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}
                               className={`p-2 rounded-lg transition-colors ${

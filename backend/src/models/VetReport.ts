@@ -9,6 +9,15 @@ export interface IVetReportSections {
   prognosis: string;
 }
 
+export interface IOwnerSummary {
+  whatWeFound: string;
+  testResultsExplained: string;
+  whatsHappeningInTheirBody: string;
+  theDiagnosis: string;
+  theTreatmentPlan: string;
+  whatToExpect: string;
+}
+
 export interface IVetReport extends Document {
   petId: mongoose.Types.ObjectId;
   medicalRecordId?: mongoose.Types.ObjectId;
@@ -20,6 +29,7 @@ export interface IVetReport extends Document {
   /** Free-form context the vet types before hitting Generate */
   vetContextNotes: string;
   sections: IVetReportSections;
+  ownerSummary?: IOwnerSummary | null;
   isAIGenerated: boolean;
   status: 'draft' | 'finalized';
   sharedWithOwner: boolean;
@@ -40,6 +50,18 @@ const VetReportSectionsSchema = new Schema<IVetReportSections>(
   { _id: false }
 );
 
+const OwnerSummarySchema = new Schema<IOwnerSummary>(
+  {
+    whatWeFound: { type: String, default: '' },
+    testResultsExplained: { type: String, default: '' },
+    whatsHappeningInTheirBody: { type: String, default: '' },
+    theDiagnosis: { type: String, default: '' },
+    theTreatmentPlan: { type: String, default: '' },
+    whatToExpect: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const VetReportSchema = new Schema<IVetReport>(
   {
     petId: { type: Schema.Types.ObjectId, ref: 'Pet', required: true, index: true },
@@ -51,6 +73,7 @@ const VetReportSchema = new Schema<IVetReport>(
     reportDate: { type: Date, default: Date.now },
     vetContextNotes: { type: String, default: '' },
     sections: { type: VetReportSectionsSchema, default: () => ({}) },
+    ownerSummary: { type: OwnerSummarySchema, default: null },
     isAIGenerated: { type: Boolean, default: false },
     status: { type: String, enum: ['draft', 'finalized'], default: 'draft' },
     sharedWithOwner: { type: Boolean, default: false },
