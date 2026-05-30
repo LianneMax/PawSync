@@ -1,7 +1,5 @@
 import { authenticatedFetch } from '@/lib/auth';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
-
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface VetReportSections {
@@ -85,13 +83,12 @@ export async function listVetReports(
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.offset) qs.set('offset', String(params.offset));
 
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports${qs.toString() ? `?${qs}` : ''}`,
+  const json = await authenticatedFetch(
+    `/vet-reports${qs.toString() ? `?${qs}` : ''}`,
     { method: 'GET' },
     token
   );
-  if (!res.ok) throw new Error('Failed to fetch reports');
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to fetch reports');
   return json;
 }
 
@@ -99,34 +96,30 @@ export async function createVetReport(
   input: CreateVetReportInput,
   token?: string
 ): Promise<VetReport> {
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports`,
+  const json = await authenticatedFetch(
+    '/vet-reports',
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) },
     token
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to create report');
-  }
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to create report');
   return json.data;
 }
 
 export async function getVetReport(id: string, token?: string): Promise<VetReport> {
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports/${id}`,
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}`,
     { method: 'GET' },
     token
   );
-  if (!res.ok) throw new Error('Failed to fetch report');
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to fetch report');
   return json.data;
 }
 
 export async function getSharedReport(id: string): Promise<VetReport> {
-  const res = await fetch(`${API}/api/vet-reports/shared/${id}`);
-  if (!res.ok) throw new Error('Report not found or not shared');
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+  const res = await fetch(`${API_BASE_URL}/vet-reports/shared/${id}`);
   const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Report not found or not shared');
   return json.data;
 }
 
@@ -135,44 +128,32 @@ export async function updateVetReport(
   input: UpdateVetReportInput,
   token?: string
 ): Promise<VetReport> {
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports/${id}`,
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}`,
     { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) },
     token
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to update report');
-  }
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to update report');
   return json.data;
 }
 
 export async function generateVetReport(id: string, token?: string): Promise<VetReport> {
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports/${id}/generate`,
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/generate`,
     { method: 'POST' },
     token
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'AI generation failed');
-  }
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'AI generation failed');
   return json.data;
 }
 
 export async function humanizeVetReport(id: string, token?: string): Promise<VetReport> {
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports/${id}/humanize`,
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/humanize`,
     { method: 'POST' },
     token
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Humanization failed');
-  }
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Humanization failed');
   return json.data;
 }
 
@@ -181,8 +162,8 @@ export async function shareVetReport(
   shared: boolean,
   token?: string
 ): Promise<VetReport> {
-  const res = await authenticatedFetch(
-    `${API}/api/vet-reports/${id}/share`,
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/share`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -190,8 +171,7 @@ export async function shareVetReport(
     },
     token
   );
-  if (!res.ok) throw new Error('Failed to update share status');
-  const json = await res.json();
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to update share status');
   return json.data;
 }
 

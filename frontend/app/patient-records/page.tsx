@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -78,7 +78,7 @@ import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 import { getReferredPets } from '@/lib/referrals'
-import { createVetReport, generateVetReport } from '@/lib/vetReports'
+import { createVetReport, listVetReports } from '@/lib/vetReports'
 
 
 // ==================== TYPES ====================
@@ -227,6 +227,7 @@ function emptyExtraCheckboxes(): ExtraCheckboxState {
 
 function PatientRecordsPageContent() {
   const { token } = useAuthStore()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [patients, setPatients] = useState<PatientPet[]>([])
   const [loading, setLoading] = useState(true)
@@ -268,16 +269,16 @@ function PatientRecordsPageContent() {
   const [pendingReleaseRequest, setPendingReleaseRequest] = useState<{ confinementRecordId: string; requestedAt?: string | null } | null>(null)
   const [confirmingRelease, setConfirmingRelease] = useState(false)
   const [generatingReportId, setGeneratingReportId] = useState<string | null>(null)
+  const [recordReportMap, setRecordReportMap] = useState<Record<string, string>>({})
 
   const handleGenerateReport = async (record: MedicalRecord) => {
     const petId = typeof record.petId === 'object' ? (record.petId as any)._id : record.petId as string
     setGeneratingReportId(record._id)
     try {
       const report = await createVetReport({ petId, medicalRecordId: record._id }, token!)
-      await generateVetReport(report._id, token!)
-      window.location.href = `/vet-dashboard/reports/${report._id}`
-    } catch {
-      toast.error('Failed to generate report')
+      router.push(`/vet-dashboard/reports/${report._id}`)
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create report')
       setGeneratingReportId(null)
     }
   }
@@ -447,6 +448,25 @@ function PatientRecordsPageContent() {
     }
   }, [token])
 
+  const loadReportsForPet = useCallback(async (petId: string) => {
+    if (!token) return
+    try {
+      const { data } = await listVetReports({ petId, limit: 100 }, token)
+      const map: Record<string, string> = {}
+      for (const r of data) {
+        if (r.medicalRecordId) {
+          const key = typeof r.medicalRecordId === 'object'
+            ? (r.medicalRecordId as any).toString()
+            : String(r.medicalRecordId)
+          map[key] = r._id
+        }
+      }
+      setRecordReportMap(map)
+    } catch (err) {
+      console.warn('[loadReportsForPet] failed:', err)
+    }
+  }, [token])
+
   const handleConfirmReleaseRequest = async () => {
     if (!token || !pendingReleaseRequest?.confinementRecordId || !selectedPatient) return
     setConfirmingRelease(true)
@@ -477,8 +497,10 @@ function PatientRecordsPageContent() {
     setPatientTab('records')
     setVaccinations([])
     setPendingReleaseRequest(null)
+    setRecordReportMap({})
     loadRecords(pet._id)
     loadPendingReleaseRequest(pet._id)
+    loadReportsForPet(pet._id)
   }
 
   const handleBack = () => {
@@ -488,6 +510,7 @@ function PatientRecordsPageContent() {
     setPatientTab('records')
     setVaccinations([])
     setPendingReleaseRequest(null)
+    setRecordReportMap({})
   }
 
   // Build ordered list of all record IDs for the selected patient
@@ -1117,17 +1140,27 @@ function PatientRecordsPageContent() {
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-3">
-                        <button
-                          onClick={() => handleGenerateReport(currentRecord)}
-                          disabled={generatingReportId === currentRecord._id}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                          title="Generate AI report"
-                        >
-                          {generatingReportId === currentRecord._id
-                            ? <><RefreshCw className="w-3 h-3 animate-spin" /> Generating…</>
-                            : <><Sparkles className="w-3 h-3" /> Generate Report</>
-                          }
-                        </button>
+                        {recordReportMap[currentRecord._id] ? (
+                          <button
+                            onClick={() => router.push(`/vet-dashboard/reports/${recordReportMap[currentRecord._id]}`)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                            title="View report"
+                          >
+                            <FileText className="w-3 h-3" /> View Report
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleGenerateReport(currentRecord)}
+                            disabled={generatingReportId === currentRecord._id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            title="Generate AI report"
+                          >
+                            {generatingReportId === currentRecord._id
+                              ? <><RefreshCw className="w-3 h-3 animate-spin" /> Creating…</>
+                              : <><Sparkles className="w-3 h-3" /> Generate Report</>
+                            }
+                          </button>
+                        )}
                         <button
                           onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
                           className={`p-2 rounded-lg transition-colors ${
@@ -1256,17 +1289,27 @@ function PatientRecordsPageContent() {
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0 ml-3">
-                            <button
-                              onClick={() => handleGenerateReport(record)}
-                              disabled={generatingReportId === record._id}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                              title="Generate AI report"
-                            >
-                              {generatingReportId === record._id
-                                ? <><RefreshCw className="w-3 h-3 animate-spin" /> Generating…</>
-                                : <><Sparkles className="w-3 h-3" /> Generate Report</>
-                              }
-                            </button>
+                            {recordReportMap[record._id] ? (
+                              <button
+                                onClick={() => router.push(`/vet-dashboard/reports/${recordReportMap[record._id]}`)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                                title="View report"
+                              >
+                                <FileText className="w-3 h-3" /> View Report
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleGenerateReport(record)}
+                                disabled={generatingReportId === record._id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                title="Generate AI report"
+                              >
+                                {generatingReportId === record._id
+                                  ? <><RefreshCw className="w-3 h-3 animate-spin" /> Creating…</>
+                                  : <><Sparkles className="w-3 h-3" /> Generate Report</>
+                                }
+                              </button>
+                            )}
                             <button
                               onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}
                               className={`p-2 rounded-lg transition-colors ${

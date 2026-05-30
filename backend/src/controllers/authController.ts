@@ -46,10 +46,12 @@ const generateToken = (user: IUser, isMainBranch?: boolean): string => {
     userType: user.userType
   };
 
-  // Include clinic and branch info for clinic-admin users
-  if (user.userType === 'clinic-admin') {
+  // Include clinic and branch info for clinic-admin and veterinarian users
+  if (user.userType === 'clinic-admin' || user.userType === 'veterinarian') {
     if (user.clinicId) payload.clinicId = user.clinicId;
     if (user.clinicBranchId) payload.clinicBranchId = user.clinicBranchId;
+  }
+  if (user.userType === 'clinic-admin') {
     payload.isMainBranch = !!isMainBranch;
   }
 

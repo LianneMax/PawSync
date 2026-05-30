@@ -5,12 +5,39 @@ import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import User from '../models/User';
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI | null {
+  if (!_openai && process.env.OPENAI_API_KEY) {
+    _openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       baseURL: process.env.OPENAI_BASE_URL,
-    })
-  : null;
+    });
+  }
+  return _openai;
+}
+
+function extractJSON(raw: string): Record<string, string> {
+  // Strip markdown code fences if present
+  let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
+  // Escape bare control characters (newlines, tabs, carriage returns) that appear
+  // inside JSON string literals — the AI sometimes outputs them unescaped
+  cleaned = cleaned.replace(/"((?:[^"\\]|\\[\s\S])*)"/g, (_match, content: string) => {
+    const fixed = content
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+    return `"${fixed}"`;
+  });
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new SyntaxError('No JSON object found in response');
+  }
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -146,12 +173,38 @@ export const createReport = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'petId is required' });
     }
 
+    // Resolve clinicId / clinicBranchId: prefer JWT, then medical record, then vet's User record
+    let clinicId = user.clinicId;
+    let clinicBranchId = user.clinicBranchId;
+
+    if (!clinicId || !clinicBranchId) {
+      if (medicalRecordId) {
+        const mr = await MedicalRecord.findById(medicalRecordId).lean() as any;
+        if (mr) {
+          clinicId = clinicId || mr.clinicId;
+          clinicBranchId = clinicBranchId || mr.clinicBranchId;
+        }
+      }
+    }
+
+    if (!clinicId || !clinicBranchId) {
+      const vetUser = await User.findById(user.userId).lean() as any;
+      if (vetUser) {
+        clinicId = clinicId || vetUser.clinicId;
+        clinicBranchId = clinicBranchId || vetUser.clinicBranchId;
+      }
+    }
+
+    if (!clinicId || !clinicBranchId) {
+      return res.status(400).json({ status: 'ERROR', message: 'Unable to determine clinic for this report. Please contact support.' });
+    }
+
     const report = await VetReport.create({
       petId,
       medicalRecordId: medicalRecordId || null,
       vetId: user.userId,
-      clinicId: user.clinicId,
-      clinicBranchId: user.clinicBranchId,
+      clinicId,
+      clinicBranchId,
       title: title || '',
       reportDate: reportDate ? new Date(reportDate) : new Date(),
       vetContextNotes: vetContextNotes || '',
@@ -320,6 +373,7 @@ export const generateReport = async (req: Request, res: Response) => {
       record = await MedicalRecord.findById(report.medicalRecordId).lean() || {};
     }
 
+    const openai = getOpenAI();
     if (!openai) {
       return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
     }
@@ -337,15 +391,17 @@ export const generateReport = async (req: Request, res: Response) => {
         { role: 'user', content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 8000,
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? '';
+    console.log('[generateReport] raw AI response:', raw.slice(0, 500));
 
     let sections: Record<string, string>;
     try {
-      sections = JSON.parse(raw);
-    } catch {
+      sections = extractJSON(raw);
+    } catch (parseErr) {
+      console.error('[generateReport] JSON parse failed:', parseErr, '\nraw:', raw);
       return res.status(502).json({
         status: 'ERROR',
         message: 'AI returned an unexpected response. Please try again.',
@@ -398,6 +454,7 @@ export const humanizeReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
     }
 
+    const openai = getOpenAI();
     if (!openai) {
       return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
     }
@@ -416,14 +473,14 @@ export const humanizeReport = async (req: Request, res: Response) => {
         { role: 'user', content: prompt },
       ],
       temperature: 0.4,
-      max_tokens: 2000,
+      max_tokens: 8000,
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? '';
 
     let parsed: Record<string, string>;
     try {
-      parsed = JSON.parse(raw);
+      parsed = extractJSON(raw);
     } catch {
       return res.status(502).json({
         status: 'ERROR',
