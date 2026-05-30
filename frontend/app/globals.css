@@ -275,6 +275,7 @@ html {
     visibility: hidden;
   }
 
+  /* ── Billing print ── */
   .billing-print-root,
   .billing-print-root * {
     visibility: visible;
@@ -303,6 +304,40 @@ html {
 
   .billing-print-document.billing-print-thermal-58 {
     width: 58mm !important;
+  }
+
+  /* ── Vet report print ── */
+  .report-print-root,
+  .report-print-root * {
+    visibility: visible;
+  }
+
+  .report-print-root {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .report-print-page {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .report-print-newpage {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .report-no-print {
+    display: none !important;
   }
 }
 

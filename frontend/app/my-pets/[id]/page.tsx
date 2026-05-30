@@ -97,7 +97,7 @@ export default function PetProfilePage() {
   const [saving, setSaving] = useState(false)
   const [showPhotoUpload, setShowPhotoUpload] = useState(false)
   const [activeTab, setActiveTab] = useState<'basic' | 'medical-records' | 'reports' | 'nfc'>('basic')
-  const [sharedReports, setSharedReports] = useState<VetReport[]>([])
+  const [sharedReports, setSharedReports] = useState<VetReport[] | null>(null)
   const [loadingReports, setLoadingReports] = useState(false)
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
@@ -303,14 +303,14 @@ export default function PetProfilePage() {
   }, [token, petId])
 
   useEffect(() => {
-    if (activeTab === 'reports' && sharedReports.length === 0 && !loadingReports) {
+    if (activeTab === 'reports' && sharedReports === null && !loadingReports) {
       setLoadingReports(true)
       listSharedReportsForOwner(petId, token || undefined)
         .then(setSharedReports)
-        .catch(() => {})
+        .catch(() => setSharedReports([]))
         .finally(() => setLoadingReports(false))
     }
-  }, [activeTab, sharedReports.length, loadingReports, petId, token])
+  }, [activeTab, sharedReports, loadingReports, petId, token])
 
   useEffect(() => {
     if (activeTab === 'nfc' && tagRequests.length === 0 && !loadingTagRequests) {
@@ -1181,7 +1181,7 @@ export default function PetProfilePage() {
             {activeTab === 'reports' && (
               <>
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Diagnostic Reports</h3>
-                {loadingReports ? (
+                {loadingReports || sharedReports === null ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                   </div>

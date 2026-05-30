@@ -170,7 +170,7 @@ function HumanizeSection({
         )}
       </button>
       {disabled && !humanizing && (
-        <p className="text-xs text-emerald-500 mt-2 text-center">Generate the clinical report first</p>
+        <p className="text-xs text-emerald-500 mt-2 text-center">Finalize the report before generating an owner summary</p>
       )}
     </div>
   )
@@ -187,9 +187,33 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   prognosis:               <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
 }
 
+function PageHeader({ reportId }: { reportId: string }) {
+  return (
+    <div className="relative bg-white px-8 py-5 border-b border-gray-100">
+      <p className="absolute top-3 right-4 text-gray-300 text-[10px] font-mono">{reportId.slice(-8).toUpperCase()}</p>
+      <div className="flex flex-col items-center text-center gap-1.5">
+        <div className="relative h-14 w-64">
+          <Image
+            src="/images/logos/baivet-logo.png"
+            alt="BaiVet Logo"
+            fill
+            className="object-contain"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        </div>
+        <p className="text-gray-500 text-xs">134A Schirra Street, Moonwalk Village, Phase 1, Parañaque</p>
+        <p className="text-gray-400 text-xs">028347477 · 0917-8220273</p>
+      </div>
+    </div>
+  )
+}
+
 function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSummary: OwnerSummary | null }) {
   const pet = report.petId
   const vet = report.vetId
+  const hasOwnerSummary = ownerSummary && Object.values(ownerSummary).some(
+    (v) => typeof v === 'string' && v.trim()
+  )
 
   const calcAge = (dob: string) => {
     const diff = Date.now() - new Date(dob).getTime()
@@ -200,155 +224,119 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     return `${years} year${years !== 1 ? 's' : ''} & ${months} month${months !== 1 ? 's' : ''}`
   }
 
+  const totalPages = hasOwnerSummary ? 2 : 1
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-      {/* Clinic header */}
-      <div className="bg-white px-8 py-6 border-b border-gray-100">
-        <div className="flex flex-col items-center text-center gap-2">
-          <div className="relative h-16 w-72">
-            <Image
-              src="/images/logos/baivet-logo.png"
-              alt="BaiVet Logo"
-              fill
-              className="object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-            />
-          </div>
-          <div className="mt-1">
-            <p className="text-gray-500 text-xs">134A Schirra Street, Moonwalk Village, Phase 1, Parañaque</p>
-            <p className="text-gray-400 text-xs mt-0.5">028347477 · 0917-8220273</p>
-          </div>
-          <p className="text-gray-300 text-[10px] font-mono mt-1">{report._id.slice(-8).toUpperCase()}</p>
-        </div>
-      </div>
+    <div className="space-y-8">
 
-      {/* Title bar */}
-      <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
-        <h2 className="text-sm font-semibold tracking-wider uppercase">Veterinary Diagnostic Report</h2>
-      </div>
-
-      <div className="px-8 py-6 space-y-6">
-
-        {/* Patient info grid */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
-            <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Patient Information</h3>
+      {/* ── PAGE 1: Veterinary Diagnostic Report ── */}
+      <div>
+        <p className="text-xs text-gray-400 text-center mb-2">Page 1 of {totalPages} — Veterinary Diagnostic Report</p>
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm" style={{ minHeight: '1056px' }}>
+          <PageHeader reportId={report._id} />
+          <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
+            <h2 className="text-sm font-semibold tracking-wider uppercase">Veterinary Diagnostic Report</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#F8F6F2] rounded-xl p-4 text-sm">
+          <div className="px-8 py-6 space-y-6">
+
+            {/* Patient info grid */}
             <div>
-              <p className="text-xs text-gray-500">Name</p>
-              <p className="font-medium text-[#4F4F4F]">{pet.name}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Species</p>
-              <p className="font-medium text-[#4F4F4F] capitalize">{pet.species === 'canine' ? 'Canine' : 'Feline'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Breed</p>
-              <p className="font-medium text-[#4F4F4F]">{pet.breed}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Sex</p>
-              <p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Age</p>
-              <p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Weight</p>
-              <p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Sterilization</p>
-              <p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? '—'}</p>
-            </div>
-            {pet.allergies && pet.allergies.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-500">Allergies</p>
-                <p className="font-medium text-[#4F4F4F]">{pet.allergies.join(', ')}</p>
+              <div className="flex items-center gap-2 mb-3">
+                <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
+                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Patient Information</h3>
               </div>
-            )}
-          </div>
-        </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#F8F6F2] rounded-xl p-4 text-sm">
+                <div><p className="text-xs text-gray-500">Name</p><p className="font-medium text-[#4F4F4F]">{pet.name}</p></div>
+                <div><p className="text-xs text-gray-500">Species</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.species === 'canine' ? 'Canine' : 'Feline'}</p></div>
+                <div><p className="text-xs text-gray-500">Breed</p><p className="font-medium text-[#4F4F4F]">{pet.breed}</p></div>
+                <div><p className="text-xs text-gray-500">Sex</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? '—'}</p></div>
+                <div><p className="text-xs text-gray-500">Age</p><p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : '—'}</p></div>
+                <div><p className="text-xs text-gray-500">Weight</p><p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '—'}</p></div>
+                <div><p className="text-xs text-gray-500">Sterilization</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? '—'}</p></div>
+                {pet.allergies && pet.allergies.length > 0 && (
+                  <div><p className="text-xs text-gray-500">Allergies</p><p className="font-medium text-[#4F4F4F]">{pet.allergies.join(', ')}</p></div>
+                )}
+              </div>
+            </div>
 
-        {/* Attending vet */}
-        <div className="flex items-center gap-2 bg-[#f0f7f7] rounded-xl px-4 py-3 text-sm">
-          <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
-          <span className="text-xs text-gray-500 uppercase tracking-wide font-medium mr-1">Attending Veterinarian:</span>
-          <span className="font-medium text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</span>
-          {vet.prcLicenseNumber && (
-            <span className="text-gray-400 text-xs ml-1">· P.R.C. Lic No. {vet.prcLicenseNumber}</span>
-          )}
-        </div>
+            {/* Attending vet */}
+            <div className="flex items-center gap-2 bg-[#f0f7f7] rounded-xl px-4 py-3 text-sm">
+              <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
+              <span className="text-xs text-gray-500 uppercase tracking-wide font-medium mr-1">Attending Veterinarian:</span>
+              <span className="font-medium text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</span>
+              {vet.prcLicenseNumber && <span className="text-gray-400 text-xs ml-1">· P.R.C. Lic No. {vet.prcLicenseNumber}</span>}
+            </div>
 
-        {/* Owner summary (if present) */}
-        {ownerSummary && (
-          <>
             <hr className="border-gray-200" />
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-[#5A7C7A]" />
-                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Owner Summary</h3>
-                <span className="text-xs text-gray-400 font-normal normal-case">— plain-language version</span>
+
+            {/* Clinical sections */}
+            {SECTION_KEYS.map((key, i) => {
+              const content = report.sections[key]
+              if (!content?.trim()) return null
+              return (
+                <div key={key}>
+                  {i > 0 && <hr className="border-gray-100 mb-6" />}
+                  <div className="flex items-center gap-2 mb-3">
+                    {SECTION_ICONS[key]}
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{SECTION_LABELS[key]}</h3>
+                  </div>
+                  <div className="bg-[#F8F6F2] rounded-xl p-4">
+                    <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Vet signature */}
+            <hr className="border-gray-200" />
+            <div className="flex items-end justify-between pt-2">
+              <div className="text-sm">
+                <div className="mb-6 h-8" />
+                <p className="font-bold text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
+                <p className="text-gray-500 text-xs">Licensed Veterinarian</p>
+                {vet.prcLicenseNumber && <p className="text-gray-400 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>}
               </div>
-              <div className="grid grid-cols-1 gap-3">
-                {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
-                  const content = ownerSummary[key]
-                  if (!content?.trim()) return null
-                  return (
-                    <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
-                      <div className={`flex items-center gap-2 mb-2 ${tc}`}>
-                        <Icon className={`w-4 h-4 ${ic}`} />
-                        <span className="font-semibold text-sm">{label}</span>
-                      </div>
-                      <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
-                    </div>
-                  )
-                })}
+              <div className="text-right text-xs text-gray-400">
+                <p>Report Date: {formatReportDate(report.reportDate)}</p>
+                <p className="font-mono">{report._id.slice(-8).toUpperCase()}</p>
               </div>
             </div>
-          </>
-        )}
 
-        {/* Clinical sections */}
-        <hr className="border-gray-200" />
-
-        {SECTION_KEYS.map((key, i) => {
-          const content = report.sections[key]
-          if (!content?.trim()) return null
-          return (
-            <div key={key}>
-              {i > 0 && <hr className="border-gray-100 mb-6" />}
-              <div className="flex items-center gap-2 mb-3">
-                {SECTION_ICONS[key]}
-                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{SECTION_LABELS[key]}</h3>
-              </div>
-              <div className="bg-[#F8F6F2] rounded-xl p-4">
-                <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
-              </div>
-            </div>
-          )
-        })}
-
-        {/* Vet signature */}
-        <hr className="border-gray-200" />
-        <div className="flex items-end justify-between pt-2">
-          <div className="text-sm">
-            <p className="font-bold text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
-            <p className="text-gray-500 text-xs">Licensed Veterinarian</p>
-            {vet.prcLicenseNumber && (
-              <p className="text-gray-400 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>
-            )}
-          </div>
-          <div className="text-right text-xs text-gray-400">
-            <p>Report Date: {formatReportDate(report.reportDate)}</p>
-            <p className="font-mono">{report._id.slice(-8).toUpperCase()}</p>
           </div>
         </div>
-
       </div>
+
+      {/* ── PAGE 2: Owner Summary (only if generated) ── */}
+      {hasOwnerSummary && ownerSummary && (
+        <div>
+          <p className="text-xs text-gray-400 text-center mb-2">Page 2 of {totalPages} — Owner Summary</p>
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm" style={{ minHeight: '1056px' }}>
+            <PageHeader reportId={report._id} />
+            <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
+              <h2 className="text-sm font-semibold tracking-wider uppercase">Owner Summary — For {pet.name}&apos;s Family</h2>
+            </div>
+            <div className="px-8 py-6 space-y-4">
+              <p className="text-xs text-gray-500">
+                A plain-language guide to this report, written for the pet owner.
+              </p>
+              {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
+                const content = ownerSummary[key]
+                if (!content?.trim()) return null
+                return (
+                  <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
+                    <div className={`flex items-center gap-2 mb-2 ${tc}`}>
+                      <Icon className={`w-4 h-4 ${ic}`} />
+                      <span className="font-semibold text-sm">{label}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -709,7 +697,7 @@ export default function ReportEditorPage() {
                     onHumanize={handleHumanize}
                     humanizing={humanizing}
                     hasOwnerSummary={!!ownerSummary}
-                    disabled={!hasContent}
+                    disabled={report.status !== 'finalized'}
                   />
                   {humanizing && (
                     <div className="mt-3 border border-emerald-100 rounded-xl p-4 bg-white flex items-center">

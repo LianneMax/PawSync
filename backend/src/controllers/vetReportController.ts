@@ -517,11 +517,10 @@ export const humanizeReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
-    const hasContent = Object.values(report.sections).some((v) => (v as string)?.trim());
-    if (!hasContent) {
+    if (report.status !== 'finalized') {
       return res.status(400).json({
         status: 'ERROR',
-        message: 'Generate the clinical report first before creating an owner summary.',
+        message: 'The report must be finalized before generating an owner summary.',
       });
     }
 
