@@ -19,6 +19,7 @@ import {
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
+import Image from 'next/image'
 import {
   ArrowLeft,
   Sparkles,
@@ -38,6 +39,10 @@ import {
   Heart,
   FileText,
   TrendingUp,
+  Stethoscope,
+  FlaskConical,
+  ClipboardList,
+  Pill,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -173,6 +178,15 @@ function HumanizeSection({
 
 // ─── Report Preview (formatted document view) ────────────────────────────────
 
+const SECTION_ICONS: Record<string, React.ReactNode> = {
+  clinicalSummary:         <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  laboratoryInterpretation:<FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  diagnosticIntegration:   <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  assessment:              <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  managementPlan:          <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  prognosis:               <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
+}
+
 function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSummary: OwnerSummary | null }) {
   const pet = report.petId
   const vet = report.vetId
@@ -187,72 +201,153 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-8 font-serif text-gray-900 text-sm leading-relaxed shadow-sm">
-      {/* Clinic header placeholder */}
-      <div className="text-center mb-6 pb-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold tracking-wide uppercase">Veterinary Diagnostic Report</h1>
-        <p className="text-gray-500 text-xs mt-1">Date: {formatReportDate(report.reportDate)}</p>
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      {/* Clinic header */}
+      <div className="bg-white px-8 py-6 border-b border-gray-100">
+        <div className="flex flex-col items-center text-center gap-2">
+          <div className="relative h-16 w-72">
+            <Image
+              src="/images/logos/baivet-logo.png"
+              alt="BaiVet Logo"
+              fill
+              className="object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </div>
+          <div className="mt-1">
+            <p className="text-gray-500 text-xs">134A Schirra Street, Moonwalk Village, Phase 1, Parañaque</p>
+            <p className="text-gray-400 text-xs mt-0.5">028347477 · 0917-8220273</p>
+          </div>
+          <p className="text-gray-300 text-[10px] font-mono mt-1">{report._id.slice(-8).toUpperCase()}</p>
+        </div>
       </div>
 
-      {/* Patient info */}
-      <div className="mb-6 space-y-1 text-sm">
-        <p><strong>Patient:</strong> {pet.name}</p>
-        <p><strong>Species/Breed:</strong> {pet.species === 'canine' ? 'Canine' : 'Feline'} / {pet.breed}</p>
-        <p><strong>Sex/Age:</strong> {pet.sex} / {pet.dateOfBirth ? calcAge(pet.dateOfBirth) : '—'}</p>
-        <p><strong>Weight:</strong> {pet.weight ?? '—'} kg</p>
-        <p><strong>Sterilization:</strong> {pet.sterilization ?? '—'}</p>
-        {pet.allergies && pet.allergies.length > 0 && (
-          <p><strong>Known Allergies:</strong> {pet.allergies.join(', ')}</p>
-        )}
+      {/* Title bar */}
+      <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
+        <h2 className="text-sm font-semibold tracking-wider uppercase">Veterinary Diagnostic Report</h2>
       </div>
 
-      {ownerSummary && (
-        <>
-          <div className="mb-6">
-            <p className="font-bold text-sm mb-1 text-emerald-700">For the Pet Owner</p>
-            <p className="text-xs text-gray-500 font-sans mb-4">Plain-language summary visible to the owner when shared.</p>
-            <div className="grid grid-cols-1 gap-3 font-sans">
-              {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
-                const content = ownerSummary[key]
-                if (!content?.trim()) return null
-                return (
-                  <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
-                    <div className={`flex items-center gap-2 mb-2 ${tc}`}>
-                      <Icon className={`w-4 h-4 ${ic}`} />
-                      <span className="font-semibold text-sm">{label}</span>
-                    </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
-                  </div>
-                )
-              })}
+      <div className="px-8 py-6 space-y-6">
+
+        {/* Patient info grid */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
+            <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Patient Information</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#F8F6F2] rounded-xl p-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500">Name</p>
+              <p className="font-medium text-[#4F4F4F]">{pet.name}</p>
             </div>
+            <div>
+              <p className="text-xs text-gray-500">Species</p>
+              <p className="font-medium text-[#4F4F4F] capitalize">{pet.species === 'canine' ? 'Canine' : 'Feline'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Breed</p>
+              <p className="font-medium text-[#4F4F4F]">{pet.breed}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Sex</p>
+              <p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Age</p>
+              <p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Weight</p>
+              <p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Sterilization</p>
+              <p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? '—'}</p>
+            </div>
+            {pet.allergies && pet.allergies.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500">Allergies</p>
+                <p className="font-medium text-[#4F4F4F]">{pet.allergies.join(', ')}</p>
+              </div>
+            )}
           </div>
-          <div className="border-t border-gray-200 my-6" />
-        </>
-      )}
+        </div>
 
-      <p className="font-bold mb-4">Veterinarian Interpretation:</p>
+        {/* Attending vet */}
+        <div className="flex items-center gap-2 bg-[#f0f7f7] rounded-xl px-4 py-3 text-sm">
+          <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
+          <span className="text-xs text-gray-500 uppercase tracking-wide font-medium mr-1">Attending Veterinarian:</span>
+          <span className="font-medium text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</span>
+          {vet.prcLicenseNumber && (
+            <span className="text-gray-400 text-xs ml-1">· P.R.C. Lic No. {vet.prcLicenseNumber}</span>
+          )}
+        </div>
 
-      {SECTION_KEYS.map((key) => {
-        const content = report.sections[key]
-        if (!content) return null
-        return (
-          <div key={key} className="mb-5">
-            <h2 className="font-bold text-sm mb-2">{SECTION_LABELS[key]}</h2>
-            <p className="whitespace-pre-wrap text-sm text-gray-800">{content}</p>
-          </div>
-        )
-      })}
-
-      {/* Vet signature */}
-      <div className="mt-8 pt-4 border-t border-gray-200 text-sm">
-        <p className="font-bold">
-          {vet.firstName} {vet.lastName}
-        </p>
-        <p className="text-gray-500">Veterinarian</p>
-        {vet.prcLicenseNumber && (
-          <p className="text-gray-500 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>
+        {/* Owner summary (if present) */}
+        {ownerSummary && (
+          <>
+            <hr className="border-gray-200" />
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-[#5A7C7A]" />
+                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Owner Summary</h3>
+                <span className="text-xs text-gray-400 font-normal normal-case">— plain-language version</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
+                  const content = ownerSummary[key]
+                  if (!content?.trim()) return null
+                  return (
+                    <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
+                      <div className={`flex items-center gap-2 mb-2 ${tc}`}>
+                        <Icon className={`w-4 h-4 ${ic}`} />
+                        <span className="font-semibold text-sm">{label}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
         )}
+
+        {/* Clinical sections */}
+        <hr className="border-gray-200" />
+
+        {SECTION_KEYS.map((key, i) => {
+          const content = report.sections[key]
+          if (!content?.trim()) return null
+          return (
+            <div key={key}>
+              {i > 0 && <hr className="border-gray-100 mb-6" />}
+              <div className="flex items-center gap-2 mb-3">
+                {SECTION_ICONS[key]}
+                <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{SECTION_LABELS[key]}</h3>
+              </div>
+              <div className="bg-[#F8F6F2] rounded-xl p-4">
+                <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Vet signature */}
+        <hr className="border-gray-200" />
+        <div className="flex items-end justify-between pt-2">
+          <div className="text-sm">
+            <p className="font-bold text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
+            <p className="text-gray-500 text-xs">Licensed Veterinarian</p>
+            {vet.prcLicenseNumber && (
+              <p className="text-gray-400 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>
+            )}
+          </div>
+          <div className="text-right text-xs text-gray-400">
+            <p>Report Date: {formatReportDate(report.reportDate)}</p>
+            <p className="font-mono">{report._id.slice(-8).toUpperCase()}</p>
+          </div>
+        </div>
+
       </div>
     </div>
   )
@@ -336,6 +431,11 @@ export default function ReportEditorPage() {
     triggerAutoSave(sections, v)
   }
 
+  // Mutation responses from the backend are not populated (petId/vetId come back as raw IDs).
+  // This helper preserves the already-populated petId and vetId from the existing state.
+  const applyUpdate = (updated: VetReport) =>
+    setReport((prev) => prev ? { ...updated, petId: prev.petId, vetId: prev.vetId } : updated)
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -344,7 +444,7 @@ export default function ReportEditorPage() {
         { title, vetContextNotes: contextNotes, sections },
         token || undefined
       )
-      setReport(updated)
+      applyUpdate(updated)
       toast.success('Report saved')
     } catch {
       toast.error('Save failed')
@@ -361,7 +461,7 @@ export default function ReportEditorPage() {
         { title, vetContextNotes: contextNotes, sections, status: 'finalized' },
         token || undefined
       )
-      setReport(updated)
+      applyUpdate(updated)
       toast.success('Report finalized')
     } catch {
       toast.error('Failed to finalize')
@@ -372,7 +472,6 @@ export default function ReportEditorPage() {
 
   const handleGenerate = async () => {
     setGenerating(true)
-    // Save context notes first
     try {
       await updateVetReport(id, { vetContextNotes: contextNotes }, token || undefined)
     } catch {
@@ -380,7 +479,7 @@ export default function ReportEditorPage() {
     }
     try {
       const updated = await generateVetReport(id, token || undefined)
-      setReport(updated)
+      applyUpdate(updated)
       setSections(updated.sections)
       toast.success('Report generated!')
     } catch (e: any) {
@@ -394,7 +493,7 @@ export default function ReportEditorPage() {
     setHumanizing(true)
     try {
       const updated = await humanizeVetReport(id, token || undefined)
-      setReport(updated)
+      applyUpdate(updated)
       setOwnerSummary(updated.ownerSummary ?? null)
       toast.success('Owner summary generated!')
     } catch (e: any) {
@@ -408,7 +507,7 @@ export default function ReportEditorPage() {
     if (!report) return
     try {
       const updated = await shareVetReport(id, !report.sharedWithOwner, token || undefined)
-      setReport(updated)
+      applyUpdate(updated)
       if (updated.sharedWithOwner) {
         toast.success('Report shared with owner')
       } else {

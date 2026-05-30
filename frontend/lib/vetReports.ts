@@ -74,6 +74,19 @@ export interface UpdateVetReportInput {
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────
 
+export async function listSharedReportsForOwner(
+  petId: string,
+  token?: string
+): Promise<VetReport[]> {
+  const json = await authenticatedFetch(
+    `/vet-reports/for-owner/pet/${petId}`,
+    { method: 'GET' },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to fetch reports');
+  return json.data;
+}
+
 export async function listVetReports(
   params?: { petId?: string; limit?: number; offset?: number },
   token?: string
@@ -92,6 +105,14 @@ export async function listVetReports(
   return json;
 }
 
+export class DuplicateReportError extends Error {
+  existingReportId: string;
+  constructor(existingReportId: string) {
+    super('A report already exists for this medical record.');
+    this.existingReportId = existingReportId;
+  }
+}
+
 export async function createVetReport(
   input: CreateVetReportInput,
   token?: string
@@ -101,6 +122,7 @@ export async function createVetReport(
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) },
     token
   );
+  if (json?.existingReportId) throw new DuplicateReportError(json.existingReportId);
   if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to create report');
   return json.data;
 }

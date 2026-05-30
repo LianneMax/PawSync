@@ -8,6 +8,7 @@ import {
   shareReport,
   generateReport,
   humanizeReport,
+  listSharedReportsForOwner,
 } from '../controllers/vetReportController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -15,6 +16,9 @@ const router = express.Router();
 
 // Public: shared report (no auth — owner opens via link)
 router.get('/shared/:id', getSharedReport);
+
+// Owner: list shared reports for a pet (requires auth, any user type)
+router.get('/for-owner/pet/:petId', authMiddleware, listSharedReportsForOwner);
 
 // Vet / clinic-admin protected routes
 router.get('/', authMiddleware, vetOrClinicAdminOnly, listReports);

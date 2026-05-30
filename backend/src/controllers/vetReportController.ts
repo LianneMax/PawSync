@@ -4,6 +4,10 @@ import VetReport from '../models/VetReport';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import User from '../models/User';
+import { createNotification } from '../services/notificationService';
+import { sendVetReportShared } from '../services/emailService';
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI | null {
@@ -72,7 +76,7 @@ Prognosis:
 "${sections.prognosis || '(not available)'}"
 
 ---
-Rewrite each section in plain language for the pet owner. Output ONLY this JSON object:
+Rewrite each section in plain language for the pet owner. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY this JSON object:
 
 {
   "whatWeFound": "A warm, plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
@@ -150,7 +154,7 @@ ADDITIONAL VET CONTEXT (provided by the attending vet):
 ${vetContextNotes || '(none provided)'}
 
 ---
-Generate the report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Do NOT include markdown headers — the frontend will add those. Output ONLY the JSON object.
+Generate the report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Do NOT include markdown headers — the frontend will add those. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
   "clinicalSummary": "A narrative paragraph covering the patient's presenting signs, physical exam findings, vital parameter interpretation, body condition, and any notable abnormalities.",
@@ -171,6 +175,18 @@ export const createReport = async (req: Request, res: Response) => {
 
     if (!petId) {
       return res.status(400).json({ status: 'ERROR', message: 'petId is required' });
+    }
+
+    // Prevent duplicate reports for the same medical record
+    if (medicalRecordId) {
+      const existing = await VetReport.findOne({ medicalRecordId }).lean();
+      if (existing) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'A report already exists for this medical record.',
+          existingReportId: (existing as any)._id,
+        });
+      }
     }
 
     // Resolve clinicId / clinicBranchId: prefer JWT, then medical record, then vet's User record
@@ -335,11 +351,71 @@ export const shareReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
+    const wasAlreadyShared = report.sharedWithOwner;
     report.sharedWithOwner = !!shared;
     report.sharedAt = shared ? new Date() : undefined;
     await report.save();
 
+    // Send email + in-app notification only when newly sharing (not on unshare)
+    if (shared && !wasAlreadyShared) {
+      try {
+        const [pet, vet, clinic] = await Promise.all([
+          Pet.findById(report.petId).lean() as any,
+          User.findById(report.vetId).select('firstName lastName').lean() as any,
+          report.clinicId
+            ? (await import('../models/Clinic')).default.findById(report.clinicId).select('name').lean() as any
+            : null,
+        ]);
+
+        const owner = pet?.ownerId
+          ? await User.findById(pet.ownerId).select('email firstName _id').lean() as any
+          : null;
+
+        const reportUrl = `${FRONTEND_URL}/reports/${id}`;
+
+        if (owner?.email) {
+          sendVetReportShared({
+            ownerEmail: owner.email,
+            ownerFirstName: owner.firstName || 'Pet Owner',
+            petName: pet?.name || 'your pet',
+            vetName: vet ? `${vet.firstName} ${vet.lastName}` : 'the veterinarian',
+            clinicName: clinic?.name || 'the clinic',
+            reportDate: report.reportDate,
+            reportUrl,
+          });
+        }
+
+        if (owner?._id) {
+          await createNotification(
+            owner._id.toString(),
+            'medical_record_shared',
+            'Diagnostic Report Available',
+            `Dr. ${vet ? `${vet.firstName} ${vet.lastName}` : 'your veterinarian'} has shared a diagnostic report for ${pet?.name || 'your pet'}.`,
+            { vetReportId: id },
+          );
+        }
+      } catch (notifyErr) {
+        console.error('[VetReport] Share notification failed:', notifyErr);
+        // Non-fatal
+      }
+    }
+
     res.json({ status: 'OK', data: report });
+  } catch (err: any) {
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+// ─── LIST SHARED (owner) ──────────────────────────────────────────────────────
+
+export const listSharedReportsForOwner = async (req: Request, res: Response) => {
+  try {
+    const { petId } = req.params;
+    const reports = await VetReport.find({ petId, sharedWithOwner: true })
+      .sort({ reportDate: -1 })
+      .populate('vetId', 'firstName lastName')
+      .lean();
+    res.json({ status: 'OK', data: reports });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }

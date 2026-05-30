@@ -218,7 +218,7 @@ export default function VaccineCardPage() {
             {/* Card Header — clip rounded top separately */}
             <div className="rounded-t-3xl overflow-hidden">
               <div className="px-6 py-4 flex items-center justify-center bg-[#476B6B]">
-                <Image src="/images/pawsync-logo-white.png" alt="PawSync" width={120} height={32} className="h-8 w-auto" style={{ fontFamily: 'var(--font-outfit)' }} />
+                <Image src="/images/logos/pawsync-logo-white.png" alt="PawSync" width={120} height={32} className="h-8 w-auto" style={{ fontFamily: 'var(--font-outfit)' }} />
               </div>
             </div>
 

@@ -78,7 +78,7 @@ import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 import { getReferredPets } from '@/lib/referrals'
-import { createVetReport, listVetReports } from '@/lib/vetReports'
+import { createVetReport, listVetReports, DuplicateReportError } from '@/lib/vetReports'
 
 
 // ==================== TYPES ====================
@@ -278,6 +278,10 @@ function PatientRecordsPageContent() {
       const report = await createVetReport({ petId, medicalRecordId: record._id }, token!)
       router.push(`/vet-dashboard/reports/${report._id}`)
     } catch (err: any) {
+      if (err instanceof DuplicateReportError) {
+        router.push(`/vet-dashboard/reports/${err.existingReportId}`)
+        return
+      }
       toast.error(err?.message || 'Failed to create report')
       setGeneratingReportId(null)
     }

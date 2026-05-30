@@ -6,7 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
-import { createVetReport } from '@/lib/vetReports'
+import { createVetReport, listVetReports, DuplicateReportError } from '@/lib/vetReports'
 import { ArrowLeft, Search, PawPrint, CalendarDays, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,6 +18,7 @@ export default function NewReportPage() {
   const router = useRouter()
   const { token, user } = useAuthStore()
   const [records, setRecords] = useState<MedicalRecord[]>([])
+  const [usedRecordIds, setUsedRecordIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<MedicalRecord | null>(null)
@@ -27,8 +28,20 @@ export default function NewReportPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await getVetMedicalRecords({ limit: 100 }, token || undefined)
-        setRecords(res.data?.records ?? [])
+        const [recordsRes, reportsRes] = await Promise.all([
+          getVetMedicalRecords({ limit: 200 }, token || undefined),
+          listVetReports({ limit: 200 }, token || undefined),
+        ])
+        setRecords(recordsRes.data?.records ?? [])
+        const used = new Set<string>()
+        for (const r of reportsRes.data) {
+          if (r.medicalRecordId) {
+            used.add(typeof r.medicalRecordId === 'object'
+              ? (r.medicalRecordId as any).toString()
+              : String(r.medicalRecordId))
+          }
+        }
+        setUsedRecordIds(used)
       } catch {
         toast.error('Failed to load records')
       } finally {
@@ -39,6 +52,7 @@ export default function NewReportPage() {
   }, [token])
 
   const filtered = records.filter((r) => {
+    if (usedRecordIds.has(r._id)) return false
     const q = search.toLowerCase()
     if (!q) return true
     const petName = typeof r.petId === 'object' ? r.petId?.name : ''
@@ -53,13 +67,17 @@ export default function NewReportPage() {
     setCreating(true)
     try {
       const petId = typeof selected.petId === 'object' ? selected.petId._id : selected.petId
-      const defaultTitle = title.trim() || `Diagnostic Report — ${typeof selected.petId === 'object' ? selected.petId.name : 'Patient'} — ${fmtDate(selected.createdAt)}`
+      const defaultTitle = title.trim() || `Diagnostic Report: ${typeof selected.petId === 'object' ? selected.petId.name : 'Patient'} (${fmtDate(selected.createdAt)})`
       const report = await createVetReport(
         { petId, medicalRecordId: selected._id, title: defaultTitle },
         token || undefined
       )
       router.push(`/vet-dashboard/reports/${report._id}`)
     } catch (e: any) {
+      if (e instanceof DuplicateReportError) {
+        router.push(`/vet-dashboard/reports/${e.existingReportId}`)
+        return
+      }
       toast.error(e.message || 'Failed to create report')
       setCreating(false)
     }
@@ -116,7 +134,9 @@ export default function NewReportPage() {
           ) : (
             <div className="max-h-80 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50">
               {filtered.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-8">No records found</p>
+                <p className="text-center text-sm text-gray-400 py-8">
+                  {search ? 'No records match your search' : 'All records already have a report'}
+                </p>
               ) : (
                 filtered.map((r) => {
                   const pet = typeof r.petId === 'object' ? r.petId : null

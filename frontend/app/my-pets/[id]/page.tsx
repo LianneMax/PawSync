@@ -12,6 +12,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { getPetById, updatePet, togglePetLost, requestConfinementRelease, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
+import { listSharedReportsForOwner, type VetReport, formatReportDate } from '@/lib/vetReports'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
 import { getMyAppointments, type Appointment } from '@/lib/appointments'
 import { authenticatedFetch } from '@/lib/auth'
@@ -95,7 +96,9 @@ export default function PetProfilePage() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showPhotoUpload, setShowPhotoUpload] = useState(false)
-  const [activeTab, setActiveTab] = useState<'basic' | 'medical-records' | 'nfc'>('basic')
+  const [activeTab, setActiveTab] = useState<'basic' | 'medical-records' | 'reports' | 'nfc'>('basic')
+  const [sharedReports, setSharedReports] = useState<VetReport[]>([])
+  const [loadingReports, setLoadingReports] = useState(false)
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
@@ -298,6 +301,16 @@ export default function PetProfilePage() {
       fetchMedicalRecords()
     }
   }, [token, petId])
+
+  useEffect(() => {
+    if (activeTab === 'reports' && sharedReports.length === 0 && !loadingReports) {
+      setLoadingReports(true)
+      listSharedReportsForOwner(petId, token || undefined)
+        .then(setSharedReports)
+        .catch(() => {})
+        .finally(() => setLoadingReports(false))
+    }
+  }, [activeTab, sharedReports.length, loadingReports, petId, token])
 
   useEffect(() => {
     if (activeTab === 'nfc' && tagRequests.length === 0 && !loadingTagRequests) {
@@ -895,6 +908,16 @@ export default function PetProfilePage() {
                 Medical Records
               </button>
               <button
+                onClick={() => setActiveTab('reports')}
+                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                  activeTab === 'reports'
+                    ? 'border-[#7FA5A3] text-[#476B6B]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Reports
+              </button>
+              <button
                 onClick={() => setActiveTab('nfc')}
                 className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
                   activeTab === 'nfc'
@@ -1149,6 +1172,63 @@ export default function PetProfilePage() {
                         </div>
                       </button>
                     ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Reports Tab */}
+            {activeTab === 'reports' && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Diagnostic Reports</h3>
+                {loadingReports ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-6 h-6 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : sharedReports.length === 0 ? (
+                  <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-gray-500 mb-1">No reports yet</h4>
+                    <p className="text-sm text-gray-400">
+                      Diagnostic reports shared by your veterinarian will appear here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sharedReports.map((report) => {
+                      const vet = report.vetId as any
+                      return (
+                        <a
+                          key={report._id}
+                          href={`/reports/${report._id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-white border border-gray-200 rounded-xl p-4 hover:border-[#7FA5A3] hover:shadow-lg transition-all text-left flex items-start justify-between gap-4 block"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="w-4 h-4 text-[#7FA5A3] shrink-0" />
+                              <h4 className="font-semibold text-[#4F4F4F] truncate">
+                                {report.title || `Diagnostic Report`}
+                              </h4>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 shrink-0 text-gray-400" />
+                                <span>{formatReportDate(report.reportDate)}</span>
+                              </div>
+                              {vet?.firstName && (
+                                <div>
+                                  <p className="text-xs text-gray-400 uppercase tracking-wide">Veterinarian</p>
+                                  <p className="text-sm text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-300 shrink-0 mt-1" />
+                        </a>
+                      )
+                    })}
                   </div>
                 )}
               </>
