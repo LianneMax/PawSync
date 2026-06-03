@@ -116,4 +116,7 @@ AppointmentSchema.index(
   { unique: true, partialFilterExpression: { status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_progress'] }, isEmergency: false } }
 );
 
+// Compound index for the most frequent admin query pattern: all appointments for a specific clinic branch
+AppointmentSchema.index({ clinicId: 1, clinicBranchId: 1 });
+
 export default mongoose.model<IAppointment>('Appointment', AppointmentSchema);

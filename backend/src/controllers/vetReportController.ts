@@ -524,6 +524,12 @@ export const humanizeReport = async (req: Request, res: Response) => {
       });
     }
 
+    // Return cached summary if already generated — finalized sections never change
+    const os = report.ownerSummary as any;
+    if (os?.whatWeFound && os?.theDiagnosis && os?.theTreatmentPlan) {
+      return res.json({ status: 'OK', data: report });
+    }
+
     const pet = await Pet.findById(report.petId).lean() as any;
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });

@@ -92,12 +92,36 @@ function normalizeName(name: string): string {
 }
 
 /**
+ * Build an O(1) exact-match lookup map from a catalog array.
+ */
+function buildExactMap(catalog: any[]): Map<string, any> {
+  const map = new Map<string, any>();
+  for (const item of catalog) {
+    const key = normalizeName(item.name);
+    if (!map.has(key)) map.set(key, item);
+  }
+  return map;
+}
+
+/**
  * Helper — find the first catalog entry whose name matches (exact then partial).
  */
 function matchByName(name: string, catalog: any[]): any | undefined {
   const n = normalizeName(name);
   return (
     catalog.find((c) => normalizeName(c.name) === n) ||
+    catalog.find((c) => normalizeName(c.name).includes(n) || n.includes(normalizeName(c.name)))
+  );
+}
+
+/**
+ * Fast variant of matchByName — uses a pre-built exact map for O(1) exact lookup,
+ * falls through to a partial scan only when no exact match exists.
+ */
+function fastMatch(name: string, catalog: any[], exactMap: Map<string, any>): any | undefined {
+  const n = normalizeName(name);
+  return (
+    exactMap.get(n) ||
     catalog.find((c) => normalizeName(c.name).includes(n) || n.includes(normalizeName(c.name)))
   );
 }
@@ -121,9 +145,27 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
       VaccineType.find({ isActive: true }).lean(),
     ]);
 
-    const medCatalog  = allProducts.filter((p: any) => p.category === 'Medication');
-    const diagCatalog = allProducts.filter((p: any) => p.category === 'Diagnostic Tests');
-    const careCatalog = allProducts.filter((p: any) => p.category === 'Preventive Care');
+    const medCatalog      = allProducts.filter((p: any) => p.category === 'Medication');
+    const diagCatalog     = allProducts.filter((p: any) => p.category === 'Diagnostic Tests');
+    const careCatalog     = allProducts.filter((p: any) => p.category === 'Preventive Care');
+    const deliveryCatalog = allProducts.filter((p: any) => p.category === 'Pregnancy Delivery');
+    const surgeryCatalog  = allProducts.filter((p: any) => p.category === 'Surgeries');
+
+    // Pre-build exact-match Maps for O(1) lookups — avoids O(n) catalog.find() in every loop iteration
+    const allProductsExactMap  = buildExactMap(allProducts);
+    const medExactMap          = buildExactMap(medCatalog);
+    const diagExactMap         = buildExactMap(diagCatalog);
+    const careExactMap         = buildExactMap(careCatalog);
+    const deliveryExactMap     = buildExactMap(deliveryCatalog);
+    const surgeryExactMap      = buildExactMap(surgeryCatalog);
+
+    // For medication route-aware lookup: name → all items with that name (may differ by route)
+    const medByName = new Map<string, any[]>();
+    for (const item of medCatalog) {
+      const key = normalizeName(item.name);
+      if (!medByName.has(key)) medByName.set(key, []);
+      medByName.get(key)!.push(item);
+    }
 
     // Fetch pet species for species-aware titer lookup
     const pet = await Pet.findById((record as any).petId).select('species').lean();
@@ -141,12 +183,10 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
     // Exception: single-dose injections are billed as qty 1; mlPerKg injections use dosage volume
     for (const med of (record as any).medications ?? []) {
       if (!med.name) continue;
+      const medCandidates = medByName.get(normalizeName(med.name));
       const match =
-        medCatalog.find(
-          (c: any) =>
-            normalizeName(c.name) === normalizeName(med.name) &&
-            (!c.administrationRoute || c.administrationRoute === med.route),
-        ) || matchByName(med.name, medCatalog);
+        medCandidates?.find((c: any) => !c.administrationRoute || c.administrationRoute === med.route) ||
+        fastMatch(med.name, medCatalog, medExactMap);
       const isSingleDoseInjection =
         match &&
         match.administrationRoute === 'injection' &&
@@ -178,7 +218,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
     // Diagnostic Tests — quantity 1
     for (const test of (record as any).diagnosticTests ?? []) {
       if (!test.name) continue;
-      const match = matchByName(test.name, diagCatalog);
+      const match = fastMatch(test.name, diagCatalog, diagExactMap);
       newItems.push({
         productServiceId: match ? match._id : null,
         vaccineTypeId: null,
@@ -192,7 +232,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
     // Preventive Care — service itself (qty 1) + associated medications and injections
     for (const care of (record as any).preventiveCare ?? []) {
       if (!care.product) continue;
-      const match = matchByName(care.product, careCatalog);
+      const match = fastMatch(care.product, careCatalog, careExactMap);
       newItems.push({
         productServiceId: match ? match._id : null,
         vaccineTypeId: null,
@@ -312,8 +352,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
 
     // Pregnancy Delivery — deliveryType stores the selected service name from the 'Pregnancy Delivery' catalog
     if ((record as any).pregnancyDelivery?.deliveryType) {
-      const deliveryCatalog = allProducts.filter((p: any) => p.category === 'Pregnancy Delivery');
-      const match = matchByName((record as any).pregnancyDelivery.deliveryType, deliveryCatalog);
+      const match = fastMatch((record as any).pregnancyDelivery.deliveryType, deliveryCatalog, deliveryExactMap);
       newItems.push({
         productServiceId: match ? match._id : null,
         vaccineTypeId: null,
@@ -328,8 +367,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
     // add it to billing directly from the Surgeries product catalog.
     const surgeryTypeName: string = ((record as any).surgeryRecord?.surgeryType || '').trim();
     if (surgeryTypeName) {
-      const surgeryCatalog = allProducts.filter((p: any) => p.category === 'Surgeries');
-      const match = matchByName(surgeryTypeName, surgeryCatalog) ?? matchByName(surgeryTypeName, allProducts);
+      const match = fastMatch(surgeryTypeName, surgeryCatalog, surgeryExactMap) ?? fastMatch(surgeryTypeName, allProducts, allProductsExactMap);
       newItems.push({
         productServiceId: match ? match._id : null,
         vaccineTypeId: null,
@@ -388,7 +426,7 @@ export async function syncBillingFromRecord(recordId: string): Promise<void> {
             apptType.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
           // Name-match against entire catalog
-          const match = matchByName(label, allProducts);
+          const match = fastMatch(label, allProducts, allProductsExactMap);
 
           // Dedup: skip if same product already added from another sync path
           if (match && usedIds.has(match._id.toString())) continue;
