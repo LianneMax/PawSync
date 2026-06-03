@@ -65,7 +65,7 @@ const OwnerSummarySchema = new Schema<IOwnerSummary>(
 const VetReportSchema = new Schema<IVetReport>(
   {
     petId: { type: Schema.Types.ObjectId, ref: 'Pet', required: true, index: true },
-    medicalRecordId: { type: Schema.Types.ObjectId, ref: 'MedicalRecord', default: null, index: true },
+    medicalRecordId: { type: Schema.Types.ObjectId, ref: 'MedicalRecord', default: null },
     vetId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     clinicId: { type: Schema.Types.ObjectId, ref: 'Clinic', required: true },
     clinicBranchId: { type: Schema.Types.ObjectId, ref: 'ClinicBranch', required: true },
