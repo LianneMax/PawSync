@@ -69,8 +69,9 @@ function PageHeader({ reportId }: { reportId: string }) {
   )
 }
 
-export default async function SharedReportPage({ params }: { params: { id: string } }) {
-  const report = await fetchSharedReport(params.id)
+export default async function SharedReportPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const report = await fetchSharedReport(id)
 
   if (!report) {
     return (
