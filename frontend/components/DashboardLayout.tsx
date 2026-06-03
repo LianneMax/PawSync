@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useCallback, useEffect, useState } from 'react'
+import { ReactNode, useCallback, useEffect, useState, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from './Navbar'
 import { useAuthStore } from '@/store/authStore'
@@ -243,7 +243,7 @@ function getDashboardPath(userType: string): string {
   }
 }
 
-export default function DashboardLayout({
+function DashboardLayout({
   children,
   userType: userTypeOverride
 }: DashboardLayoutProps) {
@@ -491,3 +491,5 @@ export default function DashboardLayout({
     </div>
   )
 }
+
+export default memo(DashboardLayout)

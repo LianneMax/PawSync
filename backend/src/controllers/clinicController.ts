@@ -1468,6 +1468,7 @@ async function getAffectedAppointmentsForBranchClosure(params: {
     status: { $in: ACTIVE_APPOINTMENT_STATUSES },
     date: { $gte: params.startDate, $lte: params.endDate },
   })
+    .select('_id date startTime endTime status petId ownerId vetId')
     .populate('petId', 'name')
     .populate('ownerId', 'firstName lastName email')
     .populate('vetId', 'firstName lastName')

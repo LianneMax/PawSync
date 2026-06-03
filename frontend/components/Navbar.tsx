@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, memo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -94,7 +94,7 @@ interface ClinicNavStats {
   pendingVetCount: number | null
 }
 
-export default function Navbar({
+function Navbar({
   userType,
   userName = 'User',
   userEmail = 'user@email.com',
@@ -381,3 +381,5 @@ export default function Navbar({
     </>
   )
 }
+
+export default memo(Navbar)
