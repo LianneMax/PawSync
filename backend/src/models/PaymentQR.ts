@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPaymentQR extends Document {
   label: string;
-  imageData: string; // base64 data URL (e.g. "data:image/png;base64,...")
+  imageData: string; // URL pointing to the stored image (e.g. "/api/images/<id>")
   clinicId?: string;
   isActive: boolean;
   createdAt: Date;

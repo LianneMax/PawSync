@@ -1712,7 +1712,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     resolveActiveConfinementRecord()
   }, [token, petId, confined, confinementRecordId])
 
-  // Convert surgery images state into the base64 payload for updateMedicalRecord
+  // Build surgery images payload from previews (data URLs) for updateMedicalRecord
   const buildSurgeryImagesPayload = () =>
     surgeryImages
       .filter((img) => img.preview !== null)

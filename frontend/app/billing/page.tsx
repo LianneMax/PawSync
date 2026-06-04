@@ -1,5 +1,7 @@
 'use client'
 
+/* This file contains the main billing page which serves both pet owners and veterinarians. */
+
 import React, { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'

@@ -42,7 +42,7 @@ export default function VetOnboardingPage() {
   }, [])
 
   // Profile photo state
-  const [profilePhotoBase64, setProfilePhotoBase64] = useState('')
+  const [profilePhotoUrl, setProfilePhotoBase64] = useState('')
 
   // PRC License state (Step 2)
   const [firstName, setFirstName] = useState('')
@@ -52,7 +52,7 @@ export default function VetOnboardingPage() {
   const [prcNumber, setPrcNumber] = useState('')
   const [registrationDate, setRegistrationDate] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
-  const [prcIdPhotoBase64, setPrcIdPhotoBase64] = useState('')
+  const [prcIdPhotoUrl, setPrcIdPhotoBase64] = useState('')
   const [fileName, setFileName] = useState('')
   const [errors, setErrors] = useState<Record<string, boolean>>({})
 
@@ -122,7 +122,7 @@ export default function VetOnboardingPage() {
     else if (!/^\d{7}$/.test(prcNumber.trim())) newErrors.prcNumberFormat = true
     if (!registrationDate) newErrors.registrationDate = true
     if (!expirationDate) newErrors.expirationDate = true
-    if (!prcIdPhotoBase64) newErrors.prcIdPhoto = true
+    if (!prcIdPhotoUrl) newErrors.prcIdPhoto = true
 
     // Check expiration date constraints
     if (expirationDate) {
@@ -221,7 +221,7 @@ export default function VetOnboardingPage() {
           prcLicenseNumber: prcNumber,
           profession: 'Veterinary Medicine',
           registrationDate, expirationDate,
-          prcIdPhoto: prcIdPhotoBase64 || null,
+          prcIdPhoto: prcIdPhotoUrl || null,
           clinicId: selectedClinic,
           branchId: selectedBranch
         })
@@ -254,11 +254,11 @@ export default function VetOnboardingPage() {
       }
 
       // Save profile photo if provided
-      if (profilePhotoBase64) {
+      if (profilePhotoUrl) {
         await fetch(`${API_URL}/users/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ photo: profilePhotoBase64 })
+          body: JSON.stringify({ photo: profilePhotoUrl })
         })
       }
 

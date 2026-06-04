@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import path from 'path';
-import fs from 'fs';
 import multer from 'multer';
 import sharp from 'sharp';
+import Image from '../models/Image';
 
 export const uploadMiddleware = multer({
   storage: multer.memoryStorage(),
@@ -16,6 +15,18 @@ export const uploadMiddleware = multer({
   },
 }).single('image');
 
+function isStorageFullError(err: any): boolean {
+  const msg = (err?.message || '').toLowerCase();
+  return (
+    err?.code === 14 ||
+    msg.includes('exceeded storage') ||
+    msg.includes('disk quota') ||
+    msg.includes('out of space') ||
+    msg.includes('storage limit') ||
+    msg.includes('quota')
+  );
+}
+
 export const uploadFile = async (req: Request, res: Response): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ status: 'ERROR', message: 'No file provided' });
@@ -24,29 +35,59 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
 
   const folder = (req.query.folder as string) || 'general';
   const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'general';
-  const dir = path.resolve('uploads', safeFolder);
-  fs.mkdirSync(dir, { recursive: true });
 
   try {
-    let filename: string;
-    let outputPath: string;
+    let buffer: Buffer;
+    let contentType: string;
 
     if (req.file.mimetype.startsWith('video/')) {
-      const ext = path.extname(req.file.originalname).toLowerCase();
-      filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      outputPath = path.join(dir, filename);
-      fs.writeFileSync(outputPath, req.file.buffer);
+      buffer = req.file.buffer;
+      contentType = req.file.mimetype;
     } else {
-      filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`;
-      outputPath = path.join(dir, filename);
-      await sharp(req.file.buffer)
+      buffer = await sharp(req.file.buffer)
         .resize({ width: 1200, withoutEnlargement: true })
         .webp({ quality: 80 })
-        .toFile(outputPath);
+        .toBuffer();
+      contentType = 'image/webp';
     }
 
-    res.status(200).json({ status: 'SUCCESS', url: `/uploads/${safeFolder}/${filename}` });
-  } catch (err) {
+    const image = await Image.create({
+      data: buffer,
+      contentType,
+      folder: safeFolder,
+      size: buffer.length,
+    });
+
+    res.status(200).json({ status: 'SUCCESS', url: `/api/images/${image._id}` });
+  } catch (err: any) {
+    if (isStorageFullError(err)) {
+      res.status(507).json({
+        status: 'ERROR',
+        message: 'Storage limit reached. No more images can be uploaded at this time.',
+      });
+      return;
+    }
     res.status(500).json({ status: 'ERROR', message: 'Image processing failed' });
+  }
+};
+
+export const serveImage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const image = await Image.findById(req.params.id).lean() as any;
+    if (!image) {
+      res.status(404).end();
+      return;
+    }
+    // Mongoose with .lean() returns Buffer fields as plain Buffers
+    const buf: Buffer = Buffer.isBuffer(image.data)
+      ? image.data
+      : Buffer.from(image.data.buffer ?? image.data);
+
+    res.set('Content-Type', image.contentType);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('Content-Length', String(buf.length));
+    res.send(buf);
+  } catch {
+    res.status(500).end();
   }
 };

@@ -30,6 +30,7 @@ import resignationRoutes from './routes/resignationRoutes';
 import referralRoutes from './routes/referralRoutes';
 import vetLeaveRoutes from './routes/vetLeaveRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import imageRoutes from './routes/imageRoutes';
 
 export function createApp() {
   const app = express();
@@ -66,6 +67,7 @@ export function createApp() {
   });
 
   app.use('/api/upload', uploadRoutes);
+  app.use('/api/images', imageRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/pets', petRoutes);
