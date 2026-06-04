@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import VetReport from '../models/VetReport';
 import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
+import PetNotes from '../models/PetNotes';
 import User from '../models/User';
 import { createNotification } from '../services/notificationService';
 import { sendVetReportShared } from '../services/emailService';
@@ -92,7 +93,8 @@ function buildAIPrompt(
   pet: any,
   record: any,
   vet: any,
-  vetContextNotes: string
+  vetContextNotes: string,
+  persistentVetNotes: string
 ): string {
   const age = pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'unknown';
 
@@ -150,7 +152,10 @@ ${testLines || '  (none)'}
 PREVENTIVE CARE:
 ${preventiveLines || '  (none)'}
 
-ADDITIONAL VET CONTEXT (provided by the attending vet):
+PERSISTENT VET NOTES (ongoing notes kept by the vet across all visits for this patient):
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT (provided by the attending vet for this report):
 ${vetContextNotes || '(none provided)'}
 
 ---
@@ -443,18 +448,20 @@ export const generateReport = async (req: Request, res: Response) => {
 
     const vet = await User.findById(report.vetId).lean() as any;
 
-    // Load medical record if linked
-    let record: any = {};
-    if (report.medicalRecordId) {
-      record = await MedicalRecord.findById(report.medicalRecordId).lean() || {};
-    }
+    // Load medical record and persistent vet notes in parallel
+    const [record, petNotesDoc] = await Promise.all([
+      report.medicalRecordId
+        ? MedicalRecord.findById(report.medicalRecordId).lean()
+        : Promise.resolve({}),
+      PetNotes.findOne({ petId: report.petId }).lean() as any,
+    ]);
 
     const openai = getOpenAI();
     if (!openai) {
       return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
     }
 
-    const prompt = buildAIPrompt(pet, record, vet, report.vetContextNotes);
+    const prompt = buildAIPrompt(pet, record || {}, vet, report.vetContextNotes, petNotesDoc?.notes || '');
 
     const completion = await openai.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
