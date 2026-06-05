@@ -100,6 +100,7 @@ function ClinicMedicalRecordFormInner() {
 
   // Form state
   const [vitals, setVitals] = useState<Vitals>(emptyVitals())
+  const [vitalsNotes, setVitalsNotes] = useState('')
   const [visitSummary, setVisitSummary] = useState('')
   const [vetNotes, setVetNotes] = useState('')
   const [overallObservation, setOverallObservation] = useState('')
@@ -182,6 +183,7 @@ function ClinicMedicalRecordFormInner() {
       if (res.status === 'SUCCESS' && res.data?.record) {
         const rec = res.data.record
         setVitals(rec.vitals || emptyVitals())
+        setVitalsNotes(rec.vitalsNotes || '')
         setVisitSummary(rec.visitSummary || '')
         setVetNotes(rec.vetNotes || '')
         setOverallObservation(rec.overallObservation || '')
@@ -261,7 +263,7 @@ function ClinicMedicalRecordFormInner() {
       if (editId) {
         const res = await updateMedicalRecord(
           editId,
-          { vitals, visitSummary, vetNotes, overallObservation, sharedWithOwner },
+          { vitals, vitalsNotes, visitSummary, vetNotes, overallObservation, sharedWithOwner },
           token!
         )
         if (res.status === 'SUCCESS') {
@@ -277,6 +279,7 @@ function ClinicMedicalRecordFormInner() {
           clinicBranchId: clinicBranchId || undefined,
           vetId: selectedVet._id,
           vitals,
+          vitalsNotes,
           visitSummary,
           vetNotes,
           overallObservation,
@@ -469,31 +472,36 @@ function ClinicMedicalRecordFormInner() {
               <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showVitals ? 'rotate-180' : ''}`} />
             </button>
             {showVitals && (
-              <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {VITALS_CONFIG.map(({ key, label, unit, placeholder }) => (
-                  <div key={key}>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      {label} {unit && <span className="text-gray-400">{unit}</span>}
-                    </label>
-                    <input
-                      type="text"
-                      placeholder={placeholder}
-                      value={String(vitals[key]?.value ?? '')}
-                      onChange={(e) => handleVitalChange(key, 'value', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-[#900B09]/20' : 'border-gray-200'}`}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Notes (optional)"
-                      value={vitals[key]?.notes ?? ''}
-                      onChange={(e) => handleVitalChange(key, 'notes', e.target.value)}
-                      className="w-full px-3 py-1.5 border-x border-b border-gray-200 rounded-b-lg text-xs text-gray-500 focus:outline-none focus:border-[#476B6B] -mt-px"
-                    />
-                    {vitalsErrors[key] && (
-                      <p className="text-xs text-[#900B09] mt-1">{vitalsErrors[key]}</p>
-                    )}
-                  </div>
-                ))}
+              <div className="px-5 pb-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {VITALS_CONFIG.map(({ key, label, unit, placeholder }) => (
+                    <div key={key}>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        {label} {unit && <span className="text-gray-400">{unit}</span>}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={placeholder}
+                        value={String(vitals[key]?.value ?? '')}
+                        onChange={(e) => handleVitalChange(key, 'value', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#476B6B] ${vitalsErrors[key] ? 'border-[#900B09]/20' : 'border-gray-200'}`}
+                      />
+                      {vitalsErrors[key] && (
+                        <p className="text-xs text-[#900B09] mt-1">{vitalsErrors[key]}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Vitals Notes <span className="text-gray-400">(optional)</span></label>
+                  <textarea
+                    rows={2}
+                    placeholder="Any observations or notes about the vitals recorded above…"
+                    value={vitalsNotes}
+                    onChange={(e) => setVitalsNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#476B6B] resize-none"
+                  />
+                </div>
               </div>
             )}
           </div>

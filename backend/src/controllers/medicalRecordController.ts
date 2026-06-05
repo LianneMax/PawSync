@@ -505,6 +505,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
     const {
       vitals,
       images,
+      vitalsNotes,
       overallObservation,
       visitSummary,
       vetNotes,
@@ -587,6 +588,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       appointmentId: appointmentId || null,
       vitals: vitals || {},
       images: parsedImages,
+      vitalsNotes: vitalsNotes || '',
       visitSummary: visitSummary || '',
       vetNotes: vetNotes || '',
       overallObservation: overallObservation || '',
@@ -1174,7 +1176,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     }
 
     const {
-      vitals, images, overallObservation, sharedWithOwner, visitSummary, vetNotes,
+      vitals, images, vitalsNotes, overallObservation, sharedWithOwner, visitSummary, vetNotes,
       stage, chiefComplaint, subjective, assessment, plan,
       medications, diagnosticTests, preventiveCare, preventiveAssociatedExclusions,
       immunityTesting,
@@ -1185,6 +1187,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     } = req.body;
 
     if (vitals) record.vitals = vitals;
+    if (vitalsNotes !== undefined) record.vitalsNotes = vitalsNotes;
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;

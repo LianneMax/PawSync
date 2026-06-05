@@ -138,6 +138,7 @@ export interface IMedicalRecord extends Document {
     url: string;
     description: string;
   }[];
+  vitalsNotes: string;
   visitSummary: string;
   vetNotes: string;
   overallObservation: string;
@@ -481,6 +482,10 @@ const MedicalRecordSchema = new Schema(
       vaccinated: { type: VitalEntrySchema, default: emptyVital }
     },
     images: [ImageFragmentSchema],
+    vitalsNotes: {
+      type: String,
+      default: ''
+    },
     visitSummary: {
       type: String,
       default: ''
