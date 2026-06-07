@@ -22,7 +22,9 @@ import {
   ChevronDown,
   Check,
   DoorOpen,
+  FileText,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { DatePicker } from '@/components/ui/date-picker'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { getCitiesByProvince, getPhilippineProvinces } from '@/lib/philippineLocations'
@@ -173,7 +175,16 @@ export default function ClinicManagementPage() {
   const user = useAuthStore((state) => state.user)
   const isMainBranch = user?.isMainBranch ?? false
 
-  const [activeTab, setActiveTab] = useState<'vets' | 'branches'>('vets')
+  const [activeTab, setActiveTab] = useState<'vets' | 'branches' | 'profile'>('vets')
+  const [profileForm, setProfileForm] = useState({
+    legalBusinessName: '',
+    businessTaxId: '',
+    businessRegistrationNo: '',
+    birNumber: '',
+    receiptFooterNote: '',
+  })
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
   const [vets, setVets] = useState(emptyVets)
   const [branches, setBranches] = useState(emptyBranches)
   const [searchQuery, setSearchQuery] = useState('')
@@ -378,6 +389,14 @@ export default function ClinicManagementPage() {
           setClinicId(myClinic._id)
           const resolvedClinicEmail: string = myClinic.email || ''
           if (resolvedClinicEmail) setClinicEmail(resolvedClinicEmail)
+          setProfileForm({
+            legalBusinessName: myClinic.legalBusinessName || '',
+            businessTaxId: myClinic.businessTaxId || '',
+            businessRegistrationNo: myClinic.businessRegistrationNo || '',
+            birNumber: myClinic.birNumber || '',
+            receiptFooterNote: myClinic.receiptFooterNote || '',
+          })
+          setProfileLoaded(true)
 
           // Fetch vets and branches in parallel
           const [vetsRes, branchesRes] = await Promise.all([
@@ -459,6 +478,29 @@ export default function ClinicManagementPage() {
 
     fetchData()
   }, [token])
+
+  const handleSaveProfile = async () => {
+    if (!token) return
+    setSavingProfile(true)
+    try {
+      const res = await authenticatedFetch('/clinics/mine', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          legalBusinessName: profileForm.legalBusinessName.trim() || null,
+          businessTaxId: profileForm.businessTaxId.trim() || null,
+          businessRegistrationNo: profileForm.businessRegistrationNo.trim() || null,
+          birNumber: profileForm.birNumber.trim() || null,
+          receiptFooterNote: profileForm.receiptFooterNote.trim() || null,
+        }),
+      }, token)
+      if (res.status !== 'SUCCESS') throw new Error(res.message || 'Failed to save clinic profile')
+      toast.success('Clinic profile saved')
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to save clinic profile right now.')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
 
   // Auto-preview affected appointments when modal is open and dates are set
   useEffect(() => {
@@ -995,6 +1037,19 @@ export default function ClinicManagementPage() {
               </span>
             </button>
           )}
+          {isMainBranch && (
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'profile'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Clinic Profile
+            </button>
+          )}
         </div>
 
         {/* ==================== VETERINARIANS TAB ==================== */}
@@ -1252,6 +1307,98 @@ export default function ClinicManagementPage() {
                 <p className="text-sm text-gray-400 mt-1">Expand your clinic network</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ==================== CLINIC PROFILE TAB ==================== */}
+        {activeTab === 'profile' && (
+          <div className="bg-white rounded-2xl shadow-sm p-6 max-w-2xl">
+            <div className="flex items-start gap-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-[#F0F7F7] flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-[#5A7C7A]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-[#4F4F4F]">Legal & Tax Information</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  These details appear on printed/downloaded receipts (Service Invoices) issued to your clients.
+                </p>
+              </div>
+            </div>
+
+            {!profileLoaded ? (
+              <p className="text-sm text-gray-400">Loading clinic profile...</p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">Registered / Legal Business Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.legalBusinessName}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, legalBusinessName: e.target.value }))}
+                    placeholder="e.g. Bailon Veterinary Clinic Inc."
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">TIN (Tax Identification Number)</label>
+                    <input
+                      type="text"
+                      value={profileForm.businessTaxId}
+                      onChange={(e) => setProfileForm((p) => ({ ...p, businessTaxId: e.target.value }))}
+                      placeholder="e.g. 123-456-789-000"
+                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">Business Registration No.</label>
+                    <input
+                      type="text"
+                      value={profileForm.businessRegistrationNo}
+                      onChange={(e) => setProfileForm((p) => ({ ...p, businessRegistrationNo: e.target.value }))}
+                      placeholder="e.g. SEC-2025-001234"
+                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">BIR Accreditation / CAS Acknowledgement No.</label>
+                  <input
+                    type="text"
+                    value={profileForm.birNumber}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, birNumber: e.target.value }))}
+                    placeholder="e.g. ACK-1234567890123"
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Used as a clinic-wide default. You can still override the BIR number per receipt from the Billing page.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#4F4F4F] mb-1.5">Receipt Footer Note</label>
+                  <textarea
+                    value={profileForm.receiptFooterNote}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, receiptFooterNote: e.target.value }))}
+                    placeholder="Optional disclaimer printed at the bottom of receipts"
+                    rows={2}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30 resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="px-6 py-2.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    {savingProfile ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

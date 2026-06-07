@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getMyClinics,
+  updateMyClinic,
   getAllClinics,
   getBranches,
   getMyBranches,
@@ -46,6 +47,12 @@ router.get('/', getAllClinics);
  * Get clinics managed by the authenticated admin
  */
 router.get('/mine', authMiddleware, clinicAdminOnly, getMyClinics);
+
+/**
+ * PATCH /api/clinics/mine
+ * Update the authenticated admin's clinic legal/tax profile (TIN, BIR no., etc.)
+ */
+router.patch('/mine', authMiddleware, clinicAdminOnly, mainBranchOnly, updateMyClinic);
 
 /**
  * GET /api/clinics/mine/stats

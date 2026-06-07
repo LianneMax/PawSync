@@ -140,6 +140,7 @@ export const createBilling = async (req: Request, res: Response) => {
       serviceLabel,
       serviceDate,
       status,
+      birNumber,
     } = req.body;
 
     if (!ownerId || !petId) {
@@ -226,6 +227,7 @@ export const createBilling = async (req: Request, res: Response) => {
       totalAmountDue,
       serviceLabel: resolvedLabel,
       serviceDate: resolvedServiceDate,
+      birNumber: birNumber || null,
     });
 
     // Link billing back to the medical record so the page knows one already exists,
@@ -534,15 +536,22 @@ export const updateBilling = async (req: Request, res: Response) => {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });
     }
 
-    if (billing.status === 'paid' || billing.isFinalized) {
+    // Clinic admin: update any field
+    const { ownerId, petId, vetId, clinicBranchId, confinementRecordId, items, discount, serviceLabel, serviceDate, dueDate, birNumber } = req.body;
+
+    // The BIR number is receipt metadata (not a financial detail), so it remains
+    // editable even after an invoice is paid/finalized — every other field stays locked.
+    const isOnlyBirNumberUpdate = birNumber !== undefined &&
+      [ownerId, petId, vetId, clinicBranchId, confinementRecordId, items, discount, serviceLabel, serviceDate, dueDate].every((v) => v === undefined);
+
+    if ((billing.status === 'paid' || billing.isFinalized) && !isOnlyBirNumberUpdate) {
       return res.status(400).json({
         status: 'ERROR',
         message: 'Paid invoices are finalized and cannot be modified',
       });
     }
 
-    // Clinic admin: update any field
-    const { ownerId, petId, vetId, clinicBranchId, confinementRecordId, items, discount, serviceLabel, serviceDate, dueDate } = req.body;
+    if (birNumber !== undefined) billing.birNumber = birNumber || null;
 
     const previousConfinementRecordId = billing.confinementRecordId ? billing.confinementRecordId.toString() : null;
 
@@ -624,6 +633,16 @@ export const markBillingAsPaid = async (req: Request, res: Response) => {
     }
 
     const { amountPaid, paymentMethod } = req.body;
+
+    if (amountPaid !== undefined) {
+      const parsedAmount = Number(amountPaid);
+      if (Number.isNaN(parsedAmount) || parsedAmount < billing.totalAmountDue) {
+        return res.status(400).json({
+          status: 'ERROR',
+          message: `Amount paid cannot be less than the total amount due (₱${billing.totalAmountDue.toLocaleString()}).`,
+        });
+      }
+    }
 
     billing.status = 'paid';
     billing.paidAt = new Date();
@@ -986,7 +1005,7 @@ export const downloadBillingPdf = async (req: Request, res: Response) => {
     }
 
     const isOwner = billing.ownerId?._id?.toString() === req.user.userId;
-    const isVet = billing.vetId ? billing.vetId.toString() === req.user.userId : false;
+    const isVet = billing.vetId?._id ? billing.vetId._id.toString() === req.user.userId : false;
     const isClinicStaff = req.user.userType === 'clinic-admin';
     if (!isOwner && !isVet && !isClinicStaff) {
       return res.status(403).json({ status: 'ERROR', message: 'Access denied' });

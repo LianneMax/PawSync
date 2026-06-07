@@ -473,6 +473,14 @@ export default function BillingViewModal({
                   <span className="text-green-700 font-semibold">₱{billing.amountPaid.toLocaleString()}</span>
                 </div>
               )}
+              {billing.amountPaid !== undefined && billing.amountPaid > billing.totalAmountDue && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Change</span>
+                  <span className="text-green-700 font-semibold">
+                    ₱{(billing.amountPaid - billing.totalAmountDue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               {billing.paymentMethod && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Method</span>

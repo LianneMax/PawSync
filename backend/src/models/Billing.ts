@@ -33,6 +33,8 @@ export interface IBilling extends Document {
   paymentMethod: 'cash' | 'card' | 'qr' | null;
   serviceLabel: string;
   serviceDate: Date;
+  /** BIR (Bureau of Internal Revenue) accreditation/permit number, manually entered per receipt. */
+  birNumber: string | null;
   qrPaymentProof: string | null;
   qrPaymentSubmittedAt: Date | null;
   pendingQrApproval: boolean;
@@ -195,6 +197,11 @@ const BillingSchema = new Schema(
     serviceDate: {
       type: Date,
       default: Date.now,
+    },
+    birNumber: {
+      type: String,
+      default: null,
+      trim: true,
     },
     qrPaymentProof: {
       type: String,

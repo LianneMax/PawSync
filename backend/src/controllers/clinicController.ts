@@ -162,6 +162,39 @@ export const getMyClinics = async (req: Request, res: Response) => {
 };
 
 /**
+ * PATCH /api/clinics/mine
+ * Update the authenticated admin's clinic legal/tax profile — the fields printed
+ * on receipts (legal business name, TIN, BIR registration numbers, footer note).
+ */
+export const updateMyClinic = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
+    }
+
+    const clinic = await getClinicForAdmin(req);
+    if (!clinic) {
+      return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
+    }
+
+    const { legalBusinessName, businessTaxId, businessRegistrationNo, birNumber, receiptFooterNote } = req.body;
+
+    if (legalBusinessName !== undefined) clinic.legalBusinessName = legalBusinessName?.trim() || null;
+    if (businessTaxId !== undefined) clinic.businessTaxId = businessTaxId?.trim() || null;
+    if (businessRegistrationNo !== undefined) clinic.businessRegistrationNo = businessRegistrationNo?.trim() || null;
+    if (birNumber !== undefined) clinic.birNumber = birNumber?.trim() || null;
+    if (receiptFooterNote !== undefined) clinic.receiptFooterNote = receiptFooterNote?.trim() || null;
+
+    await clinic.save();
+
+    return res.status(200).json({ status: 'SUCCESS', data: { clinic } });
+  } catch (error) {
+    console.error('Update clinic error:', error);
+    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while updating clinic profile' });
+  }
+};
+
+/**
  * Get all active clinics with their branches (public - for vet/user onboarding)
  */
 export const getAllClinics = async (req: Request, res: Response) => {

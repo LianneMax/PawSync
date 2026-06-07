@@ -3,6 +3,7 @@
 /* This file contains the main billing page which serves both pet owners and veterinarians. */
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -70,6 +71,7 @@ interface ApiBilling {
   status: 'pending_payment' | 'paid'
   serviceLabel: string
   serviceDate: string
+  birNumber?: string | null
   createdAt: string
   paidAt?: string
   amountPaid?: number
@@ -1496,20 +1498,24 @@ function ViewBillingModal({
   const [categoryMap, setCategoryMap] = useState<Map<string, string>>(new Map())
   const [downloading, setDownloading] = useState(false)
   const [printing, setPrinting] = useState(false)
-  const [pdfLayout, setPdfLayout] = useState<'a4' | 'thermal-80' | 'thermal-58'>('a4')
+  const [birNumberInput, setBirNumberInput] = useState(billing.birNumber || '')
+  const [savingBir, setSavingBir] = useState(false)
 
   const fetchReceiptBlob = async (layout: 'a4' | 'thermal-80' | 'thermal-58' = 'a4') => {
     const res = await fetch(`${API_BASE}/billings/${billing._id}/download-pdf?layout=${layout}`, {
       headers: authHeaders(),
     })
-    if (!res.ok) throw new Error('Failed to download receipt')
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw new Error(body?.message || 'Failed to download receipt')
+    }
     return res.blob()
   }
 
-  const downloadPdf = async (layout: 'a4' | 'thermal-80' | 'thermal-58' = 'a4') => {
+  const downloadPdf = async () => {
     setDownloading(true)
     try {
-      const blob = await fetchReceiptBlob(layout)
+      const blob = await fetchReceiptBlob('a4')
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       const issue = new Date(billing.issueDateTime || billing.createdAt).toISOString().slice(0, 10).replace(/-/g, '')
@@ -1519,22 +1525,22 @@ function ViewBillingModal({
       a.click()
       a.remove()
       window.URL.revokeObjectURL(url)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      window.alert('Unable to download receipt PDF right now.')
+      toast.error(error?.message || 'Unable to download receipt PDF right now.')
     } finally {
       setDownloading(false)
     }
   }
 
-  const printReceipt = async (layout: 'a4' | 'thermal-80' | 'thermal-58' = 'a4') => {
+  const printReceipt = async () => {
     setPrinting(true)
     try {
-      const blob = await fetchReceiptBlob(layout)
+      const blob = await fetchReceiptBlob('a4')
       const url = window.URL.createObjectURL(blob)
       const printWindow = window.open(url, '_blank')
       if (!printWindow) {
-        window.alert('Please allow pop-ups to print the receipt.')
+        toast.error('Please allow pop-ups to print the receipt.')
         window.URL.revokeObjectURL(url)
         return
       }
@@ -1548,11 +1554,31 @@ function ViewBillingModal({
           cleanup()
         }
       }, 500)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      window.alert('Unable to print receipt right now.')
+      toast.error(error?.message || 'Unable to print receipt right now.')
     } finally {
       setPrinting(false)
+    }
+  }
+
+  const saveBirNumber = async () => {
+    setSavingBir(true)
+    try {
+      const res = await fetch(`${API_BASE}/billings/${billing._id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ birNumber: birNumberInput.trim() || null }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || data?.status !== 'SUCCESS') throw new Error(data?.message || 'Failed to save BIR number')
+      setBilling(data.data.billing)
+      toast.success('BIR number saved')
+    } catch (error: any) {
+      console.error(error)
+      toast.error(error?.message || 'Unable to save BIR number right now.')
+    } finally {
+      setSavingBir(false)
     }
   }
 
@@ -1593,9 +1619,7 @@ function ViewBillingModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative max-h-[90vh] overflow-y-auto billing-print-document ${
-          pdfLayout === 'thermal-58' ? 'billing-print-thermal-58' : pdfLayout === 'thermal-80' ? 'billing-print-thermal-80' : 'billing-print-a4'
-        }`}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative max-h-[90vh] overflow-y-auto billing-print-document billing-print-a4"
       >
         {/* Modal header bar */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 pt-5 pb-4 rounded-t-2xl">
@@ -1650,6 +1674,27 @@ function ViewBillingModal({
               <p className="text-[10px] uppercase tracking-wide text-gray-400">Payment Status</p>
               <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.status === 'paid' ? 'Paid' : 'Pending Payment'}</p>
             </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-gray-400">BIR Accreditation No.</p>
+            <div className="mt-1 flex items-center gap-2 print:hidden">
+              <input
+                type="text"
+                value={birNumberInput}
+                onChange={(e) => setBirNumberInput(e.target.value)}
+                placeholder="Enter BIR accreditation/permit number"
+                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
+              />
+              <button
+                onClick={saveBirNumber}
+                disabled={savingBir || birNumberInput.trim() === (billing.birNumber || '')}
+                className="px-3 py-1.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                {savingBir ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            <p className="hidden print:block text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.birNumber || '-'}</p>
           </div>
 
           {/* Contextual status banners */}
@@ -1736,6 +1781,14 @@ function ViewBillingModal({
                   <span className="text-green-700 font-medium">₱{billing.amountPaid.toLocaleString()}</span>
                 </div>
               )}
+              {billing.amountPaid !== undefined && billing.amountPaid > billing.totalAmountDue && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Change</span>
+                  <span className="text-green-700 font-medium">
+                    ₱{(billing.amountPaid - billing.totalAmountDue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               {billing.paymentMethod && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Payment Method</span>
@@ -1754,29 +1807,20 @@ function ViewBillingModal({
 
         <div className="px-6 pb-5 flex flex-wrap gap-2 justify-end print:hidden">
           <button
-            onClick={() => printReceipt(pdfLayout)}
-            disabled={printing}
-            className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
-          >
-            <Printer className="w-4 h-4" />
-            {printing ? 'Preparing Print...' : 'Print Receipt'}
-          </button>
-          <select
-            value={pdfLayout}
-            onChange={(e) => setPdfLayout(e.target.value as 'a4' | 'thermal-80' | 'thermal-58')}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 bg-white"
-          >
-            <option value="a4">A4 PDF</option>
-            <option value="thermal-80">Thermal 80mm PDF</option>
-            <option value="thermal-58">Thermal 58mm PDF</option>
-          </select>
-          <button
-            onClick={() => downloadPdf(pdfLayout)}
+            onClick={() => downloadPdf()}
             disabled={downloading}
             className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#3D5E5C] text-[#3D5E5C] hover:bg-[#f0f7f7] disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
           >
             <Download className="w-4 h-4" />
             {downloading ? 'Downloading...' : 'Download PDF'}
+          </button>
+          <button
+            onClick={() => printReceipt()}
+            disabled={printing}
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-[#4F4F4F] hover:bg-gray-50 disabled:opacity-60 font-semibold rounded-xl transition-colors text-sm"
+          >
+            <Printer className="w-4 h-4" />
+            {printing ? 'Preparing Print...' : 'Print Receipt'}
           </button>
           <button
             onClick={onClose}
@@ -2247,6 +2291,10 @@ function MarkAsPaidModal({
       setError('Please enter a valid amount.')
       return
     }
+    if (parsed < billing.totalAmountDue) {
+      setError(`Amount paid cannot be less than the total amount due (₱${billing.totalAmountDue.toLocaleString()}).`)
+      return
+    }
     setError('')
     setSubmitting(true)
     try {
@@ -2310,6 +2358,26 @@ function MarkAsPaidModal({
             <p className="text-xs text-gray-400 mt-1">
               Total due: ₱ {billing.totalAmountDue.toLocaleString()}
             </p>
+            {(() => {
+              const parsed = parseFloat(amountPaid)
+              if (!amountPaid || isNaN(parsed)) return null
+              const change = parsed - billing.totalAmountDue
+              if (change > 0) {
+                return (
+                  <p className="text-xs text-green-700 font-medium mt-1">
+                    Change: ₱ {change.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                )
+              }
+              if (change < 0) {
+                return (
+                  <p className="text-xs text-[#900B09] font-medium mt-1">
+                    Short by ₱ {Math.abs(change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — amount paid cannot be less than the total due.
+                  </p>
+                )
+              }
+              return null
+            })()}
           </div>
 
           <div>
