@@ -164,12 +164,10 @@ export function HistoricalMedicalRecord({
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Blood Type</p>
                 <p className="text-[#4F4F4F] font-semibold">{pet.bloodType || 'N/A'}</p>
               </div>
-              {pet.microchipNumber && (
-                <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Microchip</p>
-                  <p className="text-[#4F4F4F] font-semibold text-xs">{pet.microchipNumber}</p>
-                </div>
-              )}
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Microchip</p>
+                <p className="text-[#4F4F4F] font-semibold text-xs">{pet.microchipNumber || 'N/A'}</p>
+              </div>
             </div>
             {pet.allergies && pet.allergies.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-200">

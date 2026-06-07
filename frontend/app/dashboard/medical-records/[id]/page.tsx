@@ -283,12 +283,10 @@ export default function MedicalRecordReportPage() {
                         <p className="text-sm font-mono text-[#4F4F4F]">{(pet as any).nfcTagId}</p>
                       </div>
                     )}
-                    {(pet as any).microchipNumber && (
-                      <div className={(pet as any).nfcTagId ? '' : 'col-span-2'}>
-                        <p className="text-[10px] text-gray-400 uppercase">Microchip</p>
-                        <p className="text-sm font-mono text-[#4F4F4F]">{(pet as any).microchipNumber}</p>
-                      </div>
-                    )}
+                    <div className={(pet as any).nfcTagId ? '' : 'col-span-2'}>
+                      <p className="text-[10px] text-gray-400 uppercase">Microchip</p>
+                      <p className="text-sm font-mono text-[#4F4F4F]">{(pet as any).microchipNumber || 'N/A'}</p>
+                    </div>
                   </div>
                   {(pet as any).allergies && (pet as any).allergies.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-gray-100">

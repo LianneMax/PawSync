@@ -2060,7 +2060,7 @@ function ViewRecordModal({
               <div><div class="info-label">Breed</div><div class="info-val">${pet?.breed||'—'}</div></div>
               <div><div class="info-label">Sex</div><div class="info-val">${pet?.sex||'—'}</div></div>
               <div><div class="info-label">Age</div><div class="info-val">${pet?.dateOfBirth ? calculateAge(pet.dateOfBirth) : '—'}</div></div>
-              ${pet?.microchipNumber ? `<div class="col-span-2"><div class="info-label">Microchip</div><div class="info-val" style="font-family:monospace">${pet.microchipNumber}</div></div>` : ''}
+              <div class="col-span-2"><div class="info-label">Microchip</div><div class="info-val" style="font-family:monospace">${pet?.microchipNumber || 'N/A'}</div></div>
             </div>
             ${pet?.allergies?.length ? `<div style="margin-top:8px"><div class="info-label" style="margin-bottom:4px">⚠ Allergies</div>${pet.allergies.map((a: string) => `<span class="allergy-tag">${a}</span>`).join('')}</div>` : ''}
           </div>
@@ -2376,12 +2376,10 @@ function ViewRecordModal({
                           <p className="text-sm font-mono text-[#4F4F4F]">{pet.nfcTagId}</p>
                         </div>
                       )}
-                      {pet?.microchipNumber && (
-                        <div className={pet?.nfcTagId ? '' : 'col-span-2'}>
-                          <p className="text-[10px] text-gray-400 uppercase">Microchip</p>
-                          <p className="text-sm font-mono text-[#4F4F4F]">{pet.microchipNumber}</p>
-                        </div>
-                      )}
+                      <div className={pet?.nfcTagId ? '' : 'col-span-2'}>
+                        <p className="text-[10px] text-gray-400 uppercase">Microchip</p>
+                        <p className="text-sm font-mono text-[#4F4F4F]">{pet?.microchipNumber || 'N/A'}</p>
+                      </div>
                     </div>
                     {pet?.allergies && pet.allergies.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-gray-100">

@@ -2953,12 +2953,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         <p className="font-medium text-[#4F4F4F] text-xs">{pet.nfcTagId}</p>
                       </div>
                     )}
-                    {pet.microchipNumber && (
-                      <div>
-                        <p className="text-gray-400 text-xs mb-0.5">Microchip</p>
-                        <p className="font-medium text-[#4F4F4F] text-xs">{pet.microchipNumber}</p>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-gray-400 text-xs mb-0.5">Microchip</p>
+                      <p className="font-medium text-[#4F4F4F] text-xs">{pet.microchipNumber || 'N/A'}</p>
+                    </div>
                     <div>
                       <p className="text-gray-400 text-xs mb-0.5">Blood Type</p>
                       <p className="font-medium text-[#4F4F4F]">{pet.bloodType || '-'}</p>

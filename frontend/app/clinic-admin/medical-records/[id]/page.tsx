@@ -316,12 +316,10 @@ export default function ClinicAdminMedicalRecordViewPage() {
                     <p className="text-sm font-medium text-[#4F4F4F]">{pet.nfcTagId}</p>
                   </div>
                 )}
-                {pet.microchipNumber && (
-                  <div>
-                    <p className="text-xs text-gray-500">Microchip</p>
-                    <p className="text-sm font-medium text-[#4F4F4F]">{pet.microchipNumber}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-xs text-gray-500">Microchip</p>
+                  <p className="text-sm font-medium text-[#4F4F4F]">{pet.microchipNumber || 'N/A'}</p>
+                </div>
               </div>
             </div>
 

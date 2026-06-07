@@ -33,6 +33,7 @@ export interface VetReport {
     weight?: number;
     allergies?: string[];
     sterilization?: string;
+    microchipNumber?: string | null;
   };
   medicalRecordId?: string | null;
   vetId: {

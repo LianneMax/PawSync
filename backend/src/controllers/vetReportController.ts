@@ -282,7 +282,7 @@ export const getReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const report = await VetReport.findById(id)
-      .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization')
+      .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordId')
       .lean();
@@ -303,7 +303,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const report = await VetReport.findOne({ _id: id, sharedWithOwner: true })
-      .populate('petId', 'name species breed sex dateOfBirth weight photo')
+      .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .lean();
 
