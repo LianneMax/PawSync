@@ -31,7 +31,9 @@ export type NotificationType =
   | 'appointment_reassigned'
   | 'pet_tag_ready'
   | 'confinement_monitoring_alert'
-  | 'medical_record_shared';
+  | 'medical_record_shared'
+  | 'vaccine_batch_expiring_soon'
+  | 'vaccine_batch_expired';
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;
@@ -79,6 +81,8 @@ const NotificationSchema = new Schema<INotification>(
         'appointment_reassigned',
         'confinement_monitoring_alert',
         'medical_record_shared',
+        'vaccine_batch_expiring_soon',
+        'vaccine_batch_expired',
       ],
       required: true,
     },

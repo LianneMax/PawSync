@@ -24,6 +24,7 @@ export interface VaccineType {
   doseVolumeMl: number | null;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
+  defaultBatchExpirationDate: string | null;
   isActive: boolean;
 }
 

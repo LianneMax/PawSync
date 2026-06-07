@@ -29,7 +29,9 @@ export type NotificationType =
   | 'vet_resigned'
   | 'clinic_vet_resignation_review'
   | 'appointment_reassigned'
-  | 'medical_record_shared';
+  | 'medical_record_shared'
+  | 'vaccine_batch_expiring_soon'
+  | 'vaccine_batch_expired';
 
 export interface Notification {
   _id: string;

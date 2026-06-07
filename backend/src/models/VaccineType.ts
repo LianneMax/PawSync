@@ -43,7 +43,22 @@ export interface IVaccineType extends Document {
   pricePerDose: number;
   defaultManufacturer: string | null;
   defaultBatchNumber: string | null;
+  /** Expiration (shelf-life) date of the current batch/lot. One batch = one expiry date. */
+  defaultBatchExpirationDate: Date | null;
   isActive: boolean;
+
+  // ── Owning clinic (used to target expiry-alert notifications) ─────────────
+  clinicId: mongoose.Types.ObjectId | null;
+  clinicBranchId: mongoose.Types.ObjectId | null;
+
+  /** Tracks which batch-expiry alert thresholds have already been sent, so they fire only once per batch. */
+  expiryAlertFlags: {
+    sevenDay: boolean;
+    threeDay: boolean;
+    oneDay: boolean;
+    expired: boolean;
+  };
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -136,9 +151,31 @@ const VaccineTypeSchema = new Schema(
       type: String,
       default: null,
     },
+    defaultBatchExpirationDate: {
+      type: Date,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
+    },
+
+    clinicId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Clinic',
+      default: null,
+    },
+    clinicBranchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ClinicBranch',
+      default: null,
+    },
+
+    expiryAlertFlags: {
+      sevenDay: { type: Boolean, default: false },
+      threeDay: { type: Boolean, default: false },
+      oneDay: { type: Boolean, default: false },
+      expired: { type: Boolean, default: false },
     },
   },
   {

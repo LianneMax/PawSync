@@ -185,6 +185,7 @@ interface VaccineFormItem {
   vaccineTypeId: string
   manufacturer: string
   batchNumber: string
+  batchExpirationDate: string
   route: string
   dateAdministered: string
   notes: string
@@ -253,6 +254,7 @@ const emptyVaccine = (): VaccineFormItem => ({
   vaccineTypeId: '',
   manufacturer: '',
   batchNumber: '',
+  batchExpirationDate: '',
   route: '',
   dateAdministered: new Date().toISOString().split('T')[0],
   notes: '',
@@ -272,7 +274,7 @@ function DropdownField({
 }: {
   value: string
   onValueChange: (value: string) => void
-  options: { value: string; label: string; disabled?: boolean }[]
+  options: { value: string; label: ReactNode; disabled?: boolean }[]
   className: string
   placeholder: string
   disabled?: boolean
@@ -293,9 +295,9 @@ function DropdownField({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-lg">
         <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
-          {options.map((opt) => (
+          {options.map((opt, idx) => (
             <DropdownMenuRadioItem
-              key={`${opt.value || '__empty'}-${opt.label}`}
+              key={`${opt.value || '__empty'}-${idx}`}
               value={opt.value}
               disabled={opt.disabled}
               className="text-xs"
@@ -1365,6 +1367,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 vaccineTypeId: vtId,
                 manufacturer: match.manufacturer || '',
                 batchNumber: match.batchNumber || '',
+                batchExpirationDate: '',
                 route: match.route || '',
                 dateAdministered: match.dateAdministered
                   ? match.dateAdministered.split('T')[0]
@@ -4281,6 +4284,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                                       vaccineTypeId: match._id,
                                       manufacturer: match.defaultManufacturer || '',
                                       batchNumber: match.defaultBatchNumber || '',
+                                      batchExpirationDate: match.defaultBatchExpirationDate
+                                        ? String(match.defaultBatchExpirationDate).split('T')[0]
+                                        : '',
                                       route: match.route || '',
                                     }])
                                   } else {
@@ -4407,6 +4413,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <div><span className="text-[10px] text-gray-400 block">Route</span>{v.route || '—'}</div>
                           <div><span className="text-[10px] text-gray-400 block">Manufacturer</span>{v.manufacturer || '—'}</div>
                           <div><span className="text-[10px] text-gray-400 block">Batch/Lot No</span>{v.batchNumber || '—'}</div>
+                          <div><span className="text-[10px] text-gray-400 block">Expiry of the Batch Number</span>{v.batchExpirationDate || '—'}</div>
                         </div>
                         {v.notes && <p className="text-xs text-gray-500 italic">{v.notes}</p>}
                       </div>
@@ -4455,6 +4462,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             doseNumber: nextDose,
                             manufacturer: newVt?.defaultManufacturer || item.manufacturer,
                             batchNumber: newVt?.defaultBatchNumber || item.batchNumber,
+                            batchExpirationDate: newVt?.defaultBatchExpirationDate
+                              ? String(newVt.defaultBatchExpirationDate).split('T')[0]
+                              : item.batchExpirationDate,
                             route: newVt?.route || item.route,
                             nextDueDate: autoNextDueDate,
                           } : item))
@@ -4463,7 +4473,19 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] bg-white"
                         options={[
                           { value: '', label: 'Select vaccine type…' },
-                          ...vaccineTypes.map((vt) => ({ value: vt._id, label: vt.name })),
+                          ...vaccineTypes.map((vt) => {
+                            const isBatchExpired = !!vt.defaultBatchExpirationDate && new Date(vt.defaultBatchExpirationDate) < new Date()
+                            return {
+                              value: vt._id,
+                              disabled: isBatchExpired,
+                              label: isBatchExpired ? (
+                                <span className="flex items-center gap-1.5 text-gray-400">
+                                  <span>{vt.name}</span>
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[#F4D3D2] text-[#900B09]">Expired</span>
+                                </span>
+                              ) : vt.name,
+                            }
+                          }),
                         ]}
                       />
 
@@ -4607,8 +4629,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                         )
                       })()}
 
-                      {/* Dosage | Route | Manufacturer | Batch/Lot No */}
-                      <div className="grid grid-cols-4 gap-2">
+                      {/* Dosage | Route | Manufacturer */}
+                      <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Dosage</label>
                           <div className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-gray-50 text-gray-600 min-h-7.5 flex items-center font-medium">
@@ -4641,6 +4663,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
                           />
                         </div>
+                      </div>
+
+                      {/* Batch/Lot No | Expiry of the batch number (shelf-life of the vial, not the administered dose's protection expiry) */}
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">Batch/Lot No</label>
                           <input
@@ -4649,6 +4675,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                             onChange={(e) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, batchNumber: e.target.value } : item))}
                             placeholder="Batch No."
                             className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">Expiry of the Batch Number</label>
+                          <DatePicker
+                            value={v.batchExpirationDate}
+                            onChange={(value) => setVaccines((prev) => prev.map((item, j) => j === i ? { ...item, batchExpirationDate: value } : item))}
+                            allowFutureDates
+                            minDate={new Date()}
+                            compact
+                            className="w-full"
                           />
                         </div>
                       </div>

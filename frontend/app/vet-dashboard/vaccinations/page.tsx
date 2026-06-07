@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -100,6 +101,7 @@ interface TypeFormState {
   doseVolumeMl: string
   defaultManufacturer: string
   defaultBatchNumber: string
+  defaultBatchExpirationDate: string
 }
 
 const emptyTypeForm = (): TypeFormState => ({
@@ -119,6 +121,7 @@ const emptyTypeForm = (): TypeFormState => ({
   doseVolumeMl: '',
   defaultManufacturer: '',
   defaultBatchNumber: '',
+  defaultBatchExpirationDate: '',
 })
 
 const SPECIES_LABEL: Record<string, string> = {
@@ -318,6 +321,7 @@ export default function VetVaccinationsPage() {
       doseVolumeMl: vt.doseVolumeMl != null ? String(vt.doseVolumeMl) : getAutoDoseVolume(speciesVal),
       defaultManufacturer: vt.defaultManufacturer || '',
       defaultBatchNumber: vt.defaultBatchNumber || '',
+      defaultBatchExpirationDate: (vt as any).defaultBatchExpirationDate ? String((vt as any).defaultBatchExpirationDate).split('T')[0] : '',
     })
     setSaveError(null)
     setSaveSuccess(false)
@@ -360,6 +364,7 @@ export default function VetVaccinationsPage() {
         doseVolumeMl: form.doseVolumeMl ? Number(form.doseVolumeMl) : null,
         defaultManufacturer: form.defaultManufacturer.trim() || null,
         defaultBatchNumber: form.defaultBatchNumber.trim() || null,
+        defaultBatchExpirationDate: form.defaultBatchExpirationDate || null,
       }
       if (editTarget) {
         await updateVaccineType(editTarget._id, payload, token)
@@ -382,7 +387,9 @@ export default function VetVaccinationsPage() {
     try {
       await updateVaccineType(vt._id, { isActive: !vt.isActive }, token)
       await loadTypes()
-    } catch { /* ignore */ } finally {
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update vaccine type')
+    } finally {
       setTogglingId(null)
     }
   }
@@ -722,7 +729,7 @@ export default function VetVaccinationsPage() {
       {/* Create / Edit Vaccine Type Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
               <h2 className="text-base font-bold text-[#4F4F4F]">
                 {editTarget ? 'Edit Vaccine Type' : 'New Vaccine Type'}
@@ -988,7 +995,7 @@ export default function VetVaccinationsPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Manufacturer</label>
                   <input
@@ -997,20 +1004,44 @@ export default function VetVaccinationsPage() {
                     placeholder="e.g. Merial, Zoetis, Boehringer…"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Default Batch / Lot Number</label>
                   <input
                     type="text" value={form.defaultBatchNumber}
-                    onChange={(e) => setForm((p) => ({ ...p, defaultBatchNumber: e.target.value }))}
+                    onChange={(e) => {
+                      const nextBatch = e.target.value
+                      setForm((p) => {
+                        // A batch/lot number has exactly one expiry date — switching to a
+                        // different batch clears the expiry so it must be re-entered for the new batch.
+                        const originalBatch = editTarget?.defaultBatchNumber || ''
+                        const originalExpiry = (editTarget as any)?.defaultBatchExpirationDate
+                          ? String((editTarget as any).defaultBatchExpirationDate).split('T')[0]
+                          : ''
+                        const nextExpiry = nextBatch === originalBatch ? originalExpiry : ''
+                        return { ...p, defaultBatchNumber: nextBatch, defaultBatchExpirationDate: nextExpiry }
+                      })
+                    }}
                     placeholder="e.g. A12345"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[#4F4F4F] mb-1">Expiration Date</label>
+                  <input
+                    type="date" value={form.defaultBatchExpirationDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setForm((p) => ({ ...p, defaultBatchExpirationDate: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                  {form.defaultBatchNumber && form.defaultBatchNumber !== (editTarget?.defaultBatchNumber || '') && !form.defaultBatchExpirationDate && (
+                    <p className="text-[11px] text-amber-600 mt-1">New batch — please set its expiration date.</p>
+                  )}
                 </div>
               </div>
+              <p className="text-xs text-gray-400 mt-1">Auto-filled when this vaccine is selected in a visit record</p>
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 flex justify-end gap-2">

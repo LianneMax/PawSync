@@ -17,6 +17,7 @@ import {
 } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { getPregnancySnapshot } from '../services/pregnancyDomainService';
+import { checkVaccineBatchExpiriesAndNotify } from '../services/vaccineExpiryService';
 
 export function startScheduler() {
   // Run every day at midnight
@@ -345,6 +346,14 @@ export function startScheduler() {
       console.log(`[Scheduler] Sent ${tomorrowAppointments.length} appointment reminder emails`);
     } catch (err) {
       console.error('[Scheduler] Appointment reminder error:', err);
+    }
+
+    // ── 8. Vaccine batch expiry checks (deactivate expired + alert vets/admins) ──
+    try {
+      await checkVaccineBatchExpiriesAndNotify();
+      console.log('[Scheduler] Vaccine batch expiry check complete');
+    } catch (err) {
+      console.error('[Scheduler] Vaccine batch expiry check error:', err);
     }
   });
 

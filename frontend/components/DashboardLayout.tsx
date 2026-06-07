@@ -117,6 +117,8 @@ function inferNotificationCategory(notification: Notification): NotificationCate
       return 'Pet Tag Requests'
     case 'appointment_reminder':
     case 'vaccine_due':
+    case 'vaccine_batch_expiring_soon':
+    case 'vaccine_batch_expired':
     case 'bill_due':
     case 'pregnancy_due_soon':
     case 'pregnancy_overdue':
@@ -180,6 +182,10 @@ function getNotificationIcon(type: NotificationType) {
       return <IconBubble icon={BadgeCheck} bg="bg-[#DCFCE7]" fg="text-[#16A34A]" />
     case 'vaccine_due':
       return <IconBubble icon={Syringe} bg="bg-[#FEF9C3]" fg="text-[#CA8A04]" />
+    case 'vaccine_batch_expiring_soon':
+      return <IconBubble icon={Clock} bg="bg-[#FFF7ED]" fg="text-[#C2410C]" />
+    case 'vaccine_batch_expired':
+      return <IconBubble icon={AlertTriangle} bg="bg-[#F4D3D2]" fg="text-[#B91C1C]" />
     case 'pet_lost':
       return <IconBubble icon={PawPrint} bg="bg-[#F4D3D2]" fg="text-[#DC2626]" />
     case 'pet_found':

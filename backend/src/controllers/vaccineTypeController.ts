@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import VaccineType from '../models/VaccineType';
 import Vaccination from '../models/Vaccination';
+import { checkVaccineBatchExpiriesAndNotify } from '../services/vaccineExpiryService';
 
 /**
  * GET /api/vaccine-types
@@ -10,6 +11,11 @@ import Vaccination from '../models/Vaccination';
 export const listVaccineTypes = async (req: Request, res: Response) => {
   try {
     const { species, includeInactive } = req.query;
+
+    // Lazily run the expiry check (deactivates expired batches + notifies vets/admins)
+    // so the catalog reflects expiry immediately rather than waiting for the
+    // nightly scheduler run.
+    await checkVaccineBatchExpiriesAndNotify();
 
     const query: Record<string, unknown> = includeInactive === 'true' ? {} : { isActive: true };
     if (species) {
@@ -55,10 +61,20 @@ export const createVaccineType = async (req: Request, res: Response) => {
       doseVolumeMl,
       defaultManufacturer,
       defaultBatchNumber,
+      defaultBatchExpirationDate,
     } = req.body;
 
     if (!name || !species || !validityDays) {
       return res.status(400).json({ status: 'ERROR', message: 'name, species, and validityDays are required' });
+    }
+
+    if (defaultBatchExpirationDate) {
+      const expiry = new Date(defaultBatchExpirationDate);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (expiry < todayStart) {
+        return res.status(400).json({ status: 'ERROR', message: 'Batch expiration date cannot be in the past' });
+      }
     }
 
     const existing = await VaccineType.findOne({
@@ -86,6 +102,9 @@ export const createVaccineType = async (req: Request, res: Response) => {
       doseVolumeMl: doseVolumeMl ?? null,
       defaultManufacturer: defaultManufacturer || null,
       defaultBatchNumber: defaultBatchNumber || null,
+      defaultBatchExpirationDate: defaultBatchExpirationDate || null,
+      clinicId: req.user.clinicId || null,
+      clinicBranchId: req.user.clinicBranchId || null,
     });
 
     return res.status(201).json({
@@ -161,8 +180,38 @@ export const updateVaccineType = async (req: Request, res: Response) => {
       pricePerDose,
       defaultManufacturer,
       defaultBatchNumber,
+      defaultBatchExpirationDate,
       isActive,
     } = req.body;
+
+    const previousBatchNumber = vaccineType.defaultBatchNumber;
+    const previousExpirationDate = vaccineType.defaultBatchExpirationDate;
+    const batchNumberChanging = defaultBatchNumber !== undefined && (defaultBatchNumber || null) !== (previousBatchNumber || null);
+
+    if (defaultBatchExpirationDate) {
+      const expiry = new Date(defaultBatchExpirationDate);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (expiry < todayStart) {
+        return res.status(400).json({ status: 'ERROR', message: 'Batch expiration date cannot be in the past' });
+      }
+    }
+
+    // A batch/lot number has exactly one expiry date — switching to a new batch requires its own expiration date.
+    if (batchNumberChanging && defaultBatchNumber && !defaultBatchExpirationDate) {
+      return res.status(400).json({ status: 'ERROR', message: 'A new batch/lot number requires its expiration date' });
+    }
+
+    // Block reactivating a vaccine whose current (or newly-submitted) batch is already expired —
+    // it stays inactive/unusable until the batch number AND expiration date are updated together.
+    if (isActive === true) {
+      const effectiveExpiry = defaultBatchExpirationDate !== undefined
+        ? (defaultBatchExpirationDate ? new Date(defaultBatchExpirationDate) : null)
+        : previousExpirationDate;
+      if (effectiveExpiry && effectiveExpiry < new Date()) {
+        return res.status(400).json({ status: 'ERROR', message: 'Cannot activate this vaccine — its current batch has expired. Update the batch/lot number and expiration date first.' });
+      }
+    }
 
     if (name !== undefined) vaccineType.name = name.trim();
     if (species !== undefined) vaccineType.species = species;
@@ -181,7 +230,21 @@ export const updateVaccineType = async (req: Request, res: Response) => {
     if (pricePerDose !== undefined) vaccineType.pricePerDose = pricePerDose;
     if (defaultManufacturer !== undefined) vaccineType.defaultManufacturer = defaultManufacturer || null;
     if (defaultBatchNumber !== undefined) vaccineType.defaultBatchNumber = defaultBatchNumber || null;
+    if (defaultBatchExpirationDate !== undefined) vaccineType.defaultBatchExpirationDate = defaultBatchExpirationDate || null;
     if (isActive !== undefined) vaccineType.isActive = isActive;
+
+    // Updating to a new batch/lot resets the expiry-alert tracking and, if the new
+    // batch isn't expired, automatically re-activates a vaccine that the scheduler
+    // had auto-deactivated for an expired batch.
+    const expirationChanging = defaultBatchExpirationDate !== undefined
+      && String(defaultBatchExpirationDate || '') !== String(previousExpirationDate ? previousExpirationDate.toISOString().split('T')[0] : '');
+    if (batchNumberChanging || expirationChanging) {
+      vaccineType.expiryAlertFlags = { sevenDay: false, threeDay: false, oneDay: false, expired: false };
+      const newExpiry = vaccineType.defaultBatchExpirationDate;
+      if (isActive === undefined && newExpiry && newExpiry > new Date()) {
+        vaccineType.isActive = true;
+      }
+    }
 
     await vaccineType.save();
 

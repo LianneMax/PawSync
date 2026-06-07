@@ -1066,6 +1066,50 @@ export async function sendClinicAdminAlertEmail(params: {
   }
 }
 
+// ─── Vaccine Batch Expiry Alerts ─────────────────────────────────────────────
+
+export async function sendVaccineBatchExpiryAlertEmail(params: {
+  recipientEmail: string;
+  recipientFirstName: string;
+  vaccineName: string;
+  batchNumber: string;
+  expirationDate: Date | string;
+  status: 'expired' | 'expiring_soon';
+  daysRemaining?: number;
+}) {
+  const isExpired = params.status === 'expired';
+  const subject = isExpired
+    ? `PawSync – Vaccine Batch Expired: ${params.vaccineName}`
+    : `PawSync – Vaccine Batch Expiring in ${params.daysRemaining} Day${params.daysRemaining === 1 ? '' : 's'}: ${params.vaccineName}`;
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.recipientEmail,
+      subject,
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">${isExpired ? 'Vaccine Batch Expired' : 'Vaccine Batch Expiring Soon'}</h2>
+          <p>Hi Dr. ${params.recipientFirstName},</p>
+          <p>${isExpired
+            ? `The current batch of <strong>${params.vaccineName}</strong> has <strong>expired</strong> and has been marked unusable. It cannot be selected for new vaccinations until the batch/lot number and expiration date are updated.`
+            : `The current batch of <strong>${params.vaccineName}</strong> will expire in <strong>${params.daysRemaining} day${params.daysRemaining === 1 ? '' : 's'}</strong>. Please plan to restock or update the batch information soon.`
+          }</p>
+          <div style="background: ${isExpired ? '#fef2f2' : '#fffbeb'}; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Vaccine:</strong> ${params.vaccineName}</p>
+            <p style="margin: 4px 0;"><strong>Batch / Lot No.:</strong> ${params.batchNumber || '—'}</p>
+            <p style="margin: 4px 0;"><strong>Expiration Date:</strong> ${formatDate(params.expirationDate)}</p>
+            <p style="margin: 4px 0; color: ${isExpired ? '#dc2626' : '#b45309'};"><strong>Status:</strong> ${isExpired ? 'EXPIRED — marked inactive' : `Expiring in ${params.daysRemaining} day${params.daysRemaining === 1 ? '' : 's'}`}</p>
+          </div>
+          <p style="color: #666;">Update the vaccine type's batch/lot number and expiration date in the Vaccinations dashboard once the new stock arrives.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendVaccineBatchExpiryAlertEmail error:', err);
+  }
+}
+
 // ─── Confinement Release Emails ──────────────────────────────────────────────
 
 export async function sendConfinementReleaseRequestToVet(params: {
