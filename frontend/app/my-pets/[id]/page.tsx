@@ -790,7 +790,6 @@ export default function PetProfilePage() {
                     width={112}
                     height={112}
                     className="w-full h-full object-cover"
-                    unoptimized
                   />
                 ) : (
                   <PawPrint className="w-12 h-12 text-white/60" />
@@ -1685,7 +1684,7 @@ export default function PetProfilePage() {
             <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
               <div className="w-10 h-10 rounded-full bg-[#7FA5A3]/20 flex items-center justify-center overflow-hidden shrink-0">
                 {pet?.photo ? (
-                  <Image src={pet.photo} alt={pet?.name || ''} width={40} height={40} className="w-full h-full object-cover" unoptimized />
+                  <Image src={pet.photo} alt={pet?.name || ''} width={40} height={40} className="w-full h-full object-cover" />
                 ) : (
                   <PawPrint className="w-5 h-5 text-[#7FA5A3]" />
                 )}

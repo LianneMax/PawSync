@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 const backendOrigin = apiBaseUrl.replace(/\/api\/?$/, '')
+const backendUrl = new URL(backendOrigin)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -15,8 +16,11 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: '**' },
+      {
+        protocol: backendUrl.protocol.replace(':', ''),
+        hostname: backendUrl.hostname,
+        port: backendUrl.port || '',
+      },
     ],
   },
   rewrites: async () => {

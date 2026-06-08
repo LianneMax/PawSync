@@ -87,7 +87,6 @@ function PetCard({ pet }: { pet: OwnerPetSummary }) {
               width={56}
               height={56}
               className="w-full h-full object-cover"
-              unoptimized
             />
           </div>
         ) : (
@@ -350,7 +349,6 @@ export default function OwnerProfilePage({ params }: { params: Promise<{ ownerId
                         width={80}
                         height={80}
                         className="w-full h-full object-cover"
-                        unoptimized
                       />
                     </div>
                   ) : (

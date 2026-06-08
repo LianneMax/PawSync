@@ -312,7 +312,7 @@ function PetDetailModal({
               <div className="flex justify-center mb-4">
                 <div className="w-28 h-28 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                   {pet.image ? (
-                    <Image src={pet.image} alt={pet.name} width={112} height={112} className="w-full h-full object-cover" unoptimized />
+                    <Image src={pet.image} alt={pet.name} width={112} height={112} className="w-full h-full object-cover" />
                   ) : (
                     <PawPrint className="w-12 h-12 text-gray-400" />
                   )}
@@ -681,7 +681,7 @@ function ReportLostPetModal({
             <div className="flex items-center gap-3 bg-[#F8F6F2] rounded-xl p-3">
               <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/20 overflow-hidden flex items-center justify-center shrink-0">
                 {selectedPet.image ? (
-                  <Image src={selectedPet.image} alt={selectedPet.name} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                  <Image src={selectedPet.image} alt={selectedPet.name} width={48} height={48} className="w-full h-full object-cover" />
                 ) : (
                   <PawPrint className="w-5 h-5 text-[#7FA5A3]" />
                 )}
@@ -1379,7 +1379,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
                     {pet.image ? (
-                      <Image src={pet.image} alt={pet.name} width={48} height={48} className="w-full h-full object-cover" unoptimized />
+                      <Image src={pet.image} alt={pet.name} width={48} height={48} className="w-full h-full object-cover" />
                     ) : (
                       <PawPrint className="w-6 h-6 text-gray-400" />
                     )}

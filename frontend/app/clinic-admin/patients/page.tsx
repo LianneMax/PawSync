@@ -856,7 +856,6 @@ function PatientDrawer({
                     width={48}
                     height={48}
                     className="w-full h-full object-cover"
-                    unoptimized
                   />
                 </div>
               ) : (
@@ -1270,7 +1269,6 @@ export default function PatientManagementPage() {
                               width={64}
                               height={64}
                               className="w-full h-full object-cover"
-                              unoptimized
                             />
                           </div>
                         ) : (

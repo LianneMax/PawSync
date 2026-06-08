@@ -289,7 +289,7 @@ function Navbar({
         >
           <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden shrink-0">
             {userAvatar ? (
-              <Image src={userAvatar} alt={userName} width={40} height={40} className="w-full h-full object-cover" unoptimized />
+              <Image src={userAvatar} alt={userName} width={40} height={40} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-gray-400 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">

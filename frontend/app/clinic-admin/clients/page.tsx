@@ -839,7 +839,6 @@ function OwnerAvatar({ owner }: { owner: ClinicPetOwner }) {
           width={36}
           height={36}
           className="w-full h-full object-cover"
-          unoptimized
         />
       </div>
     )
