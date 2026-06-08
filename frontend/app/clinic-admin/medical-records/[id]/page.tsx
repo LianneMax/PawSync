@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, useParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
@@ -21,8 +22,9 @@ import {
   Baby,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import BillingFromRecordModal from '@/components/BillingFromRecordModal'
 import { syncBillingFromRecord } from '@/lib/billingSync'
+
+const BillingFromRecordModal = dynamic(() => import('@/components/BillingFromRecordModal'), { ssr: false })
 
 const vitalsConfig: { key: string; label: string; type: 'number' | 'yesno'; unit?: string }[] = [
   { key: 'weight',             label: 'Weight',               type: 'number', unit: 'kg' },

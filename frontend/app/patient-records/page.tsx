@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -71,13 +72,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import BillingFromRecordModal from '@/components/BillingFromRecordModal'
-import MedicalRecordStagedModal from '@/components/MedicalRecordStagedModal'
 import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 import { getReferredPets } from '@/lib/referrals'
 import { createVetReport, listVetReports, DuplicateReportError } from '@/lib/vetReports'
+
+const BillingFromRecordModal = dynamic(() => import('@/components/BillingFromRecordModal'), { ssr: false })
+const MedicalRecordStagedModal = dynamic(() => import('@/components/MedicalRecordStagedModal'), { ssr: false })
 
 
 // ==================== TYPES ====================
