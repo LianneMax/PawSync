@@ -60,7 +60,7 @@ const POPULATE_BILLING = [
     select: 'name legalBusinessName address phone email businessTaxId businessRegistrationNo receiptFooterNote logo',
   },
   { path: 'clinicBranchId', select: 'name address city province phone email' },
-  { path: 'medicalRecordId', select: 'stage' },
+  { path: 'medicalRecordId', select: 'stage vetId' },
   { path: 'confinementRecordId', select: 'status admissionDate dischargeDate' },
 ];
 
@@ -485,9 +485,13 @@ export const getBillingById = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Billing record not found' });
     }
 
-    // Guard: only the owner, the vet, or clinic staff can view
+    // Guard: only the owner, the billing's vet, the linked medical record's attending vet, or clinic staff can view
     const isOwner = billing.ownerId.toString() === req.user.userId;
-    const isVet = billing.vetId ? billing.vetId.toString() === req.user.userId : false;
+    const billingVetId = (billing.vetId as any)?._id ?? billing.vetId;
+    const recordVetId = (billing.medicalRecordId as any)?.vetId;
+    const isVet =
+      (billingVetId ? billingVetId.toString() === req.user.userId : false) ||
+      (recordVetId ? recordVetId.toString() === req.user.userId : false);
     const isClinicStaff =
       req.user.userType === 'clinic-admin';
 
