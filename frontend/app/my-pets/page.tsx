@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, requestPetTag, getNfcTagPrice, togglePetLost, type Pet as APIPet } from '@/lib/pets'
+import { requestPetTag, getNfcTagPrice, togglePetLost, type Pet as APIPet } from '@/lib/pets'
+import { useMyPets } from '@/hooks/useMyPets'
 import { Plus, PawPrint, Search, AlertTriangle, Nfc, CheckCircle2, Loader, ChevronDown, X, AlertCircle } from 'lucide-react'
 import {
   Dialog,
@@ -39,8 +40,7 @@ function calculateAge(dateOfBirth: string): string {
 export default function MyPetsPage() {
   const router = useRouter()
   const token = useAuthStore((state) => state.token)
-  const [pets, setPets] = useState<APIPet[]>([])
-  const [loading, setLoading] = useState(true)
+  const { pets, isLoading: loading, mutate: fetchPets } = useMyPets()
   const [searchQuery, setSearchQuery] = useState('')
   const [petTypeFilter, setPetTypeFilter] = useState<'all' | 'dog' | 'cat'>('all')
   const [lifeStatusFilter, setLifeStatusFilter] = useState<'all' | 'alive' | 'deceased'>('all')
@@ -59,28 +59,6 @@ export default function MyPetsPage() {
   const [feeAgreed, setFeeAgreed] = useState(false)
   const [feeCheckboxError, setFeeCheckboxError] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
-
-  const fetchPets = useCallback(async () => {
-    if (!token) {
-      setLoading(false)
-      return
-    }
-    try {
-      setLoading(true)
-      const response = await getMyPets(token)
-      if (response.status === 'SUCCESS' && response.data?.pets) {
-        setPets(response.data.pets)
-      }
-    } catch (error) {
-      console.error('Failed to fetch pets:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    fetchPets()
-  }, [fetchPets])
 
   // Fetch clinic branches for pet tag pickup selection
   useEffect(() => {

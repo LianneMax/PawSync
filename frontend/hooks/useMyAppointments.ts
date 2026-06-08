@@ -3,17 +3,17 @@
 import useSWR from 'swr'
 import { useMemo } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { authenticatedFetch } from '@/lib/auth'
-import type { Appointment } from '@/lib/appointments'
+import { getMyAppointments, type Appointment } from '@/lib/appointments'
 
 const EMPTY_APPOINTMENTS: Appointment[] = []
 
-export function useVetAppointments() {
+export function useMyAppointments(filter?: 'upcoming' | 'previous', refreshInterval?: number) {
   const token = useAuthStore((s) => s.token)
 
   const { data, error, isLoading, mutate } = useSWR(
-    token ? '/appointments/vet' : null,
-    () => authenticatedFetch('/appointments/vet', { method: 'GET' }, token!),
+    token ? ['/appointments/mine', filter ?? 'all'] : null,
+    () => getMyAppointments(filter, token!),
+    refreshInterval ? { refreshInterval } : undefined,
   )
 
   // Stable empty-array fallback — returning a fresh `[]` each render would change

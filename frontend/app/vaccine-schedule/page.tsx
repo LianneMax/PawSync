@@ -5,36 +5,28 @@ import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import VaccineCalendar from '@/components/VaccineCalendar'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, type Pet } from '@/lib/pets'
+import { useMyPets } from '@/hooks/useMyPets'
 import { getUpcomingVaccineDates, type UpcomingVaccine } from '@/lib/vaccinations'
 import { Calendar, AlertCircle, CheckCircle, PawPrint } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function VaccineSchedulePage() {
   const { token } = useAuthStore()
-  const [pets, setPets] = useState<Pet[]>([])
+  const { pets, error: petsError } = useMyPets()
   const [selectedPetId, setSelectedPetId] = useState<string>('')
   const [upcomingVaccines, setUpcomingVaccines] = useState<UpcomingVaccine[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch pets on mount
+  // Select the first pet once the shared pets cache resolves
   useEffect(() => {
-    async function fetchPets() {
-      if (!token) return
-      try {
-        const response = await getMyPets(token)
-        const pets = response.data?.pets || []
-        setPets(pets)
-        if (pets.length > 0) {
-          setSelectedPetId(pets[0]._id)
-        }
-      } catch (error) {
-        console.error('Error fetching pets:', error)
-        toast.error('Failed to load pets')
-      }
+    if (pets.length > 0 && !selectedPetId) {
+      setSelectedPetId(pets[0]._id)
     }
-    fetchPets()
-  }, [token])
+  }, [pets, selectedPetId])
+
+  useEffect(() => {
+    if (petsError) toast.error('Failed to load pets')
+  }, [petsError])
 
   // Fetch upcoming vaccines when pet changes
   useEffect(() => {

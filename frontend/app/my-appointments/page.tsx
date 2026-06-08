@@ -6,9 +6,8 @@ import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
-import { getMyPets, type Pet } from '@/lib/pets'
+import { useMyPets } from '@/hooks/useMyPets'
 import {
-  getMyAppointments,
   getAvailableSlots,
   createAppointment,
   cancelAppointment,
@@ -16,6 +15,7 @@ import {
   type Appointment,
   type TimeSlot,
 } from '@/lib/appointments'
+import { useMyAppointments } from '@/hooks/useMyAppointments'
 import {
   getAllClinicsWithBranches,
   getVetsForBranch,
@@ -294,9 +294,8 @@ function MyAppointmentsPageContent() {
   const { token } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'upcoming' | 'previous'>('upcoming')
   const [serviceType, setServiceType] = useState<'all' | 'medical' | 'grooming'>('all')
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [myPets, setMyPets] = useState<Pet[]>([])
-  const [loading, setLoading] = useState(true)
+  const { appointments, isLoading: loading, mutate: refreshAppointments } = useMyAppointments(activeTab)
+  const { pets: myPets } = useMyPets()
   const [hasUnpaidBills, setHasUnpaidBills] = useState(false)
   const [modalOpen, setModalOpen] = useState(!!petIdFromUrl)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
@@ -311,16 +310,6 @@ function MyAppointmentsPageContent() {
   const [customDateOpen, setCustomDateOpen] = useState(false)
 
   useEffect(() => {
-    const loadMyPets = async () => {
-      try {
-        const res = await getMyPets(token || undefined)
-        if (res.status === 'SUCCESS' && res.data) {
-          setMyPets(res.data.pets)
-        }
-      } catch {
-        // silent
-      }
-    }
     const checkUnpaidBills = async () => {
       try {
         const res = await authenticatedFetch('/billing/my-invoices?status=pending_payment', { method: 'GET' }, token || undefined)
@@ -332,7 +321,6 @@ function MyAppointmentsPageContent() {
       }
     }
     if (token) {
-      loadMyPets()
       checkUnpaidBills()
     }
   }, [token])
@@ -440,22 +428,9 @@ function MyAppointmentsPageContent() {
     return items
   }, [serviceType, selectedPet, dateFilter, customStartDate, customEndDate])
 
-  // Load appointments
-  const loadAppointments = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await getMyAppointments(activeTab, token || undefined)
-      if (res.status === 'SUCCESS' && res.data) {
-        setAppointments(res.data.appointments)
-      }
-    } catch {
-      // silent - will show empty state
-    } finally {
-      setLoading(false)
-    }
-  }, [activeTab, token])
-
-  useEffect(() => { loadAppointments() }, [loadAppointments])
+  // Appointments come from the shared `useMyAppointments` SWR cache, keyed by `activeTab`
+  // (also shared with the dashboard's 'upcoming'/'previous' lists and my-pets/[id]'s 'all').
+  const loadAppointments = refreshAppointments
 
   const handleCancel = (id: string) => {
     setAppointmentToCancel(id)
@@ -998,7 +973,7 @@ function ScheduleModal({
   const currentYear = new Date().getFullYear()
 
   // Form state
-  const [pets, setPets] = useState<Pet[]>([])
+  const { pets } = useMyPets()
   const [clinics, setClinics] = useState<ClinicWithBranches[]>([])
   const [branchVets, setBranchVets] = useState<BranchVet[]>([])
   const [serviceCategories, setServiceCategories] = useState<any[]>([])
@@ -1074,15 +1049,9 @@ function ScheduleModal({
     return getAvailableSlots(selectedVetId, dateYmd, token || undefined, selectedBranchId || undefined)
   }
 
-  // Load pets + clinics/branches when modal opens
+  // Load clinics/branches when modal opens (pets come from the shared `useMyPets` cache)
   useEffect(() => {
     if (!open) return
-    const loadPets = async () => {
-      try {
-        const res = await getMyPets(token || undefined)
-        if (res.status === 'SUCCESS' && res.data) setPets(res.data.pets)
-      } catch { /* silent */ }
-    }
     const loadClinics = async () => {
       try {
         const res = await getAllClinicsWithBranches()
@@ -1147,7 +1116,6 @@ function ScheduleModal({
         setServiceCategories(formatted)
       } catch { /* silent */ }
     }
-    loadPets()
     loadClinics()
     loadServices()
   }, [open, token])

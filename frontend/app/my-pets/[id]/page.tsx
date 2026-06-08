@@ -14,7 +14,8 @@ import { getPetById, updatePet, togglePetLost, requestConfinementRelease, markPe
 import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
 import { listSharedReportsForOwner, type VetReport, formatReportDate } from '@/lib/vetReports'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
-import { getMyAppointments, type Appointment } from '@/lib/appointments'
+import { type Appointment } from '@/lib/appointments'
+import { useMyAppointments } from '@/hooks/useMyAppointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
 import { uploadImage } from '@/lib/upload'
@@ -109,8 +110,7 @@ export default function PetProfilePage() {
   const [, setLoadingClinics] = useState(false)
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [appointmentsLoading, setAppointmentsLoading] = useState(false)
+  const { appointments, isLoading: appointmentsLoading } = useMyAppointments()
   const [healthMetrics, setHealthMetrics] = useState<{ lastVisit: string; nextVisit: string; lastSpo2: string }>({ lastVisit: '-', nextVisit: '-', lastSpo2: '-' })
   const [showQRCodeModal, setShowQRCodeModal] = useState(false)
   const [tagRequests, setTagRequests] = useState<TagRequest[]>([])
@@ -214,23 +214,6 @@ export default function PetProfilePage() {
     }
   }, [token, petId])
 
-  const fetchAppointments = useCallback(async () => {
-    if (!token) return
-    setAppointmentsLoading(true)
-    try {
-      const res = await getMyAppointments(undefined, token)
-      if (res.status === 'SUCCESS' && res.data?.appointments) {
-        setAppointments(res.data.appointments)
-      } else {
-        setAppointments([])
-      }
-    } catch (err) {
-      setAppointments([])
-    } finally {
-      setAppointmentsLoading(false)
-    }
-  }, [token])
-
   const computeHealthMetrics = useCallback(() => {
     if (!petId) return
 
@@ -318,12 +301,6 @@ export default function PetProfilePage() {
     }
   }, [activeTab, tagRequests, loadingTagRequests, fetchTagRequests])
 
-  // Fetch appointments on mount and recompute health metrics when they change
-  useEffect(() => {
-    if (appointments.length === 0 && !appointmentsLoading) {
-      fetchAppointments()
-    }
-  }, [appointments.length, appointmentsLoading, fetchAppointments])
 
   // Compute health metrics when appointments or medical records change
   useEffect(() => {

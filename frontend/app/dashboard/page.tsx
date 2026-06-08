@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, togglePetLost, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
-import { getMyAppointments, type Appointment as APIAppointment } from '@/lib/appointments'
+import { useMyPets } from '@/hooks/useMyPets'
+import { togglePetLost, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
+import { type Appointment as APIAppointment } from '@/lib/appointments'
+import { useMyAppointments } from '@/hooks/useMyAppointments'
 import { getProfile } from '@/lib/users'
 import { hasNFCTag } from '@/lib/petNfc'
 import {
@@ -1156,10 +1158,8 @@ export default function DashboardPage() {
   const token = useAuthStore((state) => state.token)
   const [userName, setUserName] = useState('User')
   const [pets, setPets] = useState<Pet[]>([])
-  const [petsLoading, setPetsLoading] = useState(true)
+  const { pets: apiPets, isLoading: petsLoading, mutate: refreshPets } = useMyPets()
   const [appointments, setAppointments] = useState<DashboardAppointment[]>([])
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true)
-  const [allApiAppointments, setAllApiAppointments] = useState<APIAppointment[]>([])
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [petModalOpen, setPetModalOpen] = useState(false)
   const [reportLostOpen, setReportLostOpen] = useState(false)
@@ -1182,78 +1182,43 @@ export default function DashboardPage() {
     }
   }, [user])
 
-  // Fetch pets from API â€'"' redirect to onboarding if pet-owner has no pets
-  const fetchPets = useCallback(async () => {
-    if (!token) {
-      setPetsLoading(false)
+  // Pets are fetched via the shared `useMyPets` SWR hook (deduped/cached across
+  // dashboard, my-pets, my-appointments, vaccine-cards and vaccine-schedule).
+  // Map them into dashboard-shaped pets and redirect to onboarding if the owner has none.
+  useEffect(() => {
+    if (petsLoading) return
+    if (apiPets.length === 0) {
+      router.replace('/onboarding/pet')
       return
     }
-    try {
-      setPetsLoading(true)
-      const response = await getMyPets(token)
-      if (response.status === 'SUCCESS' && response.data?.pets) {
-        if (response.data.pets.length === 0) {
-          router.replace('/onboarding/pet')
-          return
-        }
-        const mappedPets = response.data.pets.map(apiPetToDashboardPet)
-        setPets(mappedPets)
+    const mappedPets = apiPets.map(apiPetToDashboardPet)
+    setPets(mappedPets)
 
-        const strangerReportedPet = mappedPets.find((p) => p.isLost && p.lostReportedByStranger)
-        if (strangerReportedPet) {
-          const seenKey = `stranger-lost-alert-seen-${strangerReportedPet.id}`
-          const hasSeen = typeof window !== 'undefined' && sessionStorage.getItem(seenKey) === '1'
-          if (!hasSeen) {
-            setStrangerReportedLostPet(strangerReportedPet)
-            setShowStrangerReportedLostModal(true)
-          }
-        }
+    const strangerReportedPet = mappedPets.find((p) => p.isLost && p.lostReportedByStranger)
+    if (strangerReportedPet) {
+      const seenKey = `stranger-lost-alert-seen-${strangerReportedPet.id}`
+      const hasSeen = typeof window !== 'undefined' && sessionStorage.getItem(seenKey) === '1'
+      if (!hasSeen) {
+        setStrangerReportedLostPet(strangerReportedPet)
+        setShowStrangerReportedLostModal(true)
       }
-    } catch (error) {
-      // Handle error silently
-    } finally {
-      setPetsLoading(false)
     }
-  }, [token, router])
+  }, [apiPets, petsLoading, router])
+
+  // Appointments are fetched via the shared `useMyAppointments` SWR hook (deduped/cached
+  // across dashboard, my-appointments and my-pets/[id]). SWR's refreshInterval replaces
+  // the previous manual 15s polling.
+  const { appointments: upcomingAppointments, isLoading: upcomingLoading } = useMyAppointments('upcoming', 15000)
+  const { appointments: previousAppointments, isLoading: previousLoading } = useMyAppointments('previous', 15000)
+  const appointmentsLoading = upcomingLoading || previousLoading
+  const allApiAppointments = useMemo(
+    () => [...upcomingAppointments, ...previousAppointments],
+    [upcomingAppointments, previousAppointments]
+  )
 
   useEffect(() => {
-    fetchPets()
-  }, [fetchPets])
-
-  // Fetch appointments from API
-  const fetchAppointments = useCallback(async () => {
-    if (!token) {
-      setAppointmentsLoading(false)
-      return
-    }
-    try {
-      setAppointmentsLoading(true)
-      const [upcomingRes, previousRes] = await Promise.all([
-        getMyAppointments('upcoming', token),
-        getMyAppointments('previous', token),
-      ])
-      const upcoming = upcomingRes.status === 'SUCCESS' ? upcomingRes.data?.appointments ?? [] : []
-      const previous = previousRes.status === 'SUCCESS' ? previousRes.data?.appointments ?? [] : []
-      setAllApiAppointments([...upcoming, ...previous])
-      const dashboardAppointments = upcoming.map(apiAppointmentToDashboard).slice(0, 5)
-      setAppointments(dashboardAppointments)
-    } catch (error) {
-      // Handle error silently
-    } finally {
-      setAppointmentsLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    if (token) {
-      fetchAppointments()
-      // Auto-refresh appointments every 15 seconds
-      const interval = setInterval(() => {
-        fetchAppointments()
-      }, 15000)
-      return () => clearInterval(interval)
-    }
-  }, [token])
+    setAppointments(upcomingAppointments.map(apiAppointmentToDashboard).slice(0, 5))
+  }, [upcomingAppointments])
 
   // Derive last visit / next visit per pet card from fetched appointments
   useEffect(() => {
@@ -1319,7 +1284,7 @@ export default function DashboardPage() {
       toast('Pet Found!', {
         description: `${pet.name} has been marked as found. NFC tag restored to normal.`,
       })
-      await fetchPets()
+      await refreshPets()
       setPetModalOpen(false)
     } catch {
       toast('Error', { description: 'Failed to update pet status. Please try again.' })
@@ -1606,7 +1571,7 @@ export default function DashboardPage() {
         pets={reportLostFromDetail ? undefined : pets}
         open={reportLostOpen}
         onClose={() => setReportLostOpen(false)}
-        onMarkedLost={fetchPets}
+        onMarkedLost={refreshPets}
       />
 
       {/* Remove Pet Modal */}
@@ -1614,7 +1579,7 @@ export default function DashboardPage() {
         pet={removePetTarget}
         open={removePetOpen}
         onClose={() => setRemovePetOpen(false)}
-        onPetRemoved={fetchPets}
+        onPetRemoved={refreshPets}
       />
 
       <Dialog

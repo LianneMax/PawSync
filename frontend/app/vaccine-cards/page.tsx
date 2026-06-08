@@ -4,7 +4,8 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getMyPets, type Pet } from '@/lib/pets'
+import { type Pet } from '@/lib/pets'
+import { useMyPets } from '@/hooks/useMyPets'
 import { getVaccinationsByPet, type Vaccination } from '@/lib/medicalRecords'
 import { ShieldCheck, X, PawPrint, XCircle, BadgeCheck, Clock, Syringe, ChevronRight } from 'lucide-react'
 
@@ -553,13 +554,13 @@ export default function VaccineCardsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedCard, setSelectedCard] = useState<PetWithVax | null>(null)
 
+  const { pets, isLoading: loadingPets } = useMyPets()
+
   useEffect(() => {
     async function fetchAll() {
-      if (!token) return
+      if (!token || loadingPets) return
       setLoading(true)
       try {
-        const petsRes = await getMyPets(token)
-        const pets = petsRes.data?.pets ?? []
         const results = await Promise.all(
           pets.map(async (pet) => {
             const vaxRes = await getVaccinationsByPet(pet._id, token)
@@ -582,7 +583,7 @@ export default function VaccineCardsPage() {
       }
     }
     fetchAll()
-  }, [token])
+  }, [token, pets, loadingPets])
 
   return (
     <DashboardLayout>
