@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
+import { useMyClinic } from '@/hooks/useMyClinic'
 import { authenticatedFetch } from '@/lib/auth'
 import {
   Users,
@@ -376,96 +377,95 @@ export default function ClinicManagementPage() {
     }
   }
 
-  // Fetch real clinic data
+  // Clinic identity comes from the shared `useMyClinic` SWR hook (deduped/cached
+  // across pages that also call `/clinics/mine`, e.g. clinic-admin/appointments).
+  const { clinic: myClinic } = useMyClinic()
+
+  // Fetch real clinic data (vets, branches, stats — dependent on the clinic above)
   useEffect(() => {
     const fetchData = async () => {
-      if (!token) return
+      if (!token || !myClinic) return
 
       try {
-        // Get clinic ID first
-        const clinicsRes = await authenticatedFetch('/clinics/mine', {}, token)
-        if (clinicsRes.status === 'SUCCESS' && clinicsRes.data.clinics.length > 0) {
-          const myClinic = clinicsRes.data.clinics[0]
-          setClinicId(myClinic._id)
-          const resolvedClinicEmail: string = myClinic.email || ''
-          if (resolvedClinicEmail) setClinicEmail(resolvedClinicEmail)
-          setProfileForm({
-            legalBusinessName: myClinic.legalBusinessName || '',
-            businessTaxId: myClinic.businessTaxId || '',
-            businessRegistrationNo: myClinic.businessRegistrationNo || '',
-            birNumber: myClinic.birNumber || '',
-            receiptFooterNote: myClinic.receiptFooterNote || '',
-          })
-          setProfileLoaded(true)
+        setClinicId(myClinic._id)
+        const resolvedClinicEmail: string = myClinic.email || ''
+        if (resolvedClinicEmail) setClinicEmail(resolvedClinicEmail)
+        setProfileForm({
+          legalBusinessName: myClinic.legalBusinessName || '',
+          businessTaxId: myClinic.businessTaxId || '',
+          businessRegistrationNo: myClinic.businessRegistrationNo || '',
+          birNumber: myClinic.birNumber || '',
+          receiptFooterNote: myClinic.receiptFooterNote || '',
+        })
+        setProfileLoaded(true)
 
-          // Fetch vets and branches in parallel
-          const [vetsRes, branchesRes] = await Promise.all([
-            authenticatedFetch('/clinics/mine/vets', {}, token),
-            authenticatedFetch(`/clinics/${myClinic._id}/branches?includeInactive=true`, {}, token),
-          ])
+        // Fetch vets and branches in parallel
+        const [vetsRes, branchesRes] = await Promise.all([
+          authenticatedFetch('/clinics/mine/vets', {}, token),
+          authenticatedFetch(`/clinics/${myClinic._id}/branches?includeInactive=true`, {}, token),
+        ])
 
-          if (vetsRes.status === 'SUCCESS') {
-            const apiVets: Veterinarian[] = (vetsRes.data.vets || []).map((v: { _id: string; vetId?: string; clinicBranchId?: string; name: string; email: string; initials: string; branch: string; prcLicense: string; status: string }) => ({
-              id: v._id,
-              vetId: v.vetId || v._id,
-              branchId: v.clinicBranchId || '',
-              name: v.name,
-              email: v.email,
-              initials: v.initials,
-              role: 'VET' as const,
-              branch: v.branch,
-              prcLicense: v.prcLicense,
-              status: (v.status || 'Active') as 'Active' | 'On Leave' | 'Resigned' | 'Resignation Notice',
-              activePatients: 0,
-            }))
-            setVets(apiVets)
-          }
+        if (vetsRes.status === 'SUCCESS') {
+          const apiVets: Veterinarian[] = (vetsRes.data.vets || []).map((v: { _id: string; vetId?: string; clinicBranchId?: string; name: string; email: string; initials: string; branch: string; prcLicense: string; status: string }) => ({
+            id: v._id,
+            vetId: v.vetId || v._id,
+            branchId: v.clinicBranchId || '',
+            name: v.name,
+            email: v.email,
+            initials: v.initials,
+            role: 'VET' as const,
+            branch: v.branch,
+            prcLicense: v.prcLicense,
+            status: (v.status || 'Active') as 'Active' | 'On Leave' | 'Resigned' | 'Resignation Notice',
+            activePatients: 0,
+          }))
+          setVets(apiVets)
+        }
 
-          if (branchesRes.status === 'SUCCESS') {
-            const apiBranches: Branch[] = (branchesRes.data.branches || []).map((b: { _id: string; name: string; address: string; isMain: boolean; isActive?: boolean; phone: string; email: string; city: string; province: string; openingTime: string; closingTime: string; operatingDays: string[]; closureDates?: { startDate: string; endDate: string; closureType: 'single-day' | 'date-range'; createdAt: string }[] }) => ({
-              id: b._id,
-              name: b.name,
-              address: b.address || '',
-              isMain: b.isMain,
-              isActive: !!b.isActive,
-              vets: 0,
-              patients: 0,
-              today: 0,
-              phone: b.phone || '',
-              hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
-              email: b.email || (b.isMain ? (resolvedClinicEmail || user?.email || '') : ''),
-              isOpen: isBranchOpenNow({ isActive: !!b.isActive, openingTime: b.openingTime, closingTime: b.closingTime, manuallyOpenedDate: b.manuallyOpenedDate, closureDates: b.closureDates || [] }),
-              city: b.city || '',
-              province: b.province || '',
-              openingTime: b.openingTime || '',
-              closingTime: b.closingTime || '',
-              operatingDays: (b.operatingDays || []).join(', '),
-              closureDates: b.closureDates || [],
-            }))
-            setBranches(apiBranches)
+        if (branchesRes.status === 'SUCCESS') {
+          const apiBranches: Branch[] = (branchesRes.data.branches || []).map((b: { _id: string; name: string; address: string; isMain: boolean; isActive?: boolean; phone: string; email: string; city: string; province: string; openingTime: string; closingTime: string; operatingDays: string[]; closureDates?: { startDate: string; endDate: string; closureType: 'single-day' | 'date-range'; createdAt: string }[] }) => ({
+            id: b._id,
+            name: b.name,
+            address: b.address || '',
+            isMain: b.isMain,
+            isActive: !!b.isActive,
+            vets: 0,
+            patients: 0,
+            today: 0,
+            phone: b.phone || '',
+            hours: b.openingTime && b.closingTime ? `${b.openingTime} - ${b.closingTime}` : '-',
+            email: b.email || (b.isMain ? (resolvedClinicEmail || user?.email || '') : ''),
+            isOpen: isBranchOpenNow({ isActive: !!b.isActive, openingTime: b.openingTime, closingTime: b.closingTime, manuallyOpenedDate: b.manuallyOpenedDate, closureDates: b.closureDates || [] }),
+            city: b.city || '',
+            province: b.province || '',
+            openingTime: b.openingTime || '',
+            closingTime: b.closingTime || '',
+            operatingDays: (b.operatingDays || []).join(', '),
+            closureDates: b.closureDates || [],
+          }))
+          setBranches(apiBranches)
 
-            // Fetch statistics for each branch
-            setLoadingStats(true)
-            try {
-              const statsMap: Record<string, { vets: number; patients: number; appointments: number }> = {}
-              await Promise.all(
-                apiBranches.map(async (branch) => {
-                  try {
-                    const statsRes = await authenticatedFetch(`/clinics/${myClinic._id}/branches/${branch.id}/stats`, {}, token)
-                    if (statsRes.status === 'SUCCESS') {
-                      statsMap[branch.id] = statsRes.data.stats
-                    }
-                  } catch (err) {
-                    console.error(`Failed to fetch stats for branch ${branch.id}:`, err)
+          // Fetch statistics for each branch
+          setLoadingStats(true)
+          try {
+            const statsMap: Record<string, { vets: number; patients: number; appointments: number }> = {}
+            await Promise.all(
+              apiBranches.map(async (branch) => {
+                try {
+                  const statsRes = await authenticatedFetch(`/clinics/${myClinic._id}/branches/${branch.id}/stats`, {}, token)
+                  if (statsRes.status === 'SUCCESS') {
+                    statsMap[branch.id] = statsRes.data.stats
                   }
-                })
-              )
-              setBranchStats(statsMap)
-            } catch (err) {
-              console.error('Failed to fetch branch stats:', err)
-            } finally {
-              setLoadingStats(false)
-            }
+                } catch (err) {
+                  console.error(`Failed to fetch stats for branch ${branch.id}:`, err)
+                }
+              })
+            )
+            setBranchStats(statsMap)
+          } catch (err) {
+            console.error('Failed to fetch branch stats:', err)
+          } finally {
+            setLoadingStats(false)
           }
         }
       } catch (err) {
@@ -477,7 +477,7 @@ export default function ClinicManagementPage() {
     }
 
     fetchData()
-  }, [token])
+  }, [token, myClinic])
 
   const handleSaveProfile = async () => {
     if (!token) return

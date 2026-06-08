@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
+import { useMyClinic } from '@/hooks/useMyClinic'
 import {
   getClinicAppointments,
   getAvailableSlots,
@@ -1074,27 +1075,28 @@ function ClinicAdminAppointmentsContent() {
     return chips
   }, [selectedOwner, selectedPet, dateFilter, customStartDate, customEndDate, activeTab])
 
-  // Load clinic + branches (for clinic admins, vets, etc.)
+  // Clinic data is fetched once via the shared `useMyClinic` SWR hook (deduped/cached
+  // across pages that also call `/clinics/mine`, e.g. clinic-management).
+  const { clinic: myClinic } = useMyClinic()
+
+  useEffect(() => {
+    if (!myClinic) return
+    setClinic({ _id: myClinic._id, name: myClinic.name })
+  }, [myClinic])
+
+  // Load branches for clinic admins once the clinic is known
   useEffect(() => {
     const load = async () => {
+      if (!myClinic || !isClinicAdmin) return
       try {
-        const clinicRes = await authenticatedFetch('/clinics/mine', {}, token || undefined)
-        if (clinicRes.status === 'SUCCESS' && clinicRes.data?.clinics?.length > 0) {
-          const c = clinicRes.data.clinics[0]
-          setClinic({ _id: c._id, name: c.name })
-
-          // Fetch branches for clinic admins
-          if (isClinicAdmin) {
-            const branchRes = await authenticatedFetch(`/clinics/${c._id}/branches`, {}, token || undefined)
-            if (branchRes.status === 'SUCCESS' && branchRes.data?.branches) {
-              setBranches(branchRes.data.branches)
-            }
-          }
+        const branchRes = await authenticatedFetch(`/clinics/${myClinic._id}/branches`, {}, token || undefined)
+        if (branchRes.status === 'SUCCESS' && branchRes.data?.branches) {
+          setBranches(branchRes.data.branches)
         }
       } catch { /* silent */ }
     }
-    if (token) load()
-  }, [token, isClinicAdmin])
+    load()
+  }, [myClinic, isClinicAdmin, token])
 
   // Load vets for the calendar — scoped to selected branch when one is chosen
   useEffect(() => {
