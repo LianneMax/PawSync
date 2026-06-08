@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import { useVetAppointments } from '@/hooks/useVetAppointments'
 import {
   type Appointment,
   checkInAppointment,
@@ -190,11 +191,8 @@ export default function VetAppointmentsPage() {
   const [activeAppointmentMode, setActiveAppointmentMode] = useState<'online' | 'face-to-face' | undefined>(undefined)
   const [activeAppointmentIsEmergency, setActiveAppointmentIsEmergency] = useState(false)
 
-  const { data: apptData, isLoading: loading, mutate: refreshAppointments } = useSWR(
-    token ? '/appointments/vet' : null,
-    () => authenticatedFetch('/appointments/vet', { method: 'GET' }, token!),
-  )
-  const appointments: Appointment[] = (apptData?.data?.appointments ?? []).filter((a: Appointment) =>
+  const { appointments: vetAppointments, isLoading: loading, mutate: refreshAppointments } = useVetAppointments()
+  const appointments: Appointment[] = vetAppointments.filter((a: Appointment) =>
     !a.types?.some(t => t === 'basic-grooming' || t === 'full-grooming')
   )
 

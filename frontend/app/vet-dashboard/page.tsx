@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
+import { useVetAppointments } from '@/hooks/useVetAppointments'
 import { type Appointment } from '@/lib/appointments'
 import {
   Users,
@@ -75,7 +76,7 @@ export default function VetDashboardPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
   const { token } = useAuthStore()
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const { appointments } = useVetAppointments()
   const [vaccinesDueCount, setVaccinesDueCount] = useState(0)
   const [inConfinementCount, setInConfinementCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -107,15 +108,10 @@ export default function VetDashboardPage() {
     const load = async () => {
       setLoading(true)
       try {
-        const [apptRes, vacRes, confinementRes] = await Promise.all([
-          authenticatedFetch('/appointments/vet', { method: 'GET' }, token),
+        const [vacRes, confinementRes] = await Promise.all([
           authenticatedFetch('/vaccinations/vet/my-records', { method: 'GET' }, token),
           authenticatedFetch('/confinement?status=admitted', { method: 'GET' }, token),
         ])
-
-        if (apptRes.status === 'SUCCESS') {
-          setAppointments(apptRes.data.appointments)
-        }
 
         if (vacRes.status === 'SUCCESS') {
           const now = new Date()

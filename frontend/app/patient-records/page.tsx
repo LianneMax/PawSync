@@ -9,6 +9,7 @@ import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { uploadImage } from '@/lib/upload'
+import { useVetAppointments } from '@/hooks/useVetAppointments'
 import {
   createMedicalRecord,
   createFollowUp,
@@ -288,63 +289,61 @@ function PatientRecordsPageContent() {
     }
   }
 
+  // Vet's appointments are shared/cached via SWR (also used by vet-appointments and vet-dashboard)
+  const { appointments: vetAppointments, isLoading: loadingAppointments } = useVetAppointments()
+
   // Load patients from vet's appointments + referred pets
   const loadPatients = useCallback(async () => {
     if (!token) return
     setLoading(true)
     try {
-      const [apptRes, referralRes] = await Promise.all([
-        authenticatedFetch('/appointments/vet', { method: 'GET' }, token),
-        getReferredPets(token),
-      ])
+      const referralRes = await getReferredPets(token)
 
       const petMap = new Map<string, PatientPet>()
 
-      if (apptRes.status === 'SUCCESS' && apptRes.data?.appointments) {
-        for (const appt of apptRes.data.appointments) {
-          const petId = appt.petId?._id
-          if (!petId) continue
+      for (const appt of vetAppointments) {
+        const petId = appt.petId?._id
+        if (!petId) continue
 
-          const latestVisitAt = appt.date ? new Date(appt.date).toISOString() : null
-          if (!petMap.has(petId)) {
-            petMap.set(petId, {
-              _id: petId,
-              name: appt.petId?.name || 'Unknown',
-              species: appt.petId?.species || '',
-              breed: appt.petId?.breed || '',
-              photo: appt.petId?.photo || null,
-              sex: appt.petId?.sex || '',
-              dateOfBirth: appt.petId?.dateOfBirth || null,
-              color: appt.petId?.color || null,
-              sterilization: appt.petId?.sterilization || null,
-              nfcTagId: appt.petId?.nfcTagId || null,
-              microchipNumber: appt.petId?.microchipNumber || null,
-              allergies: appt.petId?.allergies || [],
-              status: appt.petId?.status,
-              isAlive: appt.petId?.isAlive,
-              isLost: appt.petId?.isLost,
-              removedByOwner: appt.petId?.removedByOwner,
-              previousOwners: Array.isArray(appt.petId?.previousOwners) ? appt.petId.previousOwners : [],
-              ownerFirstName: appt.ownerId?.firstName || '',
-              ownerLastName: appt.ownerId?.lastName || '',
-              ownerEmail: appt.ownerId?.email || '',
-              ownerId: appt.ownerId?._id || '',
-              clinicId: appt.clinicId?._id || '',
-              clinicName: appt.clinicId?.name || '',
-              clinicBranchId: appt.clinicBranchId?._id || '',
-              clinicBranchName: appt.clinicBranchId?.name || '',
-              lastVisitAt: latestVisitAt,
-            })
-            continue
-          }
+        const latestVisitAt = appt.date ? new Date(appt.date).toISOString() : null
+        if (!petMap.has(petId)) {
+          petMap.set(petId, {
+            _id: petId,
+            name: appt.petId?.name || 'Unknown',
+            species: appt.petId?.species || '',
+            breed: appt.petId?.breed || '',
+            photo: appt.petId?.photo || null,
+            sex: appt.petId?.sex || '',
+            dateOfBirth: appt.petId?.dateOfBirth || null,
+            color: appt.petId?.color || null,
+            sterilization: appt.petId?.sterilization || null,
+            nfcTagId: appt.petId?.nfcTagId || null,
+            microchipNumber: appt.petId?.microchipNumber || null,
+            allergies: appt.petId?.allergies || [],
+            status: appt.petId?.status,
+            isAlive: appt.petId?.isAlive,
+            isLost: appt.petId?.isLost,
+            removedByOwner: appt.petId?.removedByOwner,
+            previousOwners: Array.isArray(appt.petId?.previousOwners) ? appt.petId.previousOwners : [],
+            ownerFirstName: appt.ownerId?.firstName || '',
+            ownerLastName: appt.ownerId?.lastName || '',
+            ownerEmail: appt.ownerId?.email || '',
+            ownerId: appt.ownerId?._id || '',
+            clinicId: appt.clinicId?._id || '',
+            clinicName: appt.clinicId?.name || '',
+            clinicBranchId: appt.clinicBranchId?._id || '',
+            clinicBranchName: appt.clinicBranchId?.name || '',
+            lastVisitAt: latestVisitAt,
+          })
+          continue
+        }
 
-          const existingPet = petMap.get(petId)
-          if (!existingPet) continue
-          const existingTime = existingPet.lastVisitAt ? new Date(existingPet.lastVisitAt).getTime() : 0
-          const nextTime = latestVisitAt ? new Date(latestVisitAt).getTime() : 0
-          if (nextTime > existingTime) {
-            petMap.set(petId, { ...existingPet, lastVisitAt: latestVisitAt })
-          }
+        const existingPet = petMap.get(petId)
+        if (!existingPet) continue
+        const existingTime = existingPet.lastVisitAt ? new Date(existingPet.lastVisitAt).getTime() : 0
+        const nextTime = latestVisitAt ? new Date(latestVisitAt).getTime() : 0
+        if (nextTime > existingTime) {
+          petMap.set(petId, { ...existingPet, lastVisitAt: latestVisitAt })
         }
       }
 
@@ -378,11 +377,12 @@ function PatientRecordsPageContent() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, vetAppointments])
 
   useEffect(() => {
+    if (loadingAppointments) return
     loadPatients()
-  }, [loadPatients])
+  }, [loadPatients, loadingAppointments])
 
   // Deep-link: auto-select pet when ?petId= is present in the URL and patients have loaded
   const deepLinkHandled = useRef(false)
