@@ -226,12 +226,11 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
 
               {/* Disclaimer */}
               <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
-                The following interpretation of diagnostic procedures reflects a range of potential findings and
-                outcomes based on the results obtained. Diagnostic tests can yield varied interpretations due to
-                multiple factors, including individual patient characteristics, the presence of concurrent health
-                conditions, and the inherent variability of laboratory measurements. It is essential to approach
-                these interpretations as part of a comprehensive assessment that includes clinical observations
-                and history.
+                {report.isAIGenerated && (
+                  <>This report was drafted with AI assistance and has been reviewed, edited, and approved in full by Dr. {vet.firstName} {vet.lastName}. </>
+                )}
+                Diagnostic interpretations reflect a range of potential findings based on the results obtained, individual patient characteristics, and clinical history, and should be considered as part of a comprehensive assessment.
+                {report.isAIGenerated && ' Pet owners are welcome to seek a second opinion from another licensed veterinarian.'}
               </p>
 
             </div>

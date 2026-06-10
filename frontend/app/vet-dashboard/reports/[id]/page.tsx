@@ -311,6 +311,15 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               </div>
             </div>
 
+            {/* Disclaimer */}
+            <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
+              {report.isAIGenerated && (
+                <>This report was drafted with AI assistance and has been reviewed, edited, and approved in full by Dr. {vet.firstName} {vet.lastName}. </>
+              )}
+              Diagnostic interpretations reflect a range of potential findings based on the results obtained, individual patient characteristics, and clinical history, and should be considered as part of a comprehensive assessment.
+              {report.isAIGenerated && ' Pet owners are welcome to seek a second opinion from another licensed veterinarian.'}
+            </p>
+
           </div>
         </div>
       </div>
