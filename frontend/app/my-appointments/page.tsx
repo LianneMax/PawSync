@@ -296,7 +296,6 @@ function MyAppointmentsPageContent() {
   const [serviceType, setServiceType] = useState<'all' | 'medical' | 'grooming'>('all')
   const { appointments, isLoading: loading, mutate: refreshAppointments } = useMyAppointments(activeTab)
   const { pets: myPets } = useMyPets()
-  const [hasUnpaidBills, setHasUnpaidBills] = useState(false)
   const [modalOpen, setModalOpen] = useState(!!petIdFromUrl)
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
@@ -308,22 +307,6 @@ function MyAppointmentsPageContent() {
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [customDateOpen, setCustomDateOpen] = useState(false)
-
-  useEffect(() => {
-    const checkUnpaidBills = async () => {
-      try {
-        const res = await authenticatedFetch('/billing/my-invoices?status=pending_payment', { method: 'GET' }, token || undefined)
-        if (res.status === 'SUCCESS' && res.data?.billings) {
-          setHasUnpaidBills(res.data.billings.length > 0)
-        }
-      } catch {
-        // silent — if check fails, backend will enforce on submit
-      }
-    }
-    if (token) {
-      checkUnpaidBills()
-    }
-  }, [token])
 
   const petOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>()
@@ -484,14 +467,6 @@ function MyAppointmentsPageContent() {
           <p className="text-sm text-gray-500 mt-1">Schedule and Manage your pet&apos;s appointments</p>
         </div>
 
-        {/* Rule 1: Unpaid bills warning banner */}
-        {hasUnpaidBills && (
-          <div className="mt-4 flex items-start gap-3 bg-[#F4D3D2] border border-[#900B09]/20 rounded-xl px-4 py-3 text-sm text-[#900B09]">
-            <X className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>You have unpaid bills. Please settle them before booking a new appointment.</span>
-          </div>
-        )}
-
         {/* Tabs + Action */}
         <div className="flex items-center justify-between mt-6 mb-4">
           <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
@@ -517,18 +492,8 @@ function MyAppointmentsPageContent() {
             </button>
           </div>
           <button
-            onClick={() => {
-              if (hasUnpaidBills) {
-                toast.error('You have unpaid bills. Please settle them before booking an appointment.')
-                return
-              }
-              setModalOpen(true)
-            }}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
-              hasUnpaidBills
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]'
-            }`}
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors bg-[#7FA5A3] text-white hover:bg-[#6b9391]"
           >
             <Plus className="w-4 h-4" />
             Set an appointment
@@ -836,16 +801,8 @@ function MyAppointmentsPageContent() {
                         : 'No upcoming clinic service appointments'}
                     </p>
                     <button
-                      onClick={() => {
-                        if (hasUnpaidBills) {
-                          toast.error('You have unpaid bills. Please settle them before booking an appointment.')
-                          return
-                        }
-                        setModalOpen(true)
-                      }}
-                      className={`px-6 py-2 rounded-xl inline-flex items-center gap-2 text-sm transition-colors ${
-                        hasUnpaidBills ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#7FA5A3] text-white hover:bg-[#6b9391]'
-                      }`}
+                      onClick={() => setModalOpen(true)}
+                      className="px-6 py-2 rounded-xl inline-flex items-center gap-2 text-sm transition-colors bg-[#7FA5A3] text-white hover:bg-[#6b9391]"
                     >
                       <Plus className="w-4 h-4" />
                       Set an Appointment

@@ -310,20 +310,6 @@ export const createAppointment = async (req: Request, res: Response) => {
       });
     }
 
-    // Rule 1: Block if owner has unpaid bills (pet-owner only)
-    if (req.user.userType === 'pet-owner') {
-      const unpaidCount = await Billing.countDocuments({
-        ownerId: req.user.userId,
-        status: 'pending_payment',
-      });
-      if (unpaidCount > 0) {
-        return res.status(403).json({
-          status: 'ERROR',
-          message: 'You have unpaid bills. Please settle them before booking an appointment.'
-        });
-      }
-    }
-
     if (includesSterilizationType(types) && isAlreadySterilizedStatus((pet as any).sterilization)) {
       return res.status(400).json({
         status: 'ERROR',
@@ -1790,18 +1776,6 @@ export const createClinicAppointment = async (req: Request, res: Response) => {
       return res.status(403).json({
         status: 'ERROR',
         message: 'This pet cannot be scheduled for an appointment due to its current status.'
-      });
-    }
-
-    // Rule 1: Block if owner has unpaid bills (clinic admin booking on behalf of owner)
-    const ownerUnpaidCount = await Billing.countDocuments({
-      ownerId,
-      status: 'pending_payment',
-    });
-    if (ownerUnpaidCount > 0) {
-      return res.status(403).json({
-        status: 'ERROR',
-        message: 'This pet owner has unpaid bills. Please settle them before booking an appointment.'
       });
     }
 

@@ -2483,7 +2483,6 @@ function ClinicScheduleModal({
 
   // Form state
   const [selectedOwner, setSelectedOwner] = useState<PetOwner | null>(null)
-  const [ownerHasUnpaidBills, setOwnerHasUnpaidBills] = useState(false)
   const [ownerPets, setOwnerPets] = useState<{ _id: string; name: string; species: string; breed: string; photo: string | null; isLost: boolean; isAlive: boolean; isConfined: boolean; status: 'alive' | 'lost' | 'deceased' | 'confined'; deceasedAt?: string | null }[]>([])
   const [branchVets, setBranchVets] = useState<BranchVet[]>([])
   const [serviceCategories, setServiceCategories] = useState<any[]>([])
@@ -2588,7 +2587,7 @@ function ClinicScheduleModal({
 
   // Load pets when owner changes
   useEffect(() => {
-    if (!selectedOwner) { setOwnerPets([]); setSelectedPetId(''); setOwnerHasUnpaidBills(false); return }
+    if (!selectedOwner) { setOwnerPets([]); setSelectedPetId(''); return }
     const load = async () => {
       setLoadingPets(true)
       try {
