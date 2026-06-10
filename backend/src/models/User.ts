@@ -9,6 +9,7 @@ export interface IUser extends Document {
   contactNumber: string;
   contactNumberNormalized?: string | null;
   photo?: string;
+  signature?: string | null;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
   inviteStatus?: 'pending' | 'invited' | 'resent' | 'activated' | null;
   isGuest?: boolean;
@@ -145,6 +146,10 @@ const UserSchema = new Schema(
       default: false // For veterinarians, this tracks PRC license verification
     },
     photo: {
+      type: String,
+      default: null
+    },
+    signature: {
       type: String,
       default: null
     },

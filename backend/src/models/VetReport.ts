@@ -34,6 +34,7 @@ export interface IVetReport extends Document {
   status: 'draft' | 'finalized';
   sharedWithOwner: boolean;
   sharedAt?: Date;
+  vetSignature?: { url: string | null; signedAt: Date | null };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,6 +79,10 @@ const VetReportSchema = new Schema<IVetReport>(
     status: { type: String, enum: ['draft', 'finalized'], default: 'draft' },
     sharedWithOwner: { type: Boolean, default: false },
     sharedAt: { type: Date, default: null },
+    vetSignature: {
+      url: { type: String, default: null },
+      signedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

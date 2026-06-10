@@ -19,6 +19,9 @@ import {
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
+import { authenticatedFetch } from '@/lib/auth'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import SignatureCapture, { SignatureCaptureHandle } from '@/components/SignatureCapture'
 import Image from 'next/image'
 import {
   ArrowLeft,
@@ -43,6 +46,7 @@ import {
   FlaskConical,
   ClipboardList,
   Pill,
+  PenTool,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -292,7 +296,11 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
             <hr className="border-gray-200" />
             <div className="flex items-end justify-between pt-2">
               <div className="text-sm">
-                <div className="mb-6 h-8" />
+                {report.vetSignature?.url ? (
+                  <img src={report.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-1 object-contain" />
+                ) : (
+                  <div className="mb-6 h-8" />
+                )}
                 <p className="font-bold text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
                 <p className="text-gray-500 text-xs">Licensed Veterinarian</p>
                 {vet.prcLicenseNumber && <p className="text-gray-400 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>}
@@ -356,6 +364,9 @@ export default function ReportEditorPage() {
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState<'edit' | 'preview'>('edit')
   const [ownerSummary, setOwnerSummary] = useState<OwnerSummary | null>(null)
+  const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null)
+  const [signModalOpen, setSignModalOpen] = useState(false)
+  const [signing, setSigning] = useState(false)
 
   // Local editable state
   const [title, setTitle] = useState('')
@@ -372,6 +383,7 @@ export default function ReportEditorPage() {
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const signatureCaptureRef = useRef<SignatureCaptureHandle | null>(null)
 
   const loadReport = useCallback(async () => {
     try {
@@ -389,6 +401,15 @@ export default function ReportEditorPage() {
   }, [id, token])
 
   useEffect(() => { loadReport() }, [loadReport])
+
+  useEffect(() => {
+    if (!token) return
+    authenticatedFetch('/users/profile', { method: 'GET' }, token)
+      .then((res) => {
+        if (res.status === 'SUCCESS') setSavedSignatureUrl(res.data.user.signature || null)
+      })
+      .catch(() => {})
+  }, [token])
 
   // Auto-save sections after 2s of inactivity
   const triggerAutoSave = useCallback(
@@ -507,6 +528,29 @@ export default function ReportEditorPage() {
     }
   }
 
+  const handleSignReport = async () => {
+    const url = await signatureCaptureRef.current?.getSignatureUrl()
+    if (!url) {
+      toast.error('Please draw or select a signature first')
+      return
+    }
+    setSigning(true)
+    try {
+      const updated = await updateVetReport(
+        id,
+        { vetSignature: { url, signedAt: new Date().toISOString() } },
+        token || undefined
+      )
+      applyUpdate(updated)
+      toast.success('Report signed')
+      setSignModalOpen(false)
+    } catch {
+      toast.error('Failed to sign report')
+    } finally {
+      setSigning(false)
+    }
+  }
+
   const copyShareLink = () => {
     const url = `${window.location.origin}/reports/${id}`
     navigator.clipboard.writeText(url).then(() => toast.success('Link copied!'))
@@ -619,6 +663,18 @@ export default function ReportEditorPage() {
                 <CheckCircle2 className="w-4 h-4" /> Finalized
               </span>
             )}
+
+            <button
+              onClick={() => setSignModalOpen(true)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                report.vetSignature?.url
+                  ? 'bg-[#476B6B] text-white hover:bg-[#3a5a5a]'
+                  : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <PenTool className="w-4 h-4" />
+              {report.vetSignature?.url ? 'Signed' : 'Sign Report'}
+            </button>
 
             <button
               onClick={handleShare}
@@ -743,6 +799,32 @@ export default function ReportEditorPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={signModalOpen} onOpenChange={(open) => { setSignModalOpen(open); if (!open) signatureCaptureRef.current?.reset() }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Sign Report</DialogTitle>
+          </DialogHeader>
+          <SignatureCapture ref={signatureCaptureRef} savedSignatureUrl={savedSignatureUrl} />
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setSignModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSignReport}
+              disabled={signing}
+              className="px-4 py-2 bg-[#476B6B] hover:bg-[#3a5a5a] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {signing ? 'Signing...' : 'Sign Report'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

@@ -31,6 +31,7 @@ export const getProfile = async (req: Request, res: Response) => {
           resignation: user.resignation || null,
           contactNumber: user.contactNumber || null,
           photo: user.photo || null,
+          signature: user.signature || null,
           createdAt: user.createdAt
         }
       }
@@ -63,7 +64,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    const { firstName, lastName, email, contactNumber, photo } = req.body;
+    const { firstName, lastName, email, contactNumber, photo, signature } = req.body;
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
@@ -83,6 +84,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       user.contactNumber = normalizedContact || null as any;
     }
     if (photo !== undefined) user.photo = photo;
+    if (signature !== undefined) user.signature = signature;
 
     await user.save({ validateBeforeSave: false });
 
@@ -97,6 +99,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           email: user.email,
           contactNumber: user.contactNumber,
           photo: user.photo || null,
+          signature: user.signature || null,
           userType: user.userType,
           isVerified: user.isVerified
         }

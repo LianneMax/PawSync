@@ -322,7 +322,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
 export const updateReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, reportDate, vetContextNotes, sections, status } = req.body;
+    const { title, reportDate, vetContextNotes, sections, status, vetSignature } = req.body;
 
     const report = await VetReport.findById(id);
     if (!report) {
@@ -333,6 +333,7 @@ export const updateReport = async (req: Request, res: Response) => {
     if (reportDate !== undefined) report.reportDate = new Date(reportDate);
     if (vetContextNotes !== undefined) report.vetContextNotes = vetContextNotes;
     if (status !== undefined) report.status = status;
+    if (vetSignature !== undefined) report.vetSignature = vetSignature;
     if (sections) {
       report.sections = { ...report.sections, ...sections };
     }

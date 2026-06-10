@@ -1016,7 +1016,11 @@ export default function MedicalRecordReportPage() {
             <hr className="border-gray-200" />
             <div className="flex items-end justify-between pt-4 pb-2">
               <div>
-                <div className="w-48 border-b border-gray-300 mb-1" />
+                {record.vetSignature?.url ? (
+                  <img src={record.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-1 object-contain" />
+                ) : (
+                  <div className="w-48 border-b border-gray-300 mb-1" />
+                )}
                 <p className="text-sm font-medium text-[#4F4F4F]">
                   Dr. {(vet as any).firstName || ''} {(vet as any).lastName || ''}
                 </p>

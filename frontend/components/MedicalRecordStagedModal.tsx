@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { uploadImage } from '@/lib/upload'
@@ -58,6 +58,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { getPetNotes, savePetNotes } from '@/lib/petNotes'
+import SignatureCapture, { SignatureCaptureHandle } from '@/components/SignatureCapture'
 import { Switch } from '@/components/ui/switch'
 import { DatePicker } from '@/components/ui/date-picker'
 import { syncBillingFromRecord } from '@/lib/billingSync'
@@ -721,6 +722,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [recordStage, setRecordStage] = useState<string>('pre_procedure')
   const [confinementRecordId, setConfinementRecordId] = useState<string | null>(null)
   const [confined, setConfined] = useState(false)
+  const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null)
+  const signatureCaptureRef = useRef<SignatureCaptureHandle | null>(null)
   const [referral, setReferral] = useState(false)
   const [surgery, setSurgery] = useState(false)
   const [euthanasia, setEuthanasia] = useState(false)
@@ -796,6 +799,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (res.status === 'SUCCESS') setPetNotesDraft(res.data?.notes || '')
     })
   }, [petId, token])
+
+  useEffect(() => {
+    if (!token) return
+    authenticatedFetch('/users/profile', { method: 'GET' }, token)
+      .then((res) => {
+        if (res.status === 'SUCCESS') setSavedSignatureUrl(res.data.user.signature || null)
+      })
+      .catch(() => {})
+  }, [token])
 
   const handleSaveNotes = async () => {
     if (!token || !petId) return
@@ -2556,6 +2568,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       const immunityPayload = buildImmunityTestingPayload()
       const effectivePlan = mergePlanWithTiterMarkdown(plan, immunityPayload)
 
+      // Only capture a signature when the visit is being completed (not when admitting for confinement).
+      let signaturePayload: { vetSignature: { url: string; signedAt: string } } | Record<string, never> = {}
+      if (targetStage === 'completed') {
+        const signatureUrl = await signatureCaptureRef.current?.getSignatureUrl()
+        if (signatureUrl) {
+          signaturePayload = { vetSignature: { url: signatureUrl, signedAt: new Date().toISOString() } }
+        }
+      }
+
       await updateMedicalRecord(recordId, {
         stage: targetStage,
         visitSummary,
@@ -2580,6 +2601,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             images: buildSurgeryImagesPayload(),
           },
         } : {}),
+        ...signaturePayload,
       }, token)
       if (billingId && recordCreatedAt) {
         // Compute live confinement days from confinedSince for the running-bill line item
@@ -5928,6 +5950,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                     : 'Are you sure you want to complete this visit? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
+          {!confined && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-[#4F4F4F]">Digital Signature</p>
+              <SignatureCapture ref={signatureCaptureRef} savedSignatureUrl={savedSignatureUrl} />
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <button
               onClick={() => setShowCompleteConfirm(false)}

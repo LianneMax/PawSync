@@ -207,7 +207,11 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
               <hr className="border-gray-200" />
               <div className="flex items-end justify-between pt-2">
                 <div className="text-sm">
-                  <div className="mb-8 h-10" />
+                  {report.vetSignature?.url ? (
+                    <img src={report.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-2 object-contain" />
+                  ) : (
+                    <div className="mb-8 h-10" />
+                  )}
                   <p className="font-bold text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
                   <p className="text-gray-500 text-xs">Licensed Veterinarian</p>
                   {vet.prcLicenseNumber && (

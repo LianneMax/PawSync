@@ -9,8 +9,9 @@ import { Eye, EyeOff, Lock, Mail, Phone, User, X, ChevronDown } from 'lucide-rea
 import AvatarUpload from '@/components/avatar-upload'
 import { uploadImage } from '@/lib/upload'
 import { PhoneInput } from '@/components/ui/phone-input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useRef } from 'react'
+import SignatureCapture, { SignatureCaptureHandle } from '@/components/SignatureCapture'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
 
@@ -394,6 +395,10 @@ export default function SettingsPage() {
   // Photo fields
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(null)
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
+  const [currentSignature, setCurrentSignature] = useState<string | null>(null)
+  const [signatureSaving, setSignatureSaving] = useState(false)
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false)
+  const signatureCaptureRef = useRef<SignatureCaptureHandle | null>(null)
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('')
@@ -423,6 +428,7 @@ export default function SettingsPage() {
           setContactNumber(u.contactNumber || '')
           const fetchedPhoto = u.photo || null
           setCurrentPhoto(fetchedPhoto)
+          setCurrentSignature(u.signature || null)
           setResignationInfo(u.resignation || null)
           if (authUser) {
             setUser({ ...authUser, avatar: fetchedPhoto || undefined })
@@ -461,6 +467,37 @@ export default function SettingsPage() {
       toast.error('Failed to update photo')
     } finally {
       setPhotoSaving(false)
+    }
+  }
+
+  const handleSaveSignature = async () => {
+    const url = await signatureCaptureRef.current?.getSignatureUrl()
+    if (!url) {
+      toast.error('Please draw a signature first')
+      return
+    }
+    setSignatureSaving(true)
+    try {
+      const res = await authenticatedFetch(
+        '/users/profile',
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signature: url }),
+        },
+        token || undefined
+      )
+      if (res.status === 'SUCCESS') {
+        toast.success('Signature saved')
+        setCurrentSignature(url)
+        setSignatureModalOpen(false)
+      } else {
+        toast.error(res.message || 'Failed to save signature')
+      }
+    } catch {
+      toast.error('Failed to save signature')
+    } finally {
+      setSignatureSaving(false)
     }
   }
 
@@ -654,6 +691,32 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
               </div>
             </div>
           </div>
+
+          {/* ── Digital Signature ─────────────────────────────────── */}
+          {isVet && (
+            <div className="bg-white rounded-2xl shadow-sm p-8">
+              <h2 className="text-base font-semibold text-[#4F4F4F] mb-2">Digital Signature</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Used as your default signature on medical records and vet reports. You can always draw a new signature on the spot when signing a document.
+              </p>
+              <div className="flex items-center gap-6">
+                <div className="w-48 h-24 border border-gray-200 rounded-lg bg-[#F8F6F2] flex items-center justify-center overflow-hidden">
+                  {currentSignature ? (
+                    <img src={currentSignature} alt="Your signature" className="max-h-20 object-contain" />
+                  ) : (
+                    <span className="text-xs text-gray-400">No signature saved</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSignatureModalOpen(true)}
+                  className="px-4 py-2 bg-[#7FA5A3] hover:bg-[#476B6B] text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {currentSignature ? 'Update Signature' : 'Draw Signature'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {isVet && (
             <div className="bg-white rounded-2xl shadow-sm p-8">
@@ -905,6 +968,32 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
               {resignationSubmitting ? 'Submitting...' : 'Submit Resignation'}
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={signatureModalOpen} onOpenChange={(open) => { setSignatureModalOpen(open); if (!open) signatureCaptureRef.current?.reset() }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Draw Your Signature</DialogTitle>
+          </DialogHeader>
+          <SignatureCapture ref={signatureCaptureRef} />
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setSignatureModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveSignature}
+              disabled={signatureSaving}
+              className="px-4 py-2 bg-[#7FA5A3] hover:bg-[#476B6B] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {signatureSaving ? 'Saving...' : 'Save Signature'}
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -1183,7 +1183,8 @@ export const updateRecord = async (req: Request, res: Response) => {
       emergencyCase,
       confinementAction, confinementDays, confinementRecordId,
       referral, discharge, scheduledSurgery,
-      surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource
+      surgeryRecord, pregnancyRecord, pregnancyDelivery, pregnancyLoss, pregnancyEvidenceSource,
+      vetSignature
     } = req.body;
 
     if (vitals) record.vitals = vitals;
@@ -1191,6 +1192,7 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (overallObservation !== undefined) record.overallObservation = overallObservation;
     if (visitSummary !== undefined) record.visitSummary = visitSummary;
     if (vetNotes !== undefined) record.vetNotes = vetNotes;
+    if (vetSignature !== undefined) record.vetSignature = vetSignature;
     if (surgeryRecord !== undefined) {
       if (surgeryRecord) {
         const missingSurgeryType = !String((surgeryRecord as any)?.surgeryType || '').trim();

@@ -190,6 +190,7 @@ export interface MedicalRecord {
   } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vaccinations?: any[];
+  vetSignature?: { url: string | null; signedAt: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -378,6 +379,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   scheduledSurgery: boolean;
   immunityTesting: MedicalRecord['immunityTesting'];
   emergencyCase: MedicalRecord['emergencyCase'];
+  vetSignature: { url: string; signedAt: string };
 }>, token?: string): Promise<MedicalRecordResponse> => {
   return authenticatedFetch(`/medical-records/${id}`, {
     method: 'PUT',

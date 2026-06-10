@@ -53,6 +53,7 @@ export interface VetReport {
   status: 'draft' | 'finalized';
   sharedWithOwner: boolean;
   sharedAt?: string | null;
+  vetSignature?: { url: string | null; signedAt: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +72,7 @@ export interface UpdateVetReportInput {
   vetContextNotes?: string;
   sections?: Partial<VetReportSections>;
   status?: 'draft' | 'finalized';
+  vetSignature?: { url: string; signedAt: string };
 }
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────

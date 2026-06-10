@@ -691,7 +691,11 @@ export default function ClinicAdminMedicalRecordViewPage() {
                 <p className="text-xs text-gray-400">{formatDate(record.createdAt)} at {formatTime(record.createdAt)}</p>
               </div>
               <div className="text-right">
-                <div className="w-48 border-b border-gray-400 mb-1" />
+                {record.vetSignature?.url ? (
+                  <img src={record.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-1 ml-auto object-contain" />
+                ) : (
+                  <div className="w-48 border-b border-gray-400 mb-1" />
+                )}
                 <p className="text-sm font-medium text-[#4F4F4F]">
                   Dr. {vet.firstName || ''} {vet.lastName || ''}
                 </p>

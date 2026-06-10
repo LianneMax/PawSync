@@ -175,6 +175,7 @@ export interface IMedicalRecord extends Document {
   billingId: mongoose.Types.ObjectId | null;
   preventiveAssociatedExclusions: string[];
   followUps: IFollowUp[];
+  vetSignature?: { url: string | null; signedAt: Date | null };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -585,6 +586,10 @@ const MedicalRecordSchema = new Schema(
     followUps: {
       type: [FollowUpSchema],
       default: []
+    },
+    vetSignature: {
+      url: { type: String, default: null },
+      signedAt: { type: Date, default: null },
     },
   },
   {
