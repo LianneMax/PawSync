@@ -368,6 +368,9 @@ function DashboardLayout({
     )
   }
 
+  // Pet Owner and Veterinarian get a mobile header + full-screen nav drawer in place of the sidebar
+  const showMobileNav = userData.userType === 'pet-owner' || userData.userType === 'veterinarian'
+
   return (
     <div className="min-h-screen bg-[#F8F6F2]">
       <Navbar
@@ -384,13 +387,17 @@ function DashboardLayout({
       {/* Main Content Area */}
       <main
         className={`min-h-screen transition-all duration-300 relative ${
-          isNavExpanded ? 'ml-72' : 'ml-20'
+          showMobileNav
+            ? `pt-16 sm:pt-0 ${isNavExpanded ? 'sm:ml-72' : 'sm:ml-20'}`
+            : isNavExpanded ? 'ml-72' : 'ml-20'
         }`}
       >
         {/* Sticky notification bell in upper right */}
         <button
           onClick={() => setNotificationsOpen(true)}
-          className="fixed top-4 right-4 z-40 w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:bg-[#F8F6F2] transition-all"
+          className={`fixed right-4 z-40 w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:bg-[#F8F6F2] transition-all ${
+            showMobileNav ? 'top-20 sm:top-4' : 'top-4'
+          }`}
         >
           <BellRing className="w-5 h-5 text-[#476B6B] fill-[#476B6B]" />
           {unreadCount > 0 && (

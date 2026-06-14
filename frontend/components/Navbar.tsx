@@ -25,6 +25,7 @@ import {
   BarChart3,
   Sparkles,
   X,
+  Menu,
   UsersRound,
 } from 'lucide-react'
 import {
@@ -34,6 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Dialog } from 'radix-ui'
 
 type UserType = 'pet-owner' | 'veterinarian' | 'clinic-admin'
 
@@ -107,6 +109,7 @@ function Navbar({
   const [isHovering, setIsHovering] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [clinicStats, setClinicStats] = useState<ClinicNavStats>({ patientCount: null, appointmentCount: null, pendingVetCount: null })
   const pathname = usePathname()
   const router = useRouter()
@@ -144,6 +147,20 @@ function Navbar({
 
   // Expand on hover or while the dropdown menu is open
   const isExpanded = controlledExpanded ?? (isHovering || menuOpen)
+
+  // Pet Owner and Veterinarian get a dedicated mobile header + full-screen nav drawer
+  const showMobileNav = userType === 'pet-owner' || userType === 'veterinarian'
+
+  // Close the mobile drawer if the viewport grows past the `sm` breakpoint
+  useEffect(() => {
+    if (!showMobileNav) return
+    const mq = window.matchMedia('(min-width: 640px)')
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setMobileMenuOpen(false)
+    }
+    mq.addEventListener('change', handleChange)
+    return () => mq.removeEventListener('change', handleChange)
+  }, [showMobileNav])
 
   const baseNavItems = navItemsByUserType[userType]
   const navItems = userType === 'clinic-admin'
@@ -199,7 +216,9 @@ function Navbar({
       ref={navRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 flex flex-col overflow-hidden ${
+      className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 ${
+        showMobileNav ? 'hidden sm:flex' : 'flex'
+      } flex-col overflow-hidden ${
         isExpanded ? 'w-72' : 'w-20'
       }`}
     >
@@ -347,6 +366,161 @@ function Navbar({
         </div>
       </div>
     </nav>
+
+    {/* Mobile Header (sm and below) - Pet Owner & Veterinarian only */}
+    {showMobileNav && (
+      <header className="sm:hidden fixed top-0 left-0 right-0 h-16 bg-[#7FA5A3] flex items-center justify-between px-4 z-50">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <Image
+              src="/images/logos/pawsync-logo-white.png"
+              alt="PawSync Logo"
+              width={28}
+              height={28}
+            />
+          </div>
+          <span className="text-white font-bold text-lg">PawSync</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open navigation menu"
+          aria-haspopup="dialog"
+          aria-expanded={mobileMenuOpen}
+          className="p-2 -mr-2 rounded-lg text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      </header>
+    )}
+
+    {/* Mobile Navigation Drawer (sm and below) - Pet Owner & Veterinarian only */}
+    {showMobileNav && (
+      <Dialog.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="sm:hidden fixed inset-0 z-[60] bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <Dialog.Content
+            className="sm:hidden fixed inset-0 z-[60] flex flex-col bg-[#7FA5A3] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right duration-300"
+          >
+            <Dialog.Title className="sr-only">Navigation Menu</Dialog.Title>
+            <Dialog.Description className="sr-only">
+              Browse pages and account options
+            </Dialog.Description>
+
+            {/* Drawer Header */}
+            <div className="h-16 px-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Image
+                    src="/images/logos/pawsync-logo-white.png"
+                    alt="PawSync Logo"
+                    width={28}
+                    height={28}
+                  />
+                </div>
+                <span className="text-white font-bold text-lg">PawSync</span>
+              </div>
+              <Dialog.Close
+                aria-label="Close navigation menu"
+                className="p-2 -mr-2 rounded-lg text-white hover:bg-white/10 active:bg-white/20 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </Dialog.Close>
+            </div>
+
+            <div className="h-px bg-white/20 mx-4" />
+
+            {/* Navigation Items */}
+            <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-4">
+              <ul className="space-y-1.5">
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href
+                  return (
+                    <li key={item.href}>
+                      {item.comingSoon ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMenuOpen(false)
+                            setComingSoonOpen(true)
+                          }}
+                          className="flex items-center gap-4 w-full px-4 py-3.5 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors text-left"
+                        >
+                          {item.icon}
+                          <span className="font-medium text-base">{item.label}</span>
+                        </button>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors ${
+                            isActive
+                              ? 'bg-white/20 text-white border-l-4 border-white'
+                              : 'text-white/80 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {item.icon}
+                          <span className="font-medium text-base">{item.label}</span>
+                          {item.badge && (
+                            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#9EC4C8] text-white min-w-5 text-center">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </nav>
+
+            <div className="h-px bg-white/20 mx-4" />
+
+            {/* Account Section */}
+            <div className="px-3 py-4 space-y-1.5 shrink-0">
+              <div className="flex items-center gap-3 px-4 py-2">
+                <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden shrink-0">
+                  {userAvatar ? (
+                    <Image src={userAvatar} alt={userName} width={40} height={40} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-400 flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">
+                        {userName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold truncate">{userName}</p>
+                  <p className="text-white/70 text-sm truncate">{userEmail}</p>
+                </div>
+              </div>
+              <Link
+                href="/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <Settings className="w-5 h-5" />
+                <span className="font-medium text-base">Settings</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  logout()
+                  router.push('/login')
+                }}
+                className="flex items-center gap-4 w-full px-4 py-3.5 rounded-xl text-[#FFD7D6] hover:bg-white/10 transition-colors text-left"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium text-base">Log out</span>
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    )}
 
     {/* Coming Soon Modal */}
     {comingSoonOpen && (
