@@ -114,6 +114,7 @@ function PetOnboardingContent() {
     if (!sex) newErrors.sex = true
     if (!sterilization) newErrors.sterilization = true
     if (!weight.trim()) newErrors.weight = true
+    else if (isNaN(parseFloat(weight)) || parseFloat(weight) < 0) newErrors.weightNegative = true
     if (!dateOfBirth) newErrors.dateOfBirth = true
     if (dateOfBirth && new Date(dateOfBirth) > new Date()) newErrors.dateOfBirthFuture = true
 
@@ -497,10 +498,11 @@ function PetOnboardingContent() {
                       type="text"
                       placeholder="Weight (kg)*"
                       value={weight}
-                      onChange={(e) => { setWeight(e.target.value); setErrors(prev => ({ ...prev, weight: false })) }}
-                      className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.weight ? 'border-[#900B09]/20' : 'border-gray-200'}`}
+                      onChange={(e) => { setWeight(e.target.value); setErrors(prev => ({ ...prev, weight: false, weightNegative: false })) }}
+                      className={`w-full h-13 px-4 bg-gray-50 rounded-xl border shadow-xs shadow-black/5 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent transition-all ${errors.weight || errors.weightNegative ? 'border-[#900B09]/20' : 'border-gray-200'}`}
                     />
                     {errors.weight && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
+                    {errors.weightNegative && <p className="text-xs text-[#900B09] mt-1 ml-1">Weight cannot be negative</p>}
                   </div>
                 </div>
 

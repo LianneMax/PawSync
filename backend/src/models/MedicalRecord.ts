@@ -617,6 +617,13 @@ MedicalRecordSchema.pre('validate', function() {
       this.invalidate('vitals.dentalScore.value', 'Dental Score must be between 1 and 3');
     }
   }
+  const weight = this.vitals?.weight?.value;
+  if (weight !== '' && weight !== null && weight !== undefined) {
+    const num = Number(weight);
+    if (!isNaN(num) && num < 0) {
+      this.invalidate('vitals.weight.value', 'Weight cannot be negative');
+    }
+  }
 });
 
 export default mongoose.model<IMedicalRecord>('MedicalRecord', MedicalRecordSchema);

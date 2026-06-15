@@ -92,7 +92,8 @@ const PetSchema = new Schema(
     },
     weight: {
       type: Number,
-      required: [true, 'Please provide the weight in kg']
+      required: [true, 'Please provide the weight in kg'],
+      min: [0, 'Weight cannot be negative']
     },
     sterilization: {
       type: String,

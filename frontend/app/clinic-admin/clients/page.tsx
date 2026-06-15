@@ -305,7 +305,7 @@ function PetForm({
             onChange={(e) => updatePet('weight', e.target.value)}
             className={`w-full px-3 py-2.5 bg-gray-50 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] transition-all ${petErrors.weight ? 'border-[#900B09]/40' : 'border-gray-200'}`}
           />
-          {petErrors.weight && <p className="text-xs text-[#900B09] mt-1 ml-1">Required</p>}
+          {petErrors.weight && <p className="text-xs text-[#900B09] mt-1 ml-1">Enter a valid weight (kg), cannot be negative</p>}
         </div>
       </div>
 
@@ -343,7 +343,7 @@ function validatePet(pet: PetFormState): Record<string, boolean> {
   if (!pet.breed) errors.breed = true
   if (!pet.sex) errors.sex = true
   if (!pet.sterilization) errors.sterilization = true
-  if (!pet.weight.trim() || isNaN(parseFloat(pet.weight))) errors.weight = true
+  if (!pet.weight.trim() || isNaN(parseFloat(pet.weight)) || parseFloat(pet.weight) < 0) errors.weight = true
   if (!pet.dateOfBirth) errors.dateOfBirth = true
   if (pet.dateOfBirth && new Date(pet.dateOfBirth) > new Date()) errors.dateOfBirthFuture = true
   return errors

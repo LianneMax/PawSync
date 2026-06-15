@@ -54,6 +54,14 @@ const numericMetricSchema = new Schema<INumericMetric>(
   { _id: false },
 );
 
+const weightMetricSchema = new Schema<INumericMetric>(
+  {
+    value: { type: Number, required: true, min: [0, 'Weight cannot be negative'] },
+    unit: { type: String, required: true, trim: true },
+  },
+  { _id: false },
+);
+
 const optionalNumericMetricSchema = new Schema<INumericMetric>(
   {
     value: { type: Number, required: true },
@@ -116,7 +124,7 @@ const ConfinementMonitoringEntrySchema = new Schema<IConfinementMonitoringEntry>
       default: null,
     },
     weight: {
-      type: numericMetricSchema,
+      type: weightMetricSchema,
       required: true,
     },
     bodyConditionScore: {

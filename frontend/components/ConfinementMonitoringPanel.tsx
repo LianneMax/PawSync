@@ -105,6 +105,11 @@ export default function ConfinementMonitoringPanel({
       }
     }
 
+    if (isNaN(Number(form.weight)) || Number(form.weight) < 0) {
+      toast.error('Weight must be a valid, non-negative number')
+      return
+    }
+
     setSubmitting(true)
     try {
       const payload: Record<string, unknown> = {
@@ -194,7 +199,7 @@ export default function ConfinementMonitoringPanel({
             <input placeholder="Temperature (°C)*" className="border rounded-lg px-2 py-2 text-sm" value={form.temperature} onChange={(e) => onChange('temperature', e.target.value)} />
             <input placeholder="Pulse Rate (bpm)*" className="border rounded-lg px-2 py-2 text-sm" value={form.pulseRate} onChange={(e) => onChange('pulseRate', e.target.value)} />
             <input placeholder="SpO₂ (%)*" className="border rounded-lg px-2 py-2 text-sm" value={form.spo2} onChange={(e) => onChange('spo2', e.target.value)} />
-            <input placeholder="Weight (kg)*" className="border rounded-lg px-2 py-2 text-sm" value={form.weight} onChange={(e) => onChange('weight', e.target.value)} />
+            <input type="number" min="0" step="any" placeholder="Weight (kg)*" className="border rounded-lg px-2 py-2 text-sm" value={form.weight} onChange={(e) => onChange('weight', e.target.value)} />
             <input placeholder="Body Condition Score (1-5)*" className="border rounded-lg px-2 py-2 text-sm" value={form.bodyConditionScore} onChange={(e) => onChange('bodyConditionScore', e.target.value)} />
             <input placeholder="Dental Score (1-3)*" className="border rounded-lg px-2 py-2 text-sm" value={form.dentalScore} onChange={(e) => onChange('dentalScore', e.target.value)} />
             <input placeholder="CRT (sec)*" className="border rounded-lg px-2 py-2 text-sm" value={form.capillaryRefillTime} onChange={(e) => onChange('capillaryRefillTime', e.target.value)} />

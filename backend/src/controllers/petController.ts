@@ -404,9 +404,11 @@ export const updatePet = async (req: Request, res: Response) => {
       }
     }
 
+    // Note: 'weight' is intentionally excluded — only a vet or clinic-admin
+    // may record/update a pet's weight (via medical records / confinement monitoring).
     const allowedFields = [
       'name', 'species', 'breed', 'secondaryBreed', 'sex',
-      'dateOfBirth', 'weight', 'sterilization', 'microchipNumber', 'bloodType',
+      'dateOfBirth', 'sterilization', 'microchipNumber', 'bloodType',
       'nfcTagId', 'photo', 'color', 'allergies', 'isLost', 'isConfined',
       'lostContactName', 'lostContactNumber', 'lostMessage', 'lostReportedByStranger',
       'pregnancyStatus'
