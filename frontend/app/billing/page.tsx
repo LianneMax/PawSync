@@ -2615,7 +2615,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   const [endDateFilter, setEndDateFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'pending_payment' | 'paid'>('all')
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const [showQRModal, setShowQRModal] = useState(false)
   const [showViewQRModal, setShowViewQRModal] = useState(false)
   const [markingPaidBilling, setMarkingPaidBilling] = useState<ApiBilling | null>(null)
@@ -2700,49 +2699,31 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedRecords)
-    if (newSelected.has(id)) newSelected.delete(id)
-    else newSelected.add(id)
-    setSelectedRecords(newSelected)
-  }
-
-  const toggleAllSelections = () => {
-    const pageIds = displayedInvoices.map((r) => r._id)
-    const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedRecords.has(id))
-
-    if (allPageSelected) {
-      const next = new Set(selectedRecords)
-      pageIds.forEach((id) => next.delete(id))
-      setSelectedRecords(next)
-      return
-    }
-
-    const next = new Set(selectedRecords)
-    pageIds.forEach((id) => next.add(id))
-    setSelectedRecords(next)
-  }
-
-  const handleDelete = async () => {
-    if (selectedRecords.size === 0) return
-    const confirmed = window.confirm(`Are you sure you want to delete ${selectedRecords.size} record(s)?`)
-    if (!confirmed) return
-    try {
-      const res = await fetch(`${API_BASE}/billings`, {
-        method: 'DELETE',
-        headers: authHeaders(),
-        body: JSON.stringify({ ids: [...selectedRecords] }),
-      })
-      const data = await res.json()
-      if (data.status === 'SUCCESS') {
-        setSelectedRecords(new Set())
-        fetchBillings()
-      } else {
-        alert(data.message || 'Failed to delete records')
-      }
-    } catch (e) {
-      console.error('Delete billing error:', e)
-    }
+  const handleExport = () => {
+    const headers = ['Invoice #', 'Client', 'Patient', 'Veterinarian', 'Branch', 'Service', 'Date', 'Amount Due', 'Status']
+    const rows = billings.map((b) => [
+      b.invoiceNumber || b._id,
+      `${b.ownerId?.firstName || ''} ${b.ownerId?.lastName || ''}`.trim(),
+      b.petId?.name || '',
+      formatVetDisplay(b.vetId) || '',
+      b.clinicBranchId?.name || '',
+      b.serviceLabel || '',
+      formatDate(b.serviceDate || b.createdAt),
+      b.totalAmountDue,
+      mapAdminStatus(b),
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `billing-export-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
   }
 
   return (
@@ -2789,7 +2770,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
             ] as const).map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => { setStatusFilter(value); setSelectedRecords(new Set()) }}
+                onClick={() => setStatusFilter(value)}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
                   statusFilter === value
                     ? 'bg-[#476B6B] text-white'
@@ -2803,14 +2784,10 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handleDelete}
-              disabled={selectedRecords.size === 0}
+              onClick={handleExport}
+              disabled={billings.length === 0}
               className="inline-flex items-center px-4 py-2 text-sm text-[#4F4F4F] disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </button>
-            <button className="inline-flex items-center px-4 py-2 text-sm text-[#4F4F4F] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <Download className="w-4 h-4 mr-2" />
               Export
             </button>
@@ -2858,14 +2835,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="w-12 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={displayedInvoices.length > 0 && displayedInvoices.every((record) => selectedRecords.has(record._id))}
-                    onChange={toggleAllSelections}
-                    className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
-                  />
-                </th>
                 {['View', 'Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Service', 'Date', 'Amount Due', 'Status', 'Action'].map((col) => (
                   <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center gap-1">{col}</div>
@@ -2876,7 +2845,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-gray-400">Loading...</td>
                 </tr>
               )}
               {!loading && displayedInvoices.map((b) => {
@@ -2884,14 +2853,6 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                 const canMarkPaid = isPayableBilling(b)
                 return (
                   <tr key={b._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedRecords.has(b._id)}
-                        onChange={() => toggleSelection(b._id)}
-                        className="rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
-                      />
-                    </td>
                     <td className="px-4 py-4">
                       <button
                         onClick={() => setViewingBilling(b)}

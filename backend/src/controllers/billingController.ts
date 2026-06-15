@@ -951,38 +951,6 @@ export const rejectQrPayment = async (req: Request, res: Response) => {
 };
 
 /**
- * DELETE /api/billings
- * Clinic admin / branch admin — bulk delete billing records by IDs.
- * Body: { ids: string[] }
- */
-export const deleteBillings = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ status: 'ERROR', message: 'Not authenticated' });
-    }
-
-    const { ids } = req.body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ status: 'ERROR', message: 'ids array is required' });
-    }
-
-    const clinicId = req.user.clinicId;
-
-    // Only delete billings that belong to this clinic
-    const result = await Billing.deleteMany({ _id: { $in: ids }, clinicId });
-
-    return res.status(200).json({
-      status: 'SUCCESS',
-      message: `${result.deletedCount} billing record(s) deleted`,
-      data: { deletedCount: result.deletedCount },
-    });
-  } catch (error) {
-    console.error('Delete billings error:', error);
-    return res.status(500).json({ status: 'ERROR', message: 'An error occurred while deleting billing records' });
-  }
-};
-
-/**
  * GET /api/billings/:id/download-pdf
  * Download legal-ready receipt PDF in A4 (default) or thermal widths.
  * Query: ?layout=a4|thermal-58|thermal-80

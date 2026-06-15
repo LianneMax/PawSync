@@ -12,7 +12,6 @@ import {
   submitQrPaymentProof,
   approveQrPayment,
   rejectQrPayment,
-  deleteBillings,
   downloadBillingPdf,
 } from '../controllers/billingController';
 import {
@@ -75,9 +74,5 @@ router.get('/:id/download-pdf', authMiddleware, downloadBillingPdf);
 // Clinic admin — get single billing
 // GET /api/billings/:id
 router.get('/:id', authMiddleware, getBillingById);
-
-// Clinic admin — bulk delete
-// DELETE /api/billings
-router.delete('/', authMiddleware, clinicAdminOnly, deleteBillings);
 
 export default router;
