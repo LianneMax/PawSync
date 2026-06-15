@@ -3,6 +3,7 @@
 /* This file contains the main billing page which serves both pet owners and veterinarians. */
 
 import React, { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
@@ -2863,9 +2864,12 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                       </button>
                     </td>
                     <td className="px-4 py-4">
-                      <span className="text-sm text-[#7FA5A3] hover:text-[#6A8E8C] cursor-pointer underline">
+                      <Link
+                        href={`/clinic-admin/clients/${b.ownerId?._id}`}
+                        className="text-sm text-[#7FA5A3] hover:text-[#6A8E8C] underline"
+                      >
                         {b.ownerId?.firstName} {b.ownerId?.lastName}
-                      </span>
+                      </Link>
                     </td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">{b.petId?.name || '-'}</td>
                     <td className="px-4 py-4 text-sm text-[#4F4F4F]">
