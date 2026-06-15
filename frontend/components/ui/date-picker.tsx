@@ -187,7 +187,7 @@ export function DatePicker({ value, onChange, placeholder = 'MM/DD/YYYY', error,
           onBlur={handleTextBlur}
           placeholder={placeholder}
           className={cn(
-            'flex-1 h-full bg-transparent outline-none placeholder:text-gray-400',
+            'flex-1 min-w-0 h-full bg-transparent outline-none placeholder:text-gray-400',
             compact ? 'text-xs pr-7' : 'text-base pr-9',
           )}
         />

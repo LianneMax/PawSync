@@ -96,8 +96,8 @@ interface ApiMedicalRecord {
 
 // ==================== STATUS HELPERS ====================
 
-type AdminStatus = 'Running' | 'Paid' | 'Pending Payment'
-type OwnerStatus = 'Paid' | 'Pending Payment' | 'Running'
+type AdminStatus = 'Running' | 'Paid' | 'Pending'
+type OwnerStatus = 'Paid' | 'Pending' | 'Running'
 
 /**
  * Returns true when a billing is ready to be paid by the owner:
@@ -112,20 +112,20 @@ function isPayableBilling(billing: ApiBilling): boolean {
 
 function mapAdminStatus(billing: ApiBilling): AdminStatus {
   if (billing.status === 'paid') return 'Paid'
-  if (isPayableBilling(billing)) return 'Pending Payment'
+  if (isPayableBilling(billing)) return 'Pending'
   return 'Running'
 }
 
 function mapOwnerStatus(billing: ApiBilling): OwnerStatus {
   if (billing.status === 'paid') return 'Paid'
-  if (isPayableBilling(billing)) return 'Pending Payment'
+  if (isPayableBilling(billing)) return 'Pending'
   return 'Running'
 }
 
 function getAdminStatusStyle(status: AdminStatus) {
   switch (status) {
     case 'Paid': return 'bg-green-100 text-green-700'
-    case 'Pending Payment': return 'bg-blue-100 text-blue-700'
+    case 'Pending': return 'bg-blue-100 text-blue-700'
     case 'Running': return 'bg-yellow-100 text-yellow-700'
     default: return 'bg-gray-100 text-[#4F4F4F]'
   }
@@ -134,7 +134,7 @@ function getAdminStatusStyle(status: AdminStatus) {
 function getOwnerStatusStyle(status: OwnerStatus) {
   switch (status) {
     case 'Paid': return 'bg-green-100 text-green-700'
-    case 'Pending Payment': return 'bg-blue-100 text-blue-700'
+    case 'Pending': return 'bg-blue-100 text-blue-700'
     case 'Running': return 'bg-yellow-100 text-yellow-700'
     default: return 'bg-gray-100 text-[#4F4F4F]'
   }
@@ -1672,7 +1672,7 @@ function ViewBillingModal({
             </div>
             <div className="bg-gray-50 rounded-lg px-3 py-2">
               <p className="text-[10px] uppercase tracking-wide text-gray-400">Payment Status</p>
-              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.status === 'paid' ? 'Paid' : 'Pending Payment'}</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.status === 'paid' ? 'Paid' : 'Pending'}</p>
             </div>
           </div>
 
@@ -2765,7 +2765,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
             {([
               { value: 'all', label: 'All' },
               { value: 'running', label: 'Running' },
-              { value: 'pending_payment', label: 'Pending Payment' },
+              { value: 'pending_payment', label: 'Pending' },
               { value: 'paid', label: 'Paid' },
             ] as const).map(({ value, label }) => (
               <button
@@ -2795,7 +2795,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
         </div>
 
         <div className="mb-4 flex items-end justify-between gap-4">
-          <div className="flex-1 max-w-sm relative">
+          <div className="flex-1 min-w-0 max-w-sm relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -2805,8 +2805,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
               className="w-full h-11 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
             />
           </div>
-          <div className="flex items-center gap-3 min-w-105 justify-end">
-            <div className="w-48 flex items-center gap-2">
+          <div className="flex items-center gap-6 shrink-0">
+            <div className="w-40 flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500 shrink-0">From</span>
               <DatePicker
                 value={startDateFilter}
@@ -2814,10 +2814,10 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                 placeholder="Start date"
                 allowFutureDates={true}
                 compact
-                className="w-full"
+                className="w-full min-w-0"
               />
             </div>
-            <div className="w-48 flex items-center gap-2">
+            <div className="w-40 flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500 shrink-0">To</span>
               <DatePicker
                 value={endDateFilter}
@@ -2825,7 +2825,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                 placeholder="End date"
                 allowFutureDates={true}
                 compact
-                className="w-full"
+                className="w-full min-w-0"
               />
             </div>
           </div>
@@ -2836,7 +2836,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
             <thead className="bg-gray-50">
               <tr>
                 {['View', 'Client', 'Patient', 'Veterinarian', 'Branch Availed', 'Service', 'Date', 'Amount Due', 'Status', 'Action'].map((col) => (
-                  <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center gap-1">{col}</div>
                   </th>
                 ))}
@@ -2893,7 +2893,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                         {canMarkPaid && !b.pendingQrApproval && (
                           <button
                             onClick={() => setMarkingPaidBilling(b)}
-                            className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
+                            className="inline-flex items-center px-2.5 py-1 bg-[#35785C] hover:bg-[#2a6049] text-white text-xs font-medium rounded-lg transition-colors"
                           >
                             Mark as Paid
                           </button>
