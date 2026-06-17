@@ -8,7 +8,6 @@ import { useAuthStore } from '@/store/authStore'
 import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
 import {
   FileText,
-  Plus,
   PawPrint,
   Clock,
   Share2,
@@ -248,13 +247,6 @@ export default function ClinicMedicalRecordsPage() {
             subtitle="View and manage patient medical history and consultation records"
             className="mb-0"
           />
-          <button
-            onClick={() => router.push('/clinic-admin/medical-records/new')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Record
-          </button>
         </div>
 
         {/* Filters */}
@@ -328,15 +320,7 @@ export default function ClinicMedicalRecordsPage() {
                 </button>
               </>
             ) : (
-              <>
-                <p className="text-gray-500 mb-4">No medical records yet</p>
-                <button
-                  onClick={() => router.push('/clinic-admin/medical-records/new')}
-                  className="px-4 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors"
-                >
-                  Create First Record
-                </button>
-              </>
+              <p className="text-gray-500">No medical records yet</p>
             )}
           </div>
         ) : (

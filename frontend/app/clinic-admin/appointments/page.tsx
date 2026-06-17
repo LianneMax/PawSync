@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -29,6 +30,7 @@ import {
   getVetsForBranch,
   type BranchVet,
 } from '@/lib/clinics'
+import { createMedicalRecord } from '@/lib/medicalRecords'
 import { authenticatedFetch } from '@/lib/auth'
 import {
   Calendar,
@@ -68,6 +70,8 @@ import {
 import { DatePicker } from '@/components/ui/date-picker'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
+
+const MedicalRecordStagedModal = dynamic(() => import('@/components/MedicalRecordStagedModal'), { ssr: false })
 
 // ==================== CONSTANTS ====================
 
@@ -882,6 +886,16 @@ function ClinicAdminAppointmentsContent() {
   const [nfcScanModalOpen, setNfcScanModalOpen] = useState(false)
   const [nfcScanningActive, setNfcScanningActive] = useState(false)
 
+  // Medical record staged modal — opened after intake so the clinic admin can
+  // record pre-procedure vitals on the appointment's medical record
+  const [vitalsModalOpen, setVitalsModalOpen] = useState(false)
+  const [vitalsRecordId, setVitalsRecordId] = useState<string | null>(null)
+  const [vitalsAppointmentId, setVitalsAppointmentId] = useState<string | null>(null)
+  const [vitalsPetId, setVitalsPetId] = useState<string | null>(null)
+  const [vitalsApptTypes, setVitalsApptTypes] = useState<string[]>([])
+  const [vitalsApptMode, setVitalsApptMode] = useState<'online' | 'face-to-face' | undefined>(undefined)
+  const [vitalsApptIsEmergency, setVitalsApptIsEmergency] = useState(false)
+
   // Clinic data
   const [clinic, setClinic] = useState<ClinicInfo | null>(null)
   const [branches, setBranches] = useState<ClinicBranchItem[]>([])
@@ -1335,6 +1349,47 @@ function ClinicAdminAppointmentsContent() {
     }
   }
 
+  // Resolve (or create) the medical record tied to this appointment and open the
+  // staged modal so the clinic admin can record pre-procedure vitals at intake.
+  const openVitalsModalForAppointment = async (appointmentId: string) => {
+    const appointment = appointments.find(a => a._id === appointmentId)
+    if (!appointment?.vetId) return
+
+    try {
+      const createRes = await createMedicalRecord({ appointmentId }, token || undefined)
+      const recordId = createRes.status === 'SUCCESS'
+        ? createRes.data?.record._id
+        : (createRes.data as any)?.recordId
+
+      if (!recordId) {
+        toast.error(createRes.message || 'Could not open the medical record for vitals entry')
+        return
+      }
+
+      const petId = typeof appointment.petId === 'object' ? appointment.petId._id : appointment.petId
+      setVitalsRecordId(recordId)
+      setVitalsAppointmentId(appointmentId)
+      setVitalsPetId(petId)
+      setVitalsApptTypes(appointment.types || [])
+      setVitalsApptMode(appointment.mode)
+      setVitalsApptIsEmergency(appointment.isEmergency === true)
+      setVitalsModalOpen(true)
+    } catch {
+      toast.error('Could not open the medical record for vitals entry')
+    }
+  }
+
+  const closeVitalsModal = () => {
+    setVitalsModalOpen(false)
+    setVitalsRecordId(null)
+    setVitalsAppointmentId(null)
+    setVitalsPetId(null)
+    setVitalsApptTypes([])
+    setVitalsApptMode(undefined)
+    setVitalsApptIsEmergency(false)
+    loadAppointments()
+  }
+
   const confirmCheckIn = async () => {
     if (!appointmentToCheckIn) return
     setCheckInSubmitting(true)
@@ -1356,8 +1411,11 @@ function ClinicAdminAppointmentsContent() {
           </div>,
           { duration: 5000 }
         )
-        loadAppointments()
+
+        const checkedInId = appointmentToCheckIn
         setAppointmentToCheckIn(null)
+        loadAppointments()
+        await openVitalsModalForAppointment(checkedInId)
       } else {
         toast.error(res.message || 'Failed to check in')
       }
@@ -2388,6 +2446,20 @@ function ClinicAdminAppointmentsContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Medical Record Staged Modal — opened at intake to record pre-procedure vitals */}
+      {vitalsModalOpen && vitalsRecordId && vitalsAppointmentId && vitalsPetId && (
+        <MedicalRecordStagedModal
+          recordId={vitalsRecordId}
+          appointmentId={vitalsAppointmentId}
+          petId={vitalsPetId}
+          appointmentTypes={vitalsApptTypes}
+          appointmentMode={vitalsApptMode}
+          appointmentIsEmergency={vitalsApptIsEmergency}
+          onComplete={closeVitalsModal}
+          onClose={closeVitalsModal}
+        />
+      )}
 
       {/* Update Guest Email + Send Invite Modal */}
       <Dialog open={guestEmailModalOpen} onOpenChange={(open) => { if (!open) { setGuestEmailModalOpen(false); setGuestInviteTarget(null) } }}>

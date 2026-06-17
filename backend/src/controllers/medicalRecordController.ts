@@ -502,6 +502,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
 
     let { petId, clinicId, clinicBranchId, vetId, appointmentId } = req.body;
     let appointmentIsEmergency = false;
+    let appointmentChiefComplaint = '';
     const {
       vitals,
       images,
@@ -509,6 +510,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       overallObservation,
       visitSummary,
       vetNotes,
+      chiefComplaint,
       confinementAction,
       confinementDays,
       confinementRecordId,
@@ -534,6 +536,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       clinicBranchId = clinicBranchId || (appt.clinicBranchId ? appt.clinicBranchId.toString() : null);
       vetId = vetId || appt.vetId.toString();
       appointmentIsEmergency = appt.isEmergency === true;
+      appointmentChiefComplaint = appt.notes || '';
     }
 
     // BR-MR-02: Determine vetId
@@ -586,6 +589,7 @@ export const createMedicalRecord = async (req: Request, res: Response) => {
       clinicId,
       clinicBranchId: clinicBranchId || null,
       appointmentId: appointmentId || null,
+      chiefComplaint: chiefComplaint || appointmentChiefComplaint,
       vitals: vitals || {},
       images: parsedImages,
       vitalsNotes: vitalsNotes || '',
@@ -1003,7 +1007,7 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
 
     if (!record) {
       const appointment = await Appointment.findById(req.params.appointmentId)
-        .select('ownerId petId vetId clinicId clinicBranchId status medicalRecordId isEmergency');
+        .select('ownerId petId vetId clinicId clinicBranchId status medicalRecordId isEmergency notes');
 
       if (appointment && appointment.vetId && appointment.status === 'in_progress') {
         const [owner, vet] = await Promise.all([
@@ -1035,6 +1039,7 @@ export const getRecordByAppointment = async (req: Request, res: Response) => {
           clinicId: appointment.clinicId,
           clinicBranchId: appointment.clinicBranchId,
           appointmentId: appointment._id,
+          chiefComplaint: appointment.notes || '',
           stage: 'pre_procedure',
           emergencyCase: appointment.isEmergency ? {
             isEmergency: true,

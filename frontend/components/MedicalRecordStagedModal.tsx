@@ -711,6 +711,9 @@ function validateVaccineAge(petDob: string, minAgeMonths: number, maxAgeMonths: 
 
 export default function MedicalRecordStagedModal({ recordId, appointmentId, petId, appointmentTypes = [], appointmentTiterFirst = false, appointmentDate, appointmentMode, appointmentIsEmergency = false, onComplete, onClose }: Props) {
   const token = useAuthStore((s) => s.token)
+  // Clinic admins handle intake only — they can fill in/save pre-procedure vitals
+  // but must not advance the record into the vet's consultation steps.
+  const isClinicAdmin = useAuthStore((s) => s.user?.userType === 'clinic-admin')
   const [step, setStep] = useState<StepKey>(1)
   const [pet, setPet] = useState<Pet | null>(null)
   const [saving, setSaving] = useState(false)
@@ -1399,7 +1402,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         }
       }
 
-      setStep(currentStep)
+      setStep(isClinicAdmin ? 1 : currentStep)
       setRecordStage(r.stage)
       // 'confined' records have already had their appointment closed — treat them the same
       // as 'completed' for the purpose of not re-closing the appointment on subsequent saves.
@@ -1519,7 +1522,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         if (match) setDeliveryServiceId(match._id)
       }
     }
-  }, [recordId, petId, token, isVaccinationAppt, hasTiterTestingService, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate, appointmentTiterFirst, useEmergencyFlow])
+  }, [recordId, petId, token, isVaccinationAppt, hasTiterTestingService, isSurgeryAppt, appointmentId, appointmentTypes, appointmentDate, appointmentTiterFirst, useEmergencyFlow, isClinicAdmin])
 
   useEffect(() => {
     loadData()
@@ -5856,7 +5859,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 ← Back
               </button>
             )}
-            {step === 1 && (
+            {step === 1 && !isClinicAdmin && (
               <button
                 onClick={handleProceedStep1}
                 disabled={saving}

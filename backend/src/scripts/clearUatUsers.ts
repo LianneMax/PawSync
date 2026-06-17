@@ -68,6 +68,3 @@ main().catch((err) => {
   console.error('❌ Clear failed:', err);
   process.exit(1);
 });
-
-
-//last test
