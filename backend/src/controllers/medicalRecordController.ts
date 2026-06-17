@@ -1945,7 +1945,12 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
     }
 
     // Get all medical records for this pet (sorted by date, most recent first)
-    const allRecords = await MedicalRecord.find({ petId })
+    // Owners only see records explicitly shared with them; vets/admins see everything
+    const recordsFilter: Record<string, unknown> = { petId };
+    if (isOwner && !isAuthorizedVet && !isAdmin) {
+      recordsFilter.sharedWithOwner = true;
+    }
+    const allRecords = await MedicalRecord.find(recordsFilter)
       .populate('surgeryRecord')
       .populate('appointmentId', 'types')
       .sort({ createdAt: -1 });

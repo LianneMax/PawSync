@@ -19,6 +19,7 @@ import { useMyAppointments } from '@/hooks/useMyAppointments'
 import { authenticatedFetch } from '@/lib/auth'
 import AvatarUpload from '@/components/avatar-upload'
 import { uploadImage } from '@/lib/upload'
+import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import { ArrowLeft, PawPrint, Pencil, Check, X, Camera, FileText, Calendar, Stethoscope, ChevronRight, QrCode, Nfc, ChevronDown, AlertTriangle, Phone, MessageSquare, CreditCard, MapPin, Cross, Skull, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -110,6 +111,7 @@ export default function PetProfilePage() {
   const [, setLoadingClinics] = useState(false)
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
   const [recordsLoading, setRecordsLoading] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const { appointments, isLoading: appointmentsLoading } = useMyAppointments()
   const [healthMetrics, setHealthMetrics] = useState<{ lastVisit: string; nextVisit: string; lastSpo2: string }>({ lastVisit: '-', nextVisit: '-', lastSpo2: '-' })
   const [showQRCodeModal, setShowQRCodeModal] = useState(false)
@@ -1102,7 +1104,16 @@ export default function PetProfilePage() {
             {/* Medical Records Tab */}
             {activeTab === 'medical-records' && (
               <>
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Medical Records</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Medical Records</h3>
+                  <button
+                    onClick={() => setShowHistoryModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#476B6B]/5 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View Medical History
+                  </button>
+                </div>
                 {medicalRecords.filter((record) => record.sharedWithOwner).length === 0 ? (
                   <div className="bg-[#F8F6F2] rounded-xl border border-gray-200 p-8 text-center">
                     <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -1456,6 +1467,18 @@ export default function PetProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Medical History Modal */}
+      <Dialog open={showHistoryModal} onOpenChange={setShowHistoryModal}>
+        <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-[#4F4F4F]">
+              Medical History — {pet.name}
+            </DialogTitle>
+          </DialogHeader>
+          {token && <HistoricalMedicalRecord petId={petId} token={token} isReadOnly />}
+        </DialogContent>
+      </Dialog>
 
       {/* Pet Tag Replacement Request Modal */}
       <Dialog open={showNfcModal} onOpenChange={(open) => {

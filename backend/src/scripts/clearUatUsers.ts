@@ -5,13 +5,15 @@ import User from '../models/User';
 import Pet from '../models/Pet';
 import Appointment from '../models/Appointment';
 import MedicalRecord from '../models/MedicalRecord';
+import VetReport from '../models/VetReport';
 import Vaccination from '../models/Vaccination';
+import Billing from '../models/Billing';
 import Clinic from '../models/Clinic';
 import ClinicBranch from '../models/ClinicBranch';
 
 // Targets every account created by seedUatUsers.ts — identified by the
 // @pawsync.dev domain, which is used exclusively for UAT dummy accounts.
-const UAT_EMAIL_PATTERN = /@pawsync\.test$/;
+const UAT_EMAIL_PATTERN = /@pawsync\.dev$/;
 
 async function main() {
   await connectDatabase();
@@ -32,14 +34,18 @@ async function main() {
   const uatPets = await Pet.find({ ownerId: { $in: uatUserIds } });
   const uatPetIds = uatPets.map((p) => p._id);
 
-  const [vaccinationResult, medRecordResult, appointmentResult, petResult] = await Promise.all([
+  const [vaccinationResult, billingResult, vetReportResult, medRecordResult, appointmentResult, petResult] = await Promise.all([
     Vaccination.deleteMany({ petId: { $in: uatPetIds } }),
+    Billing.deleteMany({ ownerId: { $in: uatUserIds } }),
+    VetReport.deleteMany({ petId: { $in: uatPetIds } }),
     MedicalRecord.deleteMany({ ownerId: { $in: uatUserIds } }),
     Appointment.deleteMany({ ownerId: { $in: uatUserIds } }),
     Pet.deleteMany({ ownerId: { $in: uatUserIds } }),
   ]);
 
   console.log(`✅ Deleted ${vaccinationResult.deletedCount} vaccination(s)`);
+  console.log(`✅ Deleted ${billingResult.deletedCount} billing record(s)`);
+  console.log(`✅ Deleted ${vetReportResult.deletedCount} diagnostic report(s)`);
   console.log(`✅ Deleted ${medRecordResult.deletedCount} medical record(s)`);
   console.log(`✅ Deleted ${appointmentResult.deletedCount} appointment(s)`);
   console.log(`✅ Deleted ${petResult.deletedCount} pet(s)`);
