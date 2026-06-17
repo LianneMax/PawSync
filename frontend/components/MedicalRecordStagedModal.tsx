@@ -479,6 +479,13 @@ function normalizeServiceToken(value: string): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
+// Vaccination/Immunization is handled by the dedicated Vaccination step — it should
+// not be selectable from the Post-Procedure Preventive Care service list.
+function isVaccinationOrImmunizationServiceName(name: string): boolean {
+  const normalized = normalizeServiceToken(name)
+  return normalized.includes('vaccin') || normalized.includes('immuniz')
+}
+
 const isInjectionService = (service: ProductService | undefined | null): boolean => {
   if (!service) return false
   const route = normalizeServiceToken(String(service.administrationRoute || ''))
@@ -597,12 +604,20 @@ const DEBUG_PREVENTIVE_INJECTION_MAPPING =
   process.env.NODE_ENV !== 'production' &&
   process.env.NEXT_PUBLIC_DEBUG_PREVENTIVE_INJECTION !== '0'
 
+// Vaccination appointment types are handled entirely by the dedicated Vaccination
+// step — they must never be auto-populated into Preventive Care as well, or the
+// same vaccine would be listed (and billed) twice.
+const VACCINATION_APPOINTMENT_TYPES = new Set(['vaccination', 'booster', 'puppy-litter-vaccination', 'rabies-vaccination'])
+
 const derivePreventiveCareFromAppointment = (
   appointmentTypes: string[],
   preventiveServices: ProductService[],
   appointmentDate?: string | null,
 ): Omit<PreventiveCare, '_id'>[] => {
   if (!appointmentDate || !Array.isArray(appointmentTypes) || appointmentTypes.length === 0) return []
+
+  const nonVaccinationTypes = appointmentTypes.filter((t) => !VACCINATION_APPOINTMENT_TYPES.has(String(t || '').trim()))
+  if (nonVaccinationTypes.length === 0) return []
 
   const normalizedDate = appointmentDate.includes('T') ? appointmentDate.split('T')[0] : appointmentDate
   const normalizedServices = preventiveServices.map((service) => ({
@@ -611,7 +626,7 @@ const derivePreventiveCareFromAppointment = (
   }))
 
   const matchedServices: ProductService[] = []
-  for (const apptType of appointmentTypes) {
+  for (const apptType of nonVaccinationTypes) {
     const raw = String(apptType || '').trim()
     if (!raw) continue
     const normalizedType = normalizeServiceToken(raw)
@@ -643,7 +658,7 @@ const derivePreventiveCareFromAppointment = (
 
   const seenProducts = new Set<string>()
   const legacyRows: Omit<PreventiveCare, '_id'>[] = []
-  for (const apptType of appointmentTypes) {
+  for (const apptType of nonVaccinationTypes) {
     const normalizedType = normalizeServiceToken(apptType)
     const product = legacyServiceByType[normalizedType]
     if (!product || seenProducts.has(product)) continue
@@ -776,7 +791,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [prevContextOpen, setPrevContextOpen] = useState(true)
 
   // Whether this appointment includes vaccination/booster
-  const isVaccinationAppt = appointmentTypes.some((t) => t === 'vaccination' || t === 'booster' || t === 'puppy-litter-vaccination' || t === 'rabies-vaccination')
+  const isVaccinationAppt = appointmentTypes.some((t) => VACCINATION_APPOINTMENT_TYPES.has(t))
   const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingService(t))
 
   // Whether this appointment is a surgery appointment
@@ -2891,14 +2906,14 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 : isSurgeryAppt
                   ? SURG_STEP_LABELS
                   : useEmergencyFlow
-                    ? EMERG_STEP_LABELS
+                    ? EMERG_STEP_LABELS as Record<StepKey, string>
                     : REG_STEP_LABELS as Record<StepKey, string>
               const icons = isVaccinationAppt
                 ? VACC_STEP_ICONS
                 : isSurgeryAppt
                   ? SURG_STEP_ICONS
                   : useEmergencyFlow
-                    ? EMERG_STEP_ICONS
+                    ? EMERG_STEP_ICONS as Record<StepKey, ReactNode>
                     : REG_STEP_ICONS as Record<StepKey, ReactNode>
               return (
                 <div key={s} className="flex items-center gap-2 flex-1">
@@ -5473,10 +5488,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                               placeholder="Select a preventive care service"
                               emptyMessage="No preventive care services found."
                               className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#7FA5A3] w-full"
-                              options={preventiveCareServices.map((service) => ({
-                                value: service.name,
-                                label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
-                              }))}
+                              options={preventiveCareServices
+                                .filter((service) => !isVaccinationOrImmunizationServiceName(service.name))
+                                .map((service) => ({
+                                  value: service.name,
+                                  label: `${service.name}${service.price ? ` (₱${service.price})` : ''}`,
+                                }))}
                             />
                           </div>
 
