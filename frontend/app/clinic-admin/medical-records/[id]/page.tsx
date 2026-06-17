@@ -39,6 +39,22 @@ const vitalsConfig: { key: string; label: string; type: 'number' | 'yesno'; unit
   { key: 'vaccinated',         label: 'Vaccinated',           type: 'yesno' },
 ]
 
+const IMMUNITY_DISEASES_BY_SPECIES = {
+  canine: ['CPV', 'CDV', 'CAV-1'],
+  feline: ['FPV', 'FCV', 'FHV'],
+} as const
+
+type ImmunitySpecies = keyof typeof IMMUNITY_DISEASES_BY_SPECIES
+
+function resolveImmunitySpecies(species?: string): ImmunitySpecies {
+  return species === 'feline' ? 'feline' : 'canine'
+}
+
+function stripImmunityFromPlan(plan?: string): string {
+  if (!plan) return ''
+  return plan.replace(/\n*Immunity Testing[\s\S]*$/i, '').trim()
+}
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
@@ -164,9 +180,21 @@ export default function ClinicAdminMedicalRecordViewPage() {
 
   const hasVitals = record.vitals && Object.values(record.vitals).some((e: any) => e.value !== '' && e.value !== null && e.value !== undefined)
   const hasMeds   = record.medications && record.medications.length > 0
-  const hasTests  = record.diagnosticTests && record.diagnosticTests.length > 0
   const hasCare   = record.preventiveCare && record.preventiveCare.length > 0
   const hasSOAP   = record.subjective || record.assessment || record.plan
+
+  const soapPlan = stripImmunityFromPlan(record.plan)
+  const immunitySpecies = resolveImmunitySpecies(record.immunityTesting?.species)
+  const immunityDiseases = IMMUNITY_DISEASES_BY_SPECIES[immunitySpecies]
+  const hasImmunityTesting = !!record.immunityTesting && (
+    record.immunityTesting.enabled === true ||
+    (record.immunityTesting.rows?.length || 0) > 0
+  )
+  const hasAntigenTesting = !!record.immunityTesting && (
+    record.immunityTesting.antigenEnabled === true ||
+    (record.immunityTesting.antigenRows?.length || 0) > 0
+  )
+  const hasTests = (record.diagnosticTests && record.diagnosticTests.length > 0) || hasImmunityTesting || hasAntigenTesting
 
   return (
     <DashboardLayout>
@@ -388,10 +416,10 @@ export default function ClinicAdminMedicalRecordViewPage() {
                         <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap">{record.assessment}</p>
                       </div>
                     )}
-                    {record.plan && (
+                    {soapPlan && (
                       <div className="bg-[#F8F6F2] rounded-xl p-4">
                         <p className="text-xs text-gray-500 font-medium mb-1">Plan (P)</p>
-                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap">{record.plan}</p>
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap">{soapPlan}</p>
                       </div>
                     )}
                   </div>
@@ -485,7 +513,7 @@ export default function ClinicAdminMedicalRecordViewPage() {
                     <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Diagnostic Tests</h3>
                   </div>
                   <div className="space-y-2">
-                    {record.diagnosticTests.map((test, i) => (
+                    {record.diagnosticTests?.map((test, i) => (
                       <div key={test._id || i} className="bg-[#F8F6F2] rounded-xl p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div>
                           <p className="text-xs text-gray-500">Test</p>
@@ -513,6 +541,68 @@ export default function ClinicAdminMedicalRecordViewPage() {
                         )}
                       </div>
                     ))}
+
+                    {hasImmunityTesting && (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                          <h4 className="text-[11px] font-semibold text-[#5A7C7A] uppercase tracking-wider">Immunity Testing</h4>
+                        </div>
+                        <div className="p-3 overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-gray-100">
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Disease</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Score</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Status</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {immunityDiseases.map((disease) => {
+                                const row = record.immunityTesting?.rows?.find((item) => item.disease === disease)
+                                return (
+                                  <tr key={disease} className="border-b border-gray-50 last:border-0">
+                                    <td className="py-2 text-[#4F4F4F] font-medium pr-3">{disease}</td>
+                                    <td className="py-2 text-gray-600 pr-3">{row?.score ?? '—'}</td>
+                                    <td className="py-2 text-gray-600 pr-3">{row?.status || '—'}</td>
+                                    <td className="py-2 text-gray-600">{row?.action || '—'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {hasAntigenTesting && (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                          <h4 className="text-[11px] font-semibold text-[#5A7C7A] uppercase tracking-wider">Antigen Testing</h4>
+                        </div>
+                        <div className="p-3 overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-gray-100">
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Disease</th>
+                                <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2">Result</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {immunityDiseases.map((disease) => {
+                                const row = record.immunityTesting?.antigenRows?.find((item) => item.disease === disease)
+                                return (
+                                  <tr key={disease} className="border-b border-gray-50 last:border-0">
+                                    <td className="py-2 text-[#4F4F4F] font-medium pr-3">{disease}</td>
+                                    <td className="py-2 text-gray-600">{row?.result || '—'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
