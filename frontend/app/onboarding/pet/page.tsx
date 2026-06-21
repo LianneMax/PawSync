@@ -173,67 +173,68 @@ function PetOnboardingContent() {
   const shouldAnimate = slidePhase === 'exit' || slidePhase === 'idle'
 
   return (
-    <div className="min-h-screen bg-[#F8F6F2] p-4 pb-12 overflow-hidden">
+    <div className="min-h-screen bg-[#F8F6F2] p-4 sm:p-6 pb-12 overflow-hidden">
       {/* Header with user info */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex justify-between items-center">
-          <div className="w-14 h-14 bg-[#476B6B] rounded-xl flex items-center justify-center shadow-sm">
+      <div className="max-w-7xl mx-auto mb-6 sm:mb-8">
+        <div className="flex justify-between items-center gap-2">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#476B6B] rounded-xl flex items-center justify-center shadow-sm shrink-0">
             <Image
               src="/images/logos/pawsync-logo-white.png"
               alt="PawSync Logo"
-              width={38}
-              height={38}
+              width={32}
+              height={32}
+              className="sm:w-[38px] sm:h-[38px]"
             />
           </div>
           {userData && (
-            <div className="h-14 bg-[#F8F6F2] px-6 rounded-xl shadow-sm flex flex-col items-center justify-center">
-              <p className="font-bold text-[#4F4F4F]" style={{ fontSize: '14px' }}>{userData.firstName} {userData.lastName}</p>
-              <p className="text-gray-600" style={{ fontSize: '14px' }}>{userData.email}</p>
+            <div className="h-12 sm:h-14 bg-[#F8F6F2] px-3 sm:px-6 rounded-xl shadow-sm flex flex-col items-center justify-center min-w-0 max-w-[65%] sm:max-w-xs">
+              <p className="font-bold text-[#4F4F4F] text-xs sm:text-sm w-full text-center truncate">{userData.firstName} {userData.lastName}</p>
+              <p className="text-gray-600 text-xs sm:text-sm w-full text-center truncate">{userData.email}</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Progress Steps */}
-      <div className="max-w-2xl mx-auto mb-12">
-        <div className="flex items-center justify-center gap-4">
+      <div className="max-w-2xl mx-auto mb-8 sm:mb-12">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-4">
           {/* Step 1 - Sign Up / Dashboard (Completed) */}
           <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#7FA5A3] flex items-center justify-center">
-                <Check className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-[#7FA5A3] flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-sm font-medium text-[#4F4F4F]">{isFromDashboard ? 'Dashboard' : 'Sign Up'}</span>
+              <span className="hidden sm:inline text-sm font-medium text-[#4F4F4F]">{isFromDashboard ? 'Dashboard' : 'Sign Up'}</span>
             </div>
           </div>
 
           {/* Connector 1-2 */}
-          <div className="h-1 bg-[#7FA5A3] transition-all duration-500 ease-out" style={{ width: mounted ? '4rem' : '0rem', transitionDelay: '150ms' }}></div>
+          <div className={`h-1 bg-[#7FA5A3] transition-all duration-500 ease-out ${mounted ? 'w-6 sm:w-16' : 'w-0'}`} style={{ transitionDelay: '150ms' }}></div>
 
           {/* Step 2 - Pet Profile */}
           <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)', transitionDelay: '300ms' }}>
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${currentStep > 2 ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]'}`}>
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-500 shrink-0 ${currentStep > 2 ? 'bg-[#7FA5A3]' : 'bg-[#7FA5A3]'}`}>
                 {currentStep > 2 ? (
-                  <Check className="w-6 h-6 text-white" />
+                  <Check className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 ) : (
-                  <span className="text-white font-semibold">2</span>
+                  <span className="text-white font-semibold text-sm sm:text-base">2</span>
                 )}
               </div>
-              <span className="text-sm font-medium text-[#4F4F4F]">Pet Profile</span>
+              <span className="hidden sm:inline text-sm font-medium text-[#4F4F4F]">Pet Profile</span>
             </div>
           </div>
 
           {/* Connector 2-3 */}
-          <div className={`h-1 transition-all duration-500 ease-out ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`} style={{ width: mounted ? '4rem' : '0rem', transitionDelay: '450ms' }}></div>
+          <div className={`h-1 transition-all duration-500 ease-out ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'} ${mounted ? 'w-6 sm:w-16' : 'w-0'}`} style={{ transitionDelay: '450ms' }}></div>
 
           {/* Step 3 - Basic Details */}
           <div className="flex items-center transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(10px)', transitionDelay: '600ms' }}>
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`}>
-                <span className={`font-semibold transition-colors duration-500 ${currentStep >= 3 ? 'text-white' : 'text-gray-600'}`}>3</span>
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-500 shrink-0 ${currentStep >= 3 ? 'bg-[#7FA5A3]' : 'bg-gray-300'}`}>
+                <span className={`font-semibold text-sm sm:text-base transition-colors duration-500 ${currentStep >= 3 ? 'text-white' : 'text-gray-600'}`}>3</span>
               </div>
-              <span className={`text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-[#4F4F4F]' : 'text-gray-500'}`}>Basic Details</span>
+              <span className={`hidden sm:inline text-sm font-medium transition-colors duration-500 ${currentStep >= 3 ? 'text-[#4F4F4F]' : 'text-gray-500'}`}>Basic Details</span>
             </div>
           </div>
         </div>
@@ -242,13 +243,13 @@ function PetOnboardingContent() {
       {/* Sliding Content */}
       <div className={`${shouldAnimate ? 'transition-all duration-300 ease-out' : ''} ${getSlideClass()}`}>
         {currentStep === 2 && (
-          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-12 transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(20px)', transitionDelay: '400ms' }}>
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-6 sm:p-8 md:p-12 transition-all duration-500 ease-out" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(20px)', transitionDelay: '400ms' }}>
             {/* Header */}
-            <div className="text-center mb-12">
-              <h1 className="text-4xl font-bold text-[#5A7C7A] mb-3">
+            <div className="text-center mb-8 md:mb-12">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#5A7C7A] mb-3">
                 {isFromDashboard ? "Let's Meet another furry friend" : "Let's Meet your furry friend"}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 {isFromDashboard ? (
                   <>
                     Give {existingPetName || 'your pet'} a new friend!<br />
@@ -268,49 +269,49 @@ function PetOnboardingContent() {
               <label className="block text-sm font-semibold text-[#4F4F4F] mb-4">
                 Select your pet&apos;s species
               </label>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-3 sm:gap-6">
                 <button
                   type="button"
                   onClick={() => setSpecies('canine')}
-                  className={`p-8 rounded-2xl border-2 transition-all ${
+                  className={`p-4 sm:p-6 md:p-8 rounded-2xl border-2 transition-all ${
                     species === 'canine'
                       ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+                  <div className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center ${
                       species === 'canine' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
                     }`}>
-                      <Dog className="w-10 h-10 text-white" />
+                      <Dog className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-white" />
                     </div>
-                    <span className="font-semibold text-[#4F4F4F] text-lg">Dog - Canine</span>
+                    <span className="font-semibold text-[#4F4F4F] text-sm sm:text-base md:text-lg">Dog - Canine</span>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setSpecies('feline')}
-                  className={`p-8 rounded-2xl border-2 transition-all ${
+                  className={`p-4 sm:p-6 md:p-8 rounded-2xl border-2 transition-all ${
                     species === 'feline'
                       ? 'border-[#7FA5A3] bg-[#7FA5A3]/5'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+                  <div className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center ${
                       species === 'feline' ? 'bg-[#5A7C7A]' : 'bg-gray-300'
                     }`}>
-                      <Cat className="w-10 h-10 text-white" />
+                      <Cat className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-white" />
                     </div>
-                    <span className="font-semibold text-[#4F4F4F] text-lg">Cat - Feline</span>
+                    <span className="font-semibold text-[#4F4F4F] text-sm sm:text-base md:text-lg">Cat - Feline</span>
                   </div>
                 </button>
               </div>
             </div>
 
             {/* Photo Upload Section */}
-            <div className="bg-gray-50 rounded-2xl p-8 mb-8">
+            <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 md:p-8 mb-8">
               <AvatarUpload
                 className="w-full"
                 maxSize={5 * 1024 * 1024}
@@ -340,7 +341,7 @@ function PetOnboardingContent() {
               <button
                 type="button"
                 onClick={handleBackToSignup}
-                className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
+                className="flex items-center gap-2 px-4 sm:px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Back
@@ -349,7 +350,7 @@ function PetOnboardingContent() {
               <button
                 type="button"
                 onClick={handleContinueToDetails}
-                className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
+                className="flex items-center gap-2 px-5 sm:px-6 md:px-8 py-3 md:py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors"
               >
                 Continue
                 <ArrowRight className="w-5 h-5" />
@@ -359,13 +360,13 @@ function PetOnboardingContent() {
         )}
 
         {currentStep === 3 && (
-          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-12">
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-6 sm:p-8 md:p-12">
             {/* Header */}
-            <div className="text-center mb-10">
-              <h1 className="text-4xl font-bold text-[#5A7C7A] mb-3">
+            <div className="text-center mb-6 sm:mb-8 md:mb-10">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#5A7C7A] mb-3">
                 Tell us about your {species === 'canine' ? 'Dog' : species === 'feline' ? 'Cat' : 'Pet'}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Fill in the basic details about your pet. This information<br />
                 helps veterinarians provide better care
               </p>
@@ -396,7 +397,7 @@ function PetOnboardingContent() {
                   {errors.fullName && <p className="text-xs text-[#900B09] mt-1 ml-1">This field is required</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <BreedCombobox
                     species={species}
                     value={breed}
@@ -429,7 +430,7 @@ function PetOnboardingContent() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                   <div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -535,7 +536,7 @@ function PetOnboardingContent() {
                 <button
                   type="button"
                   onClick={handleBackToProfile}
-                  className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
+                  className="flex items-center gap-2 px-4 sm:px-6 py-3 text-gray-600 hover:text-[#4F4F4F] transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5" />
                   Back
@@ -544,7 +545,7 @@ function PetOnboardingContent() {
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="flex items-center gap-2 px-8 py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 sm:px-6 md:px-8 py-3 md:py-4 bg-[#7FA5A3] text-white rounded-xl font-semibold hover:bg-[#6B9290] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitLoading ? 'Saving...' : 'Continue'}
                   {!submitLoading && <ArrowRight className="w-5 h-5" />}
