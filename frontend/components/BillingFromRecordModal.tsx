@@ -530,11 +530,11 @@ export default function BillingFromRecordModal({
           <X className="w-4 h-4" />
         </button>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Header */}
           <div className="text-center mb-5">
-            <h2 className="text-xl font-bold text-[#4F4F4F]">{MODAL_TITLES[mode]}</h2>
-            <p className="text-sm text-gray-400 mt-0.5">Services acquired from medical record</p>
+            <h2 className="text-lg sm:text-xl font-bold text-[#4F4F4F]">{MODAL_TITLES[mode]}</h2>
+            <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Services acquired from medical record</p>
           </div>
 
           {loading ? (
@@ -545,24 +545,24 @@ export default function BillingFromRecordModal({
           ) : (
             <>
               {/* Items Table */}
-              <div className="border border-gray-100 rounded-xl overflow-hidden mb-3">
+              <div className="border border-gray-100 rounded-xl overflow-x-auto mb-3">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">
+                      <th className="text-left px-2 sm:px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">
                         Product / Service
                       </th>
-                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500">
+                      <th className="text-center px-2 sm:px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">
                         Qty
                       </th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">
+                      <th className="text-right px-2 sm:px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">
                         Unit Price
                       </th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">
+                      <th className="text-right px-2 sm:px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">
                         Total
                       </th>
                       {!isReadOnly && (
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">
+                        <th className="text-right px-2 sm:px-4 py-2.5 text-xs font-semibold text-gray-500 whitespace-nowrap">
                           Action
                         </th>
                       )}
@@ -585,9 +585,9 @@ export default function BillingFromRecordModal({
                           <tr>
                             <td
                               colSpan={isReadOnly ? 4 : 5}
-                              className="px-4 py-1.5 bg-gray-50 border-t border-gray-100"
+                              className="px-2 sm:px-4 py-1.5 bg-gray-50 border-t border-gray-100"
                             >
-                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                 {category}
                               </p>
                             </td>
@@ -597,15 +597,15 @@ export default function BillingFromRecordModal({
                               key={item.tempId}
                               className="border-t border-gray-50 hover:bg-gray-50/50"
                             >
-                              <td className="px-4 py-3 font-medium text-[#4F4F4F]">
+                              <td className="px-2 sm:px-4 py-3 font-medium text-[#4F4F4F]">
                                 {item.name}
                                 {item.catalogId === null && (
-                                  <span className="ml-1.5 text-[10px] text-amber-500 font-normal bg-amber-50 px-1.5 py-0.5 rounded">
+                                  <span className="ml-1.5 text-[10px] text-amber-500 font-normal bg-amber-50 px-1.5 py-0.5 rounded whitespace-nowrap">
                                     no price match
                                   </span>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className="px-2 sm:px-4 py-3 text-center">
                                 {isReadOnly ? (
                                   <span className="text-sm text-[#4F4F4F]">{item.quantity}</span>
                                 ) : (
@@ -620,14 +620,14 @@ export default function BillingFromRecordModal({
                                   />
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-right text-[#4F4F4F]">
+                              <td className="px-2 sm:px-4 py-3 text-right text-[#4F4F4F] whitespace-nowrap">
                                 {item.catalogId === null ? (
                                   <span className="text-amber-500 text-xs">₱ 0.00</span>
                                 ) : (
                                   formatCurrency(item.price)
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-right font-medium text-[#4F4F4F]">
+                              <td className="px-2 sm:px-4 py-3 text-right font-medium text-[#4F4F4F] whitespace-nowrap">
                                 {item.catalogId === null ? (
                                   <span className="text-amber-500 text-xs">₱ 0.00</span>
                                 ) : (
@@ -635,7 +635,7 @@ export default function BillingFromRecordModal({
                                 )}
                               </td>
                               {!isReadOnly && (
-                                <td className="px-4 py-3 text-right">
+                                <td className="px-2 sm:px-4 py-3 text-right">
                                   <button
                                     onClick={() => removeItem(item.tempId)}
                                     className="p-1.5 text-gray-400 hover:text-[#900B09] hover:bg-[#F4D3D2] rounded-lg transition-colors"
@@ -723,21 +723,21 @@ export default function BillingFromRecordModal({
               )}
 
               {/* Order Summary + Record Info */}
-              <div className="flex gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 {/* Order Summary */}
                 <div className="flex-1 border border-gray-100 rounded-xl p-4">
                   <p className="text-sm font-bold text-[#476B6B]">Order Summary</p>
                   <p className="text-xs text-gray-400 mb-3">Amount Due</p>
-                  <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
+                  <div className="border-t border-gray-100 pt-3 flex justify-between items-center gap-2">
                     <span className="text-xs font-semibold text-[#4F4F4F]">Total Amount Due</span>
-                    <span className="text-sm font-bold text-[#476B6B]">
+                    <span className="text-sm font-bold text-[#476B6B] whitespace-nowrap">
                       {formatCurrency(total)}
                     </span>
                   </div>
                 </div>
 
                 {/* Record Info */}
-                <div className="w-40 shrink-0 bg-[#f0f7f7] border border-[#c8e0df] rounded-xl p-4 space-y-3.5">
+                <div className="w-full sm:w-40 sm:shrink-0 bg-[#f0f7f7] border border-[#c8e0df] rounded-xl p-4 space-y-3.5">
                   <div>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-[#476B6B]" />

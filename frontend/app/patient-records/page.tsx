@@ -1909,6 +1909,7 @@ function ViewRecordModal({
   const [petNotesSaving, setPetNotesSaving] = useState(false)
   const [petNotesSaved, setPetNotesSaved] = useState(false)
   const [notesMinimized, setNotesMinimized] = useState(true)
+  const bothDrawersMinimized = followUpsMinimized && notesMinimized
 
   const toggleFollowUp = (id: string) => {
     setExpandedFollowUps((prev) => {
@@ -2204,20 +2205,32 @@ function ViewRecordModal({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* Side-by-side container */}
-      <div className="relative flex items-stretch gap-2 w-[90vw] h-[85vh]">
+      {/* Side-by-side container (row on md+, stacked column on mobile) */}
+      <div className="relative flex flex-col md:flex-row md:items-stretch gap-2 w-full max-w-lg md:max-w-none md:w-[90vw] h-[85vh] overflow-hidden">
 
-        {/* ===== FOLLOW-UPS PANEL (left, collapsible) ===== */}
+        {/* ===== FOLLOW-UPS + VET NOTES DRAWERS — inline row on mobile when both collapsed, stacked column otherwise; side tabs on md+ ===== */}
         {record && (
-          <div className={`bg-white rounded-xl shadow-xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${followUpsMinimized ? 'w-10' : 'w-[30rem]'}`}>
+          <div className={`order-1 md:contents flex gap-2 ${bothDrawersMinimized ? 'flex-row shrink-0' : 'flex-col flex-1 min-h-0'}`}>
+          <div className={`flex flex-col bg-white rounded-xl shadow-sm md:shadow-xl overflow-hidden transition-all duration-200 md:h-full md:order-1 ${
+            bothDrawersMinimized
+              ? 'flex-1 md:flex-none md:w-10'
+              : followUpsMinimized
+                ? 'w-full shrink-0 md:w-10'
+                : 'w-full flex-1 min-h-0 md:flex-none md:w-[30rem]'
+          }`}>
             {followUpsMinimized ? (
               <button
                 onClick={() => setFollowUpsMinimized(false)}
-                className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+                className="flex items-center justify-between md:flex-col md:items-center md:justify-center md:h-full gap-2 md:gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-4 py-3 md:px-1 md:py-0"
               >
-                <ChevronRightIcon className="w-4 h-4 shrink-0" />
+                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider md:hidden">
+                  <FileText className="w-3.5 h-3.5" />
+                  Follow-ups ({record.followUps?.length || 0})
+                </span>
+                <ChevronDown className="w-4 h-4 shrink-0 md:hidden" />
+                <ChevronRightIcon className="w-4 h-4 shrink-0 hidden md:block" />
                 <span
-                  className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
+                  className="hidden md:inline text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
                   style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                 >
                   Follow-ups ({record.followUps?.length || 0})
@@ -2235,10 +2248,11 @@ function ViewRecordModal({
                     className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
                     title="Minimize panel"
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <ChevronUp className="w-3.5 h-3.5 md:hidden" />
+                    <ChevronLeft className="w-3.5 h-3.5 hidden md:block" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                   {(!record.followUps || record.followUps.length === 0) ? (
                     <div className="px-4 py-8 text-center flex items-center justify-center h-full">
                       <p className="text-xs text-gray-400 leading-relaxed">No follow-up records for this visit yet.</p>
@@ -2342,26 +2356,94 @@ function ViewRecordModal({
               </>
             )}
           </div>
+
+          {/* ===== VET NOTEPAD PANEL ===== */}
+          <div className={`flex flex-col bg-white rounded-xl shadow-sm md:shadow-xl overflow-hidden transition-all duration-200 md:h-full md:order-3 ${
+            bothDrawersMinimized
+              ? 'flex-1 md:flex-none md:w-10'
+              : notesMinimized
+                ? 'w-full shrink-0 md:w-10'
+                : 'w-full flex-1 min-h-0 md:flex-none md:w-[22rem]'
+          }`}>
+            {notesMinimized ? (
+              <button
+                onClick={() => setNotesMinimized(false)}
+                className="flex items-center justify-between md:flex-col md:items-center md:justify-center md:h-full gap-2 md:gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-4 py-3 md:px-1 md:py-0"
+              >
+                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider md:hidden">
+                  <StickyNote className="w-3.5 h-3.5" />
+                  Vet Notes
+                </span>
+                <ChevronDown className="w-4 h-4 shrink-0 md:hidden" />
+                <ChevronLeftIcon className="w-4 h-4 shrink-0 hidden md:block" />
+                <span
+                  className="hidden md:inline text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
+                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                >
+                  Vet Notes
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
+                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
+                    <StickyNote className="w-3.5 h-3.5" />
+                    Vet Notes
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {petNotesSaving && <span className="text-[10px] text-gray-400">Saving…</span>}
+                    {petNotesSaved && !petNotesSaving && <span className="text-[10px] text-green-500 font-medium">Saved</span>}
+                    <button
+                      onClick={() => setNotesMinimized(true)}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
+                      title="Minimize panel"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5 md:hidden" />
+                      <ChevronRightIcon className="w-3.5 h-3.5 hidden md:block" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-3 gap-2">
+                  <p className="text-[10px] text-gray-400 leading-relaxed">Private notepad for this patient — same across all visits.</p>
+                  <textarea
+                    value={petNotesDraft}
+                    onChange={(e) => setPetNotesDraft(e.target.value)}
+                    onBlur={handleSaveNotes}
+                    placeholder="Write your notes about this patient here…"
+                    className="flex-1 min-h-[90px] w-full text-sm text-[#4F4F4F] resize-none focus:outline-none bg-white border border-gray-200 rounded-lg p-2.5 leading-relaxed focus:ring-1 focus:ring-[#7FA5A3]"
+                  />
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={petNotesSaving}
+                    className="px-3 py-1.5 text-xs font-medium bg-[#476B6B] text-white rounded-lg hover:bg-[#3a5858] disabled:opacity-50 transition-colors self-end"
+                  >
+                    {petNotesSaving ? 'Saving…' : 'Save Notes'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          </div>
         )}
 
-        {/* ===== MAIN RECORD PANEL (right) ===== */}
+        {/* ===== MAIN RECORD PANEL — below the drawers on mobile, center column on md+ ===== */}
         {loading ? (
-          <div className="bg-white rounded-xl shadow-xl flex items-center justify-center flex-1 h-full">
+          <div className="order-3 md:order-2 bg-white rounded-xl shadow-sm md:shadow-xl flex items-center justify-center flex-1 min-h-0 md:h-full py-16">
             <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : record ? (
-          <div className="bg-white rounded-xl shadow-xl flex flex-col flex-1 h-full overflow-hidden">
+          <div className="order-3 md:order-2 bg-white rounded-xl shadow-sm md:shadow-xl flex flex-col flex-1 min-h-0 md:h-full overflow-hidden">
             {/* ===== DOCUMENT HEADER ===== */}
-            <div className="bg-[#476B6B] text-white px-8 py-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-xl font-bold tracking-wide">VETERINARY MEDICAL RECORD</h1>
-                  <p className="text-white/70 text-sm mt-1">
+            <div className="bg-[#476B6B] text-white px-4 sm:px-8 py-4 sm:py-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <h1 className="text-base sm:text-xl font-bold tracking-wide">VETERINARY MEDICAL RECORD</h1>
+                  <p className="text-white/70 text-xs sm:text-sm mt-1 truncate">
                     {clinic?.name || 'Clinic'}
                     {branch?.name ? ` — ${branch.name}` : ''}
                   </p>
                 </div>
-                <div className="text-right flex flex-col items-end gap-2">
+                <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 sm:text-right shrink-0">
                   <div>
                     <p className="text-xs text-white/60">Record ID</p>
                     <p className="text-sm font-mono text-white/90">{record._id.slice(-8).toUpperCase()}</p>
@@ -2369,7 +2451,7 @@ function ViewRecordModal({
                   {record.billingId && (
                     <button
                       onClick={() => { const id = typeof record.billingId === 'object' ? (record.billingId as any)?._id : record.billingId; if (id) setViewBillingId(id) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors border border-white/20 whitespace-nowrap"
                     >
                       <Receipt className="w-3.5 h-3.5" />
                       View Billing
@@ -2378,7 +2460,7 @@ function ViewRecordModal({
                 </div>
               </div>
               {(clinic?.address || branch?.address) && (
-                <p className="text-xs text-white/50 mt-2">
+                <p className="text-xs text-white/50 mt-2 truncate">
                   {branch?.address || clinic?.address}
                   {clinic?.phone ? ` | ${clinic.phone}` : ''}
                   {clinic?.email ? ` | ${clinic.email}` : ''}
@@ -2388,33 +2470,33 @@ function ViewRecordModal({
 
             {/* ===== VISIT NAVIGATION ===== */}
             {total > 1 && (
-              <div className="flex items-center justify-between px-8 py-2.5 bg-[#f0f7f7] border-b border-[#dde8e8]">
+              <div className="flex items-center justify-between px-3 sm:px-8 py-2.5 bg-[#f0f7f7] border-b border-[#dde8e8] gap-2">
                 <button
                   onClick={() => setIndex((i) => i + 1)}
                   disabled={index >= total - 1}
-                  className="flex items-center gap-1 text-xs font-medium text-[#476B6B] disabled:text-gray-300 hover:text-[#3a5a5a] disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-xs font-medium text-[#476B6B] disabled:text-gray-300 hover:text-[#3a5a5a] disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  <ChevronLeftIcon className="w-4 h-4" /> Older Visit
+                  <ChevronLeftIcon className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Older Visit</span>
                 </button>
-                <span className="text-xs font-semibold text-[#476B6B]">
+                <span className="text-xs font-semibold text-[#476B6B] text-center whitespace-nowrap">
                   Visit {index + 1} of {total}
                   {index === 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-[#476B6B] text-white rounded text-[10px]">Current</span>}
                 </span>
                 <button
                   onClick={() => setIndex((i) => i - 1)}
                   disabled={index <= 0}
-                  className="flex items-center gap-1 text-xs font-medium text-[#476B6B] disabled:text-gray-300 hover:text-[#3a5a5a] disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-xs font-medium text-[#476B6B] disabled:text-gray-300 hover:text-[#3a5a5a] disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  Newer Visit <ChevronRightIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Newer Visit</span> <ChevronRightIcon className="w-4 h-4 shrink-0" />
                 </button>
               </div>
             )}
 
             {/* ===== MAIN CONTENT ===== */}
             <div className="flex-1 overflow-y-auto">
-            <div className="px-8 py-6 space-y-6">
+            <div className="px-4 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
               {/* ===== PATIENT & VISIT INFO ===== */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {/* Patient Information */}
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
@@ -2637,8 +2719,8 @@ function ViewRecordModal({
                       Medications ({record.medications.length})
                     </h2>
                   </div>
-                  <div className="p-4">
-                    <table className="w-full text-sm">
+                  <div className="p-4 overflow-x-auto">
+                    <table className="w-full text-sm min-w-[480px]">
                       <thead>
                         <tr className="border-b border-gray-100">
                           {['Name', 'Dosage', 'Route', 'Frequency', 'Duration', 'Status'].map((h) => (
@@ -2732,8 +2814,8 @@ function ViewRecordModal({
                         <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
                           <h3 className="text-[11px] font-semibold text-[#476B6B] uppercase tracking-wider">Immunity Testing</h3>
                         </div>
-                        <div className="p-3">
-                          <table className="w-full text-sm">
+                        <div className="p-3 overflow-x-auto">
+                          <table className="w-full text-sm min-w-[360px]">
                             <thead>
                               <tr className="border-b border-gray-100">
                                 <th className="text-left text-[10px] text-gray-400 uppercase font-semibold pb-2 pr-3">Disease</th>
@@ -3194,11 +3276,11 @@ function ViewRecordModal({
             </div>
 
             {/* ===== ACTION BAR ===== */}
-            <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
+            <div className="bg-white border-t border-gray-100 px-3 sm:px-8 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
+              <div className="flex flex-col sm:flex-row items-stretch gap-2">
                 <button
                   onClick={() => onToggleShare(record._id, !!record.sharedWithOwner)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
                     record.sharedWithOwner
                       ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
                       : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
@@ -3209,7 +3291,7 @@ function ViewRecordModal({
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors whitespace-nowrap"
                 >
                   <Printer className="w-4 h-4" />
                   Print / PDF
@@ -3217,70 +3299,13 @@ function ViewRecordModal({
               </div>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors"
+                className="px-6 py-2.5 text-sm font-medium text-white bg-[#476B6B] rounded-xl hover:bg-[#3a5a5a] transition-colors w-full sm:w-auto"
               >
                 Close
               </button>
             </div>
           </div>
         ) : null}
-
-        {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
-        {record && (
-          <div className={`bg-white rounded-xl shadow-xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-[22rem]'}`}>
-            {notesMinimized ? (
-              <button
-                onClick={() => setNotesMinimized(false)}
-                className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
-              >
-                <ChevronLeftIcon className="w-4 h-4 shrink-0" />
-                <span
-                  className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
-                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-                >
-                  Vet Notes
-                </span>
-              </button>
-            ) : (
-              <>
-                <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
-                  <h2 className="text-xs font-semibold text-[#476B6B] uppercase tracking-wider flex items-center gap-1.5">
-                    <StickyNote className="w-3.5 h-3.5" />
-                    Vet Notes
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    {petNotesSaving && <span className="text-[10px] text-gray-400">Saving…</span>}
-                    {petNotesSaved && !petNotesSaving && <span className="text-[10px] text-green-500 font-medium">Saved</span>}
-                    <button
-                      onClick={() => setNotesMinimized(true)}
-                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
-                      title="Minimize panel"
-                    >
-                      <ChevronRightIcon className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2">
-                  <p className="text-[10px] text-gray-400 leading-relaxed">Private notepad for this patient — same across all visits.</p>
-                  <textarea
-                    value={petNotesDraft}
-                    onChange={(e) => setPetNotesDraft(e.target.value)}
-                    onBlur={handleSaveNotes}
-                    placeholder="Write your notes about this patient here…"
-                    className="flex-1 w-full text-sm text-[#4F4F4F] resize-none focus:outline-none bg-white border border-gray-200 rounded-lg p-2.5 leading-relaxed focus:ring-1 focus:ring-[#7FA5A3]"
-                  />
-                  <button
-                    onClick={handleSaveNotes}
-                    disabled={petNotesSaving}
-                    className="px-3 py-1.5 text-xs font-medium bg-[#476B6B] text-white rounded-lg hover:bg-[#3a5858] disabled:opacity-50 transition-colors self-end"
-                  >
-                    {petNotesSaving ? 'Saving…' : 'Save Notes'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ===== BILLING MODAL ===== */}
