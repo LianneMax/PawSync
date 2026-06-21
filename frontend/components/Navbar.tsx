@@ -107,6 +107,7 @@ function Navbar({
   onOpenNotifications,
 }: NavbarProps) {
   const [isHovering, setIsHovering] = useState(false)
+  const [manualExpanded, setManualExpanded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -145,8 +146,18 @@ function Navbar({
   const hoverTimer = useRef<NodeJS.Timeout | null>(null)
   const navRef = useRef<HTMLElement>(null)
 
-  // Expand on hover or while the dropdown menu is open
-  const isExpanded = controlledExpanded ?? (isHovering || menuOpen)
+  // Expand on hover, while the dropdown menu is open, or when manually toggled (click)
+  const isExpanded = controlledExpanded ?? (isHovering || menuOpen || manualExpanded)
+
+  // Click anywhere on the sidebar (logo, burger icon, etc.) to toggle it open/closed —
+  // covers touch/tablet use where hover doesn't apply
+  const toggleExpanded = useCallback(() => {
+    if (controlledExpanded !== undefined) {
+      onToggle?.(!controlledExpanded)
+    } else {
+      setManualExpanded((v) => !v)
+    }
+  }, [controlledExpanded, onToggle])
 
   // Pet Owner and Veterinarian get a dedicated mobile header + full-screen nav drawer
   const showMobileNav = userType === 'pet-owner' || userType === 'veterinarian'
@@ -216,6 +227,7 @@ function Navbar({
       ref={navRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={toggleExpanded}
       className={`fixed left-0 top-0 h-full bg-[#7FA5A3] transition-all duration-300 ease-in-out z-50 ${
         showMobileNav ? 'hidden sm:flex' : 'flex'
       } flex-col overflow-hidden ${

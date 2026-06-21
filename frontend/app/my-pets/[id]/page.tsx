@@ -727,9 +727,60 @@ export default function PetProfilePage() {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {/* Header with photo */}
           <div className="bg-linear-to-br from-[#476B6B] to-[#5A8A8A] p-8 flex flex-col items-center relative">
-            {/* Remove Pet button — left side */}
+            {/* Action buttons — mobile row, equal-width, sits above photo */}
+            <div className="w-full flex gap-2 mb-6 sm:hidden">
+              {editing ? (
+                <>
+                  <button
+                    onClick={cancelEditing}
+                    className="flex-1 flex items-center justify-center gap-1 whitespace-nowrap bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-lg text-xs transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 shrink-0" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-1 whitespace-nowrap bg-white text-[#476B6B] px-2 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  >
+                    <Check className="w-3.5 h-3.5 shrink-0" />
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {!isPetDeceased && (
+                    <button
+                      onClick={() => setShowRemoveModal(true)}
+                      className="flex-1 flex items-center justify-center gap-1 whitespace-nowrap bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-lg text-xs transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      Remove Pet
+                    </button>
+                  )}
+                  {pet?.qrCode && (
+                    <button
+                      onClick={() => setShowQRCodeModal(true)}
+                      className="flex-1 flex items-center justify-center gap-1 whitespace-nowrap bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-lg text-xs transition-colors"
+                    >
+                      <QrCode className="w-3.5 h-3.5 shrink-0" />
+                      QR Code
+                    </button>
+                  )}
+                  <button
+                    onClick={startEditing}
+                    className="flex-1 flex items-center justify-center gap-1 whitespace-nowrap bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-lg text-xs transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5 shrink-0" />
+                    Edit Profile
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Remove Pet button — left side (desktop) */}
             {!editing && !isPetDeceased && (
-              <div className="absolute top-4 left-4">
+              <div className="hidden sm:block absolute top-4 left-4">
                 <button
                   onClick={() => setShowRemoveModal(true)}
                   className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm transition-colors"
@@ -740,8 +791,8 @@ export default function PetProfilePage() {
               </div>
             )}
 
-            {/* Edit / Save buttons */}
-            <div className="absolute top-4 right-4 flex gap-2">
+            {/* Edit / Save buttons (desktop) */}
+            <div className="hidden sm:flex absolute top-4 right-4 gap-2">
               {editing ? (
                 <>
                   <button
@@ -864,10 +915,10 @@ export default function PetProfilePage() {
 
           {/* Tabs */}
           <div className="border-b border-gray-200">
-            <div className="flex gap-8 px-6 lg:px-8">
+            <div className="flex gap-8 px-6 lg:px-8 overflow-x-auto scrollbar-hide">
               <button
                 onClick={() => setActiveTab('basic')}
-                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                className={`shrink-0 py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
                   activeTab === 'basic'
                     ? 'border-[#7FA5A3] text-[#476B6B]'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -877,7 +928,7 @@ export default function PetProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab('medical-records')}
-                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                className={`shrink-0 py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
                   activeTab === 'medical-records'
                     ? 'border-[#7FA5A3] text-[#476B6B]'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -887,7 +938,7 @@ export default function PetProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab('reports')}
-                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                className={`shrink-0 py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
                   activeTab === 'reports'
                     ? 'border-[#7FA5A3] text-[#476B6B]'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -897,7 +948,7 @@ export default function PetProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab('nfc')}
-                className={`py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                className={`shrink-0 py-4 px-1 border-b-2 font-semibold text-sm transition-colors ${
                   activeTab === 'nfc'
                     ? 'border-[#7FA5A3] text-[#476B6B]'
                     : 'border-transparent text-gray-500 hover:text-gray-700'

@@ -196,7 +196,7 @@ export default function MyPetsPage() {
 
         {/* Header */}
         <div className="mb-6 space-y-3">
-          <div ref={searchContainerRef} className="relative inline-block">
+          <div ref={searchContainerRef} className="relative block w-full sm:inline-block sm:w-auto">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
             <input
               type="text"
@@ -207,7 +207,7 @@ export default function MyPetsPage() {
                 setShowSuggestions(true)
               }}
               onFocus={() => setShowSuggestions(true)}
-              className="bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent w-56"
+              className="bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent w-full sm:w-56"
             />
 
             {showSuggestions && searchQuery.trim().length > 0 && (

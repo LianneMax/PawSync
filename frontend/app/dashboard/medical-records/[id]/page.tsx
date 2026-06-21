@@ -232,7 +232,7 @@ export default function MedicalRecordReportPage() {
           <div className="px-8 py-6 space-y-6">
 
             {/* ===== Patient & Visit Info ===== */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Patient Information */}
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
@@ -980,7 +980,7 @@ export default function MedicalRecordReportPage() {
             {(record.referral || record.discharge || record.scheduledSurgery) && (
               <>
                 <hr className="border-gray-200" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {record.discharge && (
                     <div className="border border-green-200 rounded-xl bg-green-50/30 p-4 flex items-start gap-3">
                       <div className="text-xl shrink-0">✓</div>
