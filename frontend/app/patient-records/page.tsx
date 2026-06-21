@@ -989,28 +989,28 @@ function PatientRecordsPageContent() {
                 Back to Patients
               </button>
 
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     {selectedPatient.photo ? (
-                      <Image src={selectedPatient.photo} alt="" width={64} height={64} sizes="64px" className="w-16 h-16 rounded-full object-cover" />
+                      <Image src={selectedPatient.photo} alt="" width={64} height={64} sizes="64px" className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover shrink-0" />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
-                        <PawPrint className="w-8 h-8 text-[#5A7C7A]" />
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center shrink-0">
+                        <PawPrint className="w-6 h-6 sm:w-8 sm:h-8 text-[#5A7C7A]" />
                       </div>
                     )}
-                    <div>
-                      <h1 className="text-xl font-bold text-[#4F4F4F]">{selectedPatient.name}</h1>
-                      <p className="text-sm text-gray-500 capitalize">{selectedPatient.species} &middot; {selectedPatient.breed}</p>
-                      <p className="text-xs text-gray-400 mt-1">
+                    <div className="min-w-0">
+                      <h1 className="text-lg sm:text-xl font-bold text-[#4F4F4F] truncate">{selectedPatient.name}</h1>
+                      <p className="text-sm text-gray-500 capitalize truncate">{selectedPatient.species} &middot; {selectedPatient.breed}</p>
+                      <p className="text-xs text-gray-400 mt-1 truncate">
                         Owner: {selectedPatient.ownerFirstName} {selectedPatient.ownerLastName} &middot; {selectedPatient.clinicBranchName || selectedPatient.clinicName}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch gap-2">
                     <button
                       onClick={() => setHistoryModalOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#476B6B]/5 transition-colors"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-[#476B6B] text-[#476B6B] text-sm font-medium rounded-xl hover:bg-[#476B6B]/5 transition-colors whitespace-nowrap"
                     >
                       <FileText className="w-4 h-4" />
                       Medical History
@@ -1019,7 +1019,7 @@ function PatientRecordsPageContent() {
                       onClick={() => setFollowUpOpen(true)}
                       disabled={!currentRecord?.isCurrent}
                       title={!currentRecord?.isCurrent ? 'Follow-ups can only be added to the active medical record' : 'Add a follow-up to the current record'}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#476B6B]"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-[#476B6B] text-white text-sm font-medium rounded-xl hover:bg-[#3a5858] transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#476B6B] whitespace-nowrap"
                     >
                       <Plus className="w-4 h-4" />
                       New Follow-up Record
@@ -1030,11 +1030,11 @@ function PatientRecordsPageContent() {
             </div>
 
             {/* Patient Detail Tabs */}
-            <div className="flex items-center justify-between gap-3 mb-6">
-              <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit">
                 <button
                   onClick={() => setPatientTab('records')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  className={`flex-1 sm:flex-initial justify-center flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                     patientTab === 'records'
                       ? 'bg-white text-[#476B6B] shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
@@ -1050,7 +1050,7 @@ function PatientRecordsPageContent() {
                       loadVaccinations(selectedPatient._id)
                     }
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  className={`flex-1 sm:flex-initial justify-center flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                     patientTab === 'vaccinations'
                       ? 'bg-white text-[#476B6B] shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
@@ -1065,7 +1065,7 @@ function PatientRecordsPageContent() {
                 <button
                   onClick={handleConfirmReleaseRequest}
                   disabled={confirmingRelease}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 text-sm font-semibold hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 text-sm font-semibold hover:bg-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                   title="Owner requested release from confinement"
                 >
                   <AlertCircle className="w-4 h-4" />
@@ -1085,16 +1085,16 @@ function PatientRecordsPageContent() {
                     <div className="w-8 h-8 border-2 border-[#7FA5A3] border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : currentRecord ? (
-                  <div className={`bg-white rounded-xl p-6 shadow-md border-2 ${
+                  <div className={`bg-white rounded-xl p-4 sm:p-6 shadow-md border-2 ${
                     currentRecord.stage === 'confined' ? 'border-blue-300'
                     : selectedIsLost ? 'border-[#900B09]/50'
                     : selectedIsDeceased ? 'border-amber-300'
                     : selectedIsRelocated ? 'border-orange-300'
                     : 'border-[#7FA5A3]/30'
                   }`}>
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="mb-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <div className={`w-3 h-3 rounded-full ${
                             currentRecord.stage === 'confined' ? 'bg-blue-500'
                             : selectedIsLost ? 'bg-[#900B09]'
@@ -1227,55 +1227,56 @@ function PatientRecordsPageContent() {
                           </div>
                         )}
                       </div>
+                    </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0 ml-3">
-                        {recordReportMap[currentRecord._id] ? (
-                          <button
-                            onClick={() => router.push(`/vet-dashboard/reports/${recordReportMap[currentRecord._id]}`)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
-                            title="View report"
-                          >
-                            <FileText className="w-3 h-3" /> View Report
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleGenerateReport(currentRecord)}
-                            disabled={generatingReportId === currentRecord._id}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                            title="Generate AI report"
-                          >
-                            {generatingReportId === currentRecord._id
-                              ? <><RefreshCw className="w-3 h-3 animate-spin" /> Creating…</>
-                              : <><Sparkles className="w-3 h-3" /> Generate Report</>
-                            }
-                          </button>
-                        )}
+                    {/* Action buttons — right-aligned, above billing */}
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end mt-4">
+                      {recordReportMap[currentRecord._id] ? (
                         <button
-                          onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            currentRecord.sharedWithOwner
-                              ? 'text-green-600 bg-green-50 hover:bg-green-100'
-                              : 'text-gray-400 hover:bg-gray-100 hover:text-[#5A7C7A]'
-                          }`}
-                          title={currentRecord.sharedWithOwner ? 'Unshare from owner' : 'Share with owner'}
+                          onClick={() => router.push(`/vet-dashboard/reports/${recordReportMap[currentRecord._id]}`)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                          title="View report"
                         >
-                          <Share2 className="w-4 h-4" />
+                          <FileText className="w-3 h-3" /> View Report
                         </button>
+                      ) : (
                         <button
-                          onClick={() => handleViewRecord(currentRecord._id)}
-                          className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
-                          title="View full record"
+                          onClick={() => handleGenerateReport(currentRecord)}
+                          disabled={generatingReportId === currentRecord._id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          title="Generate AI report"
                         >
-                          <Eye className="w-4 h-4" />
+                          {generatingReportId === currentRecord._id
+                            ? <><RefreshCw className="w-3 h-3 animate-spin" /> Creating…</>
+                            : <><Sparkles className="w-3 h-3" /> Generate Report</>
+                          }
                         </button>
-                        <button
-                          onClick={() => handleEditRecord(currentRecord._id)}
-                          className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
-                          title="Edit record"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          currentRecord.sharedWithOwner
+                            ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                            : 'text-gray-400 hover:bg-gray-100 hover:text-[#5A7C7A]'
+                        }`}
+                        title={currentRecord.sharedWithOwner ? 'Unshare from owner' : 'Share with owner'}
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleViewRecord(currentRecord._id)}
+                        className="p-2 rounded-lg text-[#5A7C7A] hover:bg-[#7FA5A3]/10 transition-colors"
+                        title="View full record"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEditRecord(currentRecord._id)}
+                        className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                        title="Edit record"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Billing button */}
@@ -1306,10 +1307,10 @@ function PatientRecordsPageContent() {
                   <h2 className="text-lg font-semibold text-[#4F4F4F] mb-4">Historical Records ({historicalRecords.length})</h2>
                   <div className="space-y-3">
                     {historicalRecords.map((record) => (
-                      <div key={record._id} className="bg-white rounded-xl p-5 shadow-sm border-l-[3px] border-l-gray-300 hover:border-l-[#7FA5A3] transition-colors">
-                        <div className="flex items-start justify-between">
+                      <div key={record._id} className="bg-white rounded-xl p-4 sm:p-5 shadow-sm border-l-[3px] border-l-gray-300 hover:border-l-[#7FA5A3] transition-colors">
+                        <div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <Stethoscope className="w-4 h-4 text-gray-400 shrink-0" />
                               <p className="text-sm font-semibold text-[#4F4F4F]">Past Record</p>
                               {record.sharedWithOwner && (
@@ -1377,7 +1378,8 @@ function PatientRecordsPageContent() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                          {/* Action buttons — right-aligned */}
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end mt-3">
                             {recordReportMap[record._id] ? (
                               <button
                                 onClick={() => router.push(`/vet-dashboard/reports/${recordReportMap[record._id]}`)}
@@ -1450,14 +1452,14 @@ function PatientRecordsPageContent() {
                   vaccinations.map((v) => {
                     const vt = v.vaccineTypeId as any
                     return (
-                      <div key={v._id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3">
+                      <div key={v._id} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-3 sm:gap-4">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
                             <div className="w-9 h-9 bg-[#7FA5A3]/15 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
                               <Syringe className="w-5 h-5 text-[#476B6B]" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-[#4F4F4F]">{vt?.name || v.vaccineName}</h3>
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-[#4F4F4F] truncate">{vt?.name || v.vaccineName}</h3>
                               <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500 mt-1">
                                 <span>Administered: {v.dateAdministered ? new Date(v.dateAdministered).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
                                 {v.expiryDate && <span>Expires: {new Date(v.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
