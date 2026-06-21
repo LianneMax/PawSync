@@ -1002,18 +1002,19 @@ export default function ClinicManagementPage() {
         </div>
 
         {/* Tab Switcher - Pill Style */}
-        <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm mb-8">
+        <div className="flex overflow-visible justify-start gap-2 w-fit mx-auto md:mx-0 md:w-full md:gap-0 md:overflow-x-auto bg-white rounded-full p-1 md:p-1.5 shadow-sm mb-8">
           <button
             onClick={() => setActiveTab('vets')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
+            className={`flex items-center gap-1 md:gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'vets'
                 ? 'bg-[#476B6B] text-white shadow-sm'
                 : 'text-[#4F4F4F] hover:bg-gray-50'
             }`}
           >
-            <Users className="w-4 h-4" />
-            Veterinarians
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+            <Users className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="md:hidden">Vets</span>
+            <span className="hidden md:inline">Veterinarians</span>
+            <span className={`px-1.5 md:px-2 py-0 md:py-0.5 rounded-full text-[11px] md:text-xs font-semibold ${
               activeTab === 'vets' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
             }`}>
               {vets.length}
@@ -1022,15 +1023,15 @@ export default function ClinicManagementPage() {
           {isMainBranch && (
             <button
               onClick={() => setActiveTab('branches')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
+              className={`flex items-center gap-1 md:gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all shrink-0 whitespace-nowrap ${
                 activeTab === 'branches'
                   ? 'bg-[#476B6B] text-white shadow-sm'
                   : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Branches
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+              <span className={`px-1.5 md:px-2 py-0 md:py-0.5 rounded-full text-[11px] md:text-xs font-semibold ${
                 activeTab === 'branches' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {activeBranchesCount}
@@ -1040,14 +1041,15 @@ export default function ClinicManagementPage() {
           {isMainBranch && (
             <button
               onClick={() => setActiveTab('profile')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
+              className={`flex items-center gap-1 md:gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all shrink-0 whitespace-nowrap ${
                 activeTab === 'profile'
                   ? 'bg-[#476B6B] text-white shadow-sm'
                   : 'text-[#4F4F4F] hover:bg-gray-50'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              Clinic Profile
+              <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="md:hidden">Clinic</span>
+              <span className="hidden md:inline">Clinic Profile</span>
             </button>
           )}
         </div>
@@ -1055,14 +1057,14 @@ export default function ClinicManagementPage() {
         {/* ==================== VETERINARIANS TAB ==================== */}
         {activeTab === 'vets' && (
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
               <div>
                 <h2 className="text-2xl font-bold text-[#4F4F4F]">Veterinarians</h2>
                 <p className="text-gray-500 text-sm">Manage your clinic&apos;s veterinary staff</p>
               </div>
               <button
                 onClick={handleOpenInviteModal}
-                className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium"
+                className="flex items-center justify-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium w-full sm:w-auto"
               >
                 <UserPlus className="w-4 h-4" />
                 Invite Veterinarian
@@ -1071,15 +1073,15 @@ export default function ClinicManagementPage() {
 
             <div className="bg-white rounded-2xl shadow-sm mt-4">
               {/* Header */}
-              <div className="p-6 flex items-center justify-between border-b border-gray-100">
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100">
                 <h3 className="font-semibold text-[#4F4F4F]">All Veterinarians</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   {isMainBranch && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex items-center justify-between gap-2 min-w-45 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                          className="inline-flex items-center justify-between gap-2 w-full sm:w-auto sm:min-w-45 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] hover:border-[#7FA5A3] focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                           aria-label="Filter vets by branch"
                         >
                           <span className="truncate">
@@ -1110,14 +1112,14 @@ export default function ClinicManagementPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
-                  <div className="relative">
+                  <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search by name or email..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] w-64"
+                      className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] w-full"
                     />
                   </div>
                 </div>
@@ -1191,14 +1193,14 @@ export default function ClinicManagementPage() {
         {/* ==================== BRANCHES TAB ==================== */}
         {activeTab === 'branches' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-[#4F4F4F]">Branches</h2>
                 <p className="text-gray-500 text-sm">Manage your clinic locations</p>
               </div>
               <button
                 onClick={() => { resetAddForm(); setAddBranchOpen(true) }}
-                className="flex items-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium"
+                className="flex items-center justify-center gap-2 bg-[#476B6B] text-white px-5 py-2.5 rounded-xl hover:bg-[#3a5a5a] transition-colors text-sm font-medium w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
                 Add Branch
@@ -1253,12 +1255,12 @@ export default function ClinicManagementPage() {
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
                     <span className={`flex items-center gap-1.5 text-sm font-medium ${branch.isOpen ? 'text-green-600' : 'text-gray-400'}`}>
                       <span className={`w-2 h-2 rounded-full ${branch.isOpen ? 'bg-green-500' : 'bg-gray-300'}`} />
                       {branch.isOpen ? 'Currently Open' : 'Closed'}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {branch.isOpen ? (
                         <button
                           onClick={() => openCloseBranch(branch)}
@@ -1805,7 +1807,7 @@ export default function ClinicManagementPage() {
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City</label>
                 <DropdownMenu>
@@ -1909,7 +1911,7 @@ export default function ClinicManagementPage() {
               </div>
             </label>
 
-            <div className={`grid grid-cols-2 gap-4 transition-opacity ${editIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-opacity ${editIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-[#900B09]">*</span></label>
                 <input type="time" value={editForm.openingTime} onChange={(e) => setEditForm({...editForm, openingTime: e.target.value})} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] text-sm" />
@@ -2012,7 +2014,7 @@ export default function ClinicManagementPage() {
             </div>
 
             {/* City / Province */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">City <span className="text-[#900B09]">*</span></label>
                 <DropdownMenu>
@@ -2177,7 +2179,7 @@ export default function ClinicManagementPage() {
               </div>
             </label>
 
-            <div className={`grid grid-cols-2 gap-4 transition-opacity ${addIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-opacity ${addIs24h ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
                 <label className="block text-sm font-medium text-[#4F4F4F] mb-1">Opening Time <span className="text-[#900B09]">*</span></label>
                 <input
