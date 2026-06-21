@@ -384,6 +384,7 @@ function PetOwnerBilling() {
         <ViewBillingModal
           billing={viewingBilling}
           onClose={() => setViewingBilling(null)}
+          canManageBir={false}
         />
       )}
 
@@ -1570,9 +1571,11 @@ function groupBillingItemsByCategory(
 function ViewBillingModal({
   billing: initialBilling,
   onClose,
+  canManageBir = true,
 }: {
   billing: ApiBilling
   onClose: () => void
+  canManageBir?: boolean
 }) {
   const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Cash', card: 'Card', qr: 'QR' }
   const { token } = useAuthStore()
@@ -1758,26 +1761,28 @@ function ViewBillingModal({
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-gray-400">BIR Accreditation No.</p>
-            <div className="mt-1 flex items-center gap-2 print:hidden">
-              <input
-                type="text"
-                value={birNumberInput}
-                onChange={(e) => setBirNumberInput(e.target.value)}
-                placeholder="Enter BIR accreditation/permit number"
-                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
-              />
-              <button
-                onClick={saveBirNumber}
-                disabled={savingBir || birNumberInput.trim() === (billing.birNumber || '')}
-                className="px-3 py-1.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
-              >
-                {savingBir ? 'Saving...' : 'Save'}
-              </button>
+          {canManageBir && (
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">BIR Accreditation No.</p>
+              <div className="mt-1 flex items-center gap-2 print:hidden">
+                <input
+                  type="text"
+                  value={birNumberInput}
+                  onChange={(e) => setBirNumberInput(e.target.value)}
+                  placeholder="Enter BIR accreditation/permit number"
+                  className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-[#4F4F4F] focus:outline-none focus:ring-2 focus:ring-[#3D5E5C]/30"
+                />
+                <button
+                  onClick={saveBirNumber}
+                  disabled={savingBir || birNumberInput.trim() === (billing.birNumber || '')}
+                  className="px-3 py-1.5 bg-[#3D5E5C] hover:bg-[#2F4C4A] disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  {savingBir ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              <p className="hidden print:block text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.birNumber || '-'}</p>
             </div>
-            <p className="hidden print:block text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.birNumber || '-'}</p>
-          </div>
+          )}
 
           {/* Contextual status banners */}
           {billing.status === 'pending_payment' && billing.medicalRecordId && billing.medicalRecordId.stage !== 'completed' && (
