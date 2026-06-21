@@ -3218,25 +3218,25 @@ function ClinicScheduleModal({
       <DialogContent className="max-w-225 max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
         <DialogTitle className="sr-only">Schedule Appointment</DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-8 pb-2 shrink-0">
-          <h2 className="text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+        <div className="flex items-center justify-between px-4 sm:px-8 pt-6 sm:pt-8 pb-2 shrink-0">
+          <h2 className="text-xl sm:text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
             Schedule Appointment
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
           >
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
         {/* Mode toggle: Regular vs Guest Intake */}
-        <div className="px-8 pb-1 pt-2 shrink-0">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 gap-0.5">
+        <div className="px-4 sm:px-8 pb-1 pt-2 shrink-0">
+          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-0.5 gap-0.5 max-w-full overflow-x-auto">
             <button
               type="button"
               onClick={() => setIsGuestMode(false)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${!isGuestMode ? 'bg-white shadow-sm text-[#2C3E2D]' : 'text-gray-500 hover:text-[#2C3E2D]'}`}
+              className={`flex items-center gap-1.5 shrink-0 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${!isGuestMode ? 'bg-white shadow-sm text-[#2C3E2D]' : 'text-gray-500 hover:text-[#2C3E2D]'}`}
             >
               <Users className="w-4 h-4" />
               Existing Owner
@@ -3244,7 +3244,7 @@ function ClinicScheduleModal({
             <button
               type="button"
               onClick={() => { setIsGuestMode(true); setIsWalkIn(true) }}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${isGuestMode ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-[#2C3E2D]'}`}
+              className={`flex items-center gap-1.5 shrink-0 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${isGuestMode ? 'bg-white shadow-sm text-purple-700' : 'text-gray-500 hover:text-[#2C3E2D]'}`}
             >
               <UserPlus className="w-4 h-4" />
               Guest Intake
@@ -3255,9 +3255,9 @@ function ClinicScheduleModal({
           )}
         </div>
 
-        <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
+        <div className="flex flex-col sm:flex-row px-4 sm:px-8 pb-4 pt-4 gap-6 sm:gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
-          <div className="flex-1 space-y-5">
+          <div className="flex-1 min-w-0 space-y-5">
             {!isGuestMode && selectedPetIsDeceased && (
               <div className="bg-[#FFF5CB] rounded-lg p-3">
                 <p className="text-sm text-amber-800 font-medium">⚠️ This pet is marked as deceased</p>
@@ -3287,7 +3287,7 @@ function ClinicScheduleModal({
                   <p className="text-sm font-bold text-[#2C3E2D] mb-2 flex items-center gap-1.5">
                     <Users className="w-4 h-4" /> Owner Information
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">First Name <span className="text-[#900B09]">*</span></label>
                       <input type="text" value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
@@ -3306,8 +3306,9 @@ function ClinicScheduleModal({
                     </div>
                   </div>
                   {!guestEmail.trim() && (
-                    <p className="text-xs text-[#DD9730] mt-1.5 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Without email, owner status will be <strong>Unclaimable</strong> until updated later.
+                    <p className="text-xs text-[#DD9730] mt-1.5 flex items-start gap-1">
+                      <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span>Without email, owner status will be <strong>Unclaimable</strong> until updated later.</span>
                     </p>
                   )}
                 </div>
@@ -3317,7 +3318,7 @@ function ClinicScheduleModal({
                   <p className="text-sm font-bold text-[#2C3E2D] mb-2 flex items-center gap-1.5">
                     <PawPrint className="w-4 h-4" /> Pet Information
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">Pet Name <span className="text-[#900B09]">*</span></label>
                       <input type="text" value={guestPetName} onChange={e => setGuestPetName(e.target.value)} placeholder="e.g. Buddy" className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]" />
@@ -3363,7 +3364,7 @@ function ClinicScheduleModal({
 
             {/* Row 1: Pet + Mode — only shown for regular (non-guest) mode */}
             {!isGuestMode && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {!selectedOwner ? (
                   <div>
                     <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Select pet</p>
@@ -3420,7 +3421,7 @@ function ClinicScheduleModal({
             )}
 
             {/* Row 2: Branch + Vet */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {isClinicAdmin && adminBranch ? (
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Vet Clinic Branch</p>
@@ -3595,8 +3596,8 @@ function ClinicScheduleModal({
           </div>
 
           {/* Right: Time Table */}
-          <div className="w-65 shrink-0">
-            <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col gap-3">
+          <div className="w-full sm:w-65 shrink-0">
+            <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-100 sm:h-full flex flex-col gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
                 <DatePicker
@@ -3719,19 +3720,19 @@ function ClinicScheduleModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-center gap-4 px-8 py-4 shrink-0 border-t border-gray-100">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4 sm:px-8 py-4 shrink-0 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="w-full sm:w-auto px-8 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
           <button
             onClick={handleSubmit}
             disabled={submitting || (!isGuestMode && (selectedPetIsLost || selectedPetIsDeceased || selectedPetIsConfined))}
-            className={`px-8 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${isGuestMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#7FA5A3] hover:bg-[#6b9391]'}`}
+            className={`w-full sm:w-auto px-8 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${isGuestMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#7FA5A3] hover:bg-[#6b9391]'}`}
           >
             {submitting ? (isGuestMode ? 'Creating...' : 'Booking...') : isGuestMode ? 'Create Guest Appointment' : 'Set an appointment'}
-          </button>
-          <button
-            onClick={onClose}
-            className="px-8 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
-          >
-            Cancel
           </button>
         </div>
       </DialogContent>
