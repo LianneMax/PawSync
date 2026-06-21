@@ -16,7 +16,6 @@ import {
   User,
   Search,
   X,
-  CalendarDays,
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
 
@@ -239,7 +238,7 @@ export default function ClinicMedicalRecordsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <PageHeader
@@ -272,19 +271,20 @@ export default function ClinicMedicalRecordsPage() {
           </div>
 
           {/* Date range */}
-          <div className="flex items-center gap-3">
-            <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
-            <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <DatePicker
+                compact
                 value={dateFrom}
                 onChange={setDateFrom}
-                className="flex-1"
+                className="flex-1 min-w-0"
               />
-              <span className="text-gray-400 text-sm shrink-0">to</span>
+              <span className="text-gray-400 text-xs shrink-0">to</span>
               <DatePicker
+                compact
                 value={dateTo}
                 onChange={setDateTo}
-                className="flex-1"
+                className="flex-1 min-w-0"
               />
             </div>
             {hasFilters && (
@@ -293,7 +293,7 @@ export default function ClinicMedicalRecordsPage() {
                 className="text-xs text-gray-400 hover:text-[#476B6B] shrink-0 flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
-                Clear
+                <span className="hidden sm:inline">Clear</span>
               </button>
             )}
           </div>
@@ -356,7 +356,7 @@ export default function ClinicMedicalRecordsPage() {
                         {/* Pet row */}
                         <button
                           onClick={() => togglePet(pg.petId)}
-                          className="w-full flex items-center gap-3 pl-12 pr-5 py-3 hover:bg-gray-50 transition-colors text-left"
+                          className="w-full flex items-center gap-3 pl-6 sm:pl-12 pr-5 py-3 hover:bg-gray-50 transition-colors text-left"
                         >
                           <div className="w-8 h-8 bg-[#f7f0f7] rounded-xl flex items-center justify-center shrink-0">
                             <PawPrint className="w-4 h-4 text-[#6B4776]" />
@@ -381,7 +381,7 @@ export default function ClinicMedicalRecordsPage() {
                               <div
                                 key={rec._id}
                                 onClick={() => router.push(`/clinic-admin/medical-records/${rec._id}`)}
-                                className={`flex items-center gap-4 pl-20 pr-5 py-3 cursor-pointer hover:bg-[#f9fdfd] transition-colors ${ri > 0 ? 'border-t border-gray-50' : ''}`}
+                                className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-10 sm:pl-20 pr-5 py-3 cursor-pointer hover:bg-[#f9fdfd] transition-colors ${ri > 0 ? 'border-t border-gray-50' : ''}`}
                               >
                                 <div className="flex-1 min-w-0">
                                   {rec.visitSummary ? (
@@ -405,8 +405,8 @@ export default function ClinicMedicalRecordsPage() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="text-right shrink-0">
-                                  <div className="flex items-center gap-1 text-xs text-gray-400 justify-end">
+                                <div className="text-left sm:text-right shrink-0">
+                                  <div className="flex items-center gap-1 text-xs text-gray-400 justify-start sm:justify-end">
                                     <Clock className="w-3 h-3" />
                                     {formatDate(rec.createdAt)}
                                   </div>
