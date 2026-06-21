@@ -514,7 +514,7 @@ export default function VetAppointmentsPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all capitalize ${
+              className={`px-6 sm:px-12 py-2.5 rounded-full text-sm font-medium transition-all capitalize ${
                 activeTab === tab
                   ? 'bg-[#476B6B] text-white shadow-sm'
                   : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -534,24 +534,24 @@ export default function VetAppointmentsPage() {
             {/* Left: Calendar View */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden">
               {/* Date Navigation */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <button onClick={() => goToDay(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+              <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-4 border-b border-gray-100">
+                <button onClick={() => goToDay(-1)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                   <ChevronLeft className="w-5 h-5 text-gray-500" />
                 </button>
-                <div className="text-center">
-                  <p className="font-semibold text-[#4F4F4F]">{dateLabel}</p>
+                <div className="text-center min-w-0">
+                  <p className="font-semibold text-[#4F4F4F] text-sm sm:text-base">{dateLabel}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {confirmedForDate.length} appointment{confirmedForDate.length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <button onClick={() => goToDay(1)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <button onClick={() => goToDay(1)} className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                   <ChevronRight className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
 
               {/* Calendar Grid */}
-              <div className="overflow-x-auto">
-                <div className="min-w-125 relative">
+              <div className="overflow-x-auto md:overflow-x-visible">
+                <div className="w-full md:min-w-125 relative">
                   {/* Current Time Line */}
                   {isCurrentTimeVisible && (
                     <div
@@ -559,7 +559,7 @@ export default function VetAppointmentsPage() {
                       style={{ top: `calc(${timelinePercentage}%)` }}
                     >
                       <div className="relative flex items-center">
-                        <span className="w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-[#900B09] bg-white leading-none">
+                        <span className="w-14 sm:w-20 shrink-0 text-right pr-2 text-[10px] font-semibold text-[#900B09] bg-white leading-none">
                           {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                         </span>
                         <div className="flex-1 h-0.5 bg-[#F4D3D2] shadow-sm" />
@@ -576,11 +576,11 @@ export default function VetAppointmentsPage() {
                     return (
                       <div key={hour} className="flex border-b border-gray-50 min-h-18">
                         {/* Time label */}
-                        <div className="w-20 shrink-0 px-3 py-2 text-right">
+                        <div className="w-14 sm:w-20 shrink-0 px-2 sm:px-3 py-2 text-right">
                           <span className="text-xs text-gray-400 font-medium">{timeLabel}</span>
                         </div>
                         {/* Appointments */}
-                        <div className="flex-1 px-3 py-1.5 border-l border-gray-100">
+                        <div className="flex-1 min-w-0 px-2 sm:px-3 py-1.5 border-l border-gray-100">
                           {hourAppts.length === 0 ? (
                             <div className="h-full" />
                           ) : (
@@ -590,27 +590,27 @@ export default function VetAppointmentsPage() {
                                 return (
                                   <div
                                     key={appt._id}
-                                    className={`rounded-xl px-4 py-3 border-l-[3px] ${colors.border} ${colors.bg}`}
+                                    className={`rounded-xl px-3 sm:px-4 py-3 border-l-[3px] ${colors.border} ${colors.bg}`}
                                   >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex items-center gap-3">
+                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1.5">
+                                      <div className="flex items-center gap-3 min-w-0">
                                         {appt.petId?.photo ? (
-                                          <Image src={appt.petId.photo} alt="" width={36} height={36} sizes="36px" className="w-9 h-9 rounded-full object-cover" />
+                                          <Image src={appt.petId.photo} alt="" width={36} height={36} sizes="36px" className="w-9 h-9 rounded-full object-cover shrink-0" />
                                         ) : (
-                                          <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center">
+                                          <div className="w-9 h-9 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center shrink-0">
                                             <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
                                           </div>
                                         )}
-                                        <div>
-                                          <p className="text-sm font-semibold text-[#4F4F4F]">
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-semibold text-[#4F4F4F] truncate">
                                             {appt.petId?.name || 'Pet'}
                                           </p>
-                                          <p className="text-xs text-gray-500">
+                                          <p className="text-xs text-gray-500 truncate">
                                             Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName}
                                           </p>
                                         </div>
                                       </div>
-                                      <div className="text-right">
+                                      <div className="text-left sm:text-right pl-12 sm:pl-0 shrink-0">
                                         <span className="text-xs text-gray-500">
                                           {formatSlotTime(appt.startTime)} - {formatSlotTime(appt.endTime)}
                                         </span>
@@ -658,7 +658,7 @@ export default function VetAppointmentsPage() {
                                     )}
 
                                     {/* Actions */}
-                                    <div className="flex items-center gap-2 mt-2.5">
+                                    <div className="flex flex-wrap items-center justify-end gap-2 mt-2.5">
                                       {(appt.status === 'confirmed' || appt.status === 'rescheduled' || appt.status === 'in_clinic') && (
                                         <button
                                           onClick={() => handleCheckIn(appt)}
@@ -701,7 +701,7 @@ export default function VetAppointmentsPage() {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center justify-center gap-5 px-6 py-3 border-t border-gray-100 bg-gray-50">
+              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 sm:gap-x-5 px-3 sm:px-6 py-3 border-t border-gray-100 bg-gray-50">
                 {Object.entries(statusColors).map(([status, colors]) => (
                   <div key={status} className="flex items-center gap-1.5">
                     <div className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />

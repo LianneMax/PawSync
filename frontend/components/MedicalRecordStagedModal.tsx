@@ -2864,7 +2864,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       <div className="relative flex flex-col sm:flex-row items-stretch gap-3 w-full max-w-full sm:max-w-[88vw] h-full sm:h-[92vh] max-h-[95vh] sm:max-h-none overflow-y-auto sm:overflow-visible">
 
       {/* ===== MAIN MODAL ===== */}
-      <div className="order-3 sm:order-none bg-white rounded-3xl shadow-2xl flex-1 min-w-0 min-h-0 sm:h-full flex flex-col overflow-hidden">
+      <div className="order-1 sm:order-none bg-white rounded-3xl shadow-2xl flex-1 min-w-0 min-h-0 sm:h-full flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
@@ -6142,7 +6142,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       </Dialog>
 
       {/* ===== DRAWERS WRAPPER (mobile: row when both closed, else stacked; sm+: dissolves) ===== */}
-      <div className={`order-1 sm:order-none sm:contents flex gap-3 ${notesMinimized && historyMinimized ? 'flex-row' : 'flex-col'}`}>
+      <div className={`order-2 sm:order-none sm:contents flex gap-3 ${notesMinimized && historyMinimized ? 'flex-row' : 'flex-col'}`}>
 
       {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
       <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${notesMinimized ? `h-10 sm:w-10 ${historyMinimized ? 'flex-1 min-w-0' : 'w-full'}` : 'w-full h-56 sm:h-full sm:w-80'}`}>
