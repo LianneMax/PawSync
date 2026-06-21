@@ -518,7 +518,7 @@ function AddModal({ tab, token, branches, onClose, onSaved }: AddModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-5 sm:p-8 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -1476,7 +1476,7 @@ function EditModal({ tab, item, token, branches, onClose, onSaved }: EditModalPr
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-5 sm:p-8 relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -2101,7 +2101,7 @@ function EditVaccinePriceModal({ vaccine, token, onClose, onSaved }: EditVaccine
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 relative">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-5 sm:p-8 relative">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -2449,62 +2449,66 @@ function ProductServiceTab({ tab, token, isMainBranch, userBranchId, openAddRequ
       )}
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 flex-1 max-w-md bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder={`Search ${tab.toLowerCase()}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
+              className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
             />
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <div className="min-w-45">
-              <DropdownField
-                value={filterCategory}
-                onValueChange={setFilterCategory}
-                placeholder="All Categories"
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors w-full"
-                options={[
-                  { value: '', label: 'All Categories' },
-                  ...(isProducts ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES).map((cat) => ({ value: cat, label: cat })),
-                ]}
-              />
-            </div>
-            {branches.length > 0 && (
-              <div className="min-w-45">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:ml-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex-1 min-w-0 sm:flex-none sm:w-45">
                 <DropdownField
-                  value={filterBranch}
-                  onValueChange={setFilterBranch}
-                  placeholder="All Branches"
+                  value={filterCategory}
+                  onValueChange={setFilterCategory}
+                  placeholder="All Categories"
                   className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors w-full"
                   options={[
-                    { value: '', label: 'All Branches' },
-                    ...branches.map((b) => ({ value: b.id, label: `${b.name}${b.isMain ? ' (Main)' : ''}` })),
+                    { value: '', label: 'All Categories' },
+                    ...(isProducts ? PRODUCT_CATEGORIES : SERVICE_CATEGORIES).map((cat) => ({ value: cat, label: cat })),
                   ]}
                 />
               </div>
-            )}
-            {(filterCategory || filterBranch) && (
-              <button
-                onClick={() => { setFilterCategory(''); setFilterBranch('') }}
-                className="text-xs text-[#476B6B] hover:text-[#3D5E5C] font-medium transition-colors"
-              >
-                Clear
-              </button>
-            )}
-            {isMainBranch && (
-              <button
-                onClick={handleDelete}
-                disabled={selected.size === 0}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#900B09] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </button>
-            )}
+              {branches.length > 0 && (
+                <div className="flex-1 min-w-0 sm:flex-none sm:w-45">
+                  <DropdownField
+                    value={filterBranch}
+                    onValueChange={setFilterBranch}
+                    placeholder="All Branches"
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-600 outline-none focus:border-[#476B6B] transition-colors w-full"
+                    options={[
+                      { value: '', label: 'All Branches' },
+                      ...branches.map((b) => ({ value: b.id, label: `${b.name}${b.isMain ? ' (Main)' : ''}` })),
+                    ]}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 shrink-0 w-full sm:w-auto">
+              {(filterCategory || filterBranch) && (
+                <button
+                  onClick={() => { setFilterCategory(''); setFilterBranch('') }}
+                  className="text-xs text-[#476B6B] hover:text-[#3D5E5C] font-medium transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+              {isMainBranch && (
+                <button
+                  onClick={handleDelete}
+                  disabled={selected.size === 0}
+                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#900B09] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2906,18 +2910,18 @@ function VaccinesTab({ token }: { token: string | null }) {
       )}
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 flex-1 max-w-md bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder="Search vaccines..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
+              className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
             />
           </div>
-          <p className="text-xs text-gray-400 ml-auto">
+          <p className="text-xs text-gray-400 sm:ml-auto">
             Pulled from vaccine database · updates dynamically
           </p>
         </div>
@@ -3011,7 +3015,7 @@ export default function ProductManPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 min-h-screen">
+      <div className="p-4 sm:p-6 lg:p-8 min-h-screen">
         <PageHeader
           title="Product and Service Management"
           subtitle="Efficiently manage your clinic products, services, and vaccines"
