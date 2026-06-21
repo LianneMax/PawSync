@@ -368,8 +368,8 @@ function DashboardLayout({
     )
   }
 
-  // Pet Owner and Veterinarian get a mobile header + full-screen nav drawer in place of the sidebar
-  const showMobileNav = userData.userType === 'pet-owner' || userData.userType === 'veterinarian'
+  // All user types get a mobile header + full-screen nav drawer in place of the sidebar
+  const showMobileNav = true
 
   return (
     <div className="min-h-screen bg-[#F8F6F2]">

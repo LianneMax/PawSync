@@ -18,6 +18,13 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Smartphone, Search, FileText, Calendar, PawPrint,
   ChevronRight, Info, Clock, User, Syringe, Stethoscope,
   Pill, X, CheckCircle, AlertCircle,
@@ -819,14 +826,14 @@ function PatientDrawer({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className="p-0! flex flex-col max-w-none!"
-        style={{ width: `${drawerWidth}px`, maxWidth: 'none', transition: 'none' }}
+        className="p-0! flex flex-col max-w-none! w-screen"
+        style={{ width: `min(100vw, ${drawerWidth}px)`, maxWidth: 'none', transition: 'none' }}
         close={false}
       >
-        {/* Resize handle — drag from left edge to resize */}
+        {/* Resize handle — drag from left edge to resize (desktop mouse only) */}
         <div
           onMouseDown={handleResizeStart}
-          className="absolute left-0 top-0 bottom-0 w-5 z-20 cursor-col-resize group select-none"
+          className="hidden sm:block absolute left-0 top-0 bottom-0 w-5 z-20 cursor-col-resize group select-none"
           title="Drag to resize"
         >
           {/* Left border line */}
@@ -1119,19 +1126,42 @@ export default function PatientManagementPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 w-full max-w-none h-screen flex flex-col">
+      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-none h-screen flex flex-col">
         {/* Header */}
         <PageHeader
           title="Patient Management"
           subtitle="View and manage patient records and care information"
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         />
 
-        {/* Filters */}
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 overflow-x-auto min-w-0">
+        {/* Filters — dropdowns on mobile, pill bars from sm up */}
+        <div className="mb-4 sm:mb-6 grid grid-cols-2 gap-2 sm:hidden">
+          <Select value={speciesFilter} onValueChange={(v) => handleSpeciesChange(v as 'all' | 'canine' | 'feline')}>
+            <SelectTrigger size="md" className="rounded-lg border-[#DCEAE3]">
+              <SelectValue placeholder="Species" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Species</SelectItem>
+              <SelectItem value="canine">Dogs</SelectItem>
+              <SelectItem value="feline">Cats</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={(v) => handleStatusChange(v as PatientStatusFilter)}>
+            <SelectTrigger size="md" className="rounded-lg border-[#DCEAE3]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
+                <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="hidden sm:mb-6 sm:flex sm:flex-col sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex sm:items-center sm:gap-3 min-w-0">
             <span className="text-sm font-semibold text-[#2D5353] shrink-0">Species:</span>
-            <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 min-w-max">
+            <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1">
               {(['all', 'canine', 'feline'] as const).map((species) => (
                 <button
                   key={species}
@@ -1148,9 +1178,9 @@ export default function PatientManagementPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto min-w-0 lg:justify-end">
+          <div className="flex sm:items-center sm:gap-3 min-w-0 lg:justify-end">
             <span className="text-sm font-semibold text-[#2D5353] shrink-0">Status:</span>
-            <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 min-w-max">
+            <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1">
               {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
                 <button
                   key={status}
@@ -1168,31 +1198,33 @@ export default function PatientManagementPage() {
           </div>
         </div>
 
-        {/* Scan Buttons */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        {/* Scan Buttons — compact icon+label on mobile, full description from sm up */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <button
             onClick={() => handleStartScan('nfc')}
-            className="bg-white rounded-lg border border-dashed border-[#476B6B] px-6 py-4 flex items-center gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
+            className="bg-white rounded-lg border border-dashed border-[#476B6B] px-3 py-2.5 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
           >
-            <PawPrint className="w-8 h-8 text-[#476B6B] shrink-0" />
-            <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-[#476B6B]">Scan NFC Tag</p>
-              <p className="text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
+            <Smartphone className="w-5 h-5 sm:hidden text-[#476B6B] shrink-0" />
+            <PawPrint className="hidden sm:block w-8 h-8 text-[#476B6B] shrink-0" />
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-xs sm:text-sm font-semibold text-[#476B6B] truncate">Scan NFC Tag</p>
+              <p className="hidden sm:block text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center shrink-0">
+            <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[#476B6B] items-center justify-center shrink-0">
               <Smartphone className="w-5 h-5 text-white" />
             </div>
           </button>
           <button
             onClick={() => handleStartScan('qr')}
-            className="bg-white rounded-lg border border-dashed border-[#476B6B] px-6 py-4 flex items-center gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
+            className="bg-white rounded-lg border border-dashed border-[#476B6B] px-3 py-2.5 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-4 cursor-pointer hover:border-[#2D5353] hover:bg-gray-50 transition-all"
           >
-            <PawPrint className="w-8 h-8 text-[#476B6B] shrink-0" />
-            <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-[#476B6B]">Scan QR Code</p>
-              <p className="text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
+            <QrCode className="w-5 h-5 sm:hidden text-[#476B6B] shrink-0" />
+            <PawPrint className="hidden sm:block w-8 h-8 text-[#476B6B] shrink-0" />
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-xs sm:text-sm font-semibold text-[#476B6B] truncate">Scan QR Code</p>
+              <p className="hidden sm:block text-xs text-[#2D5353] mt-0.5">Tap the NFC tag or Scan the QR Code of the Patient to see their record</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-[#476B6B] flex items-center justify-center shrink-0">
+            <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[#476B6B] items-center justify-center shrink-0">
               <QrCode className="w-5 h-5 text-white" />
             </div>
           </button>
@@ -1201,9 +1233,9 @@ export default function PatientManagementPage() {
         {/* Patients List */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col shadow-md flex-1 w-full max-w-none">
           {/* Search & Actions Container */}
-          <div className="bg-white px-6 py-5 border-b border-[#EAECF0] shadow-sm shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
+          <div className="bg-white px-4 sm:px-6 py-4 sm:py-5 border-b border-[#EAECF0] shadow-sm shrink-0">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="relative flex-1 min-w-0">
                 <Search className="absolute left-4 top-3 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
@@ -1213,7 +1245,7 @@ export default function PatientManagementPage() {
                   className="w-full bg-white border border-gray-300 rounded-lg pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                 />
               </div>
-              <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap">
+              <button className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap w-full sm:w-auto">
                 <FileText className="w-4 h-4" />
                 Export
               </button>
@@ -1244,13 +1276,13 @@ export default function PatientManagementPage() {
                   <button
                     key={patient._id}
                     onClick={() => setSelectedPatient(patient)}
-                    className={`relative w-full hover:bg-gray-50 p-6 transition-colors text-left ${
+                    className={`relative w-full hover:bg-gray-50 p-4 sm:p-6 transition-colors text-left ${
                       selectedPatient?._id === patient._id ? 'bg-[#7FA5A3]/5 border-l-2 border-[#4A8A87]' : 'bg-white'
                     }`}
                   >
                     {petStatus && (
                       <Badge
-                        className={`absolute top-4 right-6 inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide border-0 ${
+                        className={`absolute top-3 right-4 sm:top-4 sm:right-6 inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide border-0 ${
                           getStatusBadgeClasses(petStatus)
                         }`}
                         style={petStatus === 'Lost' ? { backgroundColor: '#F4D3D2' } : undefined}
@@ -1259,10 +1291,10 @@ export default function PatientManagementPage() {
                       </Badge>
                     )}
 
-                    <div className="flex items-center justify-between gap-4 pr-24">
-                      <div className="flex gap-4 flex-1">
+                    <div className="flex items-center justify-between gap-3 sm:gap-4 pr-16 sm:pr-24">
+                      <div className="flex gap-3 sm:gap-4 flex-1 min-w-0">
                         {patient.photo ? (
-                          <div className="w-16 h-16 rounded-full overflow-hidden shrink-0">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden shrink-0">
                             <Image
                               src={patient.photo}
                               alt={patient.name}
@@ -1272,14 +1304,14 @@ export default function PatientManagementPage() {
                             />
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                            <PawPrint className="w-8 h-8 text-gray-400" />
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                            <PawPrint className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
                           </div>
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-[#4F4F4F] mb-1">{patient.name}</h3>
-                          <p className="text-sm text-gray-600 mb-3">
+                          <h3 className="font-semibold text-[#4F4F4F] mb-1 truncate">{patient.name}</h3>
+                          <p className="text-sm text-gray-600 mb-3 truncate">
                             {patient.breed} · {patient.species === 'canine' ? 'Dog' : 'Cat'} · {patient.sex === 'male' ? 'Male' : 'Female'}
                           </p>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
