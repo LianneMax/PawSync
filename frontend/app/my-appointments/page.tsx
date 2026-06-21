@@ -455,11 +455,11 @@ function MyAppointmentsPageContent() {
 
   return (
     <DashboardLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         {/* Header */}
         <div className="mb-2">
           <h1
-            className="text-[32px] text-[#476B6B]"
+            className="text-[24px] sm:text-[28px] md:text-[32px] text-[#476B6B]"
             style={{ fontFamily: 'var(--font-odor-mean-chey)' }}
           >
             Appointments
@@ -468,11 +468,11 @@ function MyAppointmentsPageContent() {
         </div>
 
         {/* Tabs + Action */}
-        <div className="flex items-center justify-between mt-6 mb-4">
-          <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 mb-4">
+          <div className="order-2 sm:order-1 flex bg-white rounded-full p-1.5 shadow-sm w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-initial px-6 sm:px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === 'upcoming'
                   ? 'bg-[#476B6B] text-white shadow-sm'
                   : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -482,7 +482,7 @@ function MyAppointmentsPageContent() {
             </button>
             <button
               onClick={() => setActiveTab('previous')}
-              className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-initial px-6 sm:px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === 'previous'
                   ? 'bg-[#476B6B] text-white shadow-sm'
                   : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -493,7 +493,7 @@ function MyAppointmentsPageContent() {
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors bg-[#7FA5A3] text-white hover:bg-[#6b9391]"
+            className="order-1 sm:order-2 flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors bg-[#7FA5A3] text-white hover:bg-[#6b9391] w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             Set an appointment
@@ -501,12 +501,12 @@ function MyAppointmentsPageContent() {
         </div>
 
         {/* Service Type Filter */}
-        <div className="inline-flex bg-white rounded-full p-1 shadow-sm mb-6 border border-gray-100">
+        <div className="flex w-full md:w-fit max-w-full bg-white rounded-full p-1 shadow-sm mb-6 border border-gray-100 overflow-x-auto">
           {(['all', 'medical', 'grooming'] as const).map((type) => (
             <button
               key={type}
               onClick={() => setServiceType(type)}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all capitalize ${
+              className={`flex-1 md:flex-initial whitespace-nowrap px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all capitalize ${
                 serviceType === type
                   ? 'bg-[#7FA5A3] text-white shadow-sm'
                   : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -517,8 +517,8 @@ function MyAppointmentsPageContent() {
           ))}
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
-          <div className="relative w-full md:max-w-md">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
+          <div className="relative w-full lg:max-w-md">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -578,8 +578,8 @@ function MyAppointmentsPageContent() {
             )}
           </div>
 
-          <div className="relative w-full md:w-auto">
-            <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-100 overflow-x-auto">
+          <div className="relative w-full lg:w-auto">
+            <div className="flex flex-wrap gap-2">
               {([
                 { value: 'today', label: 'Today' },
                 { value: 'week', label: 'This Week' },
@@ -594,10 +594,10 @@ function MyAppointmentsPageContent() {
                     setDateFilter(option.value)
                     setCustomDateOpen(option.value === 'custom')
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap shadow-sm border ${
                     dateFilter === option.value
-                      ? 'bg-[#7FA5A3] text-white shadow-sm'
-                      : 'text-[#4F4F4F] hover:bg-gray-50'
+                      ? 'bg-[#7FA5A3] text-white border-[#7FA5A3]'
+                      : 'bg-white text-[#4F4F4F] border-gray-100 hover:bg-gray-50'
                   }`}
                 >
                   {option.label}
@@ -612,7 +612,7 @@ function MyAppointmentsPageContent() {
                     setCustomStartDate('')
                     setCustomEndDate('')
                   }}
-                  className="px-3 py-2 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  className="px-3 py-2 rounded-full text-sm font-medium text-gray-500 bg-white border border-gray-100 hover:bg-gray-50 whitespace-nowrap"
                 >
                   Clear
                 </button>
@@ -620,8 +620,8 @@ function MyAppointmentsPageContent() {
             </div>
 
             {dateFilter === 'custom' && customDateOpen && (
-              <div className="absolute right-0 mt-2 w-full md:w-130 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 z-20">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="absolute right-0 mt-2 w-full lg:w-130 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 z-20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-1">Start Date</p>
                     <DatePicker
@@ -698,21 +698,21 @@ function MyAppointmentsPageContent() {
           <div className="md:max-h-[calc(100vh-22rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
             <div className="space-y-4">
               {filteredAppointments.map((appt) => (
-                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div key={appt._id} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                     {appt.petId?.photo ? (
-                      <Image src={appt.petId.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover" />
+                      <Image src={appt.petId.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover shrink-0" />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
                         <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
                       </div>
                     )}
-                    <div>
-                      <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                      <p className="text-xs text-gray-500">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#4F4F4F] truncate">{appt.petId?.name || 'Pet'}</p>
+                      <p className="text-xs text-gray-500 truncate">
                         Dr. {appt.vetId?.firstName} {appt.vetId?.lastName} &middot; {appt.clinicBranchId?.name || appt.clinicId?.name}
                       </p>
-                      <div className="flex items-center gap-3 mt-1">
+                      <div className="flex flex-wrap items-center gap-3 mt-1">
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
                         </span>
@@ -722,13 +722,13 @@ function MyAppointmentsPageContent() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-end md:shrink-0">
                     <div className="flex flex-wrap gap-1">
                       {appt.types.map((t) => (
                         <span key={t} className="px-2 py-0.5 text-xs rounded-full bg-[#7FA5A3]/10 text-[#5A7C7A] capitalize">{formatAppointmentTypeDisplay(t)}</span>
                       ))}
                     </div>
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full shrink-0 ${
                       getDisplayStatus(appt) === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
                       getDisplayStatus(appt) === 'in_clinic' ? 'bg-yellow-100 text-yellow-700' :
                       getDisplayStatus(appt) === 'confirmed' ? 'bg-green-100 text-green-700' :
@@ -1477,21 +1477,21 @@ function ScheduleModal({
       <DialogContent className="max-w-225 max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
         <DialogTitle className="sr-only">Schedule Appointment</DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between px-8 pt-8 pb-2 shrink-0">
-          <h2 className="text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
+        <div className="flex items-center justify-between px-4 sm:px-8 pt-6 sm:pt-8 pb-2 shrink-0">
+          <h2 className="text-xl sm:text-2xl text-[#476B6B]" style={{ fontFamily: 'var(--font-odor-mean-chey)' }}>
             Schedule Appointment
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
           >
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
-        <div className="flex px-8 pb-4 pt-4 gap-8 overflow-y-auto flex-1">
+        <div className="flex flex-col md:flex-row px-4 sm:px-8 pb-4 pt-4 gap-6 md:gap-8 overflow-y-auto flex-1">
           {/* Left: Form Fields */}
-          <div className="flex-1 space-y-5">
+          <div className="flex-1 space-y-5 min-w-0">
             {selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased') && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-sm text-amber-800 font-medium">⚠️ This pet is marked as deceased</p>
@@ -1538,7 +1538,7 @@ function ScheduleModal({
             })()}
 
             {/* Row 1: Pet + Branch */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Dropdown
                 label="Select pet"
                 value={selectedPetId}
@@ -1581,7 +1581,7 @@ function ScheduleModal({
             </div>
 
             {/* Row 2: Mode + Vet */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Dropdown
                 label="Mode of Appointment"
                 value={mode}
@@ -1684,7 +1684,7 @@ function ScheduleModal({
           </div>
 
           {/* Right: Time Table */}
-          <div className="w-65 shrink-0">
+          <div className="w-full md:w-65 md:shrink-0">
             <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 h-full flex flex-col gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
@@ -1806,17 +1806,17 @@ function ScheduleModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-center gap-4 px-8 pb-8 shrink-0">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4 sm:px-8 pb-6 sm:pb-8 shrink-0">
           <button
             onClick={handleSubmit}
             disabled={submitting || Boolean(selectedPet?.isLost) || Boolean(selectedPet && (!selectedPet.isAlive || selectedPet.status === 'deceased'))}
-            className="px-8 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
+            className="w-full sm:w-auto px-8 py-2.5 bg-[#7FA5A3] text-white rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
           >
             {submitting ? 'Booking...' : 'Set an appointment'}
           </button>
           <button
             onClick={onClose}
-            className="px-8 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
+            className="w-full sm:w-auto px-8 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
