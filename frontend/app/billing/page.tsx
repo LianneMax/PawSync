@@ -456,14 +456,14 @@ function VetBilling() {
   })
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8">
       <PageHeader
         title="Client Billing"
         subtitle="View billing records for your clients"
         className="mb-8"
       />
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-4">
           <div className="flex-1 max-w-md relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -477,7 +477,8 @@ function VetBilling() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        {/* Table — sm and up */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-gray-200">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -538,6 +539,67 @@ function VetBilling() {
               })}
             </tbody>
           </table>
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-12">
+              <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No billing records found</p>
+            </div>
+          )}
+        </div>
+
+        {/* Cards — below sm */}
+        <div className="sm:hidden">
+          {loading && <div className="py-12 text-center text-sm text-gray-400">Loading...</div>}
+          {!loading && filtered.length > 0 && (
+            <div className="space-y-3">
+              {filtered.map((b) => {
+                const adminStatus = mapAdminStatus(b)
+                return (
+                  <div key={b._id} className="border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <button
+                        onClick={() => setViewingBilling(b)}
+                        className="flex items-center gap-2 min-w-0 text-left"
+                        title="View Invoice"
+                        aria-label={`View invoice for ${b.ownerId?.firstName || ''} ${b.ownerId?.lastName || ''}`.trim() || 'client'}
+                      >
+                        <Eye className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className="text-sm font-medium text-[#7FA5A3] truncate">{b.ownerId?.firstName} {b.ownerId?.lastName}</span>
+                      </button>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getAdminStatusStyle(adminStatus)}`}>
+                        {adminStatus}
+                      </span>
+                    </div>
+                    <div className="text-sm text-[#4F4F4F] space-y-1.5 mb-3">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Patient</span>
+                        <span className="truncate text-right">{b.petId?.name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Service</span>
+                        <span className="truncate text-right">{b.serviceLabel || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Date</span>
+                        <span className="text-right">{formatDate(b.serviceDate)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2 font-medium">
+                        <span className="text-gray-500 font-normal">Amount</span>
+                        <span className="text-right">{formatCurrency(b.totalAmountDue)}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setViewingBilling(b)}
+                      className="w-full inline-flex items-center justify-center px-3 py-2 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1" />
+                      {b.status === 'paid' ? 'Print Receipt' : 'View / Print'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
           {!loading && filtered.length === 0 && (
             <div className="text-center py-12">
               <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -2840,14 +2902,14 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 sm:p-6 md:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
         <PageHeader
           title="Billing and Invoicing"
           subtitle="Manage invoices, payments, and QR billing workflows"
           className="mb-0"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowViewQRModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-[#3D5E5C] text-[#3D5E5C] hover:bg-[#f0f7f7] text-sm font-medium rounded-xl shadow-sm transition-colors"
@@ -2868,13 +2930,13 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
       {showQRModal && <UploadQRModal onClose={() => setShowQRModal(false)} />}
       {showViewQRModal && <ViewQRsModal onClose={() => setShowViewQRModal(false)} />}
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-[#4F4F4F]">Invoices</h2>
         </div>
 
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             {([
               { value: 'all', label: 'All' },
               { value: 'running', label: 'Running' },
@@ -2907,8 +2969,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           </div>
         </div>
 
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div className="flex-1 min-w-0 max-w-sm relative">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
+          <div className="w-full sm:flex-1 sm:min-w-0 sm:max-w-sm relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -2918,8 +2980,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
               className="w-full h-11 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:bg-white"
             />
           </div>
-          <div className="flex items-center gap-6 shrink-0">
-            <div className="w-40 flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 sm:shrink-0">
+            <div className="w-full sm:w-40 flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500 shrink-0">From</span>
               <DatePicker
                 value={startDateFilter}
@@ -2930,7 +2992,7 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
                 className="w-full min-w-0"
               />
             </div>
-            <div className="w-40 flex items-center gap-2">
+            <div className="w-full sm:w-40 flex items-center gap-2">
               <span className="text-xs font-medium text-gray-500 shrink-0">To</span>
               <DatePicker
                 value={endDateFilter}
@@ -2944,7 +3006,8 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-200 min-h-130">
+        {/* Table — sm and up */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-gray-200 min-h-130">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -3039,12 +3102,110 @@ function ClinicAdminBilling({ currentUser }: { currentUser: { clinicId?: string;
 
         </div>
 
+        {/* Cards — below sm */}
+        <div className="sm:hidden">
+          {loading && <div className="py-12 text-center text-sm text-gray-400">Loading...</div>}
+          {!loading && displayedInvoices.length > 0 && (
+            <div className="space-y-3">
+              {displayedInvoices.map((b) => {
+                const status = mapAdminStatus(b)
+                const canMarkPaid = isPayableBilling(b)
+                return (
+                  <div key={b._id} className="border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          onClick={() => setViewingBilling(b)}
+                          className="text-gray-400 hover:text-[#476B6B] transition-colors shrink-0"
+                          title="View billing details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <Link
+                          href={`/clinic-admin/clients/${b.ownerId?._id}`}
+                          className="text-sm font-medium text-[#7FA5A3] hover:text-[#6A8E8C] underline truncate"
+                        >
+                          {b.ownerId?.firstName} {b.ownerId?.lastName}
+                        </Link>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getAdminStatusStyle(status)}`}>
+                        {status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-[#4F4F4F] space-y-1.5 mb-3">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Patient</span>
+                        <span className="truncate text-right">{b.petId?.name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Veterinarian</span>
+                        <span className="truncate text-right">{formatVetDisplay(b.vetId) || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Branch</span>
+                        <span className="truncate text-right">{b.clinicBranchId?.name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Service</span>
+                        <span className="truncate text-right">{b.serviceLabel || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Date</span>
+                        <span className="text-right">{formatDate(b.serviceDate || b.createdAt)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2 font-medium">
+                        <span className="text-gray-500 font-normal">Amount Due</span>
+                        <span className="text-right">{formatCurrency(b.totalAmountDue)}</span>
+                      </div>
+                    </div>
+                    {(canMarkPaid || b.status === 'paid') && (
+                      <div className="flex items-center gap-2">
+                        {canMarkPaid && b.pendingQrApproval && (
+                          <button
+                            onClick={() => setApprovingQrBilling(b)}
+                            className="flex-1 inline-flex items-center justify-center px-2.5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Approve Payment
+                          </button>
+                        )}
+                        {canMarkPaid && !b.pendingQrApproval && (
+                          <button
+                            onClick={() => setMarkingPaidBilling(b)}
+                            className="flex-1 inline-flex items-center justify-center px-2.5 py-2 bg-[#35785C] hover:bg-[#2a6049] text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
+                        {b.status === 'paid' && (
+                          <button
+                            onClick={() => setViewingBilling(b)}
+                            className="flex-1 inline-flex items-center justify-center px-2.5 py-2 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5 mr-1" />
+                            Print Receipt
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {!loading && filteredData.length === 0 && (
+            <div className="text-center py-12">
+              <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">No invoices available.</p>
+            </div>
+          )}
+        </div>
+
         {!loading && filteredData.length > 0 && (
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-gray-500">
               Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredData.length)} of {filteredData.length}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safeCurrentPage <= 1}
