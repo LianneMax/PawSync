@@ -388,16 +388,16 @@ export default function SurgeryAppointmentModal({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[95vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col [&>button]:hidden">
-        <DialogHeader className="px-8 py-6 border-b border-gray-200">
-          <DialogTitle className="text-2xl text-[#2C3E2D]">Schedule Surgery</DialogTitle>
+        <DialogHeader className="px-4 sm:px-8 py-4 sm:py-6 border-b border-gray-200">
+          <DialogTitle className="text-xl sm:text-2xl text-[#2C3E2D]">Schedule Surgery</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-8">
-          <div className="flex gap-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+          <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
             {/* Left side: Form fields */}
-            <div className="flex-1 space-y-6">
+            <div className="flex-1 min-w-0 space-y-6">
               {/* First row: Pet info and Branch */}
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                 {/* Pet Info (read-only display) */}
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Pet</p>
@@ -426,7 +426,7 @@ export default function SurgeryAppointmentModal({
               </div>
 
               {/* Second row: Mode and Vet */}
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                 {/* Mode of Appointment */}
                 <div>
                   <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Mode of Appointment</p>
@@ -544,7 +544,7 @@ export default function SurgeryAppointmentModal({
             </div>
 
             {/* Right side: Time slots */}
-            <div className="w-80 flex flex-col">
+            <div className="w-full sm:w-80 shrink-0 flex flex-col">
               <div className="mb-3">
                 <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Date</p>
                 <DatePicker
@@ -653,17 +653,17 @@ export default function SurgeryAppointmentModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-gray-200 px-8 py-4 flex gap-2 justify-center">
+        <DialogFooter className="border-t border-gray-200 px-4 sm:px-8 py-3 sm:py-4 flex flex-col sm:flex-row gap-2 justify-center">
           <button
             onClick={() => onOpenChange(false)}
-            className="px-8 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+            className="px-4 sm:px-8 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting || !selectedServices.length || !date || !selectedVetId || !selectedSlot}
-            className="flex items-center gap-2 px-8 py-2.5 bg-[#5A7C7A] text-white rounded-full text-sm font-medium hover:bg-[#4a6a6a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 bg-[#5A7C7A] text-white rounded-full text-sm font-medium hover:bg-[#4a6a6a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Set an appointment

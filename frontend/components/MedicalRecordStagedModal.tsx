@@ -2861,10 +2861,10 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="flex items-stretch gap-3 w-full max-w-[88vw] h-[92vh]">
+      <div className="relative flex flex-col sm:flex-row items-stretch gap-3 w-full max-w-full sm:max-w-[88vw] h-full sm:h-[92vh] max-h-[95vh] sm:max-h-none overflow-y-auto sm:overflow-visible">
 
       {/* ===== MAIN MODAL ===== */}
-      <div className="bg-white rounded-3xl shadow-2xl flex-1 min-w-0 h-full flex flex-col overflow-hidden">
+      <div className="order-3 sm:order-none bg-white rounded-3xl shadow-2xl flex-1 min-w-0 min-h-0 sm:h-full flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
@@ -5854,48 +5854,53 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         </div>
 
         {/* Footer actions */}
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between shrink-0 bg-white">
+        <div className="px-3 sm:px-6 py-2.5 sm:py-4 border-t border-gray-100 flex items-center justify-between gap-1.5 sm:gap-2 shrink-0 bg-white">
           <button
             onClick={handleSaveAndClose}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
+            title="Save & Close"
+            className="flex items-center justify-center gap-2 px-2.5 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60 shrink-0"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save & Close
+            <span className="hidden sm:inline">Save & Close</span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             {step > 1 && (
               <button
                 onClick={async () => {
                   if (step === 3 && isVaccinationAppt) await trySaveVaccinations()
                   setStep((s) => (s - 1) as StepKey)
                 }}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                title="Back"
+                className="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shrink-0"
               >
-                ← Back
+                <ChevronLeft className="w-4 h-4 sm:hidden" />
+                <span className="hidden sm:inline">← Back</span>
               </button>
             )}
             {step === 1 && !isClinicAdmin && (
               <button
                 onClick={handleProceedStep1}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
+                className="flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2 bg-[#476B6B] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 min-w-0"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Proceed to Consultation
-                <ChevronRight className="w-4 h-4" />
+                {saving ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : null}
+                <span className="sm:hidden truncate">Continue</span>
+                <span className="hidden sm:inline">Proceed to Consultation</span>
+                <ChevronRight className="w-4 h-4 shrink-0" />
               </button>
             )}
             {step === 2 && (
               <button
                 onClick={handleProceedStep2}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60"
+                className="flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2 bg-[#476B6B] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 min-w-0"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isVaccinationAppt ? 'Proceed to Vaccination' : isSurgeryAppt ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}
-                <ChevronRight className="w-4 h-4" />
+                {saving ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : null}
+                <span className="sm:hidden truncate">Continue</span>
+                <span className="hidden sm:inline">{isVaccinationAppt ? 'Proceed to Vaccination' : isSurgeryAppt ? 'Proceed to Surgery' : 'Proceed to Post-Procedure'}</span>
+                <ChevronRight className="w-4 h-4 shrink-0" />
               </button>
             )}
             {step === 3 && isVaccinationAppt && (() => {
@@ -5915,11 +5920,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 onClick={handleProceedStep3Vaccination}
                 disabled={saving || hasAgeError || hasDateError}
                 title={hasAgeError ? 'One or more vaccines: pet age is outside the allowed range' : hasDateError ? 'Fix date errors before proceeding' : undefined}
-                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2 bg-[#476B6B] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed min-w-0"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Proceed to Post-Procedure
-                <ChevronRight className="w-4 h-4" />
+                {saving ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : null}
+                <span className="sm:hidden truncate">Continue</span>
+                <span className="hidden sm:inline">Proceed to Post-Procedure</span>
+                <ChevronRight className="w-4 h-4 shrink-0" />
               </button>
               )
             })()}
@@ -5928,23 +5934,29 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 onClick={handleProceedStep3Surgery}
                 disabled={saving || !surgeryTypeId || !surgeryVetRemarks.trim()}
                 title={!surgeryTypeId ? 'Please select a surgery type' : !surgeryVetRemarks.trim() ? 'Please enter vet remarks' : undefined}
-                className="flex items-center gap-2 px-5 py-2 bg-[#476B6B] text-white rounded-xl text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2 bg-[#476B6B] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#3a5858] transition-colors disabled:opacity-60 disabled:cursor-not-allowed min-w-0"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Proceed to Post-Procedure
-                <ChevronRight className="w-4 h-4" />
+                {saving ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : null}
+                <span className="sm:hidden truncate">Continue</span>
+                <span className="hidden sm:inline">Proceed to Post-Procedure</span>
+                <ChevronRight className="w-4 h-4 shrink-0" />
               </button>
             )}
             {((step === 3 && !isVaccinationAppt && !isSurgeryAppt) || step === 4) && (
               <button
                 onClick={handleCompleteClick}
                 disabled={completing}
-                className="flex items-center gap-2 px-5 py-2 bg-[#35785C] text-white rounded-xl text-sm font-medium hover:bg-[#2a6049] transition-colors disabled:opacity-60"
+                className="flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2 bg-[#35785C] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#2a6049] transition-colors disabled:opacity-60 min-w-0"
               >
-                {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                {confined
-                  ? (recordStage === 'confined' ? 'Save Confinement Update' : 'Admit & Close Visit')
-                  : (recordStage === 'confined' ? 'Release & Complete Visit' : 'Complete Record & Finish Visit')}
+                {completing ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
+                <span className="sm:hidden truncate">
+                  {confined ? (recordStage === 'confined' ? 'Save' : 'Admit') : (recordStage === 'confined' ? 'Release' : 'Complete')}
+                </span>
+                <span className="hidden sm:inline">
+                  {confined
+                    ? (recordStage === 'confined' ? 'Save Confinement Update' : 'Admit & Close Visit')
+                    : (recordStage === 'confined' ? 'Release & Complete Visit' : 'Complete Record & Finish Visit')}
+                </span>
               </button>
             )}
           </div>
@@ -6129,20 +6141,21 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         </DialogContent>
       </Dialog>
 
+      {/* ===== DRAWERS WRAPPER (mobile: row when both closed, else stacked; sm+: dissolves) ===== */}
+      <div className={`order-1 sm:order-none sm:contents flex gap-3 ${notesMinimized && historyMinimized ? 'flex-row' : 'flex-col'}`}>
+
       {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
-      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${notesMinimized ? 'w-10' : 'w-80'}`}>
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${notesMinimized ? `h-10 sm:w-10 ${historyMinimized ? 'flex-1 min-w-0' : 'w-full'}` : 'w-full h-56 sm:h-full sm:w-80'}`}>
         {notesMinimized ? (
           <button
             onClick={() => setNotesMinimized(false)}
-            className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+            className="flex flex-row sm:flex-col items-center justify-between sm:justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-4 sm:px-1"
           >
-            <ChevronLeft className="w-4 h-4 shrink-0" />
-            <span
-              className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
-              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-            >
+            <span className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B] sm:[writing-mode:vertical-rl] sm:[transform:rotate(180deg)]">
               Vet Notes
             </span>
+            <ChevronDown className="w-4 h-4 shrink-0 sm:hidden" />
+            <ChevronLeft className="hidden sm:block w-4 h-4 shrink-0" />
           </button>
         ) : (
           <>
@@ -6159,7 +6172,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
                   title="Minimize"
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronUp className="w-3.5 h-3.5 sm:hidden" />
+                  <ChevronRight className="hidden sm:block w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -6185,19 +6199,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       </div>
 
       {/* ===== HISTORICAL MEDICAL RECORD PANEL (right, collapsible) ===== */}
-      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full transition-all duration-200 shrink-0 ${historyMinimized ? 'w-10' : 'w-96'}`}>
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${historyMinimized ? `h-10 sm:w-10 ${notesMinimized ? 'flex-1 min-w-0' : 'w-full'}` : 'absolute inset-0 z-20 sm:static sm:z-auto sm:h-full sm:w-96'}`}>
         {historyMinimized ? (
           <button
             onClick={() => setHistoryMinimized(false)}
-            className="flex flex-col items-center justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-1"
+            className="flex flex-row sm:flex-col items-center justify-between sm:justify-center h-full gap-3 text-[#476B6B] hover:bg-gray-50 w-full px-4 sm:px-1"
           >
-            <ChevronLeft className="w-4 h-4 shrink-0" />
-            <span
-              className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B]"
-              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-            >
+            <span className="text-[10px] font-semibold tracking-widest uppercase text-[#476B6B] sm:[writing-mode:vertical-rl] sm:[transform:rotate(180deg)]">
               History
             </span>
+            <ChevronDown className="w-4 h-4 shrink-0 sm:hidden" />
+            <ChevronLeft className="hidden sm:block w-4 h-4 shrink-0" />
           </button>
         ) : (
           <>
@@ -6211,7 +6223,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                 className="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
                 title="Minimize"
               >
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronUp className="w-3.5 h-3.5 sm:hidden" />
+                <ChevronRight className="hidden sm:block w-3.5 h-3.5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
@@ -6225,6 +6238,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
           </>
         )}
       </div>
+
+      </div>
+      {/* end drawers wrapper */}
 
       {/* Surgery Appointment Modal (Care Plan path — schedule only, no procedure recording) */}
       <SurgeryAppointmentModal
