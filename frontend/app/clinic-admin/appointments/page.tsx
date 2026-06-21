@@ -68,6 +68,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DatePicker } from '@/components/ui/date-picker'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { BreedCombobox } from '@/components/ui/breed-combobox'
 import AppointmentServiceSelector from '@/components/AppointmentServiceSelector'
 
@@ -1668,17 +1675,98 @@ function ClinicAdminAppointmentsContent() {
 
   return (
     <DashboardLayout userType="clinic-admin">
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <PageHeader
           title="Appointments"
           subtitle="Manage and schedule appointments for your clinic"
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         />
 
-        {/* Row 1: Tabs + Action */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="inline-flex bg-white rounded-full p-1.5 shadow-sm">
+        {/* Mobile-only controls: actions → tabs → filter dropdowns (single line) */}
+        <div className="sm:hidden">
+          <div className="grid grid-cols-2 gap-2 mb-6">
+            <button
+              onClick={() => setNfcScanModalOpen(true)}
+              className="flex items-center justify-center gap-2 border border-[#7FA5A3] text-[#7FA5A3] px-3 py-2 rounded-xl text-xs font-medium hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all"
+            >
+              <LogIn className="w-4 h-4 shrink-0" />
+              <span className="truncate">Scan Check-in</span>
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center justify-center gap-2 bg-[#7FA5A3] text-white px-3 py-2 rounded-xl text-xs font-medium hover:bg-[#6b9391] transition-colors"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span className="truncate">Set an appointment</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 bg-white rounded-full p-1.5 shadow-sm mb-3">
+            <button
+              onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}
+              className={`px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'upcoming'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              Upcoming
+            </button>
+            <button
+              onClick={() => { setActiveTab('previous'); setViewMode('list') }}
+              className={`px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'previous'
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-gray-50'
+              }`}
+            >
+              Previous
+            </button>
+          </div>
+
+          <div className="flex gap-2 mb-6">
+            <Select value={scheduleType} onValueChange={(v) => setScheduleType(v as 'medical' | 'grooming')}>
+              <SelectTrigger size="sm" className="flex-1 min-w-0 rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="medical">Medical Services</SelectItem>
+                <SelectItem value="grooming">Clinic Services</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {activeTab === 'upcoming' && (
+              <Select value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'calendar')}>
+                <SelectTrigger size="sm" className="flex-1 min-w-0 rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="calendar">Calendar</SelectItem>
+                  <SelectItem value="list">List</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {isMainBranchAdmin && branches.length > 0 && (
+              <Select value={selectedBranchFilter} onValueChange={setSelectedBranchFilter}>
+                <SelectTrigger size="sm" className="flex-1 min-w-0 rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch._id} value={branch._id}>{branch.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
+
+        {/* Row 1: Tabs + Action (sm and up) */}
+        <div className="hidden sm:flex sm:items-center sm:justify-between mb-4">
+          <div className="sm:inline-flex bg-white rounded-full p-1.5 shadow-sm">
             <button
               onClick={() => { setActiveTab('upcoming'); setViewMode('calendar') }}
               className={`px-12 py-2.5 rounded-full text-sm font-medium transition-all ${
@@ -1703,29 +1791,29 @@ function ClinicAdminAppointmentsContent() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setNfcScanModalOpen(true)}
-              className="flex items-center gap-2 border border-[#7FA5A3] text-[#7FA5A3] px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all"
+              className="flex items-center justify-center gap-2 border border-[#7FA5A3] text-[#7FA5A3] px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#7FA5A3]/5 hover:border-[#5A8280] transition-all"
             >
-              <LogIn className="w-4 h-4" />
-              Scan Check-in
+              <LogIn className="w-4 h-4 shrink-0" />
+              <span className="truncate">Scan Check-in</span>
             </button>
             <button
               onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
+              className="flex items-center justify-center gap-2 bg-[#7FA5A3] text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-[#6b9391] transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Set an appointment
+              <Plus className="w-4 h-4 shrink-0" />
+              <span className="truncate">Set an appointment</span>
             </button>
           </div>
         </div>
 
-        {/* Row 2: Schedule type + view toggle */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        {/* Row 2: Schedule type + view toggle (sm and up) */}
+        <div className="hidden sm:flex sm:items-center sm:justify-between mb-6">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Schedule Type Toggle */}
             <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-100">
               <button
                 onClick={() => setScheduleType('medical')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`px-3 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
                   scheduleType === 'medical'
                     ? 'bg-[#7FA5A3] text-white shadow-sm'
                     : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -1735,7 +1823,7 @@ function ClinicAdminAppointmentsContent() {
               </button>
               <button
                 onClick={() => setScheduleType('grooming')}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`px-3 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
                   scheduleType === 'grooming'
                     ? 'bg-[#7FA5A3] text-white shadow-sm'
                     : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -1788,7 +1876,7 @@ function ClinicAdminAppointmentsContent() {
           </div>
 
           {activeTab === 'upcoming' && (
-            <div className="inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1">
+            <div className="inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1 self-start sm:self-auto">
               <button
                 onClick={() => setViewMode('calendar')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
@@ -1915,7 +2003,7 @@ function ClinicAdminAppointmentsContent() {
               </div>
 
               <div className="relative w-full md:w-auto">
-                <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-100 overflow-x-auto">
+                <div className="flex flex-wrap gap-1 bg-white rounded-2xl md:rounded-full p-1 shadow-sm border border-gray-100">
                   {([
                     { value: 'today', label: 'Today' },
                     { value: 'week', label: activeTab === 'upcoming' ? 'This Week' : 'One Week Ago' },
@@ -1930,7 +2018,7 @@ function ClinicAdminAppointmentsContent() {
                         setDateFilter(option.value)
                         setCustomDateOpen(option.value === 'custom')
                       }}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                      className={`px-3 sm:px-4 py-2 rounded-xl md:rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                         dateFilter === option.value
                           ? 'bg-[#7FA5A3] text-white shadow-sm'
                           : 'text-[#4F4F4F] hover:bg-gray-50'
@@ -1948,7 +2036,7 @@ function ClinicAdminAppointmentsContent() {
                         setCustomEndDate('')
                         setCustomDateOpen(false)
                       }}
-                      className="px-3 py-2 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      className="px-3 py-2 rounded-xl md:rounded-full text-xs sm:text-sm font-medium text-gray-500 hover:bg-gray-50"
                     >
                       Clear
                     </button>
@@ -2054,21 +2142,21 @@ function ClinicAdminAppointmentsContent() {
           <div className="md:max-h-[calc(100vh-24rem)] md:overflow-y-auto md:pr-2 md:pb-2 scroll-smooth">
             <div className="space-y-4">
               {displayedAppointments.map((appt) => (
-                <div key={appt._id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div key={appt._id} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     {appt.petId?.photo ? (
-                      <Image src={appt.petId.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover" />
+                      <Image src={appt.petId.photo} alt="" width={48} height={48} sizes="48px" className="w-12 h-12 rounded-full object-cover shrink-0" />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-[#7FA5A3]/10 flex items-center justify-center shrink-0">
                         <PawPrint className="w-6 h-6 text-[#5A7C7A]" />
                       </div>
                     )}
-                    <div>
-                      <p className="font-semibold text-[#4F4F4F]">{appt.petId?.name || 'Pet'}</p>
-                      <p className="text-xs text-gray-500">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#4F4F4F] truncate">{appt.petId?.name || 'Pet'}</p>
+                      <p className="text-xs text-gray-500 truncate">
                         Owner: {appt.ownerId?.firstName} {appt.ownerId?.lastName} &middot; Dr. {appt.vetId?.firstName} {appt.vetId?.lastName}
                       </p>
-                      <div className="flex items-center gap-3 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> {formatDate(appt.date)}
                         </span>
@@ -2087,7 +2175,7 @@ function ClinicAdminAppointmentsContent() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-start sm:items-end gap-2 sm:gap-3">
                     <div className="flex flex-wrap gap-1">
                       {appt.isEmergency && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#F4D3D2] text-[#900B09]">Emergency</span>
@@ -2131,7 +2219,7 @@ function ClinicAdminAppointmentsContent() {
                     </span>
                     {activeTab === 'upcoming' && (
                       scheduleType === 'grooming' ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
                           {(appt.status === 'confirmed' || appt.status === 'pending') && (
                             <>
                               <button
