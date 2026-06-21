@@ -193,14 +193,14 @@ function PetOwnerBilling() {
   })
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8">
       <PageHeader
         title="My Invoices"
         subtitle="View and manage your billing history"
         className="mb-8"
       />
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-4">
           <div className="flex-1 max-w-md relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -214,7 +214,8 @@ function PetOwnerBilling() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        {/* Table — sm and up */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-gray-200">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -290,6 +291,86 @@ function PetOwnerBilling() {
               })}
             </tbody>
           </table>
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-12">
+              <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No invoices found</p>
+            </div>
+          )}
+        </div>
+
+        {/* Cards — below sm */}
+        <div className="sm:hidden">
+          {loading && <div className="py-12 text-center text-sm text-gray-400">Loading...</div>}
+          {!loading && filtered.length > 0 && (
+            <div className="space-y-3">
+              {filtered.map((b) => {
+                const status = mapOwnerStatus(b)
+                return (
+                  <div key={b._id} className="border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <button
+                        onClick={() => setViewingBilling(b)}
+                        className="flex items-center gap-2 min-w-0 text-left"
+                        title="View Invoice"
+                        aria-label={`View invoice for ${b.petId?.name || 'pet'}`}
+                      >
+                        <Eye className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className="text-sm font-medium text-[#4F4F4F] truncate">{b.petId?.name || '-'}</span>
+                      </button>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getOwnerStatusStyle(status)}`}>
+                        {status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-[#4F4F4F] space-y-1.5 mb-3">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Service</span>
+                        <span className="truncate text-right">{b.serviceLabel || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Clinic</span>
+                        <span className="truncate text-right">{b.clinicId?.name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500">Date</span>
+                        <span className="text-right">{formatDate(b.serviceDate)}</span>
+                      </div>
+                      <div className="flex justify-between gap-2 font-medium">
+                        <span className="text-gray-500 font-normal">Amount</span>
+                        <span className="text-right">{formatCurrency(b.totalAmountDue)}</span>
+                      </div>
+                    </div>
+                    {(isPayableBilling(b) || b.status === 'paid') && (
+                      <div className="flex items-center gap-2">
+                        {isPayableBilling(b) && b.pendingQrApproval && (
+                          <span className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-orange-100 text-orange-700 text-xs font-medium rounded-lg">
+                            Awaiting Approval
+                          </span>
+                        )}
+                        {b.status === 'paid' && (
+                          <button
+                            onClick={() => setViewingBilling(b)}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-[#3D5E5C] hover:bg-[#2F4C4A] text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5 mr-1" />
+                            Print Receipt
+                          </button>
+                        )}
+                        {isPayableBilling(b) && !b.pendingQrApproval && (
+                          <button
+                            onClick={() => setPayingBilling(b)}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-[#3D5A58] hover:bg-[#2e4341] text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            Pay Now
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
           {!loading && filtered.length === 0 && (
             <div className="text-center py-12">
               <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -1715,8 +1796,8 @@ function ViewBillingModal({
             </div>
           )}
 
-          {/* Items table */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
+          {/* Items table — sm and up */}
+          <div className="hidden sm:block border border-gray-200 rounded-xl overflow-hidden">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -1752,6 +1833,32 @@ function ViewBillingModal({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Items list — below sm */}
+          <div className="sm:hidden border border-gray-200 rounded-xl overflow-hidden">
+            {billing.items.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">No items yet</p>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {groupedItems.map(({ category, items: catItems }) => (
+                  <React.Fragment key={category}>
+                    <div className="px-4 py-1.5 bg-gray-50 border-t border-gray-100 first:border-t-0">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{category}</p>
+                    </div>
+                    {catItems.map((item) => (
+                      <div key={item._id} className="px-4 py-3">
+                        <div className="flex justify-between items-start gap-3">
+                          <span className="text-sm font-medium text-[#4F4F4F] min-w-0">{item.name}</span>
+                          <span className="text-sm font-medium text-[#4F4F4F] shrink-0">₱{((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString()}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">{item.quantity ?? 1} × ₱{item.unitPrice.toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Order summary */}
