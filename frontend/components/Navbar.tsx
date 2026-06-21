@@ -148,8 +148,8 @@ function Navbar({
   // Expand on hover or while the dropdown menu is open
   const isExpanded = controlledExpanded ?? (isHovering || menuOpen)
 
-  // Pet Owner and Veterinarian get a dedicated mobile header + full-screen nav drawer
-  const showMobileNav = userType === 'pet-owner' || userType === 'veterinarian'
+  // All user types get a dedicated mobile header + full-screen nav drawer
+  const showMobileNav = true
 
   // Close the mobile drawer if the viewport grows past the `sm` breakpoint
   useEffect(() => {
@@ -367,7 +367,7 @@ function Navbar({
       </div>
     </nav>
 
-    {/* Mobile Header (sm and below) - Pet Owner & Veterinarian only */}
+    {/* Mobile Header (sm and below) */}
     {showMobileNav && (
       <header className="sm:hidden fixed top-0 left-0 right-0 h-16 bg-[#7FA5A3] flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-2.5">
@@ -394,7 +394,7 @@ function Navbar({
       </header>
     )}
 
-    {/* Mobile Navigation Drawer (sm and below) - Pet Owner & Veterinarian only */}
+    {/* Mobile Navigation Drawer (sm and below) */}
     {showMobileNav && (
       <Dialog.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <Dialog.Portal>
