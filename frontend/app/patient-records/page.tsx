@@ -642,29 +642,61 @@ function PatientRecordsPageContent() {
               className="mb-6"
             />
 
+            {/* View Mode Toggle — above stats on mobile/sm */}
+            <div className="flex md:hidden justify-end mb-3">
+              <div className="inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('card')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                    viewMode === 'card'
+                      ? 'bg-[#476B6B] text-white shadow-sm'
+                      : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
+                  }`}
+                  aria-pressed={viewMode === 'card'}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  Card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-[#476B6B] text-white shadow-sm'
+                      : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
+                  }`}
+                  aria-pressed={viewMode === 'list'}
+                >
+                  <List className="w-4 h-4" />
+                  List
+                </button>
+              </div>
+            </div>
+
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              <div className="bg-white rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#C5D8FF] rounded-xl flex items-center justify-center">
-                    <PawPrint className="w-5 h-5 text-[#4569B1]" />
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-6">
+              <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#C5D8FF] rounded-xl flex items-center justify-center shrink-0">
+                    <PawPrint className="w-4 h-4 sm:w-5 sm:h-5 text-[#4569B1]" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#4569B1]">{totalPatients}</p>
-                    <p className="text-xs text-gray-500">Total Patients</p>
+                  <div className="min-w-0">
+                    <p className="text-lg sm:text-2xl font-bold text-[#4569B1]">{totalPatients}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 truncate">Total Patients</p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#E8F2EE] rounded-xl flex items-center justify-center">
-                    <ClipboardList className="w-5 h-5 text-[#35785C]" />
+              <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#E8F2EE] rounded-xl flex items-center justify-center shrink-0">
+                    <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-[#35785C]" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#35785C]">
+                  <div className="min-w-0">
+                    <p className="text-lg sm:text-2xl font-bold text-[#35785C]">
                       {new Set(patients.map((p) => p.ownerId).filter(Boolean)).size}
                     </p>
-                    <p className="text-xs text-gray-500">Unique Owners</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 truncate">Unique Owners</p>
                   </div>
                 </div>
               </div>
@@ -672,15 +704,15 @@ function PatientRecordsPageContent() {
 
             {/* Status Filter + Search */}
             <div className="mb-6">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0 overflow-x-auto">
-                  <div className="inline-flex bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 min-w-max">
+              <div className="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="w-full md:flex-1 md:min-w-0">
+                  <div className="flex flex-wrap bg-white border border-[#DCEAE3] rounded-2xl md:rounded-full p-1 gap-1">
                     {(['All', 'Alive', 'Deceased', 'Confined', 'Lost', 'Relocated'] as const).map((status) => (
                       <button
                         key={status}
                         type="button"
                         onClick={() => setSelectedStatus(status)}
-                        className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                        className={`flex-1 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-center transition-all ${
                           selectedStatus === status
                             ? 'bg-[#476B6B] text-white shadow-sm'
                             : 'text-[#4F4F4F] hover:bg-white/70'
@@ -693,7 +725,7 @@ function PatientRecordsPageContent() {
                   </div>
                 </div>
 
-                <div className="shrink-0 inline-flex items-center rounded-full border border-[#DCEAE3] bg-white p-1">
+                <div className="hidden md:inline-flex shrink-0 items-center rounded-full border border-[#DCEAE3] bg-white p-1">
                   <button
                     type="button"
                     onClick={() => setViewMode('card')}
@@ -835,7 +867,8 @@ function PatientRecordsPageContent() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
+                  {/* Table — md and up */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead className="bg-[#F5FAF8]">
                         <tr className="text-left text-[#476B6B]">
@@ -888,6 +921,57 @@ function PatientRecordsPageContent() {
                         })}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Cards — below md */}
+                  <div className="md:hidden divide-y divide-gray-100">
+                    {filteredPatients.map((pet) => {
+                      const normalizedStatus = getNormalizedPatientStatus(pet)
+                      return (
+                        <button
+                          key={pet._id}
+                          type="button"
+                          onClick={() => handleSelectPatient(pet)}
+                          className="w-full text-left p-4 hover:bg-[#F8FCFA] transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {pet.photo ? (
+                                <Image src={pet.photo} alt="" width={32} height={32} sizes="32px" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-[#7FA5A3]/15 flex items-center justify-center shrink-0">
+                                  <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
+                                </div>
+                              )}
+                              <span className="font-semibold text-[#4F4F4F] truncate">{pet.name}</span>
+                            </div>
+                            <span className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase tracking-wide shrink-0 ${
+                              normalizedStatus === 'Confined' ? 'bg-blue-100 text-blue-700'
+                              : normalizedStatus === 'Lost' ? 'bg-[#F4D3D2] text-[#900B09]'
+                              : normalizedStatus === 'Deceased' ? 'bg-amber-100 text-amber-700'
+                              : normalizedStatus === 'Relocated' ? 'bg-orange-100 text-orange-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              {normalizedStatus}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500 space-y-1">
+                            <div className="flex justify-between gap-2">
+                              <span className="text-gray-400">Species</span>
+                              <span className="capitalize truncate">{pet.species}</span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-gray-400 shrink-0">Owner</span>
+                              <span className="truncate text-right">{pet.ownerFirstName} {pet.ownerLastName}</span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-gray-400 shrink-0">Last Visit</span>
+                              <span>{pet.lastVisitAt ? formatDate(pet.lastVisitAt) : '—'}</span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )
