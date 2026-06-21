@@ -173,6 +173,8 @@ function Navbar({
     return () => mq.removeEventListener('change', handleChange)
   }, [showMobileNav])
 
+  const dashboardHref = navItemsByUserType[userType][0].href
+
   const baseNavItems = navItemsByUserType[userType]
   const navItems = userType === 'clinic-admin'
     ? baseNavItems.map((item) => {
@@ -237,7 +239,13 @@ function Navbar({
 
       {/* Header with Logo */}
       <div className="p-4 flex items-center justify-left w-full">
-        <div className="flex items-center gap-3 transition-all duration-300">
+        <div
+          onClick={(e) => {
+            e.stopPropagation()
+            router.push(dashboardHref)
+          }}
+          className="flex items-center gap-3 transition-all duration-300 cursor-pointer"
+        >
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
             <Image
               src="/images/logos/pawsync-logo-white.png"
@@ -382,7 +390,10 @@ function Navbar({
     {/* Mobile Header (sm and below) - Pet Owner & Veterinarian only */}
     {showMobileNav && (
       <header className="sm:hidden fixed top-0 left-0 right-0 h-16 bg-[#7FA5A3] flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-2.5">
+        <div
+          onClick={() => router.push(dashboardHref)}
+          className="flex items-center gap-2.5 cursor-pointer"
+        >
           <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
             <Image
               src="/images/logos/pawsync-logo-white.png"
@@ -421,7 +432,13 @@ function Navbar({
 
             {/* Drawer Header */}
             <div className="h-16 px-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5">
+              <div
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  router.push(dashboardHref)
+                }}
+                className="flex items-center gap-2.5 cursor-pointer"
+              >
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
                   <Image
                     src="/images/logos/pawsync-logo-white.png"
