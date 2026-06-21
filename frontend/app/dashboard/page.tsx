@@ -1493,58 +1493,69 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3 max-h-100 overflow-y-auto">
             {appointments.length > 0 ? (
-              appointments.map((appt) => (
-                <div
-                  key={appt.id}
-                  className="bg-[#F8F6F2] rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex flex-col items-center justify-center bg-[#7FA5A3]/20 rounded-xl w-14 h-14 shrink-0">
-                    <span className="text-lg font-bold text-[#476B6B] leading-tight">
-                      {appt.date.getDate()}
-                    </span>
-                    <span className="text-[10px] text-[#476B6B] font-medium">
-                      {monthNames[appt.date.getMonth()]}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#4F4F4F]">{appt.title}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {appt.time}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {appt.clinic}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="hidden sm:flex items-center gap-2 bg-white rounded-lg px-3 py-2">
-                    <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
-                      <PawPrint className="w-3 h-3 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-[#4F4F4F]">{appt.petName}</p>
-                      <p className="text-[10px] text-gray-400">{appt.petBreed}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                      appt.status === 'CONFIRMED'
-                        ? 'bg-green-100 text-green-700'
-                        : appt.status === 'IN PROGRESS'
-                          ? 'bg-blue-100 text-blue-700'
-                          : appt.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : appt.status === 'CANCELLED'
-                              ? 'bg-[#F4D3D2] text-[#900B09]'
-                              : 'bg-gray-100 text-gray-600'
-                    }`}
+              appointments.map((appt) => {
+                const statusClasses =
+                  appt.status === 'CONFIRMED'
+                    ? 'bg-green-100 text-green-700'
+                    : appt.status === 'IN PROGRESS'
+                      ? 'bg-blue-100 text-blue-700'
+                      : appt.status === 'PENDING'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : appt.status === 'CANCELLED'
+                          ? 'bg-[#F4D3D2] text-[#900B09]'
+                          : 'bg-gray-100 text-gray-600'
+                return (
+                  <div
+                    key={appt.id}
+                    className="bg-[#F8F6F2] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow cursor-pointer"
                   >
-                    {appt.status}
-                  </span>
-                </div>
-              ))
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="flex flex-col items-center justify-center bg-[#7FA5A3]/20 rounded-xl w-14 h-14 shrink-0">
+                        <span className="text-lg font-bold text-[#476B6B] leading-tight">
+                          {appt.date.getDate()}
+                        </span>
+                        <span className="text-[10px] text-[#476B6B] font-medium">
+                          {monthNames[appt.date.getMonth()]}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-[#4F4F4F] truncate">{appt.title}</p>
+                          <span
+                            className={`sm:hidden px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${statusClasses}`}
+                          >
+                            {appt.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {appt.time}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {appt.clinic}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 min-w-0 sm:shrink-0">
+                      <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
+                        <PawPrint className="w-3 h-3 text-gray-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[#4F4F4F] truncate">{appt.petName}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{appt.petBreed}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${statusClasses}`}
+                    >
+                      {appt.status}
+                    </span>
+                  </div>
+                )
+              })
             ) : appointmentsLoading ? (
               <div className="text-center py-8 text-gray-500">Loading appointments...</div>
             ) : (
