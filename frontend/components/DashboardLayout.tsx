@@ -373,20 +373,22 @@ function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#F8F6F2]">
-      <Navbar
-        userType={userData.userType}
-        userName={`${userData.firstName} ${userData.lastName}`.trim()}
-        userEmail={userData.email}
-        userAvatar={userData.avatar}
-        notificationCount={unreadCount}
-        isExpanded={isNavExpanded}
-        onToggle={setIsNavExpanded}
-        onOpenNotifications={() => setNotificationsOpen(true)}
-      />
+      <div className="print:hidden">
+        <Navbar
+          userType={userData.userType}
+          userName={`${userData.firstName} ${userData.lastName}`.trim()}
+          userEmail={userData.email}
+          userAvatar={userData.avatar}
+          notificationCount={unreadCount}
+          isExpanded={isNavExpanded}
+          onToggle={setIsNavExpanded}
+          onOpenNotifications={() => setNotificationsOpen(true)}
+        />
+      </div>
 
       {/* Main Content Area */}
       <main
-        className={`min-h-screen transition-all duration-300 relative ${
+        className={`min-h-screen transition-all duration-300 relative print:ml-0 print:pt-0 ${
           showMobileNav
             ? `pt-16 sm:pt-0 ${isNavExpanded ? 'sm:ml-72' : 'sm:ml-20'}`
             : isNavExpanded ? 'ml-72' : 'ml-20'
@@ -395,7 +397,7 @@ function DashboardLayout({
         {/* Sticky notification bell in upper right */}
         <button
           onClick={() => setNotificationsOpen(true)}
-          className={`fixed right-4 z-40 w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:bg-[#F8F6F2] transition-all ${
+          className={`fixed right-4 z-40 w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:bg-[#F8F6F2] transition-all print:hidden ${
             showMobileNav ? 'top-20 sm:top-4' : 'top-4'
           }`}
         >

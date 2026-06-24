@@ -2099,7 +2099,10 @@ function ViewRecordModal({
       </div>` : ''
 
     const win = window.open('', '_blank', 'width=900,height=700')
-    if (!win) return
+    if (!win) {
+      toast.error('Print blocked', { description: 'Please allow popups for this site and try again.' })
+      return
+    }
     win.document.write(`<!DOCTYPE html><html><head><title>Medical Record — ${petName}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}

@@ -185,7 +185,7 @@ export default function MedicalRecordReportPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 md:p-10 max-w-4xl mx-auto">
+      <div className="p-6 md:p-10 max-w-4xl mx-auto print:p-0 print:max-w-none print:mx-0">
         {/* Action bar (hidden on print) */}
         <div className="flex items-center justify-between mb-6 print:hidden">
           <button
@@ -207,7 +207,7 @@ export default function MedicalRecordReportPage() {
         </div>
 
         {/* Report Document */}
-        <div ref={printRef} className="bg-white rounded-2xl border border-gray-200 overflow-hidden print:border-none print:rounded-none print:shadow-none">
+        <div ref={printRef} className="bg-white rounded-2xl border border-gray-200 overflow-hidden print:border-none print:rounded-none print:shadow-none print:overflow-visible print:w-[190mm] print:mx-auto">
 
           {/* ===== Clinic Header ===== */}
           <div className="bg-[#476B6B] text-white px-8 py-6">

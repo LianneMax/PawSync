@@ -10,7 +10,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuthStore } from '@/store/authStore'
-import { getPetById, updatePet, togglePetLost, requestConfinementRelease, markPetDeceased, transferPet, searchTransferOwnerEmails, type Pet as APIPet } from '@/lib/pets'
+import { getPetById, updatePet, togglePetLost, requestConfinementRelease, markPetDeceased, transferPet, searchTransferOwnerEmails, getNfcTagPrice, type Pet as APIPet } from '@/lib/pets'
 import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
 import { listSharedReportsForOwner, type VetReport, formatReportDate } from '@/lib/vetReports'
 import { getAllClinicsWithBranches, type ClinicWithBranches } from '@/lib/clinics'
@@ -104,6 +104,8 @@ export default function PetProfilePage() {
   const [showNfcModal, setShowNfcModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const [nfcTagPrice, setNfcTagPrice] = useState<number | null>(null)
+  const [isLoadingNfcPrice, setIsLoadingNfcPrice] = useState(false)
   const [, setNextAppointment] = useState<unknown>(null)
   const [selectedBranch, setSelectedBranch] = useState('')
   const [pickupDate, setPickupDate] = useState('')
@@ -463,12 +465,19 @@ export default function PetProfilePage() {
     if (!pet.nfcTagId) {
       setIsSubmittingRequest(true)
       try {
+        const priceData = await getNfcTagPrice()
+        const price = priceData?.data?.price ?? null
+        if (price === null) {
+          toast('Error', { description: 'Unable to load price. Please try again later.' })
+          return
+        }
+
         const response = await authenticatedFetch(
           `/nfc/pet/${pet._id}/request-tag`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason: '' }),
+            body: JSON.stringify({ reason: '', priceSnapshot: price }),
           },
           token
         )
@@ -491,6 +500,15 @@ export default function PetProfilePage() {
     } else {
       // If pet has a tag, show replacement modal for user to select clinic and date
       setShowNfcModal(true)
+      setIsLoadingNfcPrice(true)
+      try {
+        const priceData = await getNfcTagPrice()
+        setNfcTagPrice(priceData?.data?.price ?? null)
+      } catch {
+        setNfcTagPrice(null)
+      } finally {
+        setIsLoadingNfcPrice(false)
+      }
     }
   }
 
@@ -517,33 +535,22 @@ export default function PetProfilePage() {
 
   const handleSubmitPetTagRequest = async () => {
     if (!pet || !token || !selectedBranch || !pickupDate) return
+    if (nfcTagPrice === null) {
+      toast('Error', { description: 'Unable to load price. Please try again later.' })
+      return
+    }
     setIsSubmittingRequest(true)
     try {
-      // Find the clinic and branch details
-      let branchName = ''
-      for (const clinic of clinicBranches) {
-        const branch = clinic.branches.find((b) => b._id === selectedBranch)
-        if (branch) {
-          branchName = branch.name
-          break
-        }
-      }
-
       const response = await authenticatedFetch(
-        `/pet-tag-requests`,
+        `/nfc/pet/${pet._id}/request-tag`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            petId: pet._id,
-            petName: pet.name,
-            ownerId: pet.ownerId,
-            ownerName: (pet.ownerId as PopulatedOwner)?.firstName || '',
             clinicBranchId: selectedBranch,
-            clinicBranchName: branchName,
-            reason: nfcReason,
             pickupDate: pickupDate,
-            status: 'pending'
+            reason: nfcReason,
+            priceSnapshot: nfcTagPrice,
           }),
         },
         token
@@ -559,6 +566,7 @@ export default function PetProfilePage() {
         setNfcReason('')
         setSelectedBranch('')
         setPickupDate('')
+        setNfcTagPrice(null)
         await fetchTagRequests() // Refresh the request history
       } else {
         toast('Error', { description: data.message || 'Failed to submit request' })
@@ -1540,6 +1548,7 @@ export default function PetProfilePage() {
           setSelectedBranch('')
           setPickupDate('')
           setShowClinicDropdown(false)
+          setNfcTagPrice(null)
         }
       }}>
         <DialogContent className="sm:max-w-106.25">
@@ -1662,6 +1671,18 @@ export default function PetProfilePage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Fee */}
+            <p className="text-sm text-gray-700">
+              Fee:{' '}
+              {isLoadingNfcPrice ? (
+                <span className="text-gray-400">Loading...</span>
+              ) : nfcTagPrice !== null ? (
+                <span className="font-semibold">₱{nfcTagPrice.toFixed(2)}</span>
+              ) : (
+                <span className="text-red-500">Unable to load price</span>
+              )}
+            </p>
           </div>
           <DialogFooter className="flex gap-2 justify-end">
             <button
@@ -1671,6 +1692,7 @@ export default function PetProfilePage() {
                 setNextAppointment(null)
                 setSelectedBranch('')
                 setPickupDate('')
+                setNfcTagPrice(null)
               }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
@@ -1678,7 +1700,7 @@ export default function PetProfilePage() {
             </button>
             <button
               onClick={handleSubmitPetTagRequest}
-              disabled={isSubmittingRequest || !selectedBranch || !pickupDate}
+              disabled={isSubmittingRequest || !selectedBranch || !pickupDate || isLoadingNfcPrice || nfcTagPrice === null}
               className="px-4 py-2 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6B8E8C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
