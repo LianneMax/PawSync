@@ -12,17 +12,12 @@ import {
   Pill,
 } from 'lucide-react'
 import { PrintButton } from './PrintButton'
-import { formatReportDate, SECTION_LABELS, SECTION_KEYS } from '@/lib/vetReports'
+import { formatReportDate, SECTION_LABELS, SECTION_KEYS, getSharedReport } from '@/lib/vetReports'
 import type { VetReport, OwnerSummary } from '@/lib/vetReports'
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 async function fetchSharedReport(id: string): Promise<VetReport | null> {
   try {
-    const res = await fetch(`${API}/api/vet-reports/shared/${id}`, { cache: 'no-store' })
-    if (!res.ok) return null
-    const json = await res.json()
-    return json.data
+    return await getSharedReport(id)
   } catch {
     return null
   }

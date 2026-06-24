@@ -142,7 +142,7 @@ export async function getVetReport(id: string, token?: string): Promise<VetRepor
 
 export async function getSharedReport(id: string): Promise<VetReport> {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-  const res = await fetch(`${API_BASE_URL}/vet-reports/shared/${id}`);
+  const res = await fetch(`${API_BASE_URL}/vet-reports/shared/${id}`, { cache: 'no-store' });
   const json = await res.json();
   if (json?.status !== 'OK') throw new Error(json?.message || 'Report not found or not shared');
   return json.data;
