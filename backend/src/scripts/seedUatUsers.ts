@@ -13,7 +13,7 @@ import ClinicBranch from '../models/ClinicBranch';
 import { generateNextInvoiceNumber } from '../services/invoiceNumberService';
 
 // ─── Shared UAT credentials ────────────────────────────────────────────────
-// All 40 accounts use the same password. Hand out the numbered email + this password.
+// All 70 accounts use the same password. Hand out the numbered email + this password.
 const UAT_PASSWORD = 'UatTest123!';
 
 // ─── Name pool ─────────────────────────────────────────────────────────────
@@ -582,8 +582,8 @@ async function main() {
   );
 
   const groups = [
-    { label: 'baivet',   count: 20, clinic: baivetClinic,   branch: baivetBranch,   vet: baivetVet,   coord: CLINIC_COORDS.baivet },
-    { label: 'external', count: 20, clinic: externalClinic, branch: externalBranch, vet: externalVet, coord: CLINIC_COORDS.external },
+    { label: 'baivet',   count: 25, clinic: baivetClinic,   branch: baivetBranch,   vet: baivetVet,   coord: CLINIC_COORDS.baivet },
+    { label: 'external', count: 45, clinic: externalClinic, branch: externalBranch, vet: externalVet, coord: CLINIC_COORDS.external },
   ];
 
   let globalIdx = 0;
@@ -645,10 +645,10 @@ async function main() {
     }
   }
 
-  console.log('\n✅ UAT seed complete. 40 accounts ready.');
+  console.log('\n✅ UAT seed complete. 70 accounts ready.');
   console.log('   Password for all accounts: UatTest123!');
-  console.log('   Baivet   emails: uat-baivet-01@pawsync.dev … uat-baivet-20@pawsync.dev');
-  console.log('   External emails: uat-external-01@pawsync.dev … uat-external-20@pawsync.dev');
+  console.log('   Baivet   emails: uat-baivet-01@pawsync.dev … uat-baivet-25@pawsync.dev');
+  console.log('   External emails: uat-external-01@pawsync.dev … uat-external-45@pawsync.dev');
   console.log('   Each pet has 3 medical records, 3 shared diagnostic reports, 2 appointments, 2 vaccinations, and 3 scan locations.');
   console.log('   5 demo billing invoices were seeded (uat-baivet-01..03, uat-external-01..02).');
 
