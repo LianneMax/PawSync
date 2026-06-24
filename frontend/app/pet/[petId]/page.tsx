@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
 import { hasNFCTag } from '@/lib/petNfc'
+import { getNfcTagPrice } from '@/lib/pets'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,6 +122,8 @@ export default function PetProfilePage() {
   const [showNfcRequestModal, setShowNfcRequestModal] = useState(false)
   const [nfcReason, setNfcReason] = useState('')
   const [isSubmittingNfcRequest, setIsSubmittingNfcRequest] = useState(false)
+  const [nfcTagPrice, setNfcTagPrice] = useState<number | null>(null)
+  const [isLoadingNfcPrice, setIsLoadingNfcPrice] = useState(false)
   const [showFoundDrawer, setShowFoundDrawer] = useState(false)
   const [foundStep, setFoundStep] = useState<'alert' | 'location' | 'success'>('alert')
   const [isReportingFound, setIsReportingFound] = useState(false)
@@ -429,6 +432,11 @@ export default function PetProfilePage() {
       return
     }
 
+    if (nfcTagPrice === null) {
+      toast.error('Unable to load price. Please try again later.')
+      return
+    }
+
     setIsSubmittingNfcRequest(true)
     try {
       const data = await authenticatedFetch(
@@ -436,7 +444,7 @@ export default function PetProfilePage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: nfcReason || undefined }),
+          body: JSON.stringify({ reason: nfcReason || undefined, priceSnapshot: nfcTagPrice }),
         },
         token
       )
@@ -572,9 +580,18 @@ export default function PetProfilePage() {
         {/* Request NFC Tag (only for pet-owners) */}
         {token && userType === 'pet-owner' && (
           <button
-            onClick={() => {
+            onClick={async () => {
               if (hasPendingRequest) return
               setShowNfcRequestModal(true)
+              setIsLoadingNfcPrice(true)
+              try {
+                const priceData = await getNfcTagPrice()
+                setNfcTagPrice(priceData?.data?.price ?? null)
+              } catch {
+                setNfcTagPrice(null)
+              } finally {
+                setIsLoadingNfcPrice(false)
+              }
             }}
             disabled={hasPendingRequest}
             className="w-full bg-[#7FA5A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#6b9391] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -850,7 +867,7 @@ export default function PetProfilePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 relative">
             <button
-              onClick={() => { setShowNfcRequestModal(false); setNfcReason(''); }}
+              onClick={() => { setShowNfcRequestModal(false); setNfcReason(''); setNfcTagPrice(null); }}
               className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-lg"
             >
               <X className="w-5 h-5 text-gray-400" />
@@ -865,6 +882,17 @@ export default function PetProfilePage() {
 
             <p className="text-sm text-gray-600 mb-4">
               Request an NFC tag for <span className="font-semibold">{pet?.name}</span>. Your clinic will process the request.
+            </p>
+
+            <p className="text-sm text-gray-700 mb-4">
+              Fee:{' '}
+              {isLoadingNfcPrice ? (
+                <span className="text-gray-400">Loading...</span>
+              ) : nfcTagPrice !== null ? (
+                <span className="font-semibold">₱{nfcTagPrice.toFixed(2)}</span>
+              ) : (
+                <span className="text-red-500">Unable to load price</span>
+              )}
             </p>
 
             <div className="mb-5">
@@ -906,14 +934,14 @@ export default function PetProfilePage() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowNfcRequestModal(false); setNfcReason(''); }}
+                onClick={() => { setShowNfcRequestModal(false); setNfcReason(''); setNfcTagPrice(null); }}
                 className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmitNfcRequest}
-                disabled={isSubmittingNfcRequest || hasPendingRequest}
+                disabled={isSubmittingNfcRequest || hasPendingRequest || isLoadingNfcPrice || nfcTagPrice === null}
                 className="flex-1 py-2.5 bg-[#7FA5A3] text-white rounded-lg text-sm font-semibold hover:bg-[#6b9391] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSubmittingNfcRequest ? (
