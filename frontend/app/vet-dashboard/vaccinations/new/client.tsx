@@ -333,6 +333,11 @@ export default function VaccinationFormClient() {
       ? formatDisplayDate(formatDateInput(addDays(new Date(dateAdministered), selectedVaccineType.validityDays)))
       : null
 
+  // Shelf-life expiry of the vaccine's batch/lot (pre-administration) — distinct from
+  // computedExpiryDate above, which is the administered vaccine's protection expiry.
+  const batchExpirationDate = selectedVaccineType?.defaultBatchExpirationDate || null
+  const batchExpired = batchExpirationDate ? new Date(batchExpirationDate) < new Date() : false
+
   // Total dose slots to show: series doses + booster slots (3 if boosterValid, else 0)
   const effectiveSeries = selectedVaccineType ? (selectedVaccineType.isSeries ? selectedVaccineType.totalSeries : 1) : 1
   const totalDoses = selectedVaccineType
@@ -352,6 +357,10 @@ export default function VaccinationFormClient() {
     }
     if (!ageValid) {
       setError(ageMessage || 'Pet does not meet the age requirements for this vaccine.')
+      return
+    }
+    if (!editId && batchExpired) {
+      setError("This vaccine's batch has expired and cannot be administered.")
       return
     }
     if (!isFormValid) {
@@ -834,6 +843,28 @@ export default function VaccinationFormClient() {
             />
           </div>
 
+          {/* Expiry of Batch — shelf-life expiry, auto-filled from the selected vaccine type */}
+          {batchExpirationDate && (
+            <div>
+              <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Expiry of Batch</label>
+              <div
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm cursor-not-allowed ${
+                  batchExpired
+                    ? 'bg-[#F4D3D2] border-[#900B09]/30 text-[#900B09] font-semibold'
+                    : 'bg-gray-50 border-gray-200 text-gray-500'
+                }`}
+              >
+                {formatDisplayDate(batchExpirationDate)}
+              </div>
+              {batchExpired && (
+                <p className="text-xs text-[#900B09] mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  This vaccine&apos;s batch has expired and cannot be administered.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Notes */}
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Clinical Notes</label>
@@ -850,8 +881,16 @@ export default function VaccinationFormClient() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading || success || !selectedPet || !vaccineTypeId || !ageValid || !isFormValid}
-          title={!ageValid ? (ageMessage || 'Pet does not meet age requirements') : (!isFormValid ? 'Please fix date errors before submitting' : undefined)}
+          disabled={loading || success || !selectedPet || !vaccineTypeId || !ageValid || !isFormValid || (!editId && batchExpired)}
+          title={
+            !ageValid
+              ? (ageMessage || 'Pet does not meet age requirements')
+              : !isFormValid
+                ? 'Please fix date errors before submitting'
+                : (!editId && batchExpired)
+                  ? "This vaccine's batch has expired and cannot be administered"
+                  : undefined
+          }
           className="w-full py-3.5 bg-[#476B6B] text-white rounded-2xl font-semibold text-sm hover:bg-[#3d5c5c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (

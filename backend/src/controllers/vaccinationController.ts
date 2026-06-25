@@ -193,6 +193,13 @@ export const createVaccination = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Date administered cannot be in the future' });
     }
 
+    // Block administering a vaccine whose batch/lot has passed its shelf-life expiry.
+    // This is the pre-administration batch expiry (VaccineType.defaultBatchExpirationDate),
+    // not the post-administration immunity expiry computed below as `expiryDate`.
+    if (vaccineType.defaultBatchExpirationDate && new Date(vaccineType.defaultBatchExpirationDate) < adminDate) {
+      return res.status(400).json({ status: 'ERROR', message: "Cannot administer this vaccine — its batch has expired." });
+    }
+
     // Determine the latest prior dose for this pet + vaccine type.
     // For series vaccines, this is also used to enforce the 2-6 week timing window.
     const latestPriorRecord = await Vaccination.findOne({ petId, vaccineTypeId })
