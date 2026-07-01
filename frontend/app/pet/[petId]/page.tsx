@@ -240,7 +240,11 @@ export default function PetProfilePage() {
       const getLocation = (): Promise<GeolocationPosition | null> =>
         new Promise((resolve) => {
           if (!navigator.geolocation) return resolve(null)
-          navigator.geolocation.getCurrentPosition((pos) => resolve(pos), () => resolve(null), { timeout: 10000 })
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            () => resolve(null),
+            { timeout: 15000, enableHighAccuracy: true }
+          )
         })
       const position = await getLocation()
 
@@ -331,7 +335,7 @@ export default function PetProfilePage() {
           navigator.geolocation.getCurrentPosition(
             (pos) => resolve(pos),
             () => resolve(null),
-            { timeout: 10000 }
+            { timeout: 15000, enableHighAccuracy: true }
           )
         })
 
@@ -353,7 +357,6 @@ export default function PetProfilePage() {
         throw new Error(result?.message || 'Failed to report pet found')
       }
 
-      // Update local scanLocations so the map refreshes immediately
       if (position) {
         const newEntry = {
           lat: position.coords.latitude,
@@ -361,6 +364,11 @@ export default function PetProfilePage() {
           scannedAt: new Date().toISOString(),
         }
         setPet(prev => prev ? { ...prev, scanLocations: [...prev.scanLocations, newEntry] } : null)
+      } else {
+        // Geolocation was denied — sighting recorded but without coordinates
+        toast.warning('Sighting Reported Without Location', {
+          description: 'Allow location access in your browser settings to share your exact position.',
+        })
       }
 
       localStorage.setItem(locationStorageKey, 'true')
@@ -380,34 +388,42 @@ export default function PetProfilePage() {
       const getLocation = (): Promise<GeolocationPosition | null> =>
         new Promise((resolve) => {
           if (!navigator.geolocation) return resolve(null)
-          navigator.geolocation.getCurrentPosition((pos) => resolve(pos), () => resolve(null), { timeout: 10000 })
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            () => resolve(null),
+            { timeout: 15000, enableHighAccuracy: true }
+          )
         })
       const position = await getLocation()
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const body: Record<string, unknown> = {}
-      if (position) {
-        body.latitude = position.coords.latitude
-        body.longitude = position.coords.longitude
+
+      if (!position) {
+        toast.error('Location Access Denied', {
+          description: 'Please allow location access in your browser settings and try again.',
+        })
+        return
       }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
       const response = await fetch(`${apiUrl}/pets/${pet!._id}/report-found`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
       })
       const result = await response.json().catch(() => null)
       if (!response.ok || result?.status !== 'SUCCESS') {
         throw new Error(result?.message || 'Failed to share location')
       }
-      if (position) {
-        setPet(prev => prev ? {
-          ...prev,
-          scanLocations: [...prev.scanLocations, {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            scannedAt: new Date().toISOString(),
-          }]
-        } : null)
-      }
+      setPet(prev => prev ? {
+        ...prev,
+        scanLocations: [...prev.scanLocations, {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          scannedAt: new Date().toISOString(),
+        }]
+      } : null)
       localStorage.setItem(locationStorageKey, 'true')
       setLocationShared(true)
       toast.success('Location Shared', { description: 'The owner has been notified. Thank you!' })
