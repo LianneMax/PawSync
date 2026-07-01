@@ -26,6 +26,7 @@
   "homepage": "https://github.com/LianneMax/PawSync#readme",
   "dependencies": {
     "mongosh": "^2.8.1",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "vitest": "^4.1.9"
   }
 }
