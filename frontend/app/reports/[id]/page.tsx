@@ -80,6 +80,17 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
   const pet = report.petId
   const vet = report.vetId
   const ownerSummary = report.ownerSummary
+
+  // Coverage line for consolidated reports — medicalRecordIds populated with createdAt
+  const visitDates = (report.medicalRecordIds ?? [])
+    .filter((r): r is { _id: string; createdAt?: string } => typeof r === 'object' && r !== null)
+    .map((r) => (r.createdAt ? new Date(r.createdAt).getTime() : NaN))
+    .filter((t) => !isNaN(t))
+    .sort((a, b) => a - b)
+  const coverage =
+    visitDates.length > 1
+      ? `This report covers ${visitDates.length} visits, ${formatReportDate(new Date(visitDates[0]).toISOString())} – ${formatReportDate(new Date(visitDates[visitDates.length - 1]).toISOString())}.`
+      : null
   const hasOwnerSummary = ownerSummary && Object.values(ownerSummary).some(
     (v) => typeof v === 'string' && (v as string).trim()
   )
@@ -177,6 +188,11 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
                   <span className="text-gray-400 text-xs ml-1">· P.R.C. Lic No. {vet.prcLicenseNumber}</span>
                 )}
               </div>
+
+              {/* Coverage (consolidated reports) */}
+              {coverage && (
+                <p className="text-xs text-gray-500 bg-[#F8F6F2] rounded-xl px-4 py-2.5">{coverage}</p>
+              )}
 
               <hr className="border-gray-200" />
 

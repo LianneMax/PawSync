@@ -10,12 +10,14 @@ import {
   generateVetReport,
   humanizeVetReport,
   shareVetReport,
+  syncVetReportRecords,
   formatReportDate,
   SECTION_LABELS,
   SECTION_KEYS,
   type VetReport,
   type VetReportSections,
   type OwnerSummary,
+  type LinkedRecord,
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
@@ -47,6 +49,9 @@ import {
   ClipboardList,
   Pill,
   PenTool,
+  Layers,
+  AlertTriangle,
+  CalendarDays,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -219,6 +224,17 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     (v) => typeof v === 'string' && v.trim()
   )
 
+  // Coverage line for consolidated reports
+  const visitDates = (report.medicalRecordIds ?? [])
+    .filter((r): r is LinkedRecord => typeof r === 'object' && r !== null)
+    .map((r) => (r.createdAt ? new Date(r.createdAt).getTime() : NaN))
+    .filter((t) => !isNaN(t))
+    .sort((a, b) => a - b)
+  const coverage =
+    visitDates.length > 1
+      ? `This report covers ${visitDates.length} visits, ${formatReportDate(new Date(visitDates[0]).toISOString())} – ${formatReportDate(new Date(visitDates[visitDates.length - 1]).toISOString())}.`
+      : null
+
   const calcAge = (dob: string) => {
     const diff = Date.now() - new Date(dob).getTime()
     const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
@@ -271,6 +287,11 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               <span className="font-medium text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</span>
               {vet.prcLicenseNumber && <span className="text-gray-400 text-xs ml-1">· P.R.C. Lic No. {vet.prcLicenseNumber}</span>}
             </div>
+
+            {/* Coverage (consolidated reports) */}
+            {coverage && (
+              <p className="text-xs text-gray-500 bg-[#F8F6F2] rounded-xl px-4 py-2.5">{coverage}</p>
+            )}
 
             <hr className="border-gray-200" />
 
@@ -376,6 +397,8 @@ export default function ReportEditorPage() {
   const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null)
   const [signModalOpen, setSignModalOpen] = useState(false)
   const [signing, setSigning] = useState(false)
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
+  const [updating, setUpdating] = useState(false)
 
   // Local editable state
   const [title, setTitle] = useState('')
@@ -450,10 +473,18 @@ export default function ReportEditorPage() {
     triggerAutoSave(sections, v)
   }
 
-  // Mutation responses from the backend are not populated (petId/vetId come back as raw IDs).
-  // This helper preserves the already-populated petId and vetId from the existing state.
+  // Mutation responses from the backend are not populated (petId/vetId/medicalRecordIds come
+  // back as raw IDs) and don't carry newRecordCount. Preserve those from the existing state.
   const applyUpdate = (updated: VetReport) =>
-    setReport((prev) => prev ? { ...updated, petId: prev.petId, vetId: prev.vetId } : updated)
+    setReport((prev) => prev
+      ? {
+          ...updated,
+          petId: prev.petId,
+          vetId: prev.vetId,
+          medicalRecordIds: prev.medicalRecordIds,
+          newRecordCount: prev.newRecordCount,
+        }
+      : updated)
 
   const handleSave = async () => {
     setSaving(true)
@@ -500,6 +531,8 @@ export default function ReportEditorPage() {
       const updated = await generateVetReport(id, token || undefined)
       applyUpdate(updated)
       setSections(updated.sections)
+      // Regeneration invalidates any previous owner summary server-side — mirror that here
+      setOwnerSummary(updated.ownerSummary ?? null)
       toast.success('Report generated!')
     } catch (e: any) {
       toast.error(e.message || 'Generation failed')
@@ -560,6 +593,33 @@ export default function ReportEditorPage() {
     }
   }
 
+  // Fold new completed visits into the report, then regenerate so the sections cover them.
+  // Backend reverts a finalized report to draft and clears the owner summary.
+  const handleUpdateRecords = async () => {
+    setUpdateConfirmOpen(false)
+    setUpdating(true)
+    setGenerating(true)
+    try {
+      // Persist any unsaved context notes so the regeneration uses them
+      await updateVetReport(id, { vetContextNotes: contextNotes }, token || undefined).catch(() => {})
+      const { addedCount } = await syncVetReportRecords(id, token || undefined)
+      if (addedCount === 0) {
+        toast.info('No new completed records found for this patient')
+        await loadReport()
+        return
+      }
+      await generateVetReport(id, token || undefined)
+      await loadReport()
+      toast.success(`Report updated with ${addedCount} new visit${addedCount !== 1 ? 's' : ''}`)
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update report')
+      await loadReport()
+    } finally {
+      setUpdating(false)
+      setGenerating(false)
+    }
+  }
+
   const copyShareLink = () => {
     const url = `${window.location.origin}/reports/${id}`
     navigator.clipboard.writeText(url).then(() => toast.success('Link copied!'))
@@ -586,6 +646,19 @@ export default function ReportEditorPage() {
   }
 
   const pet = report.petId
+
+  // Source medical records — new reports populate medicalRecordIds; legacy reports only medicalRecordId
+  const linkedRecords = ((report.medicalRecordIds ?? []).filter(
+    (r) => typeof r === 'object' && r !== null
+  ) as LinkedRecord[])
+    .slice()
+    .sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
+  const legacyRecord =
+    linkedRecords.length === 0 && report.medicalRecordId && typeof report.medicalRecordId === 'object'
+      ? (report.medicalRecordId as unknown as LinkedRecord)
+      : null
+  const sourceRecords = linkedRecords.length > 0 ? linkedRecords : legacyRecord ? [legacyRecord] : []
+  const newRecordCount = report.newRecordCount ?? 0
 
   return (
     <DashboardLayout userType={user?.userType as any}>
@@ -735,6 +808,22 @@ export default function ReportEditorPage() {
           )}
         </div>
 
+        {/* New-visit staleness banner */}
+        {newRecordCount > 0 && !updating && (
+          <div className="flex items-center gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            <span className="flex-1">
+              <strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong> for {pet?.name} since this report was {report.recordsSyncedAt ? 'last updated' : 'created'}.
+            </span>
+            <button
+              onClick={() => setUpdateConfirmOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors flex-shrink-0"
+            >
+              <RefreshCw className="w-4 h-4" /> Update Report
+            </button>
+          </div>
+        )}
+
         {view === 'preview' ? (
           <ReportPreview report={{ ...report, sections, title }} ownerSummary={ownerSummary} />
         ) : (
@@ -773,6 +862,31 @@ export default function ReportEditorPage() {
                 </div>
               )}
 
+              {/* Source records */}
+              {!generating && sourceRecords.length > 0 && (
+                <div className="mt-4 border border-gray-200 rounded-xl p-4 bg-white">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Layers className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-semibold text-gray-700">Source Records</span>
+                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                      {report.scope === 'all' ? 'All records' : `${sourceRecords.length} selected`}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">
+                    {sourceRecords.length} visit{sourceRecords.length !== 1 ? 's' : ''} covered by this report
+                  </p>
+                  <div className="max-h-48 overflow-y-auto space-y-1.5">
+                    {sourceRecords.map((r) => (
+                      <div key={r._id} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                        <CalendarDays className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        <span className="flex-shrink-0">{r.createdAt ? formatReportDate(r.createdAt) : 'Unknown date'}</span>
+                        {r.chiefComplaint && <span className="text-gray-400 truncate">· {r.chiefComplaint}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Metadata */}
               {!generating && !humanizing && (
                 <div className="text-xs text-gray-400 space-y-1 mt-4">
@@ -808,6 +922,44 @@ export default function ReportEditorPage() {
           </div>
         )}
       </div>
+
+      {/* Update-report confirmation */}
+      <Dialog open={updateConfirmOpen} onOpenChange={setUpdateConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Update Report with New Visits</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              This will add <strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong> to
+              this report and regenerate all clinical sections to cover the full visit history.
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
+              <li>Manual edits to the sections will be overwritten by the regenerated content.</li>
+              {report.status === 'finalized' && <li>The report will revert to draft and must be finalized again.</li>}
+              {ownerSummary && <li>The owner summary will be cleared and must be regenerated.</li>}
+              {report.sharedWithOwner && <li>The report stays shared — the owner will see the updated content.</li>}
+            </ul>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setUpdateConfirmOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleUpdateRecords}
+              disabled={updating}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {updating ? 'Updating…' : 'Update & Regenerate'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={signModalOpen} onOpenChange={(open) => { setSignModalOpen(open); if (!open) signatureCaptureRef.current?.reset() }}>
         <DialogContent className="max-w-md">

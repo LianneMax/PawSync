@@ -9,6 +9,7 @@ import {
   generateReport,
   humanizeReport,
   listSharedReportsForOwner,
+  syncReportRecords,
 } from '../controllers/vetReportController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -27,6 +28,7 @@ router.get('/:id', authMiddleware, vetOrClinicAdminOnly, getReport);
 router.put('/:id', authMiddleware, vetOrClinicAdminOnly, updateReport);
 router.patch('/:id/share', authMiddleware, vetOrClinicAdminOnly, shareReport);
 router.post('/:id/generate', authMiddleware, vetOrClinicAdminOnly, generateReport);
+router.post('/:id/sync-records', authMiddleware, vetOrClinicAdminOnly, syncReportRecords);
 router.post('/:id/humanize', authMiddleware, vetOrClinicAdminOnly, humanizeReport);
 
 export default router;

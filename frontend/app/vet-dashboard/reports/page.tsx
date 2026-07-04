@@ -141,6 +141,15 @@ export default function VetReportsPage() {
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {r.petId?.name} &middot; {r.petId?.species === 'canine' ? 'Canine' : 'Feline'} / {r.petId?.breed}
+                        {(() => {
+                          const count = r.medicalRecordIds?.length || (r.medicalRecordId ? 1 : 0)
+                          if (!count) return null
+                          return (
+                            <span className="ml-1.5 text-gray-400">
+                              &middot; {r.scope === 'all' ? `All records (${count} visits)` : `${count} visit${count !== 1 ? 's' : ''}`}
+                            </span>
+                          )
+                        })()}
                       </p>
                     </div>
                   </div>

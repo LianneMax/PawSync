@@ -46,6 +46,41 @@ function extractJSON(raw: string): Record<string, string> {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Effective record set for a report. Legacy reports only have `medicalRecordId`;
+ * new reports carry `medicalRecordIds`. Always returns string ids.
+ */
+function resolveReportRecordIds(report: any): string[] {
+  const ids: string[] = (report.medicalRecordIds || []).map((id: any) =>
+    typeof id === 'object' && id?._id ? id._id.toString() : id.toString()
+  );
+  if (ids.length === 0 && report.medicalRecordId) {
+    const legacy = report.medicalRecordId;
+    ids.push(typeof legacy === 'object' && legacy?._id ? legacy._id.toString() : legacy.toString());
+  }
+  return ids;
+}
+
+/** Completed medical records for a pet — the only records eligible for reports. */
+async function findCompletedRecordIdsForPet(petId: any): Promise<string[]> {
+  const records = await MedicalRecord.find({ petId, stage: 'completed' })
+    .select('_id')
+    .lean();
+  return records.map((r: any) => r._id.toString());
+}
+
+/** Count completed records created after the report's last sync that aren't already included. */
+async function countNewRecords(report: any): Promise<number> {
+  const includedIds = resolveReportRecordIds(report);
+  const since = report.recordsSyncedAt || report.createdAt;
+  return MedicalRecord.countDocuments({
+    petId: typeof report.petId === 'object' && report.petId?._id ? report.petId._id : report.petId,
+    stage: 'completed',
+    _id: { $nin: includedIds },
+    createdAt: { $gt: since },
+  });
+}
+
 function calcAge(dob: Date): string {
   const diff = Date.now() - new Date(dob).getTime();
   const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
@@ -171,20 +206,176 @@ Generate the report in the following JSON format. Each value should be a well-wr
 }`;
 }
 
+// Newest records rendered in full; anything older than this gets a one-line summary
+// so consolidated prompts for long patient histories stay within the model's context.
+const MAX_DETAILED_RECORDS = 15;
+
+function formatRecordBlock(record: any, index: number): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+
+  const vitalLines = Object.entries(record.vitals || {})
+    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+    .map(([k, v]: any) => `    - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .join('\n');
+
+  const medLines = (record.medications || [])
+    .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
+    .join('\n');
+
+  const testLines = (record.diagnosticTests || [])
+    .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
+    .join('\n');
+
+  const preventiveLines = (record.preventiveCare || [])
+    .map((p: any) => `    - ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`)
+    .join('\n');
+
+  const extras: string[] = [];
+  if (record.surgeryRecord?.surgeryType) {
+    extras.push(`  Surgery: ${record.surgeryRecord.surgeryType}${record.surgeryRecord.vetRemarks ? ` — ${record.surgeryRecord.vetRemarks}` : ''}`);
+  }
+  if (record.emergencyCase?.isEmergency) {
+    extras.push(`  Emergency case: triage ${record.emergencyCase.triageLevel || 'unspecified'}, outcome ${record.emergencyCase.outcome || 'unspecified'}`);
+  }
+  if (record.pregnancyRecord?.isPregnant) {
+    extras.push(`  Pregnancy: confirmed via ${record.pregnancyRecord.confirmationMethod}, due ${record.pregnancyRecord.expectedDueDate ? new Date(record.pregnancyRecord.expectedDueDate).toDateString() : 'unknown'}`);
+  }
+  if (record.confinementAction === 'confined') {
+    extras.push(`  Confinement: ${record.confinementDays || 0} day(s)`);
+  }
+
+  return `VISIT ${index + 1} — ${visitDate}
+  Chief Complaint: ${record.chiefComplaint || 'Not specified'}
+  Vitals:
+${vitalLines || '    (no vitals recorded)'}
+  SOAP:
+    Subjective: ${record.subjective || '(none)'}
+    Assessment: ${record.assessment || '(none)'}
+    Plan: ${record.plan || '(none)'}
+  Visit Summary: ${record.visitSummary || '(none)'}
+  Vet Notes: ${record.vetNotes || '(none)'}
+  Medications:
+${medLines || '    (none)'}
+  Diagnostic Tests:
+${testLines || '    (none)'}
+  Preventive Care:
+${preventiveLines || '    (none)'}${extras.length ? '\n' + extras.join('\n') : ''}`;
+}
+
+function formatRecordSummaryLine(record: any, index: number): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
+    : 'Unknown date';
+  const assessment = (record.assessment || '').slice(0, 160);
+  return `VISIT ${index + 1} — ${visitDate}: ${record.chiefComplaint || 'No chief complaint'}${assessment ? ` | Assessment: ${assessment}` : ''}`;
+}
+
+function buildConsolidatedAIPrompt(
+  pet: any,
+  records: any[],
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const age = pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'unknown';
+
+  // records are sorted oldest → newest; summarize the oldest overflow, detail the rest
+  const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
+  const summarized = records.slice(0, overflow);
+  const detailed = records.slice(overflow);
+
+  const summaryBlock = summarized.length
+    ? `EARLIER VISITS (condensed):\n${summarized.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n\n`
+    : '';
+
+  const detailBlock = detailed
+    .map((r, i) => formatRecordBlock(r, overflow + i))
+    .join('\n\n');
+
+  return `You are a veterinary medical report writer. Generate a CONSOLIDATED Veterinary Diagnostic Report covering the patient's ${records.length} visit${records.length !== 1 ? 's' : ''} listed below, in chronological order (oldest first). This is a longitudinal case history, not a single-visit report: identify trends across visits (weight changes, recurring complaints, response to treatment, disease progression or resolution) and integrate findings across the whole timeline.
+
+PATIENT INFORMATION:
+- Name: ${pet.name}
+- Species/Breed: ${pet.species === 'canine' ? 'Canine' : 'Feline'} / ${pet.breed}
+- Sex: ${pet.sex}
+- Age: ${age}
+- Current Weight: ${pet.weight} kg
+- Allergies: ${(pet.allergies || []).join(', ') || 'None on file'}
+- Sterilization: ${pet.sterilization}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+${summaryBlock}${detailBlock}
+
+PERSISTENT VET NOTES (ongoing notes kept by the vet across all visits for this patient):
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT (provided by the attending vet for this report):
+${vetContextNotes || '(none provided)'}
+
+---
+Generate the consolidated report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Reference visits by date where relevant. Do NOT include markdown headers — the frontend will add those. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
+
+{
+  "clinicalSummary": "A narrative covering the patient's presentation across all visits: initial presenting signs, how the condition evolved, physical exam findings over time, vital trends (especially weight), and current status.",
+  "laboratoryInterpretation": "Interpretation of all diagnostic tests across visits, grouped by test type and ordered chronologically. Highlight changes between repeat tests. If no tests were done, say so briefly.",
+  "diagnosticIntegration": "A summary table-style text integrating all body systems examined across the visit history: System | Findings | Interpretation. Note where findings changed between visits.",
+  "assessment": "Working diagnoses across the case history, supported by evidence from labs, vitals, and clinical signs over time. Note resolved vs ongoing problems and current status (stable/critical/improving).",
+  "managementPlan": "The current treatment and management orders, plus a brief history of prior treatments and the patient's response: medications (with dosages, routes, frequencies), supportive care, monitoring parameters, diet, and activity restrictions.",
+  "prognosis": "Overall prognosis with supporting rationale based on the full visit history and treatment response. Include outlook with compliance to treatment plan."
+}`;
+}
+
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 
 export const createReport = async (req: Request, res: Response) => {
   try {
-    const { petId, medicalRecordId, title, reportDate, vetContextNotes } = req.body;
+    const { petId, medicalRecordId, title, reportDate, vetContextNotes, scope } = req.body;
     const user = req.user!;
 
     if (!petId) {
       return res.status(400).json({ status: 'ERROR', message: 'petId is required' });
     }
 
-    // Prevent duplicate reports for the same medical record
-    if (medicalRecordId) {
-      const existing = await VetReport.findOne({ medicalRecordId }).lean();
+    const reportScope: 'selected' | 'all' = scope === 'all' ? 'all' : 'selected';
+
+    // Resolve the record set. 'all' → server resolves every completed record for the pet;
+    // 'selected' → client-provided list (or legacy single medicalRecordId).
+    let recordIds: string[] = [];
+    if (reportScope === 'all') {
+      recordIds = await findCompletedRecordIdsForPet(petId);
+      if (recordIds.length === 0) {
+        return res.status(400).json({ status: 'ERROR', message: 'This pet has no completed medical records yet.' });
+      }
+    } else {
+      const requested: string[] = Array.isArray(req.body.medicalRecordIds)
+        ? req.body.medicalRecordIds.map(String)
+        : medicalRecordId
+          ? [String(medicalRecordId)]
+          : [];
+      if (requested.length === 0) {
+        return res.status(400).json({ status: 'ERROR', message: 'Select at least one medical record for the report.' });
+      }
+      // Validate: every record must exist, belong to this pet, and be completed
+      const unique = [...new Set(requested)];
+      const found = await MedicalRecord.find({ _id: { $in: unique }, petId, stage: 'completed' })
+        .select('_id')
+        .lean();
+      if (found.length !== unique.length) {
+        return res.status(400).json({
+          status: 'ERROR',
+          message: 'One or more selected records do not belong to this pet or are not completed.',
+        });
+      }
+      recordIds = unique;
+    }
+
+    // Preserve the legacy one-report-per-record rule only for single-record selected reports
+    const isSingleRecordReport = reportScope === 'selected' && recordIds.length === 1;
+    if (isSingleRecordReport) {
+      const existing = await VetReport.findOne({ medicalRecordId: recordIds[0] }).lean();
       if (existing) {
         return res.status(409).json({
           status: 'ERROR',
@@ -194,17 +385,15 @@ export const createReport = async (req: Request, res: Response) => {
       }
     }
 
-    // Resolve clinicId / clinicBranchId: prefer JWT, then medical record, then vet's User record
+    // Resolve clinicId / clinicBranchId: prefer JWT, then first medical record, then vet's User record
     let clinicId = user.clinicId;
     let clinicBranchId = user.clinicBranchId;
 
     if (!clinicId || !clinicBranchId) {
-      if (medicalRecordId) {
-        const mr = await MedicalRecord.findById(medicalRecordId).lean() as any;
-        if (mr) {
-          clinicId = clinicId || mr.clinicId;
-          clinicBranchId = clinicBranchId || mr.clinicBranchId;
-        }
+      const mr = await MedicalRecord.findById(recordIds[0]).lean() as any;
+      if (mr) {
+        clinicId = clinicId || mr.clinicId;
+        clinicBranchId = clinicBranchId || mr.clinicBranchId;
       }
     }
 
@@ -222,7 +411,12 @@ export const createReport = async (req: Request, res: Response) => {
 
     const report = await VetReport.create({
       petId,
-      medicalRecordId: medicalRecordId || null,
+      // legacy field only for single-record reports — keeps the unique index guard working
+      medicalRecordId: (isSingleRecordReport ? recordIds[0] : null) as any,
+      medicalRecordIds: recordIds as any, // mongoose casts string ids on create
+
+      scope: reportScope,
+      recordsSyncedAt: new Date(),
       vetId: user.userId,
       clinicId,
       clinicBranchId,
@@ -285,13 +479,16 @@ export const getReport = async (req: Request, res: Response) => {
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordId')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt stage')
       .lean();
 
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
-    res.json({ status: 'OK', data: report });
+    const newRecordCount = await countNewRecords(report);
+
+    res.json({ status: 'OK', data: { ...report, newRecordCount } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -305,6 +502,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
     const report = await VetReport.findOne({ _id: id, sharedWithOwner: true })
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
+      .populate('medicalRecordIds', 'createdAt')
       .lean();
 
     if (!report) {
@@ -340,6 +538,80 @@ export const updateReport = async (req: Request, res: Response) => {
 
     await report.save();
     res.json({ status: 'OK', data: report });
+  } catch (err: any) {
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+// ─── SYNC RECORDS ─────────────────────────────────────────────────────────────
+
+/**
+ * POST /vet-reports/:id/sync-records
+ * Refresh the report's record set so a new visit can be folded in.
+ * scope 'all'      → re-resolve every completed record for the pet.
+ * scope 'selected' → merge in body.addRecordIds (validated against the pet).
+ * A finalized report reverts to draft (its content is about to change) and the
+ * owner summary is cleared so it can't be served stale by humanizeReport's cache.
+ */
+export const syncReportRecords = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const report = await VetReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    const currentIds = resolveReportRecordIds(report);
+    let nextIds: string[];
+
+    if (report.scope === 'all') {
+      nextIds = await findCompletedRecordIdsForPet(report.petId);
+    } else if (req.body.addNew === true) {
+      // Fold in every completed record created since the last sync (same set countNewRecords reports)
+      const since = report.recordsSyncedAt || report.createdAt;
+      const newRecords = await MedicalRecord.find({
+        petId: report.petId,
+        stage: 'completed',
+        _id: { $nin: currentIds },
+        createdAt: { $gt: since },
+      })
+        .select('_id')
+        .lean();
+      nextIds = [...currentIds, ...newRecords.map((r: any) => r._id.toString())];
+    } else {
+      const addRecordIds: string[] = Array.isArray(req.body.addRecordIds)
+        ? req.body.addRecordIds.map(String)
+        : [];
+      if (addRecordIds.length === 0) {
+        return res.status(400).json({ status: 'ERROR', message: 'addRecordIds (or addNew: true) is required for selected-scope reports.' });
+      }
+      const unique = [...new Set(addRecordIds)].filter((rid) => !currentIds.includes(rid));
+      if (unique.length > 0) {
+        const found = await MedicalRecord.find({ _id: { $in: unique }, petId: report.petId, stage: 'completed' })
+          .select('_id')
+          .lean();
+        if (found.length !== unique.length) {
+          return res.status(400).json({
+            status: 'ERROR',
+            message: 'One or more records do not belong to this pet or are not completed.',
+          });
+        }
+      }
+      nextIds = [...currentIds, ...unique];
+    }
+
+    const added = nextIds.filter((rid) => !currentIds.includes(rid));
+
+    report.medicalRecordIds = nextIds as any; // mongoose casts string ids on assignment
+    report.recordsSyncedAt = new Date();
+    if (added.length > 0) {
+      // Content will change once regenerated — draft again, and drop the now-stale owner summary
+      if (report.status === 'finalized') report.status = 'draft';
+      report.ownerSummary = null;
+    }
+    await report.save();
+
+    res.json({ status: 'OK', data: report, addedCount: added.length });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -449,11 +721,12 @@ export const generateReport = async (req: Request, res: Response) => {
 
     const vet = await User.findById(report.vetId).lean() as any;
 
-    // Load medical record and persistent vet notes in parallel
-    const [record, petNotesDoc] = await Promise.all([
-      report.medicalRecordId
-        ? MedicalRecord.findById(report.medicalRecordId).lean()
-        : Promise.resolve({}),
+    // Load linked medical records (chronological) and persistent vet notes in parallel
+    const recordIds = resolveReportRecordIds(report);
+    const [records, petNotesDoc] = await Promise.all([
+      recordIds.length > 0
+        ? MedicalRecord.find({ _id: { $in: recordIds } }).sort({ createdAt: 1 }).lean()
+        : Promise.resolve([] as any[]),
       PetNotes.findOne({ petId: report.petId }).lean() as any,
     ]);
 
@@ -462,7 +735,9 @@ export const generateReport = async (req: Request, res: Response) => {
       return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
     }
 
-    const prompt = buildAIPrompt(pet, record || {}, vet, report.vetContextNotes, petNotesDoc?.notes || '');
+    const prompt = records.length > 1
+      ? buildConsolidatedAIPrompt(pet, records, vet, report.vetContextNotes, petNotesDoc?.notes || '')
+      : buildAIPrompt(pet, records[0] || {}, vet, report.vetContextNotes, petNotesDoc?.notes || '');
 
     const completion = await openai.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -502,6 +777,9 @@ export const generateReport = async (req: Request, res: Response) => {
       prognosis: sections.prognosis ?? '',
     };
     report.isAIGenerated = true;
+    // Sections changed — any previously generated owner summary no longer matches them.
+    // Clearing it lets humanizeReport regenerate instead of serving its stale cache.
+    report.ownerSummary = null;
     await report.save();
 
     res.json({ status: 'OK', data: report });

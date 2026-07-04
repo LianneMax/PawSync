@@ -20,6 +20,13 @@ export interface OwnerSummary {
   whatToExpect: string;
 }
 
+export interface LinkedRecord {
+  _id: string;
+  chiefComplaint?: string;
+  createdAt?: string;
+  stage?: string;
+}
+
 export interface VetReport {
   _id: string;
   petId: {
@@ -36,6 +43,12 @@ export interface VetReport {
     microchipNumber?: string | null;
   };
   medicalRecordId?: string | null;
+  /** Consolidated source records; populated with dates on getVetReport/getSharedReport */
+  medicalRecordIds?: (string | LinkedRecord)[];
+  scope?: 'selected' | 'all';
+  recordsSyncedAt?: string | null;
+  /** Completed records created since last sync that aren't in the report (getVetReport only) */
+  newRecordCount?: number;
   vetId: {
     _id: string;
     firstName: string;
@@ -61,6 +74,8 @@ export interface VetReport {
 export interface CreateVetReportInput {
   petId: string;
   medicalRecordId?: string;
+  medicalRecordIds?: string[];
+  scope?: 'selected' | 'all';
   title?: string;
   reportDate?: string;
   vetContextNotes?: string;
@@ -180,6 +195,29 @@ export async function humanizeVetReport(id: string, token?: string): Promise<Vet
   );
   if (json?.status !== 'OK') throw new Error(json?.message || 'Humanization failed');
   return json.data;
+}
+
+/**
+ * Fold new completed visits into an existing report.
+ * Default folds in every new record ('all'-scope re-resolves; 'selected'-scope adds
+ * records created since last sync). Pass addRecordIds to add a specific set instead.
+ */
+export async function syncVetReportRecords(
+  id: string,
+  token?: string,
+  addRecordIds?: string[]
+): Promise<{ report: VetReport; addedCount: number }> {
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/sync-records`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(addRecordIds?.length ? { addRecordIds } : { addNew: true }),
+    },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to sync records');
+  return { report: json.data, addedCount: json.addedCount ?? 0 };
 }
 
 export async function shareVetReport(

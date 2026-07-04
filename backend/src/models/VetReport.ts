@@ -20,7 +20,14 @@ export interface IOwnerSummary {
 
 export interface IVetReport extends Document {
   petId: mongoose.Types.ObjectId;
+  /** Legacy single-record link. New reports use medicalRecordIds; kept for backward compat. */
   medicalRecordId?: mongoose.Types.ObjectId;
+  /** All medical records this report consolidates, in no guaranteed order. */
+  medicalRecordIds: mongoose.Types.ObjectId[];
+  /** 'all' = report covers every completed record for the pet; 'selected' = vet hand-picked records. */
+  scope: 'selected' | 'all';
+  /** When the record set was last resolved — used to detect new records since. */
+  recordsSyncedAt: Date | null;
   vetId: mongoose.Types.ObjectId;
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
@@ -67,6 +74,9 @@ const VetReportSchema = new Schema<IVetReport>(
   {
     petId: { type: Schema.Types.ObjectId, ref: 'Pet', required: true, index: true },
     medicalRecordId: { type: Schema.Types.ObjectId, ref: 'MedicalRecord', default: null },
+    medicalRecordIds: { type: [Schema.Types.ObjectId], ref: 'MedicalRecord', default: [] },
+    scope: { type: String, enum: ['selected', 'all'], default: 'selected' },
+    recordsSyncedAt: { type: Date, default: null },
     vetId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     clinicId: { type: Schema.Types.ObjectId, ref: 'Clinic', required: true },
     clinicBranchId: { type: Schema.Types.ObjectId, ref: 'ClinicBranch', required: true },
