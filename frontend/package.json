@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "dog-breeds": "^2.1.0",
     "framer-motion": "^12.19",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import DOG_BREEDS_DATA from 'dog-breeds/dog-breeds.json';
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,11 +36,6 @@ const CAT_BREEDS = [
   'Mixed / Unknown',
 ];
 
-function formatBreedName(breed: string, sub?: string): string {
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  if (sub) return `${capitalize(sub)} ${capitalize(breed)}`;
-  return capitalize(breed);
-}
 
 interface BreedComboboxProps {
   species: 'canine' | 'feline' | null;
@@ -54,7 +50,6 @@ interface BreedComboboxProps {
 export function BreedCombobox({ species, value, onChange, placeholder = 'Select Breed*', error, className }: BreedComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [breeds, setBreeds] = React.useState<{ value: string; label: string }[]>([]);
-  const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (species === 'feline') {
@@ -63,31 +58,11 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
     }
 
     if (species === 'canine') {
-      setLoading(true);
-      fetch('https://dog.ceo/api/breeds/list/all')
-        .then((res) => res.json())
-        .then((data) => {
-          const list: { value: string; label: string }[] = [];
-          const msg: Record<string, string[]> = data.message;
-          for (const breed of Object.keys(msg)) {
-            if (msg[breed].length > 0) {
-              for (const sub of msg[breed]) {
-                const label = formatBreedName(breed, sub);
-                list.push({ value: label.toLowerCase(), label });
-              }
-            } else {
-              const label = formatBreedName(breed);
-              list.push({ value: label.toLowerCase(), label });
-            }
-          }
-          list.sort((a, b) => a.label.localeCompare(b.label));
-          list.push({ value: 'mixed / unknown', label: 'Mixed / Unknown' });
-          setBreeds(list);
-        })
-        .catch(() => {
-          setBreeds([{ value: 'mixed / unknown', label: 'Mixed / Unknown' }]);
-        })
-        .finally(() => setLoading(false));
+      const list = DOG_BREEDS_DATA
+        .map((b) => ({ value: b.name.toLowerCase(), label: b.name }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+      list.push({ value: 'mixed / unknown', label: 'Mixed / Unknown' });
+      setBreeds(list);
       return;
     }
 
@@ -119,9 +94,9 @@ export function BreedCombobox({ species, value, onChange, placeholder = 'Select 
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popper-anchor-width) p-0" align="start">
         <Command>
-          <CommandInput placeholder={loading ? 'Loading breeds...' : 'Search breed...'} />
+          <CommandInput placeholder="Search breed..." />
           <CommandList>
-            <CommandEmpty>{loading ? 'Loading...' : 'No breed found.'}</CommandEmpty>
+            <CommandEmpty>No breed found.</CommandEmpty>
             <CommandGroup>
               {breeds.map((breed) => (
                 <CommandItem
