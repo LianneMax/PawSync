@@ -7,7 +7,9 @@ import ClinicBranch from '../models/ClinicBranch';
 import Pet from '../models/Pet';
 import Resignation from '../models/Resignation';
 import AuditTrail from '../models/AuditTrail';
+import AssignedVet from '../models/AssignedVet';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
+import { updateBranchStatus } from '../services/branchStatusService';
 import {
   sendAppointmentReminder,
   sendAppointmentMissed,
@@ -564,6 +566,12 @@ export function startScheduler() {
 
         resignation.status = 'completed';
         await resignation.save();
+
+        await AssignedVet.updateMany(
+          { vetId: resignation.vetId, clinicBranchId: resignation.clinicBranchId, isActive: true },
+          { $set: { isActive: false } }
+        );
+        await updateBranchStatus(resignation.clinicBranchId.toString());
 
         const vet = resignation.vetId as any;
         const branch = resignation.clinicBranchId as any;

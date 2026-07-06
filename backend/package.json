@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "test": "jest",
     "seed:uat": "ts-node src/scripts/seedUatUsers.ts",
-    "clear:uat": "ts-node src/scripts/clearUatUsers.ts"
+    "clear:uat": "ts-node src/scripts/clearUatUsers.ts",
+    "backfill:branch-vet-status": "ts-node src/scripts/backfillBranchVetStatus.ts"
   },
   "keywords": [],
   "author": "",
