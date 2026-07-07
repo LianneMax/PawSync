@@ -16,7 +16,9 @@
       "dist/nfcWorker.js"
     ],
     "assets": [
-      "node_modules/**/*.node"
+      "node_modules/**/*.node",
+      "node_modules/axios/dist/**",
+      "node_modules/axios/package.json"
     ]
   },
   "dependencies": {
