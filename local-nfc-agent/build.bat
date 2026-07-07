@@ -40,9 +40,13 @@ echo [3/8] Compiling TypeScript...
 call npm run build
 if errorlevel 1 (echo ERROR: tsc failed & pause & exit /b 1)
 
-:: 4. Package with pkg
+:: 4. Package with pkg (auto-detect Node version for ABI match)
 echo [4/8] Bundling executable...
-call npx pkg . --target node18-win-x64 --output "%DIST_DIR%\PawSync-NFC-Agent.exe" --compress GZip
+for /f "tokens=1 delims=." %%v in ('node --version') do set NODE_VER=%%v
+set NODE_MAJOR=%NODE_VER:~1%
+set PKG_TARGET=node%NODE_MAJOR%-win-x64
+echo     Detected Node %NODE_MAJOR% -- using target: %PKG_TARGET%
+call npx @yao-pkg/pkg . --target %PKG_TARGET% --output "%DIST_DIR%\PawSync-NFC-Agent.exe" --compress GZip
 if errorlevel 1 (echo ERROR: pkg failed & pause & exit /b 1)
 
 :: 5. Copy native .node files

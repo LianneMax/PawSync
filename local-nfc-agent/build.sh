@@ -16,13 +16,14 @@ RELEASE_DIR="$SCRIPT_DIR/release"
 DIST_DIR="$RELEASE_DIR/dist-macos"
 ZIP_NAME="PawSync-NFC-Agent-macOS.zip"
 
-# Detect architecture for pkg target
+# Detect Node version + architecture for ABI-matching pkg target
+NODE_MAJOR=$(node --version | cut -d. -f1 | tr -d 'v')
 ARCH="$(uname -m)"
 if [ "$ARCH" = "arm64" ]; then
-  PKG_TARGET="node18-macos-arm64"
+  PKG_TARGET="node${NODE_MAJOR}-macos-arm64"
   EXE_SUFFIX="macos-arm64"
 else
-  PKG_TARGET="node18-macos-x64"
+  PKG_TARGET="node${NODE_MAJOR}-macos-x64"
   EXE_SUFFIX="macos-x64"
 fi
 
@@ -50,7 +51,7 @@ npm run build
 
 # 4. Package with pkg
 echo "[4/7] Bundling executable..."
-npx pkg . \
+npx @yao-pkg/pkg . \
   --target "$PKG_TARGET" \
   --output "$DIST_DIR/PawSync-NFC-Agent" \
   --compress GZip

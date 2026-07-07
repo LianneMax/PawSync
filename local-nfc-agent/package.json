@@ -31,7 +31,7 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/uuid": "^9.0.8",
-    "pkg": "^5.8.1",
+    "@yao-pkg/pkg": "^5.11.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   }
