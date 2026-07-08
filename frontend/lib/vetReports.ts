@@ -2,14 +2,122 @@ import { authenticatedFetch } from '@/lib/auth';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export interface VetReportSections {
-  clinicalSummary: string;
-  laboratoryInterpretation: string;
-  diagnosticIntegration: string;
-  assessment: string;
-  managementPlan: string;
-  prognosis: string;
+export type ReportType =
+  | 'general'
+  | 'soap'
+  | 'diagnostic'
+  | 'surgery'
+  | 'healthCertificate'
+  | 'dischargeSummary'
+  | 'referralLetter';
+
+export interface ReportTypeConfig {
+  value: ReportType;
+  label: string;
+  description: string;
 }
+
+export const REPORT_TYPE_CONFIG: ReportTypeConfig[] = [
+  {
+    value: 'general',
+    label: 'General Report',
+    description: 'Full diagnostic write-up: clinical summary, lab interpretation, assessment, and management plan.',
+  },
+  {
+    value: 'soap',
+    label: 'SOAP Notes',
+    description: 'Per-visit progress note covering Subjective, Objective, Assessment, and Plan (single visit only).',
+  },
+  {
+    value: 'diagnostic',
+    label: 'Diagnostic Report',
+    description: 'Technical write-up from diagnostic tests — blood work, urinalysis, X-rays, and more.',
+  },
+  {
+    value: 'surgery',
+    label: 'Surgery / Anesthesia Report',
+    description: 'Operative log with pre-op summary, anesthesia protocol, surgical steps, and post-op care.',
+  },
+  {
+    value: 'healthCertificate',
+    label: 'Health Certificate',
+    description: 'Official document certifying pet health status, vaccinations, and parasite control for travel.',
+  },
+  {
+    value: 'dischargeSummary',
+    label: 'Discharge Summary',
+    description: 'Owner-facing instructions for medications, feeding, activity restrictions, and follow-up care.',
+  },
+  {
+    value: 'referralLetter',
+    label: 'Referral Letter',
+    description: 'Professional letter summarizing history, findings, and consultation request for a specialist.',
+  },
+];
+
+export const SECTION_LABELS_BY_TYPE: Record<ReportType, Record<string, string>> = {
+  general: {
+    clinicalSummary: 'I. Clinical Summary',
+    laboratoryInterpretation: 'II. Laboratory Interpretation',
+    diagnosticIntegration: 'III. Overall Diagnostic Integration',
+    assessment: 'IV. Assessment',
+    managementPlan: 'V. Recommendations and Management Plan',
+    prognosis: 'VI. Prognosis',
+  },
+  soap: {
+    subjective: 'S — Subjective (Owner\'s Report & History)',
+    objective: 'O — Objective (Physical Examination & Vitals)',
+    assessment: 'A — Assessment (Clinical Diagnosis)',
+    plan: 'P — Plan (Treatment & Next Steps)',
+  },
+  diagnostic: {
+    testsSummary: 'I. Tests Performed',
+    resultsInterpretation: 'II. Results Interpretation',
+    clinicalCorrelation: 'III. Clinical Correlation',
+    recommendations: 'IV. Recommendations',
+  },
+  surgery: {
+    preoperativeSummary: 'I. Pre-operative Summary',
+    anesthesiaProtocol: 'II. Anesthesia Protocol',
+    surgicalProcedure: 'III. Surgical Procedure',
+    intraoperativeMonitoring: 'IV. Intraoperative Monitoring',
+    postoperativeCare: 'V. Post-operative Care',
+    complications: 'VI. Complications & Remarks',
+  },
+  healthCertificate: {
+    patientHealthStatus: 'I. Current Health Status',
+    vaccinationHistory: 'II. Vaccination & Immunization History',
+    parasiteControl: 'III. Parasite Control',
+    travelClearance: 'IV. Veterinary Clearance',
+  },
+  dischargeSummary: {
+    diagnosisSummary: 'I. Diagnosis Summary',
+    medications: 'II. Medications',
+    feedingInstructions: 'III. Feeding Instructions',
+    activityRestrictions: 'IV. Activity & Rest Instructions',
+    followUpCare: 'V. Follow-up Care',
+    warningSignsToWatch: 'VI. Warning Signs to Watch',
+  },
+  referralLetter: {
+    referralReason: 'I. Reason for Referral',
+    clinicalHistory: 'II. Clinical History',
+    currentFindings: 'III. Current Findings',
+    treatmentsToDate: 'IV. Treatments to Date',
+    referralRequest: 'V. Specialist Consultation Request',
+  },
+};
+
+export const REPORT_TYPE_DOCUMENT_TITLES: Record<ReportType, string> = {
+  general: 'Veterinary Diagnostic Report',
+  soap: 'SOAP Progress Note',
+  diagnostic: 'Diagnostic Test Report',
+  surgery: 'Surgical & Anesthesia Report',
+  healthCertificate: 'Veterinary Health Certificate',
+  dischargeSummary: 'Discharge Summary',
+  referralLetter: 'Veterinary Referral Letter',
+};
+
+export type VetReportSections = Record<string, string>;
 
 export interface OwnerSummary {
   whatWeFound: string;
@@ -43,12 +151,11 @@ export interface VetReport {
     microchipNumber?: string | null;
   };
   medicalRecordId?: string | null;
-  /** Consolidated source records; populated with dates on getVetReport/getSharedReport */
   medicalRecordIds?: (string | LinkedRecord)[];
   scope?: 'selected' | 'all';
   recordsSyncedAt?: string | null;
-  /** Completed records created since last sync that aren't in the report (getVetReport only) */
   newRecordCount?: number;
+  reportType: ReportType;
   vetId: {
     _id: string;
     firstName: string;
@@ -73,6 +180,7 @@ export interface VetReport {
 
 export interface CreateVetReportInput {
   petId: string;
+  reportType?: ReportType;
   medicalRecordId?: string;
   medicalRecordIds?: string[];
   scope?: 'selected' | 'all';
@@ -85,10 +193,26 @@ export interface UpdateVetReportInput {
   title?: string;
   reportDate?: string;
   vetContextNotes?: string;
-  sections?: Partial<VetReportSections>;
+  sections?: VetReportSections;
   status?: 'draft' | 'finalized';
   vetSignature?: { url: string; signedAt: string };
 }
+
+// ─── Legacy exports (general type aliases) ───────────────────────────────────
+
+export const SECTION_LABELS = SECTION_LABELS_BY_TYPE.general;
+export const SECTION_KEYS = Object.keys(SECTION_LABELS_BY_TYPE.general);
+
+export const OWNER_SUMMARY_LABELS: Record<keyof OwnerSummary, string> = {
+  whatWeFound: 'What We Found',
+  testResultsExplained: 'Test Results Explained',
+  whatsHappeningInTheirBody: "What's Happening in Their Body",
+  theDiagnosis: 'The Diagnosis',
+  theTreatmentPlan: 'The Treatment Plan',
+  whatToExpect: 'What to Expect',
+};
+
+export const OWNER_SUMMARY_KEYS = Object.keys(OWNER_SUMMARY_LABELS) as (keyof OwnerSummary)[];
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────
 
@@ -197,11 +321,6 @@ export async function humanizeVetReport(id: string, token?: string): Promise<Vet
   return json.data;
 }
 
-/**
- * Fold new completed visits into an existing report.
- * Default folds in every new record ('all'-scope re-resolves; 'selected'-scope adds
- * records created since last sync). Pass addRecordIds to add a specific set instead.
- */
 export async function syncVetReportRecords(
   id: string,
   token?: string,
@@ -248,24 +367,10 @@ export function formatReportDate(dateStr: string): string {
   });
 }
 
-export const OWNER_SUMMARY_LABELS: Record<keyof OwnerSummary, string> = {
-  whatWeFound: 'What We Found',
-  testResultsExplained: 'Test Results Explained',
-  whatsHappeningInTheirBody: "What's Happening in Their Body",
-  theDiagnosis: 'The Diagnosis',
-  theTreatmentPlan: 'The Treatment Plan',
-  whatToExpect: 'What to Expect',
-};
+export function getSectionLabels(reportType?: ReportType | null): Record<string, string> {
+  return SECTION_LABELS_BY_TYPE[reportType ?? 'general'] ?? SECTION_LABELS_BY_TYPE.general;
+}
 
-export const OWNER_SUMMARY_KEYS = Object.keys(OWNER_SUMMARY_LABELS) as (keyof OwnerSummary)[];
-
-export const SECTION_LABELS: Record<keyof VetReportSections, string> = {
-  clinicalSummary: 'I. Clinical Summary',
-  laboratoryInterpretation: 'II. Laboratory Interpretation',
-  diagnosticIntegration: 'III. Overall Diagnostic Integration',
-  assessment: 'IV. Assessment',
-  managementPlan: 'V. Recommendations and Management Plan',
-  prognosis: 'VI. Prognosis',
-};
-
-export const SECTION_KEYS = Object.keys(SECTION_LABELS) as (keyof VetReportSections)[];
+export function getSectionKeys(reportType?: ReportType | null): string[] {
+  return Object.keys(getSectionLabels(reportType));
+}

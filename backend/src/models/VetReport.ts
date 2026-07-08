@@ -1,13 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IVetReportSections {
-  clinicalSummary: string;
-  laboratoryInterpretation: string;
-  diagnosticIntegration: string;
-  assessment: string;
-  managementPlan: string;
-  prognosis: string;
-}
+export type ReportType = 'general' | 'soap' | 'diagnostic' | 'surgery' | 'healthCertificate' | 'dischargeSummary' | 'referralLetter';
 
 export interface IOwnerSummary {
   whatWeFound: string;
@@ -28,6 +21,7 @@ export interface IVetReport extends Document {
   scope: 'selected' | 'all';
   /** When the record set was last resolved — used to detect new records since. */
   recordsSyncedAt: Date | null;
+  reportType: ReportType;
   vetId: mongoose.Types.ObjectId;
   clinicId: mongoose.Types.ObjectId;
   clinicBranchId: mongoose.Types.ObjectId;
@@ -35,7 +29,8 @@ export interface IVetReport extends Document {
   reportDate: Date;
   /** Free-form context the vet types before hitting Generate */
   vetContextNotes: string;
-  sections: IVetReportSections;
+  /** Flexible section map — keys depend on reportType */
+  sections: Record<string, string>;
   ownerSummary?: IOwnerSummary | null;
   isAIGenerated: boolean;
   status: 'draft' | 'finalized';
@@ -45,18 +40,6 @@ export interface IVetReport extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
-const VetReportSectionsSchema = new Schema<IVetReportSections>(
-  {
-    clinicalSummary: { type: String, default: '' },
-    laboratoryInterpretation: { type: String, default: '' },
-    diagnosticIntegration: { type: String, default: '' },
-    assessment: { type: String, default: '' },
-    managementPlan: { type: String, default: '' },
-    prognosis: { type: String, default: '' },
-  },
-  { _id: false }
-);
 
 const OwnerSummarySchema = new Schema<IOwnerSummary>(
   {
@@ -77,13 +60,18 @@ const VetReportSchema = new Schema<IVetReport>(
     medicalRecordIds: { type: [Schema.Types.ObjectId], ref: 'MedicalRecord', default: [] },
     scope: { type: String, enum: ['selected', 'all'], default: 'selected' },
     recordsSyncedAt: { type: Date, default: null },
+    reportType: {
+      type: String,
+      enum: ['general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter'],
+      default: 'general',
+    },
     vetId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     clinicId: { type: Schema.Types.ObjectId, ref: 'Clinic', required: true },
     clinicBranchId: { type: Schema.Types.ObjectId, ref: 'ClinicBranch', required: true },
     title: { type: String, default: '' },
     reportDate: { type: Date, default: Date.now },
     vetContextNotes: { type: String, default: '' },
-    sections: { type: VetReportSectionsSchema, default: () => ({}) },
+    sections: { type: Schema.Types.Mixed, default: {} },
     ownerSummary: { type: OwnerSummarySchema, default: null },
     isAIGenerated: { type: Boolean, default: false },
     status: { type: String, enum: ['draft', 'finalized'], default: 'draft' },

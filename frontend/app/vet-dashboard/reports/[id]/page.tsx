@@ -12,12 +12,15 @@ import {
   shareVetReport,
   syncVetReportRecords,
   formatReportDate,
-  SECTION_LABELS,
-  SECTION_KEYS,
+  getSectionKeys,
+  getSectionLabels,
+  REPORT_TYPE_CONFIG,
+  REPORT_TYPE_DOCUMENT_TITLES,
   type VetReport,
   type VetReportSections,
   type OwnerSummary,
   type LinkedRecord,
+  type ReportType,
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
@@ -52,6 +55,11 @@ import {
   Layers,
   AlertTriangle,
   CalendarDays,
+  Scissors,
+  Shield,
+  Home,
+  Mail,
+  Tag,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -103,17 +111,17 @@ function ContextPrompt({
       <div className="flex items-center gap-2 mb-2">
         <Sparkles className="w-4 h-4 text-indigo-500" />
         <span className="text-sm font-semibold text-indigo-700">AI Report Generator</span>
-        <span className="text-xs text-indigo-400 ml-auto">GPT-4o mini</span>
+        <span className="text-xs text-indigo-400 ml-auto">llama-3.3-70b</span>
       </div>
       <p className="text-xs text-indigo-600 mb-3">
-        Add any additional context or special notes for the AI. The medical record data will be included automatically.
+        Add context or special notes for the AI. Medical record data is included automatically.
       </p>
       <textarea
         ref={textareaRef}
         value={value}
         onChange={(e) => { onChange(e.target.value); adjustHeight() }}
         disabled={generating}
-        placeholder="e.g. Focus on the cardiac findings. Include differential diagnoses. Patient is currently on enalapril from a previous visit…"
+        placeholder="e.g. Focus on the cardiac findings. Patient is currently on enalapril…"
         className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-60"
         style={{ minHeight: 80 }}
       />
@@ -165,7 +173,7 @@ function HumanizeSection({
         )}
       </div>
       <p className="text-xs text-emerald-600 mb-3">
-        Translate clinical findings into plain, compassionate language for the pet owner.
+        Translate this report into plain, compassionate language for the pet owner.
       </p>
       <button
         onClick={onHumanize}
@@ -185,18 +193,55 @@ function HumanizeSection({
   )
 }
 
-// ─── Report Preview (formatted document view) ────────────────────────────────
+// ─── Section icons ────────────────────────────────────────────────────────────
 
 const SECTION_ICONS: Record<string, React.ReactNode> = {
-  clinicalSummary:         <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
-  laboratoryInterpretation:<FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
-  diagnosticIntegration:   <Activity className="w-4 h-4 text-[#5A7C7A]" />,
-  assessment:              <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
-  managementPlan:          <Pill className="w-4 h-4 text-[#5A7C7A]" />,
-  prognosis:               <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
+  // general
+  clinicalSummary:          <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  laboratoryInterpretation: <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  diagnosticIntegration:    <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  assessment:               <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  managementPlan:           <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  prognosis:                <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
+  // soap
+  subjective:               <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  objective:                <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  plan:                     <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  // diagnostic
+  testsSummary:             <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  resultsInterpretation:    <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  clinicalCorrelation:      <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  recommendations:          <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  // surgery
+  preoperativeSummary:      <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  anesthesiaProtocol:       <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  surgicalProcedure:        <Scissors className="w-4 h-4 text-[#5A7C7A]" />,
+  intraoperativeMonitoring: <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  postoperativeCare:        <Heart className="w-4 h-4 text-[#5A7C7A]" />,
+  complications:            <AlertTriangle className="w-4 h-4 text-[#5A7C7A]" />,
+  // healthCertificate
+  patientHealthStatus:      <PawPrint className="w-4 h-4 text-[#5A7C7A]" />,
+  vaccinationHistory:       <Shield className="w-4 h-4 text-[#5A7C7A]" />,
+  parasiteControl:          <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  travelClearance:          <CheckCircle2 className="w-4 h-4 text-[#5A7C7A]" />,
+  // dischargeSummary
+  diagnosisSummary:         <FileText className="w-4 h-4 text-[#5A7C7A]" />,
+  medications:              <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  feedingInstructions:      <Heart className="w-4 h-4 text-[#5A7C7A]" />,
+  activityRestrictions:     <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
+  followUpCare:             <CalendarDays className="w-4 h-4 text-[#5A7C7A]" />,
+  warningSignsToWatch:      <AlertTriangle className="w-4 h-4 text-[#5A7C7A]" />,
+  // referralLetter
+  referralReason:           <FileText className="w-4 h-4 text-[#5A7C7A]" />,
+  clinicalHistory:          <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  currentFindings:          <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  treatmentsToDate:         <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  referralRequest:          <Mail className="w-4 h-4 text-[#5A7C7A]" />,
 }
 
-function PageHeader({ reportId }: { reportId: string }) {
+// ─── Report Preview ───────────────────────────────────────────────────────────
+
+function PreviewPageHeader({ reportId }: { reportId: string }) {
   return (
     <div className="relative bg-white px-8 py-5 border-b border-gray-100">
       <p className="absolute top-3 right-4 text-gray-300 text-[10px] font-mono">{reportId.slice(-8).toUpperCase()}</p>
@@ -220,11 +265,15 @@ function PageHeader({ reportId }: { reportId: string }) {
 function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSummary: OwnerSummary | null }) {
   const pet = report.petId
   const vet = report.vetId
+  const rType = (report.reportType ?? 'general') as ReportType
+  const sectionLabels = getSectionLabels(rType)
+  const sectionKeys = getSectionKeys(rType)
+  const docTitle = REPORT_TYPE_DOCUMENT_TITLES[rType] ?? 'Veterinary Diagnostic Report'
+
   const hasOwnerSummary = ownerSummary && Object.values(ownerSummary).some(
     (v) => typeof v === 'string' && v.trim()
   )
 
-  // Coverage line for consolidated reports
   const visitDates = (report.medicalRecordIds ?? [])
     .filter((r): r is LinkedRecord => typeof r === 'object' && r !== null)
     .map((r) => (r.createdAt ? new Date(r.createdAt).getTime() : NaN))
@@ -248,18 +297,15 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
 
   return (
     <div className="space-y-8">
-
-      {/* ── PAGE 1: Veterinary Diagnostic Report ── */}
       <div>
-        <p className="text-xs text-gray-400 text-center mb-2">Page 1 of {totalPages} — Veterinary Diagnostic Report</p>
+        <p className="text-xs text-gray-400 text-center mb-2">Page 1 of {totalPages} — {docTitle}</p>
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm" style={{ minHeight: '1056px' }}>
-          <PageHeader reportId={report._id} />
+          <PreviewPageHeader reportId={report._id} />
           <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
-            <h2 className="text-sm font-semibold tracking-wider uppercase">Veterinary Diagnostic Report</h2>
+            <h2 className="text-sm font-semibold tracking-wider uppercase">{docTitle}</h2>
           </div>
           <div className="px-8 py-6 space-y-6">
 
-            {/* Patient info grid */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <PawPrint className="w-4 h-4 text-[#5A7C7A]" />
@@ -280,7 +326,6 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               </div>
             </div>
 
-            {/* Attending vet */}
             <div className="flex items-center gap-2 bg-[#f0f7f7] rounded-xl px-4 py-3 text-sm">
               <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
               <span className="text-xs text-gray-500 uppercase tracking-wide font-medium mr-1">Attending Veterinarian:</span>
@@ -288,23 +333,21 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               {vet.prcLicenseNumber && <span className="text-gray-400 text-xs ml-1">· P.R.C. Lic No. {vet.prcLicenseNumber}</span>}
             </div>
 
-            {/* Coverage (consolidated reports) */}
             {coverage && (
               <p className="text-xs text-gray-500 bg-[#F8F6F2] rounded-xl px-4 py-2.5">{coverage}</p>
             )}
 
             <hr className="border-gray-200" />
 
-            {/* Clinical sections */}
-            {SECTION_KEYS.map((key, i) => {
-              const content = report.sections[key]
-              if (!content?.trim()) return null
+            {sectionKeys.map((key, i) => {
+              const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''
+              if (!content.trim()) return null
               return (
                 <div key={key}>
                   {i > 0 && <hr className="border-gray-100 mb-6" />}
                   <div className="flex items-center gap-2 mb-3">
-                    {SECTION_ICONS[key]}
-                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{SECTION_LABELS[key]}</h3>
+                    {SECTION_ICONS[key] ?? <FileText className="w-4 h-4 text-[#5A7C7A]" />}
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{sectionLabels[key]}</h3>
                   </div>
                   <div className="bg-[#F8F6F2] rounded-xl p-4">
                     <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
@@ -313,7 +356,6 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               )
             })}
 
-            {/* Vet signature */}
             <hr className="border-gray-200" />
             <div className="flex items-end justify-between pt-2">
               <div className="text-sm">
@@ -332,7 +374,6 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               </div>
             </div>
 
-            {/* Disclaimer */}
             <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
               {report.isAIGenerated && (
                 <>This report was drafted with AI assistance and has been reviewed, edited, and approved in full by Dr. {vet.firstName} {vet.lastName}. </>
@@ -340,24 +381,20 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               Diagnostic interpretations reflect a range of potential findings based on the results obtained, individual patient characteristics, and clinical history, and should be considered as part of a comprehensive assessment.
               {report.isAIGenerated && ' Pet owners are welcome to seek a second opinion from another licensed veterinarian.'}
             </p>
-
           </div>
         </div>
       </div>
 
-      {/* ── PAGE 2: Owner Summary (only if generated) ── */}
       {hasOwnerSummary && ownerSummary && (
         <div>
           <p className="text-xs text-gray-400 text-center mb-2">Page 2 of {totalPages} — Owner Summary</p>
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm" style={{ minHeight: '1056px' }}>
-            <PageHeader reportId={report._id} />
+            <PreviewPageHeader reportId={report._id} />
             <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
               <h2 className="text-sm font-semibold tracking-wider uppercase">Owner Summary — For {pet.name}&apos;s Family</h2>
             </div>
             <div className="px-8 py-6 space-y-4">
-              <p className="text-xs text-gray-500">
-                A plain-language guide to this report, written for the pet owner.
-              </p>
+              <p className="text-xs text-gray-500">A plain-language guide to this report, written for the pet owner.</p>
               {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
                 const content = ownerSummary[key]
                 if (!content?.trim()) return null
@@ -375,7 +412,6 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
           </div>
         </div>
       )}
-
     </div>
   )
 }
@@ -400,18 +436,10 @@ export default function ReportEditorPage() {
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
 
-  // Local editable state
   const [title, setTitle] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const [contextNotes, setContextNotes] = useState('')
-  const [sections, setSections] = useState<VetReportSections>({
-    clinicalSummary: '',
-    laboratoryInterpretation: '',
-    diagnosticIntegration: '',
-    assessment: '',
-    managementPlan: '',
-    prognosis: '',
-  })
+  const [sections, setSections] = useState<VetReportSections>({})
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -423,7 +451,11 @@ export default function ReportEditorPage() {
       setReport(r)
       setTitle(r.title)
       setContextNotes(r.vetContextNotes)
-      setSections(r.sections)
+      // Merge server sections with empty base keys for the type so all editors render
+      const typeKeys = getSectionKeys(r.reportType)
+      const base: VetReportSections = {}
+      for (const k of typeKeys) base[k] = ''
+      setSections({ ...base, ...r.sections })
       setOwnerSummary(r.ownerSummary ?? null)
     } catch {
       toast.error('Failed to load report')
@@ -443,26 +475,21 @@ export default function ReportEditorPage() {
       .catch(() => {})
   }, [token])
 
-  // Auto-save sections after 2s of inactivity
   const triggerAutoSave = useCallback(
     (updatedSections: VetReportSections, notes: string) => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
       autoSaveTimer.current = setTimeout(async () => {
         try {
-          await updateVetReport(
-            id,
-            { sections: updatedSections, vetContextNotes: notes },
-            token || undefined
-          )
+          await updateVetReport(id, { sections: updatedSections, vetContextNotes: notes }, token || undefined)
         } catch {
-          // silent — user can manually save
+          // silent
         }
       }, 2000)
     },
     [id, token]
   )
 
-  const handleSectionChange = (key: keyof VetReportSections, value: string) => {
+  const handleSectionChange = (key: string, value: string) => {
     const updated = { ...sections, [key]: value }
     setSections(updated)
     triggerAutoSave(updated, contextNotes)
@@ -473,8 +500,6 @@ export default function ReportEditorPage() {
     triggerAutoSave(sections, v)
   }
 
-  // Mutation responses from the backend are not populated (petId/vetId/medicalRecordIds come
-  // back as raw IDs) and don't carry newRecordCount. Preserve those from the existing state.
   const applyUpdate = (updated: VetReport) =>
     setReport((prev) => prev
       ? {
@@ -489,11 +514,7 @@ export default function ReportEditorPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const updated = await updateVetReport(
-        id,
-        { title, vetContextNotes: contextNotes, sections },
-        token || undefined
-      )
+      const updated = await updateVetReport(id, { title, vetContextNotes: contextNotes, sections }, token || undefined)
       applyUpdate(updated)
       toast.success('Report saved')
     } catch {
@@ -506,11 +527,7 @@ export default function ReportEditorPage() {
   const handleFinalize = async () => {
     setSaving(true)
     try {
-      const updated = await updateVetReport(
-        id,
-        { title, vetContextNotes: contextNotes, sections, status: 'finalized' },
-        token || undefined
-      )
+      const updated = await updateVetReport(id, { title, vetContextNotes: contextNotes, sections, status: 'finalized' }, token || undefined)
       applyUpdate(updated)
       toast.success('Report finalized')
     } catch {
@@ -525,13 +542,16 @@ export default function ReportEditorPage() {
     try {
       await updateVetReport(id, { vetContextNotes: contextNotes }, token || undefined)
     } catch {
-      // continue anyway
+      // continue
     }
     try {
       const updated = await generateVetReport(id, token || undefined)
       applyUpdate(updated)
-      setSections(updated.sections)
-      // Regeneration invalidates any previous owner summary server-side — mirror that here
+      // Merge generated sections with base keys so all editors are present
+      const typeKeys = getSectionKeys(updated.reportType)
+      const base: VetReportSections = {}
+      for (const k of typeKeys) base[k] = ''
+      setSections({ ...base, ...updated.sections })
       setOwnerSummary(updated.ownerSummary ?? null)
       toast.success('Report generated!')
     } catch (e: any) {
@@ -560,11 +580,7 @@ export default function ReportEditorPage() {
     try {
       const updated = await shareVetReport(id, !report.sharedWithOwner, token || undefined)
       applyUpdate(updated)
-      if (updated.sharedWithOwner) {
-        toast.success('Report shared with owner')
-      } else {
-        toast.success('Report unshared')
-      }
+      toast.success(updated.sharedWithOwner ? 'Report shared with owner' : 'Report unshared')
     } catch {
       toast.error('Failed to update share status')
     }
@@ -578,11 +594,7 @@ export default function ReportEditorPage() {
     }
     setSigning(true)
     try {
-      const updated = await updateVetReport(
-        id,
-        { vetSignature: { url, signedAt: new Date().toISOString() } },
-        token || undefined
-      )
+      const updated = await updateVetReport(id, { vetSignature: { url, signedAt: new Date().toISOString() } }, token || undefined)
       applyUpdate(updated)
       toast.success('Report signed')
       setSignModalOpen(false)
@@ -593,14 +605,11 @@ export default function ReportEditorPage() {
     }
   }
 
-  // Fold new completed visits into the report, then regenerate so the sections cover them.
-  // Backend reverts a finalized report to draft and clears the owner summary.
   const handleUpdateRecords = async () => {
     setUpdateConfirmOpen(false)
     setUpdating(true)
     setGenerating(true)
     try {
-      // Persist any unsaved context notes so the regeneration uses them
       await updateVetReport(id, { vetContextNotes: contextNotes }, token || undefined).catch(() => {})
       const { addedCount } = await syncVetReportRecords(id, token || undefined)
       if (addedCount === 0) {
@@ -625,7 +634,11 @@ export default function ReportEditorPage() {
     navigator.clipboard.writeText(url).then(() => toast.success('Link copied!'))
   }
 
-  const hasContent = SECTION_KEYS.some((k) => sections[k].trim().length > 0)
+  const rType = (report?.reportType ?? 'general') as ReportType
+  const activeSectionKeys = getSectionKeys(rType)
+  const activeSectionLabels = getSectionLabels(rType)
+  const hasContent = activeSectionKeys.some((k) => typeof sections[k] === 'string' && sections[k].trim().length > 0)
+  const typeLabel = REPORT_TYPE_CONFIG.find((c) => c.value === rType)?.label ?? 'General Report'
 
   if (loading) {
     return (
@@ -647,7 +660,6 @@ export default function ReportEditorPage() {
 
   const pet = report.petId
 
-  // Source medical records — new reports populate medicalRecordIds; legacy reports only medicalRecordId
   const linkedRecords = ((report.medicalRecordIds ?? []).filter(
     (r) => typeof r === 'object' && r !== null
   ) as LinkedRecord[])
@@ -673,7 +685,6 @@ export default function ReportEditorPage() {
             Reports
           </button>
 
-          {/* Title */}
           <div className="flex-1 min-w-0">
             {editingTitle ? (
               <div className="flex items-center gap-2">
@@ -706,9 +717,7 @@ export default function ReportEditorPage() {
             )}
           </div>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Edit / Preview toggle */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
               <button
                 onClick={() => setView('edit')}
@@ -791,6 +800,9 @@ export default function ReportEditorPage() {
             {pet?.sex && ` · ${pet.sex}`}
             {pet?.weight && ` · ${pet.weight} kg`}
           </span>
+          <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium">
+            <Tag className="w-3 h-3" /> {typeLabel}
+          </span>
           {report.isAIGenerated && (
             <span className="ml-auto text-xs text-indigo-500 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> AI-generated
@@ -838,14 +850,12 @@ export default function ReportEditorPage() {
                 hasContent={hasContent}
               />
 
-              {/* Generating overlay */}
               {generating && (
                 <div className="border border-indigo-100 rounded-xl p-4 bg-white min-h-[120px] flex items-center">
                   <AILoadingState />
                 </div>
               )}
 
-              {/* Owner summary section */}
               {!generating && (
                 <div className="mt-4">
                   <HumanizeSection
@@ -862,7 +872,6 @@ export default function ReportEditorPage() {
                 </div>
               )}
 
-              {/* Source records */}
               {!generating && sourceRecords.length > 0 && (
                 <div className="mt-4 border border-gray-200 rounded-xl p-4 bg-white">
                   <div className="flex items-center gap-2 mb-2">
@@ -887,7 +896,6 @@ export default function ReportEditorPage() {
                 </div>
               )}
 
-              {/* Metadata */}
               {!generating && !humanizing && (
                 <div className="text-xs text-gray-400 space-y-1 mt-4">
                   <p>Report date: {formatReportDate(report.reportDate)}</p>
@@ -904,16 +912,15 @@ export default function ReportEditorPage() {
             <div className="lg:col-span-2">
               {!hasContent && !generating && (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
-                  Click <strong>Generate Report</strong> to auto-fill all sections using the linked medical record,
-                  or start writing manually below.
+                  Click <strong>Generate Report</strong> to auto-fill all sections, or start writing manually below.
                 </div>
               )}
 
-              {SECTION_KEYS.map((key) => (
+              {activeSectionKeys.map((key) => (
                 <SectionEditor
                   key={key}
-                  label={SECTION_LABELS[key]}
-                  value={sections[key]}
+                  label={activeSectionLabels[key]}
+                  value={typeof sections[key] === 'string' ? sections[key] : ''}
                   onChange={(v) => handleSectionChange(key, v)}
                   disabled={generating}
                 />
@@ -932,10 +939,10 @@ export default function ReportEditorPage() {
           <div className="text-sm text-gray-600 space-y-2">
             <p>
               This will add <strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong> to
-              this report and regenerate all clinical sections to cover the full visit history.
+              this report and regenerate all sections to cover the full visit history.
             </p>
             <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
-              <li>Manual edits to the sections will be overwritten by the regenerated content.</li>
+              <li>Manual edits to sections will be overwritten by the regenerated content.</li>
               {report.status === 'finalized' && <li>The report will revert to draft and must be finalized again.</li>}
               {ownerSummary && <li>The owner summary will be cleared and must be regenerated.</li>}
               {report.sharedWithOwner && <li>The report stays shared — the owner will see the updated content.</li>}

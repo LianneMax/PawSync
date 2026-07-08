@@ -7,8 +7,13 @@ import PetNotes from '../models/PetNotes';
 import User from '../models/User';
 import { createNotification } from '../services/notificationService';
 import { sendVetReportShared } from '../services/emailService';
+import type { ReportType } from '../models/VetReport';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+const VALID_REPORT_TYPES: ReportType[] = [
+  'general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter',
+];
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI | null {
@@ -22,11 +27,7 @@ function getOpenAI(): OpenAI | null {
 }
 
 function extractJSON(raw: string): Record<string, string> {
-  // Strip markdown code fences if present
   let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-
-  // Escape bare control characters (newlines, tabs, carriage returns) that appear
-  // inside JSON string literals — the AI sometimes outputs them unescaped
   cleaned = cleaned.replace(/"((?:[^"\\]|\\[\s\S])*)"/g, (_match, content: string) => {
     const fixed = content
       .replace(/\n/g, '\\n')
@@ -34,7 +35,6 @@ function extractJSON(raw: string): Record<string, string> {
       .replace(/\t/g, '\\t');
     return `"${fixed}"`;
   });
-
   try {
     return JSON.parse(cleaned);
   } catch {
@@ -46,10 +46,6 @@ function extractJSON(raw: string): Record<string, string> {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Effective record set for a report. Legacy reports only have `medicalRecordId`;
- * new reports carry `medicalRecordIds`. Always returns string ids.
- */
 function resolveReportRecordIds(report: any): string[] {
   const ids: string[] = (report.medicalRecordIds || []).map((id: any) =>
     typeof id === 'object' && id?._id ? id._id.toString() : id.toString()
@@ -61,7 +57,6 @@ function resolveReportRecordIds(report: any): string[] {
   return ids;
 }
 
-/** Completed medical records for a pet — the only records eligible for reports. */
 async function findCompletedRecordIdsForPet(petId: any): Promise<string[]> {
   const records = await MedicalRecord.find({ petId, stage: 'completed' })
     .select('_id')
@@ -69,7 +64,6 @@ async function findCompletedRecordIdsForPet(petId: any): Promise<string[]> {
   return records.map((r: any) => r._id.toString());
 }
 
-/** Count completed records created after the report's last sync that aren't already included. */
 async function countNewRecords(report: any): Promise<number> {
   const includedIds = resolveReportRecordIds(report);
   const since = report.recordsSyncedAt || report.createdAt;
@@ -90,39 +84,19 @@ function calcAge(dob: Date): string {
   return `${years} year${years !== 1 ? 's' : ''} and ${months} month${months !== 1 ? 's' : ''}`;
 }
 
-function buildHumanizePrompt(sections: any, petName: string, petType: string): string {
-  return `Below is a formal veterinary diagnostic report for a pet owner. Translate each section into plain, friendly language a non-medical pet owner can understand. Keep it honest but compassionate. Use "${petName}" or "your ${petType}" naturally throughout.
-
-Clinical Summary:
-"${sections.clinicalSummary || '(not available)'}"
-
-Laboratory Interpretation:
-"${sections.laboratoryInterpretation || '(not available)'}"
-
-Diagnostic Integration:
-"${sections.diagnosticIntegration || '(not available)'}"
-
-Assessment:
-"${sections.assessment || '(not available)'}"
-
-Management Plan:
-"${sections.managementPlan || '(not available)'}"
-
-Prognosis:
-"${sections.prognosis || '(not available)'}"
-
----
-Rewrite each section in plain language for the pet owner. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY this JSON object:
-
-{
-  "whatWeFound": "A warm, plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
-  "testResultsExplained": "Explain the lab results in simple terms. What does each result mean for ${petName}'s health? Use a conversational tone.",
-  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
-  "theDiagnosis": "State the diagnoses in plain language. What condition does ${petName} have and what does it mean for daily life?",
-  "theTreatmentPlan": "List each medication and what it does for ${petName} in simple terms. Make it feel like a care guide.",
-  "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}. What should the owner watch out for? End on a hopeful but realistic note."
-}`;
+function patientBlock(pet: any): string {
+  const age = pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'unknown';
+  return `PATIENT INFORMATION:
+- Name: ${pet.name}
+- Species/Breed: ${pet.species === 'canine' ? 'Canine' : 'Feline'} / ${pet.breed}
+- Sex: ${pet.sex}
+- Age: ${age}
+- Weight: ${pet.weight} kg
+- Allergies: ${(pet.allergies || []).join(', ') || 'None on file'}
+- Sterilization: ${pet.sterilization}`;
 }
+
+// ─── Prompt builders ─────────────────────────────────────────────────────────
 
 function buildAIPrompt(
   pet: any,
@@ -131,35 +105,23 @@ function buildAIPrompt(
   vetContextNotes: string,
   persistentVetNotes: string
 ): string {
-  const age = pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'unknown';
-
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
     .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
     .join('\n');
-
   const medLines = (record.medications || [])
     .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
-
   const testLines = (record.diagnosticTests || [])
     .map((t: any) => `  - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
     .join('\n');
-
   const preventiveLines = (record.preventiveCare || [])
     .map((p: any) => `  - ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`)
     .join('\n');
 
   return `You are a veterinary medical report writer. Generate a formal Veterinary Diagnostic Report using the clinical data below.
 
-PATIENT INFORMATION:
-- Name: ${pet.name}
-- Species/Breed: ${pet.species === 'canine' ? 'Canine' : 'Feline'} / ${pet.breed}
-- Sex: ${pet.sex}
-- Age: ${age}
-- Weight: ${pet.weight} kg
-- Allergies: ${(pet.allergies || []).join(', ') || 'None on file'}
-- Sterilization: ${pet.sterilization}
+${patientBlock(pet)}
 
 VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
 CLINIC: ${record.clinicId}
@@ -194,7 +156,7 @@ ADDITIONAL VET CONTEXT (provided by the attending vet for this report):
 ${vetContextNotes || '(none provided)'}
 
 ---
-Generate the report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Do NOT include markdown headers — the frontend will add those. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
+Generate the report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
   "clinicalSummary": "A narrative paragraph covering the patient's presenting signs, physical exam findings, vital parameter interpretation, body condition, and any notable abnormalities.",
@@ -206,32 +168,25 @@ Generate the report in the following JSON format. Each value should be a well-wr
 }`;
 }
 
-// Newest records rendered in full; anything older than this gets a one-line summary
-// so consolidated prompts for long patient histories stay within the model's context.
 const MAX_DETAILED_RECORDS = 15;
 
 function formatRecordBlock(record: any, index: number): string {
   const visitDate = record.createdAt
     ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Unknown date';
-
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
     .map(([k, v]: any) => `    - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
     .join('\n');
-
   const medLines = (record.medications || [])
     .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
-
   const testLines = (record.diagnosticTests || [])
     .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
     .join('\n');
-
   const preventiveLines = (record.preventiveCare || [])
     .map((p: any) => `    - ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`)
     .join('\n');
-
   const extras: string[] = [];
   if (record.surgeryRecord?.surgeryType) {
     extras.push(`  Surgery: ${record.surgeryRecord.surgeryType}${record.surgeryRecord.vetRemarks ? ` — ${record.surgeryRecord.vetRemarks}` : ''}`);
@@ -245,7 +200,6 @@ function formatRecordBlock(record: any, index: number): string {
   if (record.confinementAction === 'confined') {
     extras.push(`  Confinement: ${record.confinementDays || 0} day(s)`);
   }
-
   return `VISIT ${index + 1} — ${visitDate}
   Chief Complaint: ${record.chiefComplaint || 'Not specified'}
   Vitals:
@@ -279,31 +233,17 @@ function buildConsolidatedAIPrompt(
   vetContextNotes: string,
   persistentVetNotes: string
 ): string {
-  const age = pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'unknown';
-
-  // records are sorted oldest → newest; summarize the oldest overflow, detail the rest
   const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
   const summarized = records.slice(0, overflow);
   const detailed = records.slice(overflow);
-
   const summaryBlock = summarized.length
     ? `EARLIER VISITS (condensed):\n${summarized.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n\n`
     : '';
-
-  const detailBlock = detailed
-    .map((r, i) => formatRecordBlock(r, overflow + i))
-    .join('\n\n');
+  const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
 
   return `You are a veterinary medical report writer. Generate a CONSOLIDATED Veterinary Diagnostic Report covering the patient's ${records.length} visit${records.length !== 1 ? 's' : ''} listed below, in chronological order (oldest first). This is a longitudinal case history, not a single-visit report: identify trends across visits (weight changes, recurring complaints, response to treatment, disease progression or resolution) and integrate findings across the whole timeline.
 
-PATIENT INFORMATION:
-- Name: ${pet.name}
-- Species/Breed: ${pet.species === 'canine' ? 'Canine' : 'Feline'} / ${pet.breed}
-- Sex: ${pet.sex}
-- Age: ${age}
-- Current Weight: ${pet.weight} kg
-- Allergies: ${(pet.allergies || []).join(', ') || 'None on file'}
-- Sterilization: ${pet.sterilization}
+${patientBlock(pet)}
 
 VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
 
@@ -316,7 +256,7 @@ ADDITIONAL VET CONTEXT (provided by the attending vet for this report):
 ${vetContextNotes || '(none provided)'}
 
 ---
-Generate the consolidated report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Reference visits by date where relevant. Do NOT include markdown headers — the frontend will add those. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
+Generate the consolidated report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language. Reference visits by date where relevant. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
   "clinicalSummary": "A narrative covering the patient's presentation across all visits: initial presenting signs, how the condition evolved, physical exam findings over time, vital trends (especially weight), and current status.",
@@ -328,21 +268,374 @@ Generate the consolidated report in the following JSON format. Each value should
 }`;
 }
 
+function buildSoapPrompt(
+  pet: any,
+  record: any,
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+  const vitalLines = Object.entries(record.vitals || {})
+    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .join('\n');
+  const medLines = (record.medications || [])
+    .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
+    .join('\n');
+  const testLines = (record.diagnosticTests || [])
+    .map((t: any) => `  - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
+    .join('\n');
+
+  return `You are a veterinary medical report writer. Generate a SOAP Progress Note for a single veterinary visit.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+VISIT DATE: ${visitDate}
+
+CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
+
+RECORDED VITALS:
+${vitalLines || '  (no vitals recorded)'}
+
+RAW SOAP FROM RECORD:
+  Subjective (owner report): ${record.subjective || '(none)'}
+  Assessment (vet notes): ${record.assessment || '(none)'}
+  Plan (vet plan): ${record.plan || '(none)'}
+
+VISIT SUMMARY: ${record.visitSummary || '(none)'}
+VET NOTES: ${record.vetNotes || '(none)'}
+OVERALL OBSERVATION: ${record.overallObservation || '(none)'}
+
+MEDICATIONS PRESCRIBED:
+${medLines || '  (none)'}
+
+DIAGNOSTIC TESTS:
+${testLines || '  (none)'}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Expand the raw SOAP data into a well-written SOAP Progress Note suitable for a formal medical record. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
+
+{
+  "subjective": "The owner's chief complaint and patient history as reported. Include onset, duration, progression, and any home observations. Write in third-person clinical style.",
+  "objective": "All objective data recorded at this visit: vital parameters with interpretation, physical examination findings, body condition, and results of any diagnostic tests performed. Structure clearly.",
+  "assessment": "The veterinarian's clinical assessment and working diagnoses, supported by the subjective and objective findings. State primary and differential diagnoses as applicable.",
+  "plan": "The complete treatment and management plan: medications prescribed (name, dosage, route, frequency, duration), additional diagnostics ordered, supportive care, diet, activity instructions, and follow-up timeline."
+}`;
+}
+
+function buildDiagnosticPrompt(
+  pet: any,
+  records: any[],
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const testBlocks = records.map((r, i) => {
+    const visitDate = r.createdAt
+      ? new Date(r.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+      : 'Unknown date';
+    const tests = (r.diagnosticTests || [])
+      .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
+      .join('\n');
+    return `VISIT ${i + 1} — ${visitDate} (Chief Complaint: ${r.chiefComplaint || 'N/A'})
+  Diagnostic Tests:
+${tests || '    (no diagnostic tests recorded for this visit)'}
+  SOAP Assessment: ${r.assessment || '(none)'}
+  Overall Observation: ${r.overallObservation || '(none)'}`;
+  }).join('\n\n');
+
+  return `You are a veterinary diagnostic report writer. Generate a Diagnostic Test Report based on the tests performed across the visit(s) below.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+${testBlocks}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Generate a formal Diagnostic Test Report. Write each section as flowing prose or a structured text list — plain text only, no nested JSON. Reference visit dates where relevant. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY a flat JSON object where every value is a plain string.
+
+{
+  "testsSummary": "Plain-text list of all diagnostic tests performed. For each test state: test name, type, date performed, and the clinical indication. Write as a prose paragraph or a simple line-by-line list using hyphens.",
+  "resultsInterpretation": "Plain-text interpretation of every test result. State the parameter name, the recorded result, the reference range, and the clinical significance in plain prose. Note any abnormal values explicitly. Do not use nested JSON — write this as a single plain-text block.",
+  "clinicalCorrelation": "Prose paragraph integrating the laboratory and imaging findings with the patient's clinical signs, physical examination, and history. Explain how the results support or refine the clinical picture.",
+  "recommendations": "Plain-text list of recommended follow-up tests, monitoring intervals, treatment adjustments, or referrals, in order of urgency. Write as prose or a hyphen-separated list."
+}`;
+}
+
+function buildSurgeryPrompt(
+  pet: any,
+  record: any,
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+  const vitalLines = Object.entries(record.vitals || {})
+    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .join('\n');
+  const medLines = (record.medications || [])
+    .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
+    .join('\n');
+
+  return `You are a veterinary surgical report writer. Generate a Surgical and Anesthesia Report for the procedure below.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+SURGERY DATE: ${visitDate}
+
+CHIEF COMPLAINT / INDICATION: ${record.chiefComplaint || 'Not specified'}
+
+SURGERY TYPE: ${record.surgeryRecord?.surgeryType || '(not specified)'}
+SURGEON REMARKS: ${record.surgeryRecord?.vetRemarks || '(none)'}
+
+PRE-OPERATIVE VITALS:
+${vitalLines || '  (no vitals recorded)'}
+
+SOAP NOTES:
+  Subjective: ${record.subjective || '(none)'}
+  Assessment: ${record.assessment || '(none)'}
+  Plan: ${record.plan || '(none)'}
+
+VISIT SUMMARY: ${record.visitSummary || '(none)'}
+VET NOTES: ${record.vetNotes || '(none)'}
+OVERALL OBSERVATION: ${record.overallObservation || '(none)'}
+
+MEDICATIONS / ANESTHETIC AGENTS:
+${medLines || '  (none recorded)'}
+
+CONFINEMENT: ${record.confinementAction === 'confined' ? `Yes — ${record.confinementDays || 0} day(s)` : 'None'}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Generate a formal Surgical and Anesthesia Report. Use clinical language appropriate for a surgical log. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
+
+{
+  "preoperativeSummary": "Patient condition and fitness for anesthesia prior to surgery. Include relevant history, physical status, pre-op vitals, and indication for the procedure.",
+  "anesthesiaProtocol": "Anesthetic agents used (pre-medication, induction, maintenance), dosages, routes, and monitoring parameters. Include any considerations specific to this patient.",
+  "surgicalProcedure": "Step-by-step description of the surgical procedure performed: patient positioning, surgical approach, technique, findings intraoperatively, closure, and materials used.",
+  "intraoperativeMonitoring": "Vital parameters monitored during the procedure, any intraoperative events, interventions, or complications encountered, and patient response.",
+  "postoperativeCare": "Immediate post-operative recovery, pain management, wound care instructions, medications prescribed post-op, dietary restrictions, and activity limitations.",
+  "complications": "Any complications encountered intraoperatively or post-operatively, or findings that warrant monitoring. State 'No intraoperative or post-operative complications noted' if applicable."
+}`;
+}
+
+function buildHealthCertificatePrompt(
+  pet: any,
+  records: any[],
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const latestRecord = records[records.length - 1] || {};
+  const visitDate = latestRecord.createdAt
+    ? new Date(latestRecord.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+  const vitalLines = Object.entries(latestRecord.vitals || {})
+    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .join('\n');
+  const preventiveLines = records.flatMap((r) =>
+    (r.preventiveCare || []).map((p: any) => {
+      const d = r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown date';
+      return `  - [${d}] ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`;
+    })
+  ).join('\n');
+
+  return `You are a veterinary health certificate writer. Generate a formal Veterinary Health Certificate for the patient below.
+
+${patientBlock(pet)}
+
+CERTIFYING VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+EXAMINATION DATE: ${visitDate}
+
+MOST RECENT EXAMINATION VITALS:
+${vitalLines || '  (no vitals recorded)'}
+
+MOST RECENT EXAMINATION NOTES:
+  Overall Observation: ${latestRecord.overallObservation || '(none)'}
+  Assessment: ${latestRecord.assessment || '(none)'}
+  Visit Summary: ${latestRecord.visitSummary || '(none)'}
+
+PREVENTIVE CARE HISTORY (all visits):
+${preventiveLines || '  (none recorded)'}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT (e.g. destination country, purpose of travel, specific requirements):
+${vetContextNotes || '(none provided)'}
+
+---
+Generate a formal Veterinary Health Certificate. Use official, certifying language. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
+
+{
+  "patientHealthStatus": "Official statement of the patient's current health status based on physical examination. Include body condition, absence of clinical signs of communicable disease, and overall fitness assessment.",
+  "vaccinationHistory": "Record of vaccinations on file, including vaccine names, dates administered, and current status (up to date / overdue). State clearly if vaccination records are incomplete.",
+  "parasiteControl": "Parasite prevention and control measures on record: deworming, flea/tick prevention, heartworm prevention — including products used, dates, and coverage intervals.",
+  "travelClearance": "Official veterinary clearance statement certifying the animal is free of signs of infectious or communicable disease, fit for transport, and meets the health requirements stated in the veterinarian context notes."
+}`;
+}
+
+function buildDischargeSummaryPrompt(
+  pet: any,
+  record: any,
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+  const medLines = (record.medications || [])
+    .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
+    .join('\n');
+  const confinement = record.confinementAction === 'confined'
+    ? `Confined for ${record.confinementDays || 0} day(s).`
+    : 'Not confined.';
+
+  return `You are a veterinary discharge summary writer. Generate a Discharge Summary in plain, warm, owner-friendly language for the visit below.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+DISCHARGE DATE: ${visitDate}
+
+CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
+ASSESSMENT / DIAGNOSIS: ${record.assessment || '(none)'}
+VISIT SUMMARY: ${record.visitSummary || '(none)'}
+VET NOTES: ${record.vetNotes || '(none)'}
+OVERALL OBSERVATION: ${record.overallObservation || '(none)'}
+
+MEDICATIONS TO GO HOME WITH:
+${medLines || '  (none prescribed)'}
+
+CONFINEMENT: ${confinement}
+
+SOAP PLAN: ${record.plan || '(none)'}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Write a Discharge Summary for the pet owner. Use plain, caring language — no medical jargon unless explained. Address the owner directly. Avoid em-dashes (—). Do NOT include markdown headers. Output ONLY this JSON object.
+
+{
+  "diagnosisSummary": "Plain-language summary of what was found and diagnosed today. Explain the condition simply. What does it mean for the pet's daily life?",
+  "medications": "For each medication prescribed: what it is called, what it does, how to give it (dose, route, timing with or without food), and for how long. Write as a practical guide for the owner.",
+  "feedingInstructions": "Dietary instructions for the recovery period: what to feed, what to avoid, portion sizes, and feeding schedule. If no restrictions, say so clearly and reassuringly.",
+  "activityRestrictions": "What the pet can and cannot do during recovery. Include rest requirements, exercise limits, bathing restrictions, and any special handling instructions.",
+  "followUpCare": "When to return for a recheck visit, what the veterinarian will check, and what the owner should monitor at home between now and the follow-up.",
+  "warningSignsToWatch": "Specific signs that mean the owner should contact the clinic immediately or go to an emergency vet. Be specific and clear — list each sign separately."
+}`;
+}
+
+function buildReferralLetterPrompt(
+  pet: any,
+  records: any[],
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
+  const summarized = records.slice(0, overflow);
+  const detailed = records.slice(overflow);
+  const summaryBlock = summarized.length
+    ? `EARLIER VISITS (condensed):\n${summarized.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n\n`
+    : '';
+  const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
+
+  return `You are a veterinary referral letter writer. Generate a professional Veterinary Referral Letter from the attending veterinarian to a specialist.
+
+${patientBlock(pet)}
+
+REFERRING VETERINARIAN: Dr. ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+${summaryBlock}${detailBlock}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT (referral reason, specialist type, specific questions, urgency):
+${vetContextNotes || '(none provided)'}
+
+---
+Write a formal, professional Veterinary Referral Letter. Address it generically to "Dear Colleague" or "To the Consulting Specialist". Use clinical language. Reference visit dates. Avoid em-dashes (—). Do NOT include markdown headers. Output ONLY this JSON object.
+
+{
+  "referralReason": "Clear statement of the primary reason for referral and the specific clinical question or service being requested from the specialist. Include urgency level.",
+  "clinicalHistory": "Complete and concise patient history: onset and progression of the primary problem, relevant past medical history, prior diagnostic workup, and owner observations. Reference visit dates.",
+  "currentFindings": "Current physical examination findings, most recent vital parameters, and results of diagnostic tests performed to date. Be specific and include values.",
+  "treatmentsToDate": "Treatments already attempted: medications (names, dosages, durations), procedures performed, and the patient's response to each. Include what has or has not worked.",
+  "referralRequest": "Specific request to the specialist: what type of consultation, workup, or management is being sought. Include any specific questions the referring veterinarian wants answered, and preferred communication method for feedback."
+}`;
+}
+
+function buildHumanizePrompt(sections: any, petName: string, petType: string): string {
+  const sectionTexts = Object.entries(sections)
+    .filter(([, v]) => typeof v === 'string' && (v as string).trim())
+    .map(([k, v]) => `${k}:\n"${v}"`)
+    .join('\n\n');
+
+  return `Below is a formal veterinary report for a pet owner. Translate each section into plain, friendly language a non-medical pet owner can understand. Keep it honest but compassionate. Use "${petName}" or "your ${petType}" naturally throughout.
+
+${sectionTexts || '(no sections available)'}
+
+---
+Rewrite each section in plain language for the pet owner. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY this JSON object:
+
+{
+  "whatWeFound": "A warm, plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
+  "testResultsExplained": "Explain the lab or test results in simple terms. What does each result mean for ${petName}'s health? Use a conversational tone.",
+  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
+  "theDiagnosis": "State the diagnoses in plain language. What condition does ${petName} have and what does it mean for daily life?",
+  "theTreatmentPlan": "List each medication or treatment and what it does for ${petName} in simple terms. Make it feel like a care guide.",
+  "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}. What should the owner watch out for? End on a hopeful but realistic note."
+}`;
+}
+
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 
 export const createReport = async (req: Request, res: Response) => {
   try {
-    const { petId, medicalRecordId, title, reportDate, vetContextNotes, scope } = req.body;
+    const { petId, medicalRecordId, title, reportDate, vetContextNotes, scope, reportType } = req.body;
     const user = req.user!;
 
     if (!petId) {
       return res.status(400).json({ status: 'ERROR', message: 'petId is required' });
     }
 
+    const validatedReportType: ReportType = VALID_REPORT_TYPES.includes(reportType) ? reportType : 'general';
     const reportScope: 'selected' | 'all' = scope === 'all' ? 'all' : 'selected';
 
-    // Resolve the record set. 'all' → server resolves every completed record for the pet;
-    // 'selected' → client-provided list (or legacy single medicalRecordId).
     let recordIds: string[] = [];
     if (reportScope === 'all') {
       recordIds = await findCompletedRecordIdsForPet(petId);
@@ -358,7 +651,6 @@ export const createReport = async (req: Request, res: Response) => {
       if (requested.length === 0) {
         return res.status(400).json({ status: 'ERROR', message: 'Select at least one medical record for the report.' });
       }
-      // Validate: every record must exist, belong to this pet, and be completed
       const unique = [...new Set(requested)];
       const found = await MedicalRecord.find({ _id: { $in: unique }, petId, stage: 'completed' })
         .select('_id')
@@ -372,7 +664,6 @@ export const createReport = async (req: Request, res: Response) => {
       recordIds = unique;
     }
 
-    // Preserve the legacy one-report-per-record rule only for single-record selected reports
     const isSingleRecordReport = reportScope === 'selected' && recordIds.length === 1;
     if (isSingleRecordReport) {
       const existing = await VetReport.findOne({ medicalRecordId: recordIds[0] }).lean();
@@ -385,7 +676,6 @@ export const createReport = async (req: Request, res: Response) => {
       }
     }
 
-    // Resolve clinicId / clinicBranchId: prefer JWT, then first medical record, then vet's User record
     let clinicId = user.clinicId;
     let clinicBranchId = user.clinicBranchId;
 
@@ -411,26 +701,18 @@ export const createReport = async (req: Request, res: Response) => {
 
     const report = await VetReport.create({
       petId,
-      // legacy field only for single-record reports — keeps the unique index guard working
       medicalRecordId: (isSingleRecordReport ? recordIds[0] : null) as any,
-      medicalRecordIds: recordIds as any, // mongoose casts string ids on create
-
+      medicalRecordIds: recordIds as any,
       scope: reportScope,
       recordsSyncedAt: new Date(),
+      reportType: validatedReportType,
       vetId: user.userId,
       clinicId,
       clinicBranchId,
       title: title || '',
       reportDate: reportDate ? new Date(reportDate) : new Date(),
       vetContextNotes: vetContextNotes || '',
-      sections: {
-        clinicalSummary: '',
-        laboratoryInterpretation: '',
-        diagnosticIntegration: '',
-        assessment: '',
-        managementPlan: '',
-        prognosis: '',
-      },
+      sections: {},
     });
 
     res.status(201).json({ status: 'OK', data: report });
@@ -450,7 +732,6 @@ export const listReports = async (req: Request, res: Response) => {
     if (user.userType === 'veterinarian') {
       filter.vetId = user.userId;
     } else {
-      // clinic-admin / clinic-admin
       filter.clinicId = user.clinicId;
     }
     if (petId) filter.petId = petId;
@@ -487,7 +768,6 @@ export const getReport = async (req: Request, res: Response) => {
     }
 
     const newRecordCount = await countNewRecords(report);
-
     res.json({ status: 'OK', data: { ...report, newRecordCount } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
@@ -533,7 +813,8 @@ export const updateReport = async (req: Request, res: Response) => {
     if (status !== undefined) report.status = status;
     if (vetSignature !== undefined) report.vetSignature = vetSignature;
     if (sections) {
-      report.sections = { ...report.sections, ...sections };
+      report.sections = { ...(report.sections as any), ...sections };
+      report.markModified('sections');
     }
 
     await report.save();
@@ -545,14 +826,6 @@ export const updateReport = async (req: Request, res: Response) => {
 
 // ─── SYNC RECORDS ─────────────────────────────────────────────────────────────
 
-/**
- * POST /vet-reports/:id/sync-records
- * Refresh the report's record set so a new visit can be folded in.
- * scope 'all'      → re-resolve every completed record for the pet.
- * scope 'selected' → merge in body.addRecordIds (validated against the pet).
- * A finalized report reverts to draft (its content is about to change) and the
- * owner summary is cleared so it can't be served stale by humanizeReport's cache.
- */
 export const syncReportRecords = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -567,7 +840,6 @@ export const syncReportRecords = async (req: Request, res: Response) => {
     if (report.scope === 'all') {
       nextIds = await findCompletedRecordIdsForPet(report.petId);
     } else if (req.body.addNew === true) {
-      // Fold in every completed record created since the last sync (same set countNewRecords reports)
       const since = report.recordsSyncedAt || report.createdAt;
       const newRecords = await MedicalRecord.find({
         petId: report.petId,
@@ -602,10 +874,9 @@ export const syncReportRecords = async (req: Request, res: Response) => {
 
     const added = nextIds.filter((rid) => !currentIds.includes(rid));
 
-    report.medicalRecordIds = nextIds as any; // mongoose casts string ids on assignment
+    report.medicalRecordIds = nextIds as any;
     report.recordsSyncedAt = new Date();
     if (added.length > 0) {
-      // Content will change once regenerated — draft again, and drop the now-stale owner summary
       if (report.status === 'finalized') report.status = 'draft';
       report.ownerSummary = null;
     }
@@ -634,7 +905,6 @@ export const shareReport = async (req: Request, res: Response) => {
     report.sharedAt = shared ? new Date() : undefined;
     await report.save();
 
-    // Send email + in-app notification only when newly sharing (not on unshare)
     if (shared && !wasAlreadyShared) {
       try {
         const [pet, vet, clinic] = await Promise.all([
@@ -674,7 +944,6 @@ export const shareReport = async (req: Request, res: Response) => {
         }
       } catch (notifyErr) {
         console.error('[VetReport] Share notification failed:', notifyErr);
-        // Non-fatal
       }
     }
 
@@ -721,7 +990,6 @@ export const generateReport = async (req: Request, res: Response) => {
 
     const vet = await User.findById(report.vetId).lean() as any;
 
-    // Load linked medical records (chronological) and persistent vet notes in parallel
     const recordIds = resolveReportRecordIds(report);
     const [records, petNotesDoc] = await Promise.all([
       recordIds.length > 0
@@ -735,9 +1003,35 @@ export const generateReport = async (req: Request, res: Response) => {
       return res.status(503).json({ status: 'ERROR', message: 'AI service not configured' });
     }
 
-    const prompt = records.length > 1
-      ? buildConsolidatedAIPrompt(pet, records, vet, report.vetContextNotes, petNotesDoc?.notes || '')
-      : buildAIPrompt(pet, records[0] || {}, vet, report.vetContextNotes, petNotesDoc?.notes || '');
+    const persistentNotes = petNotesDoc?.notes || '';
+    const contextNotes = report.vetContextNotes;
+    const rType = (report.reportType as ReportType) || 'general';
+
+    let prompt: string;
+    switch (rType) {
+      case 'soap':
+        prompt = buildSoapPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+        break;
+      case 'diagnostic':
+        prompt = buildDiagnosticPrompt(pet, records, vet, contextNotes, persistentNotes);
+        break;
+      case 'surgery':
+        prompt = buildSurgeryPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+        break;
+      case 'healthCertificate':
+        prompt = buildHealthCertificatePrompt(pet, records, vet, contextNotes, persistentNotes);
+        break;
+      case 'dischargeSummary':
+        prompt = buildDischargeSummaryPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+        break;
+      case 'referralLetter':
+        prompt = buildReferralLetterPrompt(pet, records, vet, contextNotes, persistentNotes);
+        break;
+      default:
+        prompt = records.length > 1
+          ? buildConsolidatedAIPrompt(pet, records, vet, contextNotes, persistentNotes)
+          : buildAIPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -745,7 +1039,7 @@ export const generateReport = async (req: Request, res: Response) => {
         {
           role: 'system',
           content:
-            'You are an expert veterinary medical report writer. Always output valid JSON only — no markdown fences, no extra text.',
+            'You are an expert veterinary medical report writer. Output ONLY a flat JSON object where every value is a plain text string (a paragraph or structured prose). NEVER use nested objects, arrays, or sub-keys as values — each key maps to exactly one string. No markdown fences, no extra text outside the JSON.',
         },
         { role: 'user', content: prompt },
       ],
@@ -756,9 +1050,9 @@ export const generateReport = async (req: Request, res: Response) => {
     const raw = completion.choices[0]?.message?.content?.trim() ?? '';
     console.log('[generateReport] raw AI response:', raw.slice(0, 500));
 
-    let sections: Record<string, string>;
+    let parsed: Record<string, unknown>;
     try {
-      sections = extractJSON(raw);
+      parsed = extractJSON(raw) as Record<string, unknown>;
     } catch (parseErr) {
       console.error('[generateReport] JSON parse failed:', parseErr, '\nraw:', raw);
       return res.status(502).json({
@@ -768,17 +1062,21 @@ export const generateReport = async (req: Request, res: Response) => {
       });
     }
 
-    report.sections = {
-      clinicalSummary: sections.clinicalSummary ?? '',
-      laboratoryInterpretation: sections.laboratoryInterpretation ?? '',
-      diagnosticIntegration: sections.diagnosticIntegration ?? '',
-      assessment: sections.assessment ?? '',
-      managementPlan: sections.managementPlan ?? '',
-      prognosis: sections.prognosis ?? '',
-    };
+    // Ensure every section value is a plain string — the model sometimes returns nested objects
+    const sections: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (typeof v === 'string') {
+        sections[k] = v;
+      } else if (v !== null && v !== undefined) {
+        sections[k] = JSON.stringify(v, null, 2);
+      } else {
+        sections[k] = '';
+      }
+    }
+
+    report.sections = sections;
+    report.markModified('sections');
     report.isAIGenerated = true;
-    // Sections changed — any previously generated owner summary no longer matches them.
-    // Clearing it lets humanizeReport regenerate instead of serving its stale cache.
     report.ownerSummary = null;
     await report.save();
 
@@ -810,7 +1108,6 @@ export const humanizeReport = async (req: Request, res: Response) => {
       });
     }
 
-    // Return cached summary if already generated — finalized sections never change
     const os = report.ownerSummary as any;
     if (os?.whatWeFound && os?.theDiagnosis && os?.theTreatmentPlan) {
       return res.json({ status: 'OK', data: report });
