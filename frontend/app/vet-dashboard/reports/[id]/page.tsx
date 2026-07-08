@@ -60,6 +60,8 @@ import {
   Home,
   Mail,
   Tag,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -295,6 +297,230 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
 
   const totalPages = hasOwnerSummary ? 2 : 1
 
+  const allDataRecords = ((report.medicalRecordIds ?? []).filter(
+    (r): r is LinkedRecord => typeof r === 'object' && r !== null
+  )).sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
+
+  const fmtRDate = (d?: string) =>
+    d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+  const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery'>> = {
+    clinicalSummary: ['vitals'],
+    laboratoryInterpretation: ['diagnostics'],
+    diagnosticIntegration: ['vitals', 'diagnostics'],
+    managementPlan: ['medications', 'preventiveCare'],
+    objective: ['vitals', 'diagnostics'],
+    plan: ['medications'],
+    testsSummary: ['diagnostics'],
+    resultsInterpretation: ['diagnostics'],
+    preoperativeSummary: ['vitals'],
+    anesthesiaProtocol: ['medications'],
+    surgicalProcedure: ['surgery'],
+    postoperativeCare: ['medications', 'preventiveCare'],
+    patientHealthStatus: ['vitals'],
+    parasiteControl: ['preventiveCare'],
+    medications: ['medications'],
+    currentFindings: ['vitals', 'diagnostics'],
+    treatmentsToDate: ['medications'],
+  }
+
+  const renderClinicalTables = (
+    dataTypes: Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery'>,
+    records: LinkedRecord[]
+  ) => {
+    const hasVitals = dataTypes.includes('vitals') && records.some(r =>
+      r.vitals && Object.values(r.vitals).some(v => v?.value !== '' && v?.value !== null && v?.value !== undefined)
+    )
+    const hasDiagnostics = dataTypes.includes('diagnostics') && records.some(r => (r.diagnosticTests?.length ?? 0) > 0)
+    const hasMedications = dataTypes.includes('medications') && records.some(r => (r.medications?.length ?? 0) > 0)
+    const hasPreventive = dataTypes.includes('preventiveCare') && records.some(r => (r.preventiveCare?.length ?? 0) > 0)
+    const hasSurgery = dataTypes.includes('surgery') && records.some(r => !!r.surgeryRecord?.surgeryType)
+    if (!hasVitals && !hasDiagnostics && !hasMedications && !hasPreventive && !hasSurgery) return null
+
+    const vitalsRecs = hasVitals ? records.filter(r =>
+      r.vitals && Object.values(r.vitals).some(v => v?.value !== '' && v?.value !== null && v?.value !== undefined)
+    ) : []
+    const diagRecs = hasDiagnostics ? records.filter(r => (r.diagnosticTests?.length ?? 0) > 0) : []
+    const medRecs = hasMedications ? records.filter(r => (r.medications?.length ?? 0) > 0) : []
+    const prevRecs = hasPreventive ? records.filter(r => (r.preventiveCare?.length ?? 0) > 0) : []
+    const surgRecs = hasSurgery ? records.filter(r => !!r.surgeryRecord?.surgeryType) : []
+
+    return (
+      <div className="space-y-4">
+        {hasVitals && (
+          <div>
+            <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Vitals</p>
+            {vitalsRecs.length > 1 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                  <thead className="bg-[#f0f7f7]">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Parameter</th>
+                      {vitalsRecs.map(r => (
+                        <th key={r._id} className="px-3 py-2 text-left font-semibold text-[#476B6B]">{fmtRDate(r.createdAt)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(VITAL_LABELS).map(([vkey, { label, unit }]) => {
+                      const anyHas = vitalsRecs.some(r => { const v = r.vitals?.[vkey]; return v?.value !== '' && v?.value !== null && v?.value !== undefined })
+                      if (!anyHas) return null
+                      return (
+                        <tr key={vkey} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#4F4F4F]">{label} ({unit})</td>
+                          {vitalsRecs.map(r => {
+                            const v = r.vitals?.[vkey]
+                            const ok = v?.value !== '' && v?.value !== null && v?.value !== undefined
+                            return <td key={r._id} className="px-3 py-2 text-gray-600">{ok ? `${v!.value} ${unit}` : '—'}</td>
+                          })}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {Object.entries(VITAL_LABELS).map(([vkey, { label, unit }]) => {
+                  const v = vitalsRecs[0]?.vitals?.[vkey]
+                  if (!v?.value && v?.value !== 0) return null
+                  return (
+                    <div key={vkey} className="bg-[#F8F6F2] rounded-lg p-2">
+                      <p className="text-[10px] text-gray-500 font-medium">{label}</p>
+                      <p className="text-sm font-semibold text-[#4F4F4F]">{v.value} {unit}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {hasDiagnostics && (
+          <div>
+            <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Diagnostic Test Results</p>
+            {diagRecs.map(r => (
+              <div key={r._id} className="mb-3 last:mb-0">
+                {diagRecs.length > 1 && (
+                  <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}{r.chiefComplaint ? ` — ${r.chiefComplaint}` : ''}</p>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                    <thead className="bg-[#f0f7f7]">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Test</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Result</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Normal Range</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.diagnosticTests!.map((t, ti) => (
+                        <tr key={ti} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#4F4F4F]">{t.name}</td>
+                          <td className="px-3 py-2 text-gray-600">{t.result || '—'}</td>
+                          <td className="px-3 py-2 text-gray-400">{t.normalRange || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasMedications && (
+          <div>
+            <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Medications</p>
+            {medRecs.map(r => (
+              <div key={r._id} className="mb-3 last:mb-0">
+                {medRecs.length > 1 && (
+                  <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}</p>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                    <thead className="bg-[#f0f7f7]">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Medication</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Dosage · Route</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Frequency</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.medications!.map((m, mi) => (
+                        <tr key={mi} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#4F4F4F]">{m.name}</td>
+                          <td className="px-3 py-2 text-gray-600">{m.dosage} · {m.route}</td>
+                          <td className="px-3 py-2 text-gray-600">{m.frequency}</td>
+                          <td className="px-3 py-2 text-gray-400">{m.duration || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasPreventive && (
+          <div>
+            <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Preventive Care</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                <thead className="bg-[#f0f7f7]">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Service</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Product</th>
+                    {prevRecs.length > 1 && <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Visit</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {prevRecs.flatMap(r =>
+                    r.preventiveCare!.map((p, pi) => (
+                      <tr key={`${r._id}-${pi}`} className="border-t border-gray-100">
+                        <td className="px-3 py-2 font-medium text-[#4F4F4F] capitalize">{p.careType}</td>
+                        <td className="px-3 py-2 text-gray-600">{p.product}</td>
+                        {prevRecs.length > 1 && <td className="px-3 py-2 text-gray-400">{fmtRDate(r.createdAt)}</td>}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {hasSurgery && (
+          <div>
+            <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Surgery Record</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                <thead className="bg-[#f0f7f7]">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Procedure</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Date</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {surgRecs.map(r => (
+                    <tr key={r._id} className="border-t border-gray-100">
+                      <td className="px-3 py-2 font-medium text-[#4F4F4F]">{r.surgeryRecord!.surgeryType}</td>
+                      <td className="px-3 py-2 text-gray-600">{fmtRDate(r.createdAt)}</td>
+                      <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -341,7 +567,9 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
 
             {sectionKeys.map((key, i) => {
               const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''
-              if (!content.trim()) return null
+              const dataCols = SECTION_DATA_MAP[key]
+              const tables = dataCols ? renderClinicalTables(dataCols, allDataRecords) : null
+              if (!content.trim() && !tables) return null
               return (
                 <div key={key}>
                   {i > 0 && <hr className="border-gray-100 mb-6" />}
@@ -349,9 +577,12 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                     {SECTION_ICONS[key] ?? <FileText className="w-4 h-4 text-[#5A7C7A]" />}
                     <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{sectionLabels[key]}</h3>
                   </div>
-                  <div className="bg-[#F8F6F2] rounded-xl p-4">
-                    <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
-                  </div>
+                  {content.trim() && (
+                    <div className="bg-[#F8F6F2] rounded-xl p-4 mb-4">
+                      <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
+                    </div>
+                  )}
+                  {tables}
                 </div>
               )
             })}
@@ -412,6 +643,209 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Clinical Data Panel ─────────────────────────────────────────────────────
+
+const VITAL_LABELS: Record<string, { label: string; unit: string }> = {
+  weight: { label: 'Weight', unit: 'kg' },
+  temperature: { label: 'Temperature', unit: '°C' },
+  pulseRate: { label: 'Pulse Rate', unit: 'bpm' },
+  spo2: { label: 'SpO2', unit: '%' },
+  bodyConditionScore: { label: 'BCS', unit: '/5' },
+  dentalScore: { label: 'Dental Score', unit: '/3' },
+  crt: { label: 'CRT', unit: 'sec' },
+}
+
+function RecordDataPanel({ records, scope }: { records: LinkedRecord[]; scope?: string }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  const toggle = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const fmtDate = (d?: string) =>
+    d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+  return (
+    <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden bg-white">
+      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <Layers className="w-4 h-4 text-gray-400" />
+        <span className="text-sm font-semibold text-gray-700">Source Records</span>
+        <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+          {scope === 'all' ? 'All records' : `${records.length} selected`}
+        </span>
+      </div>
+      <p className="text-xs text-gray-400 px-4 py-2">
+        {records.length} visit{records.length !== 1 ? 's' : ''} — click to expand clinical data
+      </p>
+      <div className="divide-y divide-gray-100">
+        {records.map((r) => {
+          const expanded = expandedIds.has(r._id)
+          const hasVitals = r.vitals && Object.entries(r.vitals).some(([, v]) => v?.value !== '' && v?.value !== null && v?.value !== undefined)
+          const hasDiagnostics = (r.diagnosticTests?.length ?? 0) > 0
+          const hasMedications = (r.medications?.length ?? 0) > 0
+          const hasPreventive = (r.preventiveCare?.length ?? 0) > 0
+          const hasSurgery = !!r.surgeryRecord?.surgeryType
+          const hasAnyData = hasVitals || hasDiagnostics || hasMedications || hasPreventive || hasSurgery || !!r.overallObservation
+
+          return (
+            <div key={r._id}>
+              <button
+                onClick={() => toggle(r._id)}
+                className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <CalendarDays className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-700">{fmtDate(r.createdAt)}</span>
+                  </div>
+                  {r.chiefComplaint && (
+                    <p className="text-xs text-gray-400 truncate mt-0.5 pl-4">{r.chiefComplaint}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                  {!hasAnyData && <span className="text-[10px] text-gray-300">no data</span>}
+                  {expanded ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                </div>
+              </button>
+
+              {expanded && (
+                <div className="px-4 pb-4 space-y-4 border-t border-gray-100 bg-gray-50/40">
+                  {!hasAnyData ? (
+                    <p className="text-xs text-gray-400 pt-3">No structured clinical data for this visit.</p>
+                  ) : (
+                    <>
+                      {/* Vitals */}
+                      {hasVitals && (
+                        <div className="pt-3">
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Vitals</p>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {Object.entries(VITAL_LABELS).map(([key, { label, unit }]) => {
+                              const v = r.vitals?.[key]
+                              if (!v?.value && v?.value !== 0) return null
+                              return (
+                                <div key={key} className="bg-white rounded-lg p-2 border border-blue-100">
+                                  <p className="text-[10px] text-[#3B82F6] font-medium">{label}</p>
+                                  <p className="text-sm font-semibold text-[#3B82F6]">{v.value} {unit}</p>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Diagnostic Tests */}
+                      {hasDiagnostics && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Diagnostic Tests</p>
+                          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-50">
+                                <tr className="text-left text-gray-400 uppercase tracking-wide">
+                                  <th className="px-3 py-2 font-medium">Test</th>
+                                  <th className="px-3 py-2 font-medium">Result</th>
+                                  <th className="px-3 py-2 font-medium">Normal Range</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {r.diagnosticTests!.map((t, i) => (
+                                  <tr key={i} className="border-t border-gray-100">
+                                    <td className="px-3 py-2 font-medium text-[#4F4F4F]">{t.name}</td>
+                                    <td className="px-3 py-2 text-gray-600">{t.result || '—'}</td>
+                                    <td className="px-3 py-2 text-gray-400">{t.normalRange || '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Medications */}
+                      {hasMedications && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Medications</p>
+                          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-50">
+                                <tr className="text-left text-gray-400 uppercase tracking-wide">
+                                  <th className="px-3 py-2 font-medium">Medication</th>
+                                  <th className="px-3 py-2 font-medium">Dosage · Route</th>
+                                  <th className="px-3 py-2 font-medium">Frequency</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {r.medications!.map((m, i) => (
+                                  <tr key={i} className="border-t border-gray-100">
+                                    <td className="px-3 py-2 font-medium text-[#4F4F4F]">{m.name}</td>
+                                    <td className="px-3 py-2 text-gray-600">{m.dosage} · {m.route}</td>
+                                    <td className="px-3 py-2 text-gray-600">{m.frequency}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Preventive Care */}
+                      {hasPreventive && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Preventive Care</p>
+                          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-50">
+                                <tr className="text-left text-gray-400 uppercase tracking-wide">
+                                  <th className="px-3 py-2 font-medium">Service</th>
+                                  <th className="px-3 py-2 font-medium">Product</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {r.preventiveCare!.map((p, i) => (
+                                  <tr key={i} className="border-t border-gray-100">
+                                    <td className="px-3 py-2 font-medium text-[#4F4F4F] capitalize">{p.careType}</td>
+                                    <td className="px-3 py-2 text-gray-600">{p.product}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Surgery */}
+                      {hasSurgery && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Surgery</p>
+                          <p className="text-xs font-medium text-[#4F4F4F]">{r.surgeryRecord!.surgeryType}</p>
+                          {r.surgeryRecord!.vetRemarks && (
+                            <p className="text-xs text-gray-500 mt-1">{r.surgeryRecord!.vetRemarks}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Overall Observation */}
+                      {r.overallObservation && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Overall Observation</p>
+                          <p className="text-xs text-gray-600 leading-relaxed">{r.overallObservation}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -873,27 +1307,7 @@ export default function ReportEditorPage() {
               )}
 
               {!generating && sourceRecords.length > 0 && (
-                <div className="mt-4 border border-gray-200 rounded-xl p-4 bg-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Layers className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-700">Source Records</span>
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                      {report.scope === 'all' ? 'All records' : `${sourceRecords.length} selected`}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-2">
-                    {sourceRecords.length} visit{sourceRecords.length !== 1 ? 's' : ''} covered by this report
-                  </p>
-                  <div className="max-h-48 overflow-y-auto space-y-1.5">
-                    {sourceRecords.map((r) => (
-                      <div key={r._id} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-1.5">
-                        <CalendarDays className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                        <span className="flex-shrink-0">{r.createdAt ? formatReportDate(r.createdAt) : 'Unknown date'}</span>
-                        {r.chiefComplaint && <span className="text-gray-400 truncate">· {r.chiefComplaint}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <RecordDataPanel records={sourceRecords} scope={report.scope} />
               )}
 
               {!generating && !humanizing && (

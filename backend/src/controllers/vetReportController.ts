@@ -760,7 +760,7 @@ export const getReport = async (req: Request, res: Response) => {
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordId')
-      .populate('medicalRecordIds', 'chiefComplaint createdAt stage')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment')
       .lean();
 
     if (!report) {
@@ -1034,7 +1034,7 @@ export const generateReport = async (req: Request, res: Response) => {
     }
 
     const completion = await openai.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [
         {
           role: 'system',
@@ -1127,7 +1127,7 @@ export const humanizeReport = async (req: Request, res: Response) => {
     const prompt = buildHumanizePrompt(report.sections, pet.name, petType);
 
     const completion = await openai.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [
         {
           role: 'system',

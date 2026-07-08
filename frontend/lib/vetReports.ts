@@ -133,6 +133,35 @@ export interface LinkedRecord {
   chiefComplaint?: string;
   createdAt?: string;
   stage?: string;
+  vitals?: Record<string, { value: string | number; notes?: string }>;
+  diagnosticTests?: Array<{
+    testType: string;
+    name: string;
+    result?: string;
+    normalRange?: string;
+    notes?: string;
+  }>;
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    route: string;
+    frequency: string;
+    duration: string;
+    status: string;
+    notes?: string;
+  }>;
+  preventiveCare?: Array<{
+    careType: string;
+    product: string;
+    dateAdministered?: string;
+    notes?: string;
+  }>;
+  surgeryRecord?: {
+    surgeryType?: string;
+    vetRemarks?: string;
+  };
+  overallObservation?: string;
+  assessment?: string;
 }
 
 export interface VetReport {
