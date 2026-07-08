@@ -160,8 +160,29 @@ export interface LinkedRecord {
     surgeryType?: string;
     vetRemarks?: string;
   };
+  immunityTesting?: {
+    enabled?: boolean;
+    kitName?: string;
+    testDate?: string;
+    rows?: Array<{ disease: string; score: number | null; status: string; action: string }>;
+    antigenEnabled?: boolean;
+    antigenRows?: Array<{ disease: string; result: string }>;
+    antigenDate?: string;
+  };
   overallObservation?: string;
   assessment?: string;
+}
+
+export interface VaccinationRecord {
+  _id: string;
+  vaccineName: string;
+  dateAdministered?: string;
+  nextDueDate?: string;
+  doseNumber: number;
+  boosterNumber: number;
+  status: string;
+  manufacturer?: string;
+  notes?: string;
 }
 
 export interface VetReport {
@@ -203,6 +224,7 @@ export interface VetReport {
   sharedWithOwner: boolean;
   sharedAt?: string | null;
   vetSignature?: { url: string | null; signedAt: string | null } | null;
+  vaccinations?: VaccinationRecord[];
   createdAt: string;
   updatedAt: string;
 }

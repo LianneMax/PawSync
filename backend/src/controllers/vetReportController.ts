@@ -5,6 +5,7 @@ import MedicalRecord from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import PetNotes from '../models/PetNotes';
 import User from '../models/User';
+import Vaccination from '../models/Vaccination';
 import { createNotification } from '../services/notificationService';
 import { sendVetReportShared } from '../services/emailService';
 import type { ReportType } from '../models/VetReport';
@@ -199,6 +200,19 @@ function formatRecordBlock(record: any, index: number): string {
   }
   if (record.confinementAction === 'confined') {
     extras.push(`  Confinement: ${record.confinementDays || 0} day(s)`);
+  }
+  const immunity = record.immunityTesting;
+  if (immunity?.enabled && immunity.rows?.length) {
+    const titers = immunity.rows
+      .map((r: any) => `    - ${r.disease}: Score ${r.score ?? 'N/A'} | ${r.status}${r.action ? ` — ${r.action}` : ''}`)
+      .join('\n');
+    extras.push(`  Immunity/Titer Testing (${immunity.kitName || 'kit'}, ${immunity.testDate ? new Date(immunity.testDate).toLocaleDateString('en-PH') : 'N/A'}):\n${titers}`);
+  }
+  if (immunity?.antigenEnabled && immunity.antigenRows?.length) {
+    const antigens = immunity.antigenRows
+      .map((r: any) => `    - ${r.disease}: ${r.result}`)
+      .join('\n');
+    extras.push(`  Antigen Testing (${immunity.antigenDate ? new Date(immunity.antigenDate).toLocaleDateString('en-PH') : 'N/A'}):\n${antigens}`);
   }
   return `VISIT ${index + 1} — ${visitDate}
   Chief Complaint: ${record.chiefComplaint || 'Not specified'}
@@ -563,7 +577,8 @@ function buildReferralLetterPrompt(
   records: any[],
   vet: any,
   vetContextNotes: string,
-  persistentVetNotes: string
+  persistentVetNotes: string,
+  vaccinations?: any[]
 ): string {
   const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
   const summarized = records.slice(0, overflow);
@@ -573,6 +588,15 @@ function buildReferralLetterPrompt(
     : '';
   const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
 
+  const vaccinationBlock = vaccinations && vaccinations.length > 0
+    ? `VACCINATION HISTORY:\n${vaccinations.map((v) => {
+        const date = v.dateAdministered ? new Date(v.dateAdministered).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+        const nextDue = v.nextDueDate ? new Date(v.nextDueDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+        const dose = v.boosterNumber > 0 ? `Booster #${v.boosterNumber}` : `Dose #${v.doseNumber}`;
+        return `  - ${v.vaccineName} | ${dose} | Administered: ${date} | Next due: ${nextDue} | Status: ${v.status}`;
+      }).join('\n')}`
+    : 'VACCINATION HISTORY:\n  (none on file)';
+
   return `You are a veterinary referral letter writer. Generate a professional Veterinary Referral Letter from the attending veterinarian to a specialist.
 
 ${patientBlock(pet)}
@@ -580,6 +604,8 @@ ${patientBlock(pet)}
 REFERRING VETERINARIAN: Dr. ${vet?.firstName || ''} ${vet?.lastName || ''}
 
 ${summaryBlock}${detailBlock}
+
+${vaccinationBlock}
 
 PERSISTENT VET NOTES:
 ${persistentVetNotes || '(none on file)'}
@@ -760,15 +786,19 @@ export const getReport = async (req: Request, res: Response) => {
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordId')
-      .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
       .lean();
 
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
-    const newRecordCount = await countNewRecords(report);
-    res.json({ status: 'OK', data: { ...report, newRecordCount } });
+    const petId = typeof (report as any).petId === 'object' ? (report as any).petId._id : (report as any).petId;
+    const [newRecordCount, vaccinations] = await Promise.all([
+      countNewRecords(report),
+      Vaccination.find({ petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status manufacturer notes').lean(),
+    ]);
+    res.json({ status: 'OK', data: { ...report, newRecordCount, vaccinations } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -1024,9 +1054,11 @@ export const generateReport = async (req: Request, res: Response) => {
       case 'dischargeSummary':
         prompt = buildDischargeSummaryPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
         break;
-      case 'referralLetter':
-        prompt = buildReferralLetterPrompt(pet, records, vet, contextNotes, persistentNotes);
+      case 'referralLetter': {
+        const vaxForReferral = await Vaccination.find({ petId: report.petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status').lean();
+        prompt = buildReferralLetterPrompt(pet, records, vet, contextNotes, persistentNotes, vaxForReferral);
         break;
+      }
       default:
         prompt = records.length > 1
           ? buildConsolidatedAIPrompt(pet, records, vet, contextNotes, persistentNotes)

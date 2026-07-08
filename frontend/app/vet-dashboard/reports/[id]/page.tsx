@@ -21,6 +21,7 @@ import {
   type OwnerSummary,
   type LinkedRecord,
   type ReportType,
+  type VaccinationRecord,
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
@@ -304,30 +305,33 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   const fmtRDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
-  const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery'>> = {
+  const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = {
     clinicalSummary: ['vitals'],
-    laboratoryInterpretation: ['diagnostics'],
-    diagnosticIntegration: ['vitals', 'diagnostics'],
+    laboratoryInterpretation: ['diagnostics', 'immunityTesting'],
+    diagnosticIntegration: ['vitals', 'diagnostics', 'immunityTesting'],
     managementPlan: ['medications', 'preventiveCare'],
-    objective: ['vitals', 'diagnostics'],
+    objective: ['vitals', 'diagnostics', 'immunityTesting'],
     plan: ['medications'],
-    testsSummary: ['diagnostics'],
-    resultsInterpretation: ['diagnostics'],
+    testsSummary: ['diagnostics', 'immunityTesting'],
+    resultsInterpretation: ['diagnostics', 'immunityTesting'],
     preoperativeSummary: ['vitals'],
     anesthesiaProtocol: ['medications'],
     surgicalProcedure: ['surgery'],
     postoperativeCare: ['medications', 'preventiveCare'],
     patientHealthStatus: ['vitals'],
     parasiteControl: ['preventiveCare'],
+    vaccinationHistory: ['vaccinations'],
     medications: ['medications'],
-    currentFindings: ['vitals', 'diagnostics'],
-    treatmentsToDate: ['medications'],
+    currentFindings: ['vitals', 'diagnostics', 'immunityTesting'],
+    treatmentsToDate: ['medications', 'preventiveCare'],
+    clinicalHistory: ['vitals', 'diagnostics', 'medications', 'preventiveCare', 'surgery', 'immunityTesting', 'vaccinations'],
   }
 
   const renderClinicalTables = (
-    dataTypes: Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery'>,
+    dataTypes: Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>,
     records: LinkedRecord[]
   ) => {
+    const reportVaccinations: VaccinationRecord[] = report.vaccinations ?? []
     const hasVitals = dataTypes.includes('vitals') && records.some(r =>
       r.vitals && Object.values(r.vitals).some(v => v?.value !== '' && v?.value !== null && v?.value !== undefined)
     )
@@ -335,7 +339,12 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     const hasMedications = dataTypes.includes('medications') && records.some(r => (r.medications?.length ?? 0) > 0)
     const hasPreventive = dataTypes.includes('preventiveCare') && records.some(r => (r.preventiveCare?.length ?? 0) > 0)
     const hasSurgery = dataTypes.includes('surgery') && records.some(r => !!r.surgeryRecord?.surgeryType)
-    if (!hasVitals && !hasDiagnostics && !hasMedications && !hasPreventive && !hasSurgery) return null
+    const hasImmunityTesting = dataTypes.includes('immunityTesting') && records.some(r =>
+      (r.immunityTesting?.enabled && (r.immunityTesting.rows?.length ?? 0) > 0) ||
+      (r.immunityTesting?.antigenEnabled && (r.immunityTesting.antigenRows?.length ?? 0) > 0)
+    )
+    const hasVaccinations = dataTypes.includes('vaccinations') && reportVaccinations.length > 0
+    if (!hasVitals && !hasDiagnostics && !hasMedications && !hasPreventive && !hasSurgery && !hasImmunityTesting && !hasVaccinations) return null
 
     const vitalsRecs = hasVitals ? records.filter(r =>
       r.vitals && Object.values(r.vitals).some(v => v?.value !== '' && v?.value !== null && v?.value !== undefined)
@@ -510,6 +519,113 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                       <td className="px-3 py-2 font-medium text-[#4F4F4F]">{r.surgeryRecord!.surgeryType}</td>
                       <td className="px-3 py-2 text-gray-600">{fmtRDate(r.createdAt)}</td>
                       <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {hasImmunityTesting && records
+          .filter(r =>
+            (r.immunityTesting?.enabled && (r.immunityTesting.rows?.length ?? 0) > 0) ||
+            (r.immunityTesting?.antigenEnabled && (r.immunityTesting.antigenRows?.length ?? 0) > 0)
+          )
+          .map(r => (
+            <div key={r._id} className="space-y-3">
+              {r.immunityTesting?.enabled && (r.immunityTesting.rows?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">
+                    Immunity / Titer Testing
+                    {r.immunityTesting.kitName && <span className="font-normal normal-case text-gray-400"> — {r.immunityTesting.kitName}</span>}
+                    {r.immunityTesting.testDate && <span className="font-normal normal-case text-gray-400"> ({fmtRDate(r.immunityTesting.testDate)})</span>}
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                      <thead className="bg-[#f0f7f7]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Disease</th>
+                          <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Score</th>
+                          <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Status</th>
+                          <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {r.immunityTesting.rows!.map((row, ri) => (
+                          <tr key={ri} className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
+                            <td className="px-3 py-2 text-gray-600">{row.score ?? '—'}</td>
+                            <td className="px-3 py-2 text-gray-600">{row.status || '—'}</td>
+                            <td className="px-3 py-2 text-gray-400">{row.action || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              {r.immunityTesting?.antigenEnabled && (r.immunityTesting.antigenRows?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">
+                    Antigen Testing
+                    {r.immunityTesting.antigenDate && <span className="font-normal normal-case text-gray-400"> ({fmtRDate(r.immunityTesting.antigenDate)})</span>}
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                      <thead className="bg-[#f0f7f7]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Disease</th>
+                          <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {r.immunityTesting.antigenRows!.map((row, ri) => (
+                          <tr key={ri} className="border-t border-gray-100">
+                            <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
+                            <td className="px-3 py-2 text-gray-600">{row.result || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        }
+
+        {hasVaccinations && (
+          <div>
+            <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Vaccination History</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                <thead className="bg-[#f0f7f7]">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Vaccine</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Dose</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Date Given</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Next Due</th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportVaccinations.map(v => (
+                    <tr key={v._id} className="border-t border-gray-100">
+                      <td className="px-3 py-2 font-medium text-[#4F4F4F]">{v.vaccineName}</td>
+                      <td className="px-3 py-2 text-gray-600">
+                        {v.boosterNumber > 0 ? `Booster #${v.boosterNumber}` : `Dose #${v.doseNumber}`}
+                      </td>
+                      <td className="px-3 py-2 text-gray-600">{fmtRDate(v.dateAdministered)}</td>
+                      <td className="px-3 py-2 text-gray-400">{fmtRDate(v.nextDueDate)}</td>
+                      <td className="px-3 py-2">
+                        <span className={`capitalize text-xs font-medium ${
+                          v.status === 'active' ? 'text-emerald-600' :
+                          v.status === 'overdue' ? 'text-red-500' :
+                          v.status === 'expired' ? 'text-orange-500' :
+                          'text-gray-400'
+                        }`}>{v.status}</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
