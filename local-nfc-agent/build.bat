@@ -49,11 +49,10 @@ echo     Detected Node %NODE_MAJOR% -- using target: %PKG_TARGET%
 call npx @yao-pkg/pkg . --target %PKG_TARGET% --output "%DIST_DIR%\PawSync-NFC-Agent.exe" --compress GZip
 if errorlevel 1 (echo ERROR: pkg failed & pause & exit /b 1)
 
-:: 5. Copy native .node files
+:: 5. Copy native .node files (preserve node_modules subpath — bindings()
+::    resolves them relative to the exe's own directory at runtime)
 echo [5/8] Copying native modules...
-for /r node_modules %%f in (*.node) do (
-  copy /y "%%f" "%DIST_DIR%\" >nul 2>&1
-)
+robocopy node_modules "%DIST_DIR%\node_modules" *.node /S /NFL /NDL /NJH /NJS >nul
 
 :: 6. Write pre-filled .env
 echo [6/8] Writing .env...
