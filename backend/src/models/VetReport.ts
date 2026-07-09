@@ -88,7 +88,25 @@ const VetReportSchema = new Schema<IVetReport>(
 VetReportSchema.index({ vetId: 1, createdAt: -1 });
 VetReportSchema.index({ petId: 1, createdAt: -1 });
 VetReportSchema.index({ clinicId: 1, createdAt: -1 });
-// Enforce one report per medical record at the database level (sparse allows multiple nulls)
-VetReportSchema.index({ medicalRecordId: 1 }, { unique: true, sparse: true });
+VetReportSchema.index({ reportType: 1, createdAt: -1 });
+// Multiple reports per medical record are allowed — plain (non-unique) lookup index.
+// Distinct name so autoIndex never collides with the legacy unique 'medicalRecordId_1'.
+VetReportSchema.index({ medicalRecordId: 1 }, { sparse: true, name: 'medicalRecordId_lookup' });
 
-export default mongoose.model<IVetReport>('VetReport', VetReportSchema);
+const VetReportModel = mongoose.model<IVetReport>('VetReport', VetReportSchema);
+
+// Earlier deployments created a UNIQUE index on medicalRecordId which would make every
+// second report for the same record fail with E11000. Drop it once the DB connection opens;
+// the plain index above replaces it. No-op if the index no longer exists.
+const dropLegacyUniqueIndex = () => {
+  VetReportModel.collection
+    .dropIndex('medicalRecordId_1')
+    .catch(() => { /* index absent or already non-unique — nothing to do */ });
+};
+if (mongoose.connection.readyState === 1) {
+  dropLegacyUniqueIndex();
+} else {
+  mongoose.connection.once('open', dropLegacyUniqueIndex);
+}
+
+export default VetReportModel;

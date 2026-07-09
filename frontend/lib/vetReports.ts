@@ -199,6 +199,8 @@ export interface VetReport {
     allergies?: string[];
     sterilization?: string;
     microchipNumber?: string | null;
+    /** Populated in listVetReports so the reports list can show/search the owner */
+    ownerId?: { _id: string; firstName: string; lastName: string } | string | null;
   };
   medicalRecordId?: string | null;
   medicalRecordIds?: (string | LinkedRecord)[];
@@ -281,13 +283,23 @@ export async function listSharedReportsForOwner(
 }
 
 export async function listVetReports(
-  params?: { petId?: string; limit?: number; offset?: number },
+  params?: {
+    petId?: string;
+    limit?: number;
+    offset?: number;
+    /** Free-text search across report title, pet name, and owner name */
+    search?: string;
+    /** Multi-select report type filter */
+    types?: ReportType[];
+  },
   token?: string
 ): Promise<{ data: VetReport[]; total: number }> {
   const qs = new URLSearchParams();
   if (params?.petId) qs.set('petId', params.petId);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.offset) qs.set('offset', String(params.offset));
+  if (params?.search?.trim()) qs.set('search', params.search.trim());
+  if (params?.types?.length) qs.set('types', params.types.join(','));
 
   const json = await authenticatedFetch(
     `/vet-reports${qs.toString() ? `?${qs}` : ''}`,

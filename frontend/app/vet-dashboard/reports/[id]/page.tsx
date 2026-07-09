@@ -1189,6 +1189,9 @@ export default function ReportEditorPage() {
   const activeSectionLabels = getSectionLabels(rType)
   const hasContent = activeSectionKeys.some((k) => typeof sections[k] === 'string' && sections[k].trim().length > 0)
   const typeLabel = REPORT_TYPE_CONFIG.find((c) => c.value === rType)?.label ?? 'General Report'
+  // Per-visit types describe exactly one visit — new records can't be folded in
+  // (the backend rejects sync for these), so never offer the update banner.
+  const isPerVisitType = rType === 'soap' || rType === 'surgery' || rType === 'dischargeSummary'
 
   if (loading) {
     return (
@@ -1370,8 +1373,8 @@ export default function ReportEditorPage() {
           )}
         </div>
 
-        {/* New-visit staleness banner */}
-        {newRecordCount > 0 && !updating && (
+        {/* New-visit staleness banner — not for per-visit report types */}
+        {newRecordCount > 0 && !updating && !isPerVisitType && (
           <div className="flex items-center gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
             <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
             <span className="flex-1">

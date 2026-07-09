@@ -9,7 +9,6 @@ import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
 import {
   createVetReport,
   listVetReports,
-  DuplicateReportError,
   REPORT_TYPE_CONFIG,
   type ReportType,
 } from '@/lib/vetReports'
@@ -48,6 +47,12 @@ const REPORT_TYPE_ICONS: Record<ReportType, React.ReactNode> = {
   referralLetter: <Mail className="w-5 h-5" />,
 }
 
+/** These types stand alone — they cannot be combined with any other type. */
+const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter']
+
+/** Update-with-new-visits is not available for these types yet (backend rejects sync). */
+const SYNC_DISABLED_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary']
+
 interface PetGroup {
   petId: string
   name: string
@@ -62,13 +67,18 @@ function isEligibleForType(record: MedicalRecord, reportType: ReportType): boole
   return true
 }
 
+/** Record must satisfy every selected type so each created report covers the same visits. */
+function isEligibleForAllTypes(record: MedicalRecord, reportTypes: ReportType[]): boolean {
+  return reportTypes.every((t) => isEligibleForType(record, t))
+}
+
 export default function NewReportPage() {
   const router = useRouter()
   const { token, user } = useAuthStore()
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [reportType, setReportType] = useState<ReportType | null>(null)
+  const [selectedTypes, setSelectedTypes] = useState<Set<ReportType>>(new Set())
 
   // Data
   const [records, setRecords] = useState<MedicalRecord[]>([])
@@ -89,7 +99,8 @@ export default function NewReportPage() {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const isSoap = reportType === 'soap'
+  const typeList = useMemo(() => [...selectedTypes], [selectedTypes])
+  const syncDisabled = typeList.some((t) => SYNC_DISABLED_TYPES.includes(t))
 
   useEffect(() => {
     const load = async () => {
@@ -120,6 +131,24 @@ export default function NewReportPage() {
     load()
   }, [token])
 
+  const toggleType = (type: ReportType) => {
+    setSelectedTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) {
+        next.delete(type)
+        return next
+      }
+      // Exclusive types replace the whole selection; picking a normal type drops any exclusive
+      if (EXCLUSIVE_TYPES.includes(type)) return new Set([type])
+      for (const ex of EXCLUSIVE_TYPES) next.delete(ex)
+      next.add(type)
+      return next
+    })
+    // Selection rules may change (e.g. SOAP added) — reset record picks
+    setSelectedRecordIds(new Set())
+    setAllMode(false)
+  }
+
   // Group records by pet, newest visit first within each pet
   const petGroups = useMemo<PetGroup[]>(() => {
     const map = new Map<string, PetGroup>()
@@ -134,20 +163,16 @@ export default function NewReportPage() {
       group.records.push(r)
     }
     for (const g of map.values()) {
-      // newest first in display
       g.records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
   }, [records])
 
-  // Pet groups filtered by type eligibility (hide pets with no eligible records for diagnostic/surgery)
+  // Pets that have at least one record eligible for every selected type
   const eligiblePetGroups = useMemo(() => {
-    if (!reportType) return petGroups
-    if (reportType === 'diagnostic' || reportType === 'surgery') {
-      return petGroups.filter((g) => g.records.some((r) => isEligibleForType(r, reportType)))
-    }
-    return petGroups
-  }, [petGroups, reportType])
+    if (typeList.length === 0) return petGroups
+    return petGroups.filter((g) => g.records.some((r) => isEligibleForAllTypes(r, typeList)))
+  }, [petGroups, typeList])
 
   const filteredPets = eligiblePetGroups.filter((g) => {
     const q = petSearch.toLowerCase()
@@ -156,22 +181,16 @@ export default function NewReportPage() {
 
   const selectedPet = petGroups.find((g) => g.petId === selectedPetId) ?? null
 
-  // Records filtered by type + date range, sorted newest first
+  // Records eligible for every selected type + inside the optional date range
   const eligibleRecords = useMemo(() => {
-    if (!selectedPet || !reportType) return []
+    if (!selectedPet || typeList.length === 0) return []
     return selectedPet.records.filter((r) => {
-      if (!isEligibleForType(r, reportType)) return false
-      if (dateFrom) {
-        const d = new Date(r.createdAt)
-        if (d < new Date(dateFrom)) return false
-      }
-      if (dateTo) {
-        const d = new Date(r.createdAt)
-        if (d > new Date(dateTo + 'T23:59:59')) return false
-      }
+      if (!isEligibleForAllTypes(r, typeList)) return false
+      if (dateFrom && new Date(r.createdAt) < new Date(dateFrom)) return false
+      if (dateTo && new Date(r.createdAt) > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
-  }, [selectedPet, reportType, dateFrom, dateTo])
+  }, [selectedPet, typeList, dateFrom, dateTo])
 
   const selectPet = (petId: string) => {
     setSelectedPetId(petId)
@@ -181,11 +200,6 @@ export default function NewReportPage() {
 
   const toggleRecord = (recordId: string) => {
     if (allMode) return
-    if (isSoap) {
-      // single-select for SOAP
-      setSelectedRecordIds(new Set([recordId]))
-      return
-    }
     setSelectedRecordIds((prev) => {
       const next = new Set(prev)
       if (next.has(recordId)) next.delete(recordId)
@@ -195,19 +209,17 @@ export default function NewReportPage() {
   }
 
   const toggleAllMode = () => {
-    if (isSoap) return
     setAllMode((v) => !v)
     setSelectedRecordIds(new Set())
   }
 
   const effectiveCount = allMode ? eligibleRecords.length : selectedRecordIds.size
-
-  const canProceedStep2 = !!selectedPetId
-  const canProceedStep3 = effectiveCount > 0 || (!allMode && selectedRecordIds.size > 0)
+  // Pet must still be eligible — going back and changing types can invalidate an earlier pick
+  const canProceedStep2 = !!selectedPetId && eligiblePetGroups.some((g) => g.petId === selectedPetId)
 
   const handleCreate = async () => {
-    if (!selectedPet || !reportType) {
-      toast.error('Select a patient')
+    if (!selectedPet || typeList.length === 0) {
+      toast.error('Select a patient and at least one report type')
       return
     }
     if (effectiveCount === 0) {
@@ -216,7 +228,7 @@ export default function NewReportPage() {
     }
     setCreating(true)
     try {
-      // When allMode + no date range: use scope 'all'. With date range: use explicit IDs.
+      // allMode without a date range → scope 'all' (auto-updatable); otherwise explicit IDs
       const hasDateFilter = !!dateFrom || !!dateTo
       const useAllScope = allMode && !hasDateFilter
 
@@ -231,28 +243,53 @@ export default function NewReportPage() {
         ? selectedPet.records.find((r) => r._id === recordIds![0])
         : null
 
-      const typeLabel = REPORT_TYPE_CONFIG.find((c) => c.value === reportType)?.label ?? 'Report'
-      const defaultTitle = title.trim() || (isConsolidated
-        ? `${typeLabel}: ${selectedPet.name} (${useAllScope ? 'All records' : `${recordIds?.length} visits`})`
-        : `${typeLabel}: ${selectedPet.name} (${fmtDate(singleRecord?.createdAt ?? new Date().toISOString())})`)
+      // Create one report per selected type, in the order they appear in the config
+      const orderedTypes = REPORT_TYPE_CONFIG.map((c) => c.value).filter((t) => selectedTypes.has(t))
+      const created: { id: string; label: string }[] = []
+      const failed: string[] = []
 
-      const report = await createVetReport(
-        {
-          petId: selectedPet.petId,
-          reportType,
-          medicalRecordIds: recordIds,
-          scope: useAllScope ? 'all' : 'selected',
-          title: defaultTitle,
-        },
-        token || undefined
-      )
-      router.push(`/vet-dashboard/reports/${report._id}`)
-    } catch (e: any) {
-      if (e instanceof DuplicateReportError) {
-        toast.info('A report already exists for this record — opening it')
-        router.push(`/vet-dashboard/reports/${e.existingReportId}`)
+      for (const type of orderedTypes) {
+        const typeLabel = REPORT_TYPE_CONFIG.find((c) => c.value === type)?.label ?? 'Report'
+        const autoTitle = isConsolidated
+          ? `${typeLabel}: ${selectedPet.name} (${useAllScope ? 'All records' : `${recordIds?.length} visits`})`
+          : `${typeLabel}: ${selectedPet.name} (${fmtDate(singleRecord?.createdAt ?? new Date().toISOString())})`
+        // Custom title only makes sense verbatim for a single type; prefix it per type otherwise
+        const reportTitle = title.trim()
+          ? (orderedTypes.length > 1 ? `${typeLabel}: ${title.trim()}` : title.trim())
+          : autoTitle
+        try {
+          const report = await createVetReport(
+            {
+              petId: selectedPet.petId,
+              reportType: type,
+              medicalRecordIds: recordIds,
+              scope: useAllScope ? 'all' : 'selected',
+              title: reportTitle,
+            },
+            token || undefined
+          )
+          created.push({ id: report._id, label: typeLabel })
+        } catch (e: any) {
+          failed.push(typeLabel)
+          console.error(`Failed to create ${typeLabel}:`, e)
+        }
+      }
+
+      if (created.length === 0) {
+        toast.error('Failed to create the report' + (orderedTypes.length > 1 ? 's' : ''))
+        setCreating(false)
         return
       }
+      if (failed.length > 0) {
+        toast.error(`Could not create: ${failed.join(', ')}`)
+      }
+      if (created.length === 1) {
+        router.push(`/vet-dashboard/reports/${created[0].id}`)
+      } else {
+        toast.success(`Created ${created.length} reports: ${created.map((c) => c.label).join(', ')}`)
+        router.push('/vet-dashboard/reports')
+      }
+    } catch (e: any) {
       toast.error(e.message || 'Failed to create report')
       setCreating(false)
     }
@@ -265,7 +302,7 @@ export default function NewReportPage() {
     setAllMode(false)
   }
 
-  const stepLabels = ['Report Type', 'Patient', 'Records']
+  const stepLabels = ['Report Types', 'Patient', 'Records']
 
   return (
     <DashboardLayout userType={user?.userType as any}>
@@ -279,7 +316,7 @@ export default function NewReportPage() {
 
         <PageHeader
           title="New Report"
-          subtitle="Choose a report type, pick a patient, and select the visits to include"
+          subtitle="Choose one or more report types, pick a patient, and select the visits to include"
           className="mb-6"
         />
 
@@ -305,19 +342,23 @@ export default function NewReportPage() {
           })}
         </div>
 
-        {/* ── Step 1: Report Type ── */}
+        {/* ── Step 1: Report Types (multi-select) ── */}
         {step === 1 && (
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-3">
+            <p className="text-sm font-medium text-gray-700 mb-1">
               What type of report do you want to create?
+            </p>
+            <p className="text-xs text-gray-400 mb-3">
+              Select one or more — a separate report is created for each type. Health Certificate and Referral Letter cannot be combined with other types.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {REPORT_TYPE_CONFIG.map((cfg) => {
-                const selected = reportType === cfg.value
+                const selected = selectedTypes.has(cfg.value)
+                const isExclusive = EXCLUSIVE_TYPES.includes(cfg.value)
                 return (
                   <button
                     key={cfg.value}
-                    onClick={() => setReportType(cfg.value)}
+                    onClick={() => toggleType(cfg.value)}
                     className={`text-left rounded-xl border p-4 transition-all ${
                       selected
                         ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
@@ -331,22 +372,30 @@ export default function NewReportPage() {
                       <span className={`font-semibold text-sm ${selected ? 'text-indigo-700' : 'text-gray-800'}`}>
                         {cfg.label}
                       </span>
+                      <span className="ml-auto">
+                        {selected
+                          ? <CheckSquare className="w-4 h-4 text-indigo-500" />
+                          : <Square className="w-4 h-4 text-gray-300" />}
+                      </span>
                     </div>
                     <p className="text-xs text-gray-500 leading-relaxed">{cfg.description}</p>
+                    {isExclusive && (
+                      <p className="text-[10px] text-amber-600 mt-1.5">Standalone — cannot be combined with other types</p>
+                    )}
                   </button>
                 )
               })}
             </div>
 
-            {isSoap && (
-              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-                SOAP Notes are per-visit — you will select a single medical record.
+            {selectedTypes.size > 1 && (
+              <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700">
+                {selectedTypes.size} reports will be created — one per selected type, all covering the same visits.
               </div>
             )}
 
             <button
               onClick={() => setStep(2)}
-              disabled={!reportType}
+              disabled={selectedTypes.size === 0}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Next: Select Patient <ChevronRight className="w-4 h-4" />
@@ -366,6 +415,9 @@ export default function NewReportPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
+              {selectedTypes.size > 1 && title.trim() && (
+                <p className="text-xs text-gray-400 mt-1">Each report&apos;s title will be prefixed with its type.</p>
+              )}
             </div>
 
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -392,18 +444,12 @@ export default function NewReportPage() {
                   <p className="text-center text-sm text-gray-400 py-8">
                     {petSearch
                       ? 'No patients match your search'
-                      : reportType === 'diagnostic'
-                        ? 'No patients with diagnostic test records'
-                        : reportType === 'surgery'
-                          ? 'No patients with surgery records'
-                          : 'No completed medical records yet'}
+                      : 'No patients with records eligible for the selected report types'}
                   </p>
                 ) : (
                   filteredPets.map((g) => {
                     const isSelected = selectedPetId === g.petId
-                    const eligibleCount = reportType
-                      ? g.records.filter((r) => isEligibleForType(r, reportType)).length
-                      : g.records.length
+                    const eligibleCount = g.records.filter((r) => isEligibleForAllTypes(r, typeList)).length
                     return (
                       <button
                         key={g.petId}
@@ -459,6 +505,9 @@ export default function NewReportPage() {
               <span className="font-medium text-gray-900">{selectedPet.name}</span>
               <span className="text-gray-500">·</span>
               <span className="text-gray-500 text-xs">{selectedPet.species === 'canine' ? 'Canine' : 'Feline'} / {selectedPet.breed}</span>
+              <span className="ml-auto text-xs text-indigo-500">
+                {typeList.length} report{typeList.length !== 1 ? 's' : ''}
+              </span>
             </div>
 
             {/* Date range filter */}
@@ -491,32 +540,29 @@ export default function NewReportPage() {
 
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Visits to include
-              {isSoap && <span className="ml-1 text-xs text-gray-400 font-normal">(select one)</span>}
             </label>
 
-            {/* All-records toggle (not for SOAP) */}
-            {!isSoap && (
-              <button
-                onClick={toggleAllMode}
-                className={`w-full mb-3 rounded-lg px-4 py-3 border text-left transition-all flex items-center gap-3 ${
-                  allMode
-                    ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
-                    : 'border-gray-200 bg-white hover:border-indigo-200'
-                }`}
-              >
-                <Layers className={`w-4 h-4 flex-shrink-0 ${allMode ? 'text-indigo-500' : 'text-gray-400'}`} />
-                <div className="flex-1">
-                  <p className="font-medium text-sm text-gray-900">
-                    {dateFrom || dateTo ? 'All records in date range' : 'All records to date'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {eligibleRecords.length} eligible visit{eligibleRecords.length !== 1 ? 's' : ''}
-                    {!(dateFrom || dateTo) && ' — new visits can be folded in later'}
-                  </p>
-                </div>
-                {allMode ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4 text-gray-300" />}
-              </button>
-            )}
+            {/* All-records toggle */}
+            <button
+              onClick={toggleAllMode}
+              className={`w-full mb-3 rounded-lg px-4 py-3 border text-left transition-all flex items-center gap-3 ${
+                allMode
+                  ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
+                  : 'border-gray-200 bg-white hover:border-indigo-200'
+              }`}
+            >
+              <Layers className={`w-4 h-4 flex-shrink-0 ${allMode ? 'text-indigo-500' : 'text-gray-400'}`} />
+              <div className="flex-1">
+                <p className="font-medium text-sm text-gray-900">
+                  {dateFrom || dateTo ? 'All records in date range' : 'All records to date'}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {eligibleRecords.length} eligible visit{eligibleRecords.length !== 1 ? 's' : ''}
+                  {!(dateFrom || dateTo) && !syncDisabled && ' — new visits can be folded in later'}
+                </p>
+              </div>
+              {allMode ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4 text-gray-300" />}
+            </button>
 
             {/* Record list */}
             <div className={`max-h-72 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-4 ${allMode ? 'opacity-60' : ''}`}>
@@ -524,11 +570,7 @@ export default function NewReportPage() {
                 <p className="text-center text-sm text-gray-400 py-8">
                   {dateFrom || dateTo
                     ? 'No eligible records in this date range'
-                    : reportType === 'diagnostic'
-                      ? 'No records with diagnostic tests'
-                      : reportType === 'surgery'
-                        ? 'No surgery records'
-                        : 'No completed records'}
+                    : 'No records eligible for all selected report types'}
                 </p>
               ) : (
                 eligibleRecords.map((r) => {
@@ -544,9 +586,7 @@ export default function NewReportPage() {
                       } ${allMode ? 'cursor-not-allowed' : ''}`}
                     >
                       <div className="flex items-center gap-3">
-                        {isSoap ? (
-                          <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${checked ? 'border-indigo-500 bg-indigo-500' : 'border-gray-300'}`} />
-                        ) : checked ? (
+                        {checked ? (
                           <CheckSquare className="w-4 h-4 text-indigo-500 flex-shrink-0" />
                         ) : (
                           <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -556,8 +596,8 @@ export default function NewReportPage() {
                             {r.chiefComplaint || 'Visit'}
                           </p>
                           {hasReport && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 mt-0.5">
-                              <FileText className="w-3 h-3" /> Already has a report
+                            <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
+                              <FileText className="w-3 h-3" /> Has existing report(s) — more can be created
                             </span>
                           )}
                         </div>
@@ -577,6 +617,7 @@ export default function NewReportPage() {
                 <strong>{selectedPet.name}</strong> — {allMode
                   ? `${!(dateFrom || dateTo) ? 'all records to date' : 'all in date range'} (${effectiveCount} visit${effectiveCount !== 1 ? 's' : ''})`
                   : `${effectiveCount} visit${effectiveCount !== 1 ? 's' : ''} selected`}
+                {typeList.length > 1 && ` → ${typeList.length} reports`}
               </div>
             )}
 
@@ -595,7 +636,7 @@ export default function NewReportPage() {
                 {creating ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
                 ) : (
-                  'Create Report & Open Editor'
+                  `Create ${typeList.length > 1 ? `${typeList.length} Reports` : 'Report'} & Open`
                 )}
               </button>
             </div>

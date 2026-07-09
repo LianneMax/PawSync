@@ -16,6 +16,11 @@ const VALID_REPORT_TYPES: ReportType[] = [
   'general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter',
 ];
 
+// Post-creation "update with new visits" behavior for these types is still to be decided,
+// so sync-records stays disabled for them. Creation with multiple records IS supported —
+// their prompt builders handle any number of visits.
+const SYNC_DISABLED_REPORT_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary'];
+
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI | null {
   if (!_openai && process.env.OPENAI_API_KEY) {
@@ -284,11 +289,47 @@ Generate the consolidated report in the following JSON format. Each value should
 
 function buildSoapPrompt(
   pet: any,
-  record: any,
+  records: any[],
   vet: any,
   vetContextNotes: string,
   persistentVetNotes: string
 ): string {
+  // Multiple visits → integrated chronological SOAP progress note
+  if (records.length > 1) {
+    const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
+    const summarized = records.slice(0, overflow);
+    const detailed = records.slice(overflow);
+    const summaryBlock = summarized.length
+      ? `EARLIER VISITS (condensed):\n${summarized.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n\n`
+      : '';
+    const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
+
+    return `You are a veterinary medical report writer. Generate an integrated SOAP Progress Note covering the patient's ${records.length} visits listed below, in chronological order (oldest first). Each SOAP section must synthesize the information across ALL visits, referencing visit dates and showing how the case progressed.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+${summaryBlock}${detailBlock}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Write an integrated SOAP Progress Note spanning all visits. Reference dates where relevant. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
+
+{
+  "subjective": "The owner's reports and patient history across the visits: initial complaint, how symptoms evolved between visits, and home observations. Present chronologically with dates.",
+  "objective": "Objective data across visits: vital parameter trends (note changes between visits), physical examination findings over time, and diagnostic test results in chronological order.",
+  "assessment": "The clinical assessment across the case: working diagnoses, how they were confirmed or revised between visits, and the patient's current status (improving/stable/declining).",
+  "plan": "The evolving treatment plan: what was prescribed or performed at each visit, the response to treatment, and the current active plan including medications, follow-ups, and monitoring."
+}`;
+  }
+
+  const record = records[0] || {};
   const visitDate = record.createdAt
     ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Unknown date';
@@ -395,11 +436,69 @@ Generate a formal Diagnostic Test Report. Write each section as flowing prose or
 
 function buildSurgeryPrompt(
   pet: any,
-  record: any,
+  records: any[],
   vet: any,
   vetContextNotes: string,
   persistentVetNotes: string
 ): string {
+  // Prefer records that actually document a surgery; fall back to everything selected
+  const surgicalRecords = records.filter((r: any) => r.surgeryRecord?.surgeryType);
+  const base = surgicalRecords.length > 0 ? surgicalRecords : records;
+
+  // Multiple surgical visits → one report covering each procedure chronologically
+  if (base.length > 1) {
+    const blocks = base.map((r: any, i: number) => {
+      const d = r.createdAt
+        ? new Date(r.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+        : 'Unknown date';
+      const vitals = Object.entries(r.vitals || {})
+        .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+        .map(([k, v]: any) => `    - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+        .join('\n');
+      const meds = (r.medications || [])
+        .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
+        .join('\n');
+      return `PROCEDURE ${i + 1} — ${d}
+  Surgery Type: ${r.surgeryRecord?.surgeryType || '(not specified)'}
+  Surgeon Remarks: ${r.surgeryRecord?.vetRemarks || '(none)'}
+  Indication / Chief Complaint: ${r.chiefComplaint || 'Not specified'}
+  Pre-operative Vitals:
+${vitals || '    (no vitals recorded)'}
+  SOAP Assessment: ${r.assessment || '(none)'}
+  SOAP Plan: ${r.plan || '(none)'}
+  Medications / Anesthetic Agents:
+${meds || '    (none recorded)'}
+  Confinement: ${r.confinementAction === 'confined' ? `Yes — ${r.confinementDays || 0} day(s)` : 'None'}`;
+    }).join('\n\n');
+
+    return `You are a veterinary surgical report writer. Generate a Surgical and Anesthesia Report covering the ${base.length} procedures listed below, in chronological order (oldest first). Address each procedure within the sections, referencing procedure dates.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+${blocks}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Generate a formal Surgical and Anesthesia Report covering ALL procedures above. Use clinical language appropriate for a surgical log. Reference each procedure by date. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
+
+{
+  "preoperativeSummary": "For each procedure: the patient's condition and fitness for anesthesia prior to surgery, relevant history, pre-op vitals, and indication. Present chronologically by date.",
+  "anesthesiaProtocol": "Anesthetic agents used per procedure (pre-medication, induction, maintenance), dosages, routes, and monitoring parameters. Note any changes in protocol between procedures.",
+  "surgicalProcedure": "Description of each surgical procedure performed: approach, technique, intraoperative findings, closure, and materials. Cover every procedure by date.",
+  "intraoperativeMonitoring": "Vital parameters monitored during each procedure, intraoperative events or interventions, and patient response.",
+  "postoperativeCare": "Post-operative recovery, pain management, wound care, post-op medications, dietary restrictions, and activity limitations for each procedure, plus the current active care plan.",
+  "complications": "Any complications encountered across the procedures, or findings that warrant monitoring. State 'No intraoperative or post-operative complications noted' if applicable."
+}`;
+  }
+
+  const record = base[0] || {};
   const visitDate = record.createdAt
     ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Unknown date';
@@ -518,11 +617,19 @@ Generate a formal Veterinary Health Certificate. Use official, certifying langua
 
 function buildDischargeSummaryPrompt(
   pet: any,
-  record: any,
+  records: any[],
   vet: any,
   vetContextNotes: string,
   persistentVetNotes: string
 ): string {
+  // Discharge instructions are anchored to the most recent visit; earlier selected
+  // visits are included as condensed context so the recovery story is complete.
+  const record = records[records.length - 1] || {};
+  const priorVisits = records.slice(0, -1);
+  const priorBlock = priorVisits.length
+    ? `\nPRIOR VISITS IN THIS CASE (context):\n${priorVisits.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n`
+    : '';
+
   const visitDate = record.createdAt
     ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Unknown date';
@@ -533,7 +640,8 @@ function buildDischargeSummaryPrompt(
     ? `Confined for ${record.confinementDays || 0} day(s).`
     : 'Not confined.';
 
-  return `You are a veterinary discharge summary writer. Generate a Discharge Summary in plain, warm, owner-friendly language for the visit below.
+  return `You are a veterinary discharge summary writer. Generate a Discharge Summary in plain, warm, owner-friendly language for the most recent visit below${priorVisits.length ? ', taking the prior visits into account as case history' : ''}.
+${priorBlock}
 
 ${patientBlock(pet)}
 
@@ -690,17 +798,9 @@ export const createReport = async (req: Request, res: Response) => {
       recordIds = unique;
     }
 
+    // Multiple reports per medical record are allowed (e.g. a SOAP note and a discharge
+    // summary for the same visit) — no duplicate guard.
     const isSingleRecordReport = reportScope === 'selected' && recordIds.length === 1;
-    if (isSingleRecordReport) {
-      const existing = await VetReport.findOne({ medicalRecordId: recordIds[0] }).lean();
-      if (existing) {
-        return res.status(409).json({
-          status: 'ERROR',
-          message: 'A report already exists for this medical record.',
-          existingReportId: (existing as any)._id,
-        });
-      }
-    }
 
     let clinicId = user.clinicId;
     let clinicBranchId = user.clinicBranchId;
@@ -749,10 +849,14 @@ export const createReport = async (req: Request, res: Response) => {
 
 // ─── LIST ─────────────────────────────────────────────────────────────────────
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export const listReports = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
-    const { petId, limit = '20', offset = '0' } = req.query;
+    const { petId, limit = '20', offset = '0', search, types } = req.query;
 
     const filter: Record<string, any> = {};
     if (user.userType === 'veterinarian') {
@@ -762,12 +866,34 @@ export const listReports = async (req: Request, res: Response) => {
     }
     if (petId) filter.petId = petId;
 
+    // Multi-select report type filter: ?types=soap,diagnostic
+    if (typeof types === 'string' && types.trim()) {
+      const requested = types.split(',').map((t) => t.trim()).filter((t) => VALID_REPORT_TYPES.includes(t as ReportType));
+      if (requested.length > 0) filter.reportType = { $in: requested };
+    }
+
+    // Free-text search across report title, pet name, and owner name
+    if (typeof search === 'string' && search.trim()) {
+      const rx = new RegExp(escapeRegex(search.trim()), 'i');
+      const matchingOwners = await User.find({ $or: [{ firstName: rx }, { lastName: rx }] }).select('_id').lean();
+      const ownerIds = matchingOwners.map((o: any) => o._id);
+      const matchingPets = await Pet.find({
+        $or: [{ name: rx }, ...(ownerIds.length ? [{ ownerId: { $in: ownerIds } }] : [])],
+      }).select('_id').lean();
+      const petIds = matchingPets.map((p: any) => p._id);
+      filter.$or = [{ title: rx }, ...(petIds.length ? [{ petId: { $in: petIds } }] : [])];
+    }
+
     const total = await VetReport.countDocuments(filter);
     const reports = await VetReport.find(filter)
       .sort({ createdAt: -1 })
       .skip(Number(offset))
       .limit(Number(limit))
-      .populate('petId', 'name species breed photo')
+      .populate({
+        path: 'petId',
+        select: 'name species breed photo ownerId',
+        populate: { path: 'ownerId', select: 'firstName lastName' },
+      })
       .populate('vetId', 'firstName lastName')
       .lean();
 
@@ -862,6 +988,14 @@ export const syncReportRecords = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    // Update-with-new-visits behavior for these types is still to be decided — disabled for now.
+    if (SYNC_DISABLED_REPORT_TYPES.includes((report.reportType as ReportType) || 'general')) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Updating this report type with additional records is not supported yet. Create a new report for the new visit instead.',
+      });
     }
 
     const currentIds = resolveReportRecordIds(report);
@@ -1040,19 +1174,19 @@ export const generateReport = async (req: Request, res: Response) => {
     let prompt: string;
     switch (rType) {
       case 'soap':
-        prompt = buildSoapPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+        prompt = buildSoapPrompt(pet, records, vet, contextNotes, persistentNotes);
         break;
       case 'diagnostic':
         prompt = buildDiagnosticPrompt(pet, records, vet, contextNotes, persistentNotes);
         break;
       case 'surgery':
-        prompt = buildSurgeryPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+        prompt = buildSurgeryPrompt(pet, records, vet, contextNotes, persistentNotes);
         break;
       case 'healthCertificate':
         prompt = buildHealthCertificatePrompt(pet, records, vet, contextNotes, persistentNotes);
         break;
       case 'dischargeSummary':
-        prompt = buildDischargeSummaryPrompt(pet, records[0] || {}, vet, contextNotes, persistentNotes);
+        prompt = buildDischargeSummaryPrompt(pet, records, vet, contextNotes, persistentNotes);
         break;
       case 'referralLetter': {
         const vaxForReferral = await Vaccination.find({ petId: report.petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status').lean();
