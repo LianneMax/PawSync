@@ -112,13 +112,15 @@ const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medicat
   plan:                     ['medications'],
   testsSummary:             ['diagnostics', 'immunityTesting'],
   resultsInterpretation:    ['diagnostics', 'immunityTesting'],
+  clinicalCorrelation:      ['vitals'],
   preoperativeSummary:      ['vitals'],
   anesthesiaProtocol:       ['medications'],
   surgicalProcedure:        ['surgery'],
   postoperativeCare:        ['medications', 'preventiveCare'],
-  patientHealthStatus:      ['vitals'],
+  // Health certificate intentionally has NO vitals table
   parasiteControl:          ['preventiveCare'],
   vaccinationHistory:       ['vaccinations'],
+  diagnosisSummary:         ['vitals'],
   medications:              ['medications'],
   currentFindings:          ['vitals', 'diagnostics', 'immunityTesting'],
   treatmentsToDate:         ['medications', 'preventiveCare'],
@@ -469,6 +471,20 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
   const sectionKeys = getSectionKeys(report.reportType)
   const sectionLabels = getSectionLabels(report.reportType)
 
+  // Each data table renders once per document — the first section that claims a
+  // data type keeps it, later sections skip it (mirrors the vet editor preview)
+  const exclusiveSectionData: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = (() => {
+    const seen = new Set<string>()
+    const result: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = {}
+    for (const key of sectionKeys) {
+      const cols = SECTION_DATA_MAP[key] ?? []
+      const exclusive = cols.filter((t) => !seen.has(t))
+      exclusive.forEach((t) => seen.add(t))
+      result[key] = exclusive
+    }
+    return result
+  })()
+
   const allDataRecords = ((report.medicalRecordIds ?? []).filter(
     (r): r is LinkedRecord => typeof r === 'object' && r !== null
   )).sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
@@ -616,8 +632,8 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
               {/* Clinical sections with data tables */}
               {sectionKeys.map((key, i) => {
                 const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''
-                const dataCols = SECTION_DATA_MAP[key]
-                const tables = dataCols ? renderClinicalTables(dataCols, allDataRecords, reportVaccinations) : null
+                const dataCols = exclusiveSectionData[key]
+                const tables = dataCols?.length ? renderClinicalTables(dataCols, allDataRecords, reportVaccinations) : null
                 if (!content.trim() && !tables) return null
                 return (
                   <div key={key}>
