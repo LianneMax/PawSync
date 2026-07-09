@@ -10,10 +10,15 @@ import {
   FlaskConical,
   ClipboardList,
   Pill,
+  Scissors,
+  AlertTriangle,
+  CalendarDays,
+  Shield,
+  Mail,
 } from 'lucide-react'
 import { PrintButton } from './PrintButton'
-import { formatReportDate, SECTION_LABELS, SECTION_KEYS, getSharedReport } from '@/lib/vetReports'
-import type { VetReport, OwnerSummary } from '@/lib/vetReports'
+import { formatReportDate, getSectionKeys, getSectionLabels, REPORT_TYPE_DOCUMENT_TITLES, getSharedReport } from '@/lib/vetReports'
+import type { VetReport, OwnerSummary, LinkedRecord, VaccinationRecord } from '@/lib/vetReports'
 
 async function fetchSharedReport(id: string): Promise<VetReport | null> {
   try {
@@ -32,6 +37,9 @@ function calcAge(dob: string): string {
   return `${years} year${years !== 1 ? 's' : ''} & ${months} month${months !== 1 ? 's' : ''}`
 }
 
+const fmtRDate = (d?: string) =>
+  d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
 const OWNER_SUMMARY_CONFIG = [
   { key: 'whatWeFound' as keyof OwnerSummary, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800' },
   { key: 'testResultsExplained' as keyof OwnerSummary, label: 'Test Results Explained', Icon: Activity, bg: 'bg-purple-50', border: 'border-purple-200', ic: 'text-purple-600', tc: 'text-purple-800' },
@@ -42,12 +50,390 @@ const OWNER_SUMMARY_CONFIG = [
 ]
 
 const SECTION_ICONS: Record<string, React.ReactNode> = {
+  // general
   clinicalSummary:          <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
   laboratoryInterpretation: <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
   diagnosticIntegration:    <Activity className="w-4 h-4 text-[#5A7C7A]" />,
   assessment:               <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
   managementPlan:           <Pill className="w-4 h-4 text-[#5A7C7A]" />,
   prognosis:                <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
+  // soap
+  subjective:               <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  objective:                <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  plan:                     <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  // diagnostic
+  testsSummary:             <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  resultsInterpretation:    <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  clinicalCorrelation:      <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  recommendations:          <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  // surgery
+  preoperativeSummary:      <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  anesthesiaProtocol:       <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  surgicalProcedure:        <Scissors className="w-4 h-4 text-[#5A7C7A]" />,
+  intraoperativeMonitoring: <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  postoperativeCare:        <Heart className="w-4 h-4 text-[#5A7C7A]" />,
+  complications:            <AlertTriangle className="w-4 h-4 text-[#5A7C7A]" />,
+  // healthCertificate
+  patientHealthStatus:      <PawPrint className="w-4 h-4 text-[#5A7C7A]" />,
+  vaccinationHistory:       <Shield className="w-4 h-4 text-[#5A7C7A]" />,
+  parasiteControl:          <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
+  travelClearance:          <CheckCircle2 className="w-4 h-4 text-[#5A7C7A]" />,
+  // dischargeSummary
+  diagnosisSummary:         <FileText className="w-4 h-4 text-[#5A7C7A]" />,
+  medications:              <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  feedingInstructions:      <Heart className="w-4 h-4 text-[#5A7C7A]" />,
+  activityRestrictions:     <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
+  followUpCare:             <CalendarDays className="w-4 h-4 text-[#5A7C7A]" />,
+  warningSignsToWatch:      <AlertTriangle className="w-4 h-4 text-[#5A7C7A]" />,
+  // referralLetter
+  referralReason:           <FileText className="w-4 h-4 text-[#5A7C7A]" />,
+  clinicalHistory:          <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
+  currentFindings:          <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
+  treatmentsToDate:         <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  referralRequest:          <Mail className="w-4 h-4 text-[#5A7C7A]" />,
+}
+
+const VITAL_LABELS: Record<string, { label: string; unit: string }> = {
+  weight:             { label: 'Weight', unit: 'kg' },
+  temperature:        { label: 'Temperature', unit: '°C' },
+  pulseRate:          { label: 'Pulse Rate', unit: 'bpm' },
+  spo2:               { label: 'SpO2', unit: '%' },
+  bodyConditionScore: { label: 'BCS', unit: '/5' },
+  dentalScore:        { label: 'Dental Score', unit: '/3' },
+  crt:                { label: 'CRT', unit: 'sec' },
+}
+
+const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = {
+  clinicalSummary:          ['vitals'],
+  laboratoryInterpretation: ['diagnostics', 'immunityTesting'],
+  diagnosticIntegration:    ['vitals', 'diagnostics', 'immunityTesting'],
+  managementPlan:           ['medications', 'preventiveCare'],
+  objective:                ['vitals', 'diagnostics', 'immunityTesting'],
+  plan:                     ['medications'],
+  testsSummary:             ['diagnostics', 'immunityTesting'],
+  resultsInterpretation:    ['diagnostics', 'immunityTesting'],
+  preoperativeSummary:      ['vitals'],
+  anesthesiaProtocol:       ['medications'],
+  surgicalProcedure:        ['surgery'],
+  postoperativeCare:        ['medications', 'preventiveCare'],
+  patientHealthStatus:      ['vitals'],
+  parasiteControl:          ['preventiveCare'],
+  vaccinationHistory:       ['vaccinations'],
+  medications:              ['medications'],
+  currentFindings:          ['vitals', 'diagnostics', 'immunityTesting'],
+  treatmentsToDate:         ['medications', 'preventiveCare'],
+  clinicalHistory:          ['vitals', 'diagnostics', 'medications', 'preventiveCare', 'surgery', 'immunityTesting', 'vaccinations'],
+}
+
+function renderClinicalTables(
+  dataTypes: Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>,
+  records: LinkedRecord[],
+  reportVaccinations: VaccinationRecord[]
+): React.ReactNode {
+  const hasVitals = dataTypes.includes('vitals') && records.some(r =>
+    r.vitals && Object.values(r.vitals).some(v => v?.value !== '' && v?.value !== null && v?.value !== undefined)
+  )
+  const hasDiagnostics = dataTypes.includes('diagnostics') && records.some(r => (r.diagnosticTests?.length ?? 0) > 0)
+  const hasMedications = dataTypes.includes('medications') && records.some(r => (r.medications?.length ?? 0) > 0)
+  const hasPreventive = dataTypes.includes('preventiveCare') && records.some(r => (r.preventiveCare?.length ?? 0) > 0)
+  const hasSurgery = dataTypes.includes('surgery') && records.some(r => !!r.surgeryRecord?.surgeryType)
+  const hasImmunityTesting = dataTypes.includes('immunityTesting') && records.some(r =>
+    (r.immunityTesting?.enabled && (r.immunityTesting.rows?.length ?? 0) > 0) ||
+    (r.immunityTesting?.antigenEnabled && (r.immunityTesting.antigenRows?.length ?? 0) > 0)
+  )
+  const hasVaccinations = dataTypes.includes('vaccinations') && reportVaccinations.length > 0
+
+  if (!hasVitals && !hasDiagnostics && !hasMedications && !hasPreventive && !hasSurgery && !hasImmunityTesting && !hasVaccinations) return null
+
+  const vitalsRecs = hasVitals ? records.filter(r =>
+    r.vitals && Object.values(r.vitals).some(v => v?.value !== '' && v?.value !== null && v?.value !== undefined)
+  ) : []
+  const diagRecs = hasDiagnostics ? records.filter(r => (r.diagnosticTests?.length ?? 0) > 0) : []
+  const medRecs = hasMedications ? records.filter(r => (r.medications?.length ?? 0) > 0) : []
+  const prevRecs = hasPreventive ? records.filter(r => (r.preventiveCare?.length ?? 0) > 0) : []
+  const surgRecs = hasSurgery ? records.filter(r => !!r.surgeryRecord?.surgeryType) : []
+
+  return (
+    <div className="space-y-4">
+      {hasVitals && (
+        <div>
+          <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Vitals</p>
+          {vitalsRecs.length > 1 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                <thead className="bg-[#f0f7f7]">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Parameter</th>
+                    {vitalsRecs.map(r => (
+                      <th key={r._id} className="px-3 py-2 text-left font-semibold text-[#476B6B]">{fmtRDate(r.createdAt)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(VITAL_LABELS).map(([vkey, { label, unit }]) => {
+                    const anyHas = vitalsRecs.some(r => { const v = r.vitals?.[vkey]; return v?.value !== '' && v?.value !== null && v?.value !== undefined })
+                    if (!anyHas) return null
+                    return (
+                      <tr key={vkey} className="border-t border-gray-100">
+                        <td className="px-3 py-2 font-medium text-[#4F4F4F]">{label} ({unit})</td>
+                        {vitalsRecs.map(r => {
+                          const v = r.vitals?.[vkey]
+                          const ok = v?.value !== '' && v?.value !== null && v?.value !== undefined
+                          return <td key={r._id} className="px-3 py-2 text-gray-600">{ok ? `${v!.value} ${unit}` : '—'}</td>
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {Object.entries(VITAL_LABELS).map(([vkey, { label, unit }]) => {
+                const v = vitalsRecs[0]?.vitals?.[vkey]
+                if (!v?.value && v?.value !== 0) return null
+                return (
+                  <div key={vkey} className="bg-[#F8F6F2] rounded-lg p-2">
+                    <p className="text-[10px] text-gray-500 font-medium">{label}</p>
+                    <p className="text-sm font-semibold text-[#4F4F4F]">{v.value} {unit}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasDiagnostics && (
+        <div>
+          <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Diagnostic Test Results</p>
+          {diagRecs.map(r => (
+            <div key={r._id} className="mb-3 last:mb-0">
+              {diagRecs.length > 1 && (
+                <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}{r.chiefComplaint ? ` — ${r.chiefComplaint}` : ''}</p>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                  <thead className="bg-[#f0f7f7]">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Test</th>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Result</th>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Normal Range</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.diagnosticTests!.map((t, ti) => (
+                      <tr key={ti} className="border-t border-gray-100">
+                        <td className="px-3 py-2 font-medium text-[#4F4F4F]">{t.name}</td>
+                        <td className="px-3 py-2 text-gray-600">{t.result || '—'}</td>
+                        <td className="px-3 py-2 text-gray-400">{t.normalRange || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasMedications && (
+        <div>
+          <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Medications</p>
+          {medRecs.map(r => (
+            <div key={r._id} className="mb-3 last:mb-0">
+              {medRecs.length > 1 && (
+                <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}</p>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                  <thead className="bg-[#f0f7f7]">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Medication</th>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Dosage · Route</th>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Frequency</th>
+                      <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.medications!.map((m, mi) => (
+                      <tr key={mi} className="border-t border-gray-100">
+                        <td className="px-3 py-2 font-medium text-[#4F4F4F]">{m.name}</td>
+                        <td className="px-3 py-2 text-gray-600">{m.dosage} · {m.route}</td>
+                        <td className="px-3 py-2 text-gray-600">{m.frequency}</td>
+                        <td className="px-3 py-2 text-gray-400">{m.duration || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasPreventive && (
+        <div>
+          <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Preventive Care</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+              <thead className="bg-[#f0f7f7]">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Service</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Product</th>
+                  {prevRecs.length > 1 && <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Visit</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {prevRecs.flatMap(r =>
+                  r.preventiveCare!.map((p, pi) => (
+                    <tr key={`${r._id}-${pi}`} className="border-t border-gray-100">
+                      <td className="px-3 py-2 font-medium text-[#4F4F4F] capitalize">{p.careType}</td>
+                      <td className="px-3 py-2 text-gray-600">{p.product}</td>
+                      {prevRecs.length > 1 && <td className="px-3 py-2 text-gray-400">{fmtRDate(r.createdAt)}</td>}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {hasSurgery && (
+        <div>
+          <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Surgery Record</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+              <thead className="bg-[#f0f7f7]">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Procedure</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Date</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {surgRecs.map(r => (
+                  <tr key={r._id} className="border-t border-gray-100">
+                    <td className="px-3 py-2 font-medium text-[#4F4F4F]">{r.surgeryRecord!.surgeryType}</td>
+                    <td className="px-3 py-2 text-gray-600">{fmtRDate(r.createdAt)}</td>
+                    <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {hasImmunityTesting && records
+        .filter(r =>
+          (r.immunityTesting?.enabled && (r.immunityTesting.rows?.length ?? 0) > 0) ||
+          (r.immunityTesting?.antigenEnabled && (r.immunityTesting.antigenRows?.length ?? 0) > 0)
+        )
+        .map(r => (
+          <div key={r._id} className="space-y-3">
+            {r.immunityTesting?.enabled && (r.immunityTesting.rows?.length ?? 0) > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">
+                  Immunity / Titer Testing
+                  {r.immunityTesting.kitName && <span className="font-normal normal-case text-gray-400"> — {r.immunityTesting.kitName}</span>}
+                  {r.immunityTesting.testDate && <span className="font-normal normal-case text-gray-400"> ({fmtRDate(r.immunityTesting.testDate)})</span>}
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                    <thead className="bg-[#f0f7f7]">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Disease</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Score</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Status</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.immunityTesting.rows!.map((row, ri) => (
+                        <tr key={ri} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.score ?? '—'}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.status || '—'}</td>
+                          <td className="px-3 py-2 text-gray-400">{row.action || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {r.immunityTesting?.antigenEnabled && (r.immunityTesting.antigenRows?.length ?? 0) > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">
+                  Antigen Testing
+                  {r.immunityTesting.antigenDate && <span className="font-normal normal-case text-gray-400"> ({fmtRDate(r.immunityTesting.antigenDate)})</span>}
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                    <thead className="bg-[#f0f7f7]">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Disease</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.immunityTesting.antigenRows!.map((row, ri) => (
+                        <tr key={ri} className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.result || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ))
+      }
+
+      {hasVaccinations && (
+        <div>
+          <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Vaccination History</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+              <thead className="bg-[#f0f7f7]">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Vaccine</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Dose</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Date Given</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Next Due</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportVaccinations.map(v => (
+                  <tr key={v._id} className="border-t border-gray-100">
+                    <td className="px-3 py-2 font-medium text-[#4F4F4F]">{v.vaccineName}</td>
+                    <td className="px-3 py-2 text-gray-600">
+                      {v.boosterNumber > 0 ? `Booster #${v.boosterNumber}` : `Dose #${v.doseNumber}`}
+                    </td>
+                    <td className="px-3 py-2 text-gray-600">{fmtRDate(v.dateAdministered)}</td>
+                    <td className="px-3 py-2 text-gray-400">{fmtRDate(v.nextDueDate)}</td>
+                    <td className="px-3 py-2">
+                      <span className={`capitalize text-xs font-medium ${
+                        v.status === 'active' ? 'text-emerald-600' :
+                        v.status === 'overdue' ? 'text-red-500' :
+                        v.status === 'expired' ? 'text-orange-500' :
+                        'text-gray-400'
+                      }`}>{v.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function PageHeader({ reportId }: { reportId: string }) {
@@ -80,10 +466,16 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
   const pet = report.petId
   const vet = report.vetId
   const ownerSummary = report.ownerSummary
+  const sectionKeys = getSectionKeys(report.reportType)
+  const sectionLabels = getSectionLabels(report.reportType)
 
-  // Coverage line for consolidated reports — medicalRecordIds populated with createdAt
-  const visitDates = (report.medicalRecordIds ?? [])
-    .filter((r): r is { _id: string; createdAt?: string } => typeof r === 'object' && r !== null)
+  const allDataRecords = ((report.medicalRecordIds ?? []).filter(
+    (r): r is LinkedRecord => typeof r === 'object' && r !== null
+  )).sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
+
+  const reportVaccinations: VaccinationRecord[] = report.vaccinations ?? []
+
+  const visitDates = allDataRecords
     .map((r) => (r.createdAt ? new Date(r.createdAt).getTime() : NaN))
     .filter((t) => !isNaN(t))
     .sort((a, b) => a - b)
@@ -91,6 +483,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
     visitDates.length > 1
       ? `This report covers ${visitDates.length} visits, ${formatReportDate(new Date(visitDates[0]).toISOString())} – ${formatReportDate(new Date(visitDates[visitDates.length - 1]).toISOString())}.`
       : null
+
   const hasOwnerSummary = ownerSummary && Object.values(ownerSummary).some(
     (v) => typeof v === 'string' && (v as string).trim()
   )
@@ -146,7 +539,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
         {/* ── PAGE 2 (or 1 if no owner summary): Veterinary Diagnostic Report ── */}
         <div className={hasOwnerSummary ? 'report-print-newpage' : undefined}>
           <p className="report-no-print text-xs text-gray-400 text-center mb-2">
-            Page {hasOwnerSummary ? 2 : 1} of {totalPages} — Veterinary Diagnostic Report
+            Page {hasOwnerSummary ? 2 : 1} of {totalPages} — {REPORT_TYPE_DOCUMENT_TITLES[report.reportType] ?? 'Veterinary Report'}
           </p>
           <div
             className="report-print-page bg-white border border-gray-200 shadow-md overflow-hidden rounded-xl"
@@ -154,7 +547,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
           >
             <PageHeader reportId={report._id} />
             <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
-              <h2 className="text-sm font-semibold tracking-wider uppercase">Veterinary Diagnostic Report</h2>
+              <h2 className="text-sm font-semibold tracking-wider uppercase">{REPORT_TYPE_DOCUMENT_TITLES[report.reportType] ?? 'Veterinary Report'}</h2>
             </div>
             <div className="px-8 py-6 space-y-6">
 
@@ -196,20 +589,25 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
 
               <hr className="border-gray-200" />
 
-              {/* Clinical sections */}
-              {SECTION_KEYS.map((key, i) => {
-                const content = report.sections[key]
-                if (!content?.trim()) return null
+              {/* Clinical sections with data tables */}
+              {sectionKeys.map((key, i) => {
+                const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''
+                const dataCols = SECTION_DATA_MAP[key]
+                const tables = dataCols ? renderClinicalTables(dataCols, allDataRecords, reportVaccinations) : null
+                if (!content.trim() && !tables) return null
                 return (
                   <div key={key}>
                     {i > 0 && <hr className="border-gray-100 mb-6" />}
                     <div className="flex items-center gap-2 mb-3">
-                      {SECTION_ICONS[key]}
-                      <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{SECTION_LABELS[key]}</h3>
+                      {SECTION_ICONS[key] ?? <FileText className="w-4 h-4 text-[#5A7C7A]" />}
+                      <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">{sectionLabels[key]}</h3>
                     </div>
-                    <div className="bg-[#F8F6F2] rounded-xl p-4">
-                      <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
-                    </div>
+                    {content.trim() && (
+                      <div className="bg-[#F8F6F2] rounded-xl p-4 mb-4">
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{content}</p>
+                      </div>
+                    )}
+                    {tables}
                   </div>
                 )
               })}
@@ -219,6 +617,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
               <div className="flex items-end justify-between pt-2">
                 <div className="text-sm">
                   {report.vetSignature?.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={report.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-2 object-contain" />
                   ) : (
                     <div className="mb-8 h-10" />

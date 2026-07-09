@@ -938,7 +938,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
     const report = await VetReport.findOne({ _id: id, sharedWithOwner: true })
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
-      .populate('medicalRecordIds', 'createdAt')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
       .lean();
 
     if (!report) {
