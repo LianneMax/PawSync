@@ -77,7 +77,7 @@ import { HistoricalMedicalRecord } from '@/components/HistoricalMedicalRecord'
 import ConfinementMonitoringPanel from '@/components/ConfinementMonitoringPanel'
 import { getPetNotes as getPetNotesApi, savePetNotes as savePetNotesApi } from '@/lib/petNotes'
 import { getReferredPets } from '@/lib/referrals'
-import { createVetReport, listVetReports, DuplicateReportError } from '@/lib/vetReports'
+import { listVetReports } from '@/lib/vetReports'
 
 const BillingFromRecordModal = dynamic(() => import('@/components/BillingFromRecordModal'), { ssr: false })
 const MedicalRecordStagedModal = dynamic(() => import('@/components/MedicalRecordStagedModal'), { ssr: false })
@@ -270,23 +270,13 @@ function PatientRecordsPageContent() {
   const [loadingVaccinations, setLoadingVaccinations] = useState(false)
   const [pendingReleaseRequest, setPendingReleaseRequest] = useState<{ confinementRecordId: string; requestedAt?: string | null } | null>(null)
   const [confirmingRelease, setConfirmingRelease] = useState(false)
-  const [generatingReportId, setGeneratingReportId] = useState<string | null>(null)
   const [recordReportMap, setRecordReportMap] = useState<Record<string, string>>({})
 
-  const handleGenerateReport = async (record: MedicalRecord) => {
+  // Opens the report wizard pre-filled with this pet + visit; the wizard handles
+  // type selection, eligibility, duplicates, and multi-type batch creation.
+  const handleGenerateReport = (record: MedicalRecord) => {
     const petId = typeof record.petId === 'object' ? (record.petId as any)._id : record.petId as string
-    setGeneratingReportId(record._id)
-    try {
-      const report = await createVetReport({ petId, medicalRecordId: record._id }, token!)
-      router.push(`/vet-dashboard/reports/${report._id}`)
-    } catch (err: any) {
-      if (err instanceof DuplicateReportError) {
-        router.push(`/vet-dashboard/reports/${err.existingReportId}`)
-        return
-      }
-      toast.error(err?.message || 'Failed to create report')
-      setGeneratingReportId(null)
-    }
+    router.push(`/vet-dashboard/reports/new?petId=${petId}&recordId=${record._id}`)
   }
 
   // Vet's appointments are shared/cached via SWR (also used by vet-appointments and vet-dashboard)
@@ -1244,14 +1234,10 @@ function PatientRecordsPageContent() {
                       {/* Multiple reports per record are allowed — always offer creation */}
                       <button
                         onClick={() => handleGenerateReport(currentRecord)}
-                        disabled={generatingReportId === currentRecord._id}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                        title="Generate AI report"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                        title="Create a report for this visit"
                       >
-                        {generatingReportId === currentRecord._id
-                          ? <><RefreshCw className="w-3 h-3 animate-spin" /> Creating…</>
-                          : <><Sparkles className="w-3 h-3" /> {recordReportMap[currentRecord._id] ? 'New Report' : 'Generate Report'}</>
-                        }
+                        <Sparkles className="w-3 h-3" /> New Report
                       </button>
                       <button
                         onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
@@ -1393,14 +1379,10 @@ function PatientRecordsPageContent() {
                             {/* Multiple reports per record are allowed — always offer creation */}
                             <button
                               onClick={() => handleGenerateReport(record)}
-                              disabled={generatingReportId === record._id}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                              title="Generate AI report"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                              title="Create a report for this visit"
                             >
-                              {generatingReportId === record._id
-                                ? <><RefreshCw className="w-3 h-3 animate-spin" /> Creating…</>
-                                : <><Sparkles className="w-3 h-3" /> {recordReportMap[record._id] ? 'New Report' : 'Generate Report'}</>
-                              }
+                              <Sparkles className="w-3 h-3" /> New Report
                             </button>
                             <button
                               onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}

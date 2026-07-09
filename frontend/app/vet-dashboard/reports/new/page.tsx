@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
@@ -73,9 +73,15 @@ function isEligibleForAllTypes(record: MedicalRecord, reportTypes: ReportType[])
   return reportTypes.every((t) => isEligibleForType(record, t))
 }
 
-export default function NewReportPage() {
+function NewReportContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { token, user } = useAuthStore()
+
+  // Deep-link prefill (e.g. patient-records "New Report" button)
+  const prefillPetId = searchParams.get('petId')
+  const prefillRecordId = searchParams.get('recordId')
+  const prefillApplied = useRef(false)
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -84,6 +90,8 @@ export default function NewReportPage() {
   // Data
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [usedRecordIds, setUsedRecordIds] = useState<Set<string>>(new Set())
+  // recordId → report types that already cover exactly that one record (duplicate hints)
+  const [singleRecordReportTypes, setSingleRecordReportTypes] = useState<Record<string, ReportType[]>>({})
   const [loading, setLoading] = useState(true)
 
   // Step 2 state
@@ -113,6 +121,7 @@ export default function NewReportPage() {
         const completed = (recordsRes.data?.records ?? []).filter((r) => r.stage === 'completed')
         setRecords(completed)
         const used = new Set<string>()
+        const singleMap: Record<string, ReportType[]> = {}
         for (const r of reportsRes.data) {
           if (r.medicalRecordId) {
             used.add(
@@ -121,8 +130,17 @@ export default function NewReportPage() {
                 : String(r.medicalRecordId)
             )
           }
+          // Track which types already cover exactly one record — powers duplicate hints
+          const ids = (r.medicalRecordIds?.length
+            ? r.medicalRecordIds
+            : r.medicalRecordId ? [r.medicalRecordId] : []
+          ).map((x) => (typeof x === 'object' && x !== null ? (x as any)._id : String(x)))
+          if (ids.length === 1 && r.reportType) {
+            ;(singleMap[ids[0]] ||= []).push(r.reportType)
+          }
         }
         setUsedRecordIds(used)
+        setSingleRecordReportTypes(singleMap)
       } catch {
         toast.error('Failed to load records')
       } finally {
@@ -145,9 +163,6 @@ export default function NewReportPage() {
       next.add(type)
       return next
     })
-    // Selection rules may change (e.g. SOAP added) — reset record picks
-    setSelectedRecordIds(new Set())
-    setAllMode(false)
   }
 
   // Group records by pet, newest visit first within each pet
@@ -199,6 +214,47 @@ export default function NewReportPage() {
     setAllMode(false)
   }
 
+  // Changing types can make previously picked records ineligible — prune instead of
+  // clearing everything so deep-link prefills and manual picks survive type changes
+  useEffect(() => {
+    if (!selectedPet || typeList.length === 0) return
+    setSelectedRecordIds((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set(
+        [...prev].filter((rid) => {
+          const r = selectedPet.records.find((rr) => rr._id === rid)
+          return !!r && isEligibleForAllTypes(r, typeList)
+        })
+      )
+      return next.size === prev.size ? prev : next
+    })
+  }, [typeList, selectedPet])
+
+  // Apply deep-link prefill once records are loaded: preselect pet + visit and pick
+  // a sensible default report type from the visit's content
+  useEffect(() => {
+    if (prefillApplied.current || loading || !prefillPetId) return
+    const group = petGroups.find((g) => g.petId === prefillPetId)
+    if (!group) return
+    prefillApplied.current = true
+    setSelectedPetId(prefillPetId)
+    const rec = prefillRecordId ? group.records.find((r) => r._id === prefillRecordId) : null
+    if (rec) {
+      setSelectedRecordIds(new Set([rec._id]))
+      setSelectedTypes((prev) => {
+        if (prev.size > 0) return prev
+        const smartDefault: ReportType = rec.surgeryRecord?.surgeryType
+          ? 'surgery'
+          : rec.discharge
+            ? 'dischargeSummary'
+            : (rec.diagnosticTests?.length ?? 0) > 0
+              ? 'diagnostic'
+              : 'general'
+        return new Set([smartDefault])
+      })
+    }
+  }, [loading, petGroups, prefillPetId, prefillRecordId])
+
   const toggleRecord = (recordId: string) => {
     if (allMode) return
     setSelectedRecordIds((prev) => {
@@ -217,6 +273,13 @@ export default function NewReportPage() {
   const effectiveCount = allMode ? eligibleRecords.length : selectedRecordIds.size
   // Pet must still be eligible — going back and changing types can invalidate an earlier pick
   const canProceedStep2 = !!selectedPetId && eligiblePetGroups.some((g) => g.petId === selectedPetId)
+
+  // When exactly one visit is selected (typical for deep-link prefill), the type cards
+  // can show visit-specific hints: no data for the type, or an exact duplicate existing
+  const soleSelectedRecord =
+    selectedPet && !allMode && selectedRecordIds.size === 1
+      ? selectedPet.records.find((r) => selectedRecordIds.has(r._id)) ?? null
+      : null
 
   const handleCreate = async () => {
     if (!selectedPet || typeList.length === 0) {
@@ -369,14 +432,22 @@ export default function NewReportPage() {
               {REPORT_TYPE_CONFIG.map((cfg) => {
                 const selected = selectedTypes.has(cfg.value)
                 const isExclusive = EXCLUSIVE_TYPES.includes(cfg.value)
+                const ineligibleForVisit =
+                  !!soleSelectedRecord && !isEligibleForType(soleSelectedRecord, cfg.value)
+                const existsForVisit =
+                  !!soleSelectedRecord &&
+                  (singleRecordReportTypes[soleSelectedRecord._id] ?? []).includes(cfg.value)
                 return (
                   <button
                     key={cfg.value}
                     onClick={() => toggleType(cfg.value)}
+                    disabled={ineligibleForVisit && !selected}
                     className={`text-left rounded-xl border p-4 transition-all ${
                       selected
                         ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
-                        : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'
+                        : ineligibleForVisit
+                          ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                          : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
@@ -395,6 +466,12 @@ export default function NewReportPage() {
                     <p className="text-xs text-gray-500 leading-relaxed">{cfg.description}</p>
                     {isExclusive && (
                       <p className="text-[10px] text-amber-600 mt-1.5">Standalone — cannot be combined with other types</p>
+                    )}
+                    {ineligibleForVisit && (
+                      <p className="text-[10px] text-gray-400 mt-1.5">Selected visit has no data for this report type</p>
+                    )}
+                    {existsForVisit && !ineligibleForVisit && (
+                      <p className="text-[10px] text-amber-600 mt-1.5">Already exists for the selected visit — duplicates are blocked</p>
                     )}
                   </button>
                 )
@@ -658,5 +735,14 @@ export default function NewReportPage() {
         )}
       </div>
     </DashboardLayout>
+  )
+}
+
+// useSearchParams requires a Suspense boundary in the App Router
+export default function NewReportPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewReportContent />
+    </Suspense>
   )
 }
