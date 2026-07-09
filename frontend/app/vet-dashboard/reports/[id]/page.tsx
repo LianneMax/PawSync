@@ -305,7 +305,9 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   const fmtRDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
-  const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = {
+  type DataType = 'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'
+
+  const SECTION_DATA_MAP: Record<string, Array<DataType>> = {
     clinicalSummary: ['vitals'],
     laboratoryInterpretation: ['diagnostics', 'immunityTesting'],
     diagnosticIntegration: ['vitals', 'diagnostics', 'immunityTesting'],
@@ -327,8 +329,20 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     clinicalHistory: ['vitals', 'diagnostics', 'medications', 'preventiveCare', 'surgery', 'immunityTesting', 'vaccinations'],
   }
 
+  const exclusiveSectionData: Record<string, DataType[]> = (() => {
+    const seen = new Set<DataType>()
+    const result: Record<string, DataType[]> = {}
+    for (const key of sectionKeys) {
+      const cols = SECTION_DATA_MAP[key] ?? []
+      const exclusive = cols.filter(t => !seen.has(t))
+      exclusive.forEach(t => seen.add(t))
+      result[key] = exclusive
+    }
+    return result
+  })()
+
   const renderClinicalTables = (
-    dataTypes: Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>,
+    dataTypes: Array<DataType>,
     records: LinkedRecord[]
   ) => {
     const reportVaccinations: VaccinationRecord[] = report.vaccinations ?? []
@@ -683,8 +697,8 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
 
             {sectionKeys.map((key, i) => {
               const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''
-              const dataCols = SECTION_DATA_MAP[key]
-              const tables = dataCols ? renderClinicalTables(dataCols, allDataRecords) : null
+              const dataCols = exclusiveSectionData[key]
+              const tables = dataCols?.length ? renderClinicalTables(dataCols, allDataRecords) : null
               if (!content.trim() && !tables) return null
               return (
                 <div key={key}>
