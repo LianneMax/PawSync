@@ -364,6 +364,16 @@ export async function updateVetReport(
   return json.data;
 }
 
+/** Drafts only — the backend rejects deletion of finalized or shared reports. */
+export async function deleteVetReport(id: string, token?: string): Promise<void> {
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}`,
+    { method: 'DELETE' },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to delete report');
+}
+
 export async function generateVetReport(id: string, token?: string): Promise<VetReport> {
   const json = await authenticatedFetch(
     `/vet-reports/${id}/generate`,

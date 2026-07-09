@@ -799,7 +799,41 @@ export const createReport = async (req: Request, res: Response) => {
     }
 
     // Multiple reports per medical record are allowed (e.g. a SOAP note and a discharge
-    // summary for the same visit) — no duplicate guard.
+    // summary for the same visit), but an exact duplicate — same type covering the same
+    // record set — is not. 'all'-scope reports auto-cover everything, so one per type per pet.
+    if (reportScope === 'all') {
+      const existing = await VetReport.findOne({ petId, reportType: validatedReportType, scope: 'all' })
+        .select('_id')
+        .lean();
+      if (existing) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: `A${validatedReportType === 'general' ? ' general' : ''} report covering all records already exists for this pet. Update that report instead of creating a duplicate.`,
+          existingReportId: (existing as any)._id,
+        });
+      }
+    } else {
+      const candidates = await VetReport.find({ petId, reportType: validatedReportType })
+        .select('medicalRecordId medicalRecordIds scope')
+        .lean();
+      const targetSet = [...recordIds].sort().join(',');
+      const duplicate = candidates.find((c: any) => {
+        if (c.scope === 'all') return false; // compared above only when creating 'all'
+        const ids: string[] = (c.medicalRecordIds?.length
+          ? c.medicalRecordIds
+          : c.medicalRecordId ? [c.medicalRecordId] : []
+        ).map(String);
+        return ids.sort().join(',') === targetSet;
+      });
+      if (duplicate) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'A report of this type already exists for exactly these medical records.',
+          existingReportId: (duplicate as any)._id,
+        });
+      }
+    }
+
     const isSingleRecordReport = reportScope === 'selected' && recordIds.length === 1;
 
     let clinicId = user.clinicId;
@@ -963,6 +997,24 @@ export const updateReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
+    // Finalization gates: a report must have content and a signature before it can be
+    // finalized — once finalized it can no longer be deleted, so validate up front.
+    if (status === 'finalized' && report.status !== 'finalized') {
+      const mergedSections = sections
+        ? { ...(report.sections as any), ...sections }
+        : (report.sections as any);
+      const hasContent = Object.values(mergedSections || {}).some(
+        (v) => typeof v === 'string' && v.trim().length > 0
+      );
+      if (!hasContent) {
+        return res.status(400).json({ status: 'ERROR', message: 'Cannot finalize a blank report. Generate or write the report content first.' });
+      }
+      const effectiveSignature = vetSignature !== undefined ? vetSignature : report.vetSignature;
+      if (!effectiveSignature?.url) {
+        return res.status(400).json({ status: 'ERROR', message: 'The report must be signed before it can be finalized.' });
+      }
+    }
+
     if (title !== undefined) report.title = title;
     if (reportDate !== undefined) report.reportDate = new Date(reportDate);
     if (vetContextNotes !== undefined) report.vetContextNotes = vetContextNotes;
@@ -975,6 +1027,34 @@ export const updateReport = async (req: Request, res: Response) => {
 
     await report.save();
     res.json({ status: 'OK', data: report });
+  } catch (err: any) {
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+// ─── DELETE (drafts only) ─────────────────────────────────────────────────────
+
+/**
+ * DELETE /vet-reports/:id
+ * Finalized reports are medico-legal documents and can never be deleted —
+ * only drafts that were never shared with the owner can be removed.
+ */
+export const deleteReport = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const report = await VetReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (report.status !== 'draft') {
+      return res.status(400).json({ status: 'ERROR', message: 'Finalized reports cannot be deleted.' });
+    }
+    if (report.sharedWithOwner) {
+      return res.status(400).json({ status: 'ERROR', message: 'Unshare the report from the owner before deleting it.' });
+    }
+
+    await report.deleteOne();
+    res.json({ status: 'OK', message: 'Report deleted' });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -1062,6 +1142,11 @@ export const shareReport = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    // Only finalized reports may be shared with the owner
+    if (shared && report.status !== 'finalized') {
+      return res.status(400).json({ status: 'ERROR', message: 'Finalize the report before sharing it with the owner.' });
     }
 
     const wasAlreadyShared = report.sharedWithOwner;

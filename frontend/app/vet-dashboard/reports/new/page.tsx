@@ -9,6 +9,7 @@ import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
 import {
   createVetReport,
   listVetReports,
+  DuplicateReportError,
   REPORT_TYPE_CONFIG,
   type ReportType,
 } from '@/lib/vetReports'
@@ -246,6 +247,7 @@ export default function NewReportPage() {
       // Create one report per selected type, in the order they appear in the config
       const orderedTypes = REPORT_TYPE_CONFIG.map((c) => c.value).filter((t) => selectedTypes.has(t))
       const created: { id: string; label: string }[] = []
+      const skipped: { id: string; label: string }[] = []
       const failed: string[] = []
 
       for (const type of orderedTypes) {
@@ -270,24 +272,36 @@ export default function NewReportPage() {
           )
           created.push({ id: report._id, label: typeLabel })
         } catch (e: any) {
-          failed.push(typeLabel)
-          console.error(`Failed to create ${typeLabel}:`, e)
+          if (e instanceof DuplicateReportError) {
+            // Same type covering exactly this record set already exists — don't duplicate
+            skipped.push({ id: e.existingReportId, label: typeLabel })
+          } else {
+            failed.push(typeLabel)
+            console.error(`Failed to create ${typeLabel}:`, e)
+          }
         }
       }
 
-      if (created.length === 0) {
-        toast.error('Failed to create the report' + (orderedTypes.length > 1 ? 's' : ''))
-        setCreating(false)
-        return
+      if (skipped.length > 0) {
+        toast.info(`Already exist${skipped.length === 1 ? 's' : ''} for this selection: ${skipped.map((s) => s.label).join(', ')}`)
       }
       if (failed.length > 0) {
         toast.error(`Could not create: ${failed.join(', ')}`)
       }
-      if (created.length === 1) {
+
+      if (created.length === 1 && skipped.length === 0) {
         router.push(`/vet-dashboard/reports/${created[0].id}`)
-      } else {
-        toast.success(`Created ${created.length} reports: ${created.map((c) => c.label).join(', ')}`)
+      } else if (created.length > 0) {
+        toast.success(`Created ${created.length} report${created.length !== 1 ? 's' : ''}: ${created.map((c) => c.label).join(', ')}`)
         router.push('/vet-dashboard/reports')
+      } else if (skipped.length === 1 && failed.length === 0) {
+        // Nothing new — open the existing report
+        router.push(`/vet-dashboard/reports/${skipped[0].id}`)
+      } else if (skipped.length > 0 && failed.length === 0) {
+        router.push('/vet-dashboard/reports')
+      } else {
+        setCreating(false)
+        return
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to create report')

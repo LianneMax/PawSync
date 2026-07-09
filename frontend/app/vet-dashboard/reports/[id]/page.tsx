@@ -11,6 +11,7 @@ import {
   humanizeVetReport,
   shareVetReport,
   syncVetReportRecords,
+  deleteVetReport,
   formatReportDate,
   getSectionKeys,
   getSectionLabels,
@@ -32,7 +33,6 @@ import Image from 'next/image'
 import {
   ArrowLeft,
   Sparkles,
-  Save,
   Share2,
   CheckCircle2,
   Copy,
@@ -56,6 +56,7 @@ import {
   Layers,
   AlertTriangle,
   CalendarDays,
+  Trash2,
   Scissors,
   Shield,
   Home,
@@ -999,6 +1000,9 @@ export default function ReportEditorPage() {
   const [signing, setSigning] = useState(false)
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [title, setTitle] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
@@ -1039,12 +1043,17 @@ export default function ReportEditorPage() {
       .catch(() => {})
   }, [token])
 
+  // Everything auto-saves (like the medical record editor) — there is no manual Save button
   const triggerAutoSave = useCallback(
-    (updatedSections: VetReportSections, notes: string) => {
+    (updatedSections: VetReportSections, notes: string, updatedTitle: string) => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
       autoSaveTimer.current = setTimeout(async () => {
         try {
-          await updateVetReport(id, { sections: updatedSections, vetContextNotes: notes }, token || undefined)
+          await updateVetReport(
+            id,
+            { sections: updatedSections, vetContextNotes: notes, title: updatedTitle },
+            token || undefined
+          )
         } catch {
           // silent
         }
@@ -1056,12 +1065,17 @@ export default function ReportEditorPage() {
   const handleSectionChange = (key: string, value: string) => {
     const updated = { ...sections, [key]: value }
     setSections(updated)
-    triggerAutoSave(updated, contextNotes)
+    triggerAutoSave(updated, contextNotes, title)
   }
 
   const handleContextChange = (v: string) => {
     setContextNotes(v)
-    triggerAutoSave(sections, v)
+    triggerAutoSave(sections, v, title)
+  }
+
+  const handleTitleChange = (v: string) => {
+    setTitle(v)
+    triggerAutoSave(sections, contextNotes, v)
   }
 
   const applyUpdate = (updated: VetReport) =>
@@ -1075,29 +1089,45 @@ export default function ReportEditorPage() {
         }
       : updated)
 
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const updated = await updateVetReport(id, { title, vetContextNotes: contextNotes, sections }, token || undefined)
-      applyUpdate(updated)
-      toast.success('Report saved')
-    } catch {
-      toast.error('Save failed')
-    } finally {
-      setSaving(false)
+  // Opens the finalize confirmation after client-side validation; the backend
+  // re-validates (blank / unsigned) regardless.
+  const requestFinalize = () => {
+    const blank = !Object.values(sections).some((v) => typeof v === 'string' && v.trim().length > 0)
+    if (blank) {
+      toast.error('Cannot finalize a blank report. Generate or write the report content first.')
+      return
     }
+    if (!report?.vetSignature?.url) {
+      toast.error('Sign the report before finalizing it.')
+      return
+    }
+    setFinalizeConfirmOpen(true)
   }
 
   const handleFinalize = async () => {
+    setFinalizeConfirmOpen(false)
     setSaving(true)
     try {
       const updated = await updateVetReport(id, { title, vetContextNotes: contextNotes, sections, status: 'finalized' }, token || undefined)
       applyUpdate(updated)
       toast.success('Report finalized')
-    } catch {
-      toast.error('Failed to finalize')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to finalize')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await deleteVetReport(id, token || undefined)
+      toast.success('Draft report deleted')
+      router.push('/vet-dashboard/reports')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete report')
+      setDeleting(false)
+      setDeleteConfirmOpen(false)
     }
   }
 
@@ -1141,12 +1171,16 @@ export default function ReportEditorPage() {
 
   const handleShare = async () => {
     if (!report) return
+    if (!report.sharedWithOwner && report.status !== 'finalized') {
+      toast.error('Finalize the report before sharing it with the owner.')
+      return
+    }
     try {
       const updated = await shareVetReport(id, !report.sharedWithOwner, token || undefined)
       applyUpdate(updated)
       toast.success(updated.sharedWithOwner ? 'Report shared with owner' : 'Report unshared')
-    } catch {
-      toast.error('Failed to update share status')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update share status')
     }
   }
 
@@ -1259,7 +1293,7 @@ export default function ReportEditorPage() {
                   ref={titleInputRef}
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') setEditingTitle(false) }}
                   autoFocus
                   className="flex-1 text-lg font-bold border-b-2 border-indigo-400 bg-transparent focus:outline-none text-gray-900"
@@ -1267,7 +1301,7 @@ export default function ReportEditorPage() {
                 <button onClick={() => setEditingTitle(false)} className="text-green-600 hover:text-green-700">
                   <Check className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setTitle(report.title); setEditingTitle(false) }} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => { handleTitleChange(report.title); setEditingTitle(false) }} className="text-gray-400 hover:text-gray-600">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1300,21 +1334,13 @@ export default function ReportEditorPage() {
               </button>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save'}
-            </button>
-
             {report.status !== 'finalized' ? (
               <button
-                onClick={handleFinalize}
+                onClick={requestFinalize}
                 disabled={saving}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50"
               >
-                <CheckCircle2 className="w-4 h-4" /> Finalize
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Finalizing…' : 'Finalize'}
               </button>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm border border-emerald-200">
@@ -1336,7 +1362,9 @@ export default function ReportEditorPage() {
 
             <button
               onClick={handleShare}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              disabled={!report.sharedWithOwner && report.status !== 'finalized'}
+              title={!report.sharedWithOwner && report.status !== 'finalized' ? 'Finalize the report before sharing' : undefined}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 report.sharedWithOwner
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -1353,6 +1381,16 @@ export default function ReportEditorPage() {
                 title="Copy share link"
               >
                 <Copy className="w-4 h-4" />
+              </button>
+            )}
+
+            {report.status === 'draft' && !report.sharedWithOwner && (
+              <button
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#900B09]/30 rounded-lg text-sm text-[#900B09] hover:bg-[#F4D3D2] transition-colors"
+                title="Delete this draft"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -1476,6 +1514,71 @@ export default function ReportEditorPage() {
           </div>
         )}
       </div>
+
+      {/* Finalize confirmation — finalized reports can never be deleted */}
+      <Dialog open={finalizeConfirmOpen} onOpenChange={setFinalizeConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Finalize Report</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              Finalizing marks this report as the official clinical document for the covered visit{(report.medicalRecordIds?.length ?? 0) > 1 ? 's' : ''}.
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
+              <li><strong>A finalized report can never be deleted.</strong></li>
+              <li>It becomes eligible for sharing with the pet owner.</li>
+              <li>An owner summary can be generated after finalizing.</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setFinalizeConfirmOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleFinalize}
+              disabled={saving}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Finalizing…' : 'Finalize Report'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete-draft confirmation */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Delete Draft Report</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            This permanently deletes the draft &ldquo;{title || `Untitled Report — ${pet?.name}`}&rdquo;. This cannot be undone.
+          </p>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 bg-[#900B09] hover:bg-[#7A0908] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deleting ? 'Deleting…' : 'Delete Draft'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Update-report confirmation */}
       <Dialog open={updateConfirmOpen} onOpenChange={setUpdateConfirmOpen}>
