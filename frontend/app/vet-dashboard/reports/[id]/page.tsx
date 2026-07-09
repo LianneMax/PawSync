@@ -115,7 +115,6 @@ function ContextPrompt({
       <div className="flex items-center gap-2 mb-2">
         <Sparkles className="w-4 h-4 text-indigo-500" />
         <span className="text-sm font-semibold text-indigo-700">AI Report Generator</span>
-        <span className="text-xs text-indigo-400 ml-auto">llama-3.3-70b</span>
       </div>
       <p className="text-xs text-indigo-600 mb-3">
         Add context or special notes for the AI. Medical record data is included automatically.
@@ -305,6 +304,27 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
 
   const fmtRDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+  // Attached photos are type-specific: diagnostic images appear only on Diagnostic
+  // reports, surgery images only on Surgery reports.
+  const diagnosticImages = rType !== 'diagnostic' ? [] : allDataRecords.flatMap((r) =>
+    (r.diagnosticTests ?? []).flatMap((t) =>
+      (t.images ?? []).map((img) => ({
+        url: img.url,
+        description: img.description,
+        label: t.name || t.testType,
+        date: r.createdAt,
+      }))
+    )
+  )
+  const surgeryImages = rType !== 'surgery' ? [] : allDataRecords.flatMap((r) =>
+    (r.surgeryRecord?.images ?? []).map((img) => ({
+      url: img.url,
+      description: img.description,
+      label: r.surgeryRecord?.surgeryType || 'Surgery',
+      date: r.createdAt,
+    }))
+  )
 
   type DataType = 'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'
 
@@ -717,6 +737,53 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                 </div>
               )
             })}
+
+            {/* Attached images from diagnostics & surgery */}
+            {(diagnosticImages.length > 0 || surgeryImages.length > 0) && (
+              <div>
+                <hr className="border-gray-100 mb-6" />
+                <div className="flex items-center gap-2 mb-3">
+                  <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />
+                  <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Attached Images</h3>
+                </div>
+                {diagnosticImages.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">Diagnostic Images</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {diagnosticImages.map((img, i) => (
+                        <figure key={`diag-${i}`} className="bg-[#F8F6F2] rounded-xl overflow-hidden border border-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img.url} alt={img.description || img.label} className="w-full h-36 object-cover" />
+                          <figcaption className="px-2.5 py-1.5 text-[10px] text-gray-500">
+                            <span className="font-semibold text-gray-600">{img.label}</span>
+                            {img.date && <> · {fmtRDate(img.date)}</>}
+                            {img.description && <span className="block text-gray-400">{img.description}</span>}
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {surgeryImages.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-2">Surgery Images</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {surgeryImages.map((img, i) => (
+                        <figure key={`surg-${i}`} className="bg-[#F8F6F2] rounded-xl overflow-hidden border border-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img.url} alt={img.description || img.label} className="w-full h-36 object-cover" />
+                          <figcaption className="px-2.5 py-1.5 text-[10px] text-gray-500">
+                            <span className="font-semibold text-gray-600">{img.label}</span>
+                            {img.date && <> · {fmtRDate(img.date)}</>}
+                            {img.description && <span className="block text-gray-400">{img.description}</span>}
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <hr className="border-gray-200" />
             <div className="flex items-end justify-between pt-2">

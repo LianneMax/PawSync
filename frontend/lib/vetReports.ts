@@ -140,6 +140,7 @@ export interface LinkedRecord {
     result?: string;
     normalRange?: string;
     notes?: string;
+    images?: Array<{ url: string; description?: string }>;
   }>;
   medications?: Array<{
     name: string;
@@ -159,6 +160,7 @@ export interface LinkedRecord {
   surgeryRecord?: {
     surgeryType?: string;
     vetRemarks?: string;
+    images?: Array<{ url: string; description?: string }>;
   };
   immunityTesting?: {
     enabled?: boolean;
