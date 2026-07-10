@@ -304,23 +304,19 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if this clinic-admin or clinic-admin is on the main branch
+    // Check if this clinic-admin is on the main branch
     let isMainBranch = false;
-    if (user.userType === 'clinic-admin' && user.clinicBranchId) {
-      const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain');
-      isMainBranch = !!branch?.isMain;
-    } else if (user.userType === 'clinic-admin' && user.clinicId && !user.clinicBranchId) {
-      // Legacy admin without clinicBranchId — treat as main
-      isMainBranch = true;
-    } else if (user.userType === 'clinic-admin' && !user.clinicId && !user.clinicBranchId) {
-      // Clinic admin with no clinic/branch link — treat as main branch admin
-      isMainBranch = true;
-    } else if (user.userType === 'clinic-admin' && user.clinicBranchId && !user.clinicId) {
-      // Admin has a branch but clinicId is missing — derive it from the branch document
-      const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain clinicId');
-      isMainBranch = !!branch?.isMain;
-      if (branch?.clinicId) {
-        user.clinicId = branch.clinicId;
+    if (user.userType === 'clinic-admin') {
+      if (user.clinicBranchId) {
+        const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain clinicId');
+        isMainBranch = !!branch?.isMain;
+        // Backfill a missing clinicId from the branch document
+        if (!user.clinicId && branch?.clinicId) {
+          user.clinicId = branch.clinicId;
+        }
+      } else {
+        // Legacy admin without a branch link — treat as main
+        isMainBranch = true;
       }
     }
 
@@ -1086,16 +1082,17 @@ export const googleAuth = async (req: Request, res: Response) => {
 
     // Determine main-branch status (same logic as regular login)
     let isMainBranch = false;
-    if (user.userType === 'clinic-admin' && user.clinicBranchId) {
-      const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain');
-      isMainBranch = !!branch?.isMain;
-    } else if (user.userType === 'clinic-admin' && !user.clinicBranchId) {
-      isMainBranch = true;
-    } else if (user.userType === 'clinic-admin' && user.clinicBranchId && !user.clinicId) {
-      const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain clinicId');
-      isMainBranch = !!branch?.isMain;
-      if (branch?.clinicId) {
-        user.clinicId = branch.clinicId;
+    if (user.userType === 'clinic-admin') {
+      if (user.clinicBranchId) {
+        const branch = await ClinicBranch.findById(user.clinicBranchId).select('isMain clinicId');
+        isMainBranch = !!branch?.isMain;
+        // Backfill a missing clinicId from the branch document
+        if (!user.clinicId && branch?.clinicId) {
+          user.clinicId = branch.clinicId;
+        }
+      } else {
+        // Legacy admin without a branch link — treat as main
+        isMainBranch = true;
       }
     }
 

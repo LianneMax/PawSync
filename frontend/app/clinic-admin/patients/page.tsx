@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import dynamic from 'next/dynamic'
 const VaccineCardPreview = dynamic(() => import('@/components/VaccineCardPreview'), { ssr: false })
 import { getClinicPatients, type ClinicPatient } from '@/lib/clinics'
-import { getRecordsByPet, type MedicalRecord } from '@/lib/medicalRecords'
+import { getRecordsByPet, type MedicalRecord, type Medication } from '@/lib/medicalRecords'
 import {
   Sheet,
   SheetContent,
@@ -369,18 +369,120 @@ function MedicalRecordTab({ records, loading }: { records: MedicalRecord[]; load
 
 // ==================== TAB: MEDICATIONS ====================
 
-function MedicationsTab() {
+interface MedicationEntry {
+  medication: Medication
+  recordDate: string
+  vetName: string | null
+}
+
+function MedicationCard({ entry }: { entry: MedicationEntry }) {
+  const { medication: med, recordDate, vetName } = entry
+  const statusStyles: Record<string, string> = {
+    active: 'bg-green-50 text-green-700 border-green-200',
+    completed: 'bg-gray-100 text-gray-500 border-gray-200',
+    discontinued: 'bg-red-50 text-red-600 border-red-200',
+  }
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Pill className="w-4 h-4 text-[#7FA5A3] shrink-0" />
+          <span className="text-sm font-semibold text-[#4F4F4F] truncate">{med.name}</span>
+        </div>
+        <span className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded-full border capitalize ${statusStyles[med.status] || statusStyles.completed}`}>
+          {med.status}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="bg-gray-50 rounded-lg p-2">
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Dosage</p>
+          <p className="text-xs font-semibold text-[#4F4F4F]">{med.dosage || '—'}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-2">
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Route</p>
+          <p className="text-xs font-semibold text-[#4F4F4F] capitalize">{med.route || '—'}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-2">
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Frequency</p>
+          <p className="text-xs font-semibold text-[#4F4F4F]">{med.frequency || '—'}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-2">
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Duration</p>
+          <p className="text-xs font-semibold text-[#4F4F4F]">{med.duration || '—'}</p>
+        </div>
+      </div>
+      {(med.startDate || med.endDate) && (
+        <p className="text-xs text-gray-500 mb-1">
+          {med.startDate ? `Start: ${formatDate(med.startDate)}` : ''}
+          {med.startDate && med.endDate ? ' · ' : ''}
+          {med.endDate ? `End: ${formatDate(med.endDate)}` : ''}
+        </p>
+      )}
+      {med.notes && (
+        <p className="text-xs text-gray-600 bg-blue-50 rounded px-2 py-1 mb-1 whitespace-pre-wrap">{med.notes}</p>
+      )}
+      <p className="text-xs text-gray-400 pt-1 border-t border-gray-100">
+        Prescribed {formatDate(recordDate)}{vetName ? ` · Dr. ${vetName}` : ''}
+      </p>
+    </div>
+  )
+}
+
+function MedicationsTab({ records, loading }: { records: MedicalRecord[]; loading: boolean }) {
+  // Flatten medications across all records; records arrive newest-first
+  const entries: MedicationEntry[] = records.flatMap((record) =>
+    (record.medications || []).map((medication) => ({
+      medication,
+      recordDate: record.createdAt,
+      vetName: record.vetId ? `${record.vetId.firstName} ${record.vetId.lastName}` : null,
+    }))
+  )
+  const current = entries.filter((e) => e.medication.status === 'active')
+  const past = entries.filter((e) => e.medication.status !== 'active')
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-3">
         <Pill className="w-4 h-4 text-[#4A8A87]" />
         <h3 className="text-sm font-semibold text-[#4A8A87] uppercase tracking-wide">Medications</h3>
       </div>
-      <div className="bg-gray-50 rounded-xl p-8 text-center">
-        <Pill className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm font-medium text-gray-500">No medications recorded</p>
-        <p className="text-xs text-gray-400 mt-1">Medication records will appear here</p>
-      </div>
+      {loading ? (
+        <div className="bg-gray-50 rounded-xl p-8 text-center">
+          <Loader className="w-6 h-6 text-gray-300 mx-auto mb-3 animate-spin" />
+          <p className="text-sm font-medium text-gray-500">Loading medications…</p>
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="bg-gray-50 rounded-xl p-8 text-center">
+          <Pill className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-gray-500">No medications recorded</p>
+          <p className="text-xs text-gray-400 mt-1">Medications prescribed during visits will appear here</p>
+        </div>
+      ) : (
+        <>
+          <section>
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Currently Taking</p>
+            {current.length === 0 ? (
+              <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">No active medications</p>
+            ) : (
+              <div className="space-y-3">
+                {current.map((entry, i) => (
+                  <MedicationCard key={entry.medication._id || i} entry={entry} />
+                ))}
+              </div>
+            )}
+          </section>
+          {past.length > 0 && (
+            <section>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Past Medications</p>
+              <div className="space-y-3">
+                {past.map((entry, i) => (
+                  <MedicationCard key={entry.medication._id || i} entry={entry} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -918,7 +1020,7 @@ function PatientDrawer({
           {activeTab === 'medical' && (
             <MedicalRecordTab records={records} loading={loadingRecords} />
           )}
-          {activeTab === 'medications' && <MedicationsTab />}
+          {activeTab === 'medications' && <MedicationsTab records={records} loading={loadingRecords} />}
         </div>
       </SheetContent>
     </Sheet>

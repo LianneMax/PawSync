@@ -291,7 +291,7 @@ export const addBranch = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Clinic not found' });
     }
 
-    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain, adminPassword } = req.body;
+    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, adminPassword } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ status: 'ERROR', message: 'Branch name is required' });
@@ -307,13 +307,9 @@ export const addBranch = async (req: Request, res: Response) => {
       return res.status(409).json({ status: 'ERROR', message: 'A branch with this name already exists' });
     }
 
-    // If this branch is set as main, unset the current main branch
-    if (isMain) {
-      await ClinicBranch.updateMany(
-        { clinicId: clinic._id, isMain: true },
-        { isMain: false }
-      );
-    }
+    // Main-branch status is locked: the clinic's first branch (created at setup)
+    // is permanently the main branch. New branches can never be main.
+    const isFirstBranch = !(await ClinicBranch.exists({ clinicId: clinic._id }));
 
     const branch = await ClinicBranch.create({
       clinicId: clinic._id,
@@ -326,7 +322,7 @@ export const addBranch = async (req: Request, res: Response) => {
       openingTime: openingTime || null,
       closingTime: closingTime || null,
       operatingDays: operatingDays || [],
-      isMain: isMain || false
+      isMain: isFirstBranch
     });
 
     // Create the branch admin user (required — roll back branch if this fails)
@@ -346,7 +342,7 @@ export const addBranch = async (req: Request, res: Response) => {
         orphaned.userType = 'clinic-admin';
         orphaned.clinicId = clinic._id as any;
         orphaned.clinicBranchId = branch._id as any;
-        orphaned.isMainBranch = false;
+        orphaned.isMainBranch = isFirstBranch;
         orphaned.isVerified = true;
         await orphaned.save();
       } else {
@@ -358,7 +354,7 @@ export const addBranch = async (req: Request, res: Response) => {
           userType: 'clinic-admin',
           clinicId: clinic._id,
           clinicBranchId: branch._id,
-          isMainBranch: false,
+          isMainBranch: isFirstBranch,
           isVerified: true,
         });
       }
@@ -376,8 +372,8 @@ export const addBranch = async (req: Request, res: Response) => {
       return res.status(500).json({ status: 'ERROR', message: `Failed to create branch admin: ${adminErr.message}` });
     }
 
-    // Update clinic's mainBranchId if this is the new main
-    if (isMain) {
+    // Record the main branch on the clinic when the first branch is created
+    if (isFirstBranch) {
       await Clinic.findByIdAndUpdate(clinic._id, { mainBranchId: branch._id });
     }
 
@@ -436,17 +432,11 @@ export const updateBranch = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Branch not found' });
     }
 
-    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain, isActive } = req.body;
+    const { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isActive } = req.body;
 
-    // If setting as main, unset the current main branch first
-    if (isMain && !branch.isMain) {
-      await ClinicBranch.updateMany(
-        { clinicId: clinic._id, isMain: true },
-        { isMain: false }
-      );
-    }
-
-    const allowedFields: Record<string, any> = { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isMain, isActive };
+    // Main-branch status is locked and can never be reassigned through the API.
+    // The branch created at clinic setup remains the main branch permanently.
+    const allowedFields: Record<string, any> = { name, address, city, province, phone, email, openingTime, closingTime, operatingDays, isActive };
     for (const [key, value] of Object.entries(allowedFields)) {
       if (value !== undefined) {
         (branch as any)[key] = value;
@@ -454,11 +444,6 @@ export const updateBranch = async (req: Request, res: Response) => {
     }
 
     await branch.save();
-
-    // Update clinic's mainBranchId if this branch is now the main
-    if (isMain) {
-      await Clinic.findByIdAndUpdate(clinic._id, { mainBranchId: branch._id });
-    }
 
     return res.status(200).json({
       status: 'SUCCESS',
@@ -503,7 +488,9 @@ export const deleteBranch = async (req: Request, res: Response) => {
     const { transferToBranchId, reassignVetsToBranchId } = req.body;
 
     // ── Vet reassignment ────────────────────────────────────────────────────────
-    const branchVetCount = await User.countDocuments({ clinicBranchId: branch._id, isActive: true });
+    // Only veterinarians move to the target branch. Branch admins are deactivated
+    // below — they must never be carried over to another branch.
+    const branchVetCount = await User.countDocuments({ clinicBranchId: branch._id, userType: 'veterinarian', isActive: true });
     if (branchVetCount > 0) {
       if (!reassignVetsToBranchId) {
         return res.status(400).json({ status: 'ERROR', message: 'Must select a branch to reassign vets to' });
@@ -512,7 +499,7 @@ export const deleteBranch = async (req: Request, res: Response) => {
       if (!targetVetBranch) {
         return res.status(400).json({ status: 'ERROR', message: 'Target branch for vet reassignment not found' });
       }
-      await User.updateMany({ clinicBranchId: branch._id }, { $set: { clinicBranchId: reassignVetsToBranchId } });
+      await User.updateMany({ clinicBranchId: branch._id, userType: 'veterinarian' }, { $set: { clinicBranchId: reassignVetsToBranchId } });
       await VetApplication.updateMany({ branchId: branch._id, clinicId: clinic._id }, { $set: { branchId: reassignVetsToBranchId } });
     }
 
