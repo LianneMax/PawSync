@@ -24,11 +24,28 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Filter,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const PAGE_SIZE = 10
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'draft', label: 'Drafts' },
+  { value: 'finalized', label: 'Finalized' },
+  { value: 'shared', label: 'Shared' },
+] as const
 
 function StatusBadge({ status, shared }: { status: string; shared: boolean }) {
   if (shared)
@@ -134,7 +151,7 @@ export default function VetReportsPage() {
         {/* Header, search, and filters stay pinned while the report list scrolls */}
         <div className="sticky top-16 sm:top-0 z-30 bg-[#F8F6F2] -mx-4 px-4 pt-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <PageHeader
             title="Vet Reports"
             subtitle="Create and manage diagnostic reports for your patients"
@@ -142,21 +159,16 @@ export default function VetReportsPage() {
           />
           <button
             onClick={() => router.push('/vet-dashboard/reports/new')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] transition-colors flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
             New Report
           </button>
         </div>
 
-        {/* Status filter (single-select segmented pills, matching system-wide filter style) */}
-        <div className="flex flex-wrap bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 mb-3">
-          {([
-            { value: 'all', label: 'All' },
-            { value: 'draft', label: 'Drafts' },
-            { value: 'finalized', label: 'Finalized' },
-            { value: 'shared', label: 'Shared' },
-          ] as const).map(({ value, label }) => (
+        {/* Status filter (single-select segmented pills, matching system-wide filter style) — sm+ only, mobile uses the dropdown below */}
+        <div className="hidden sm:flex flex-wrap bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 mb-3">
+          {STATUS_FILTER_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               type="button"
@@ -193,32 +205,92 @@ export default function VetReportsPage() {
           )}
         </div>
 
-        {/* Report type filter chips (multi-select) */}
-        <div className="flex flex-wrap items-center gap-2 pb-6">
-          {REPORT_TYPE_CONFIG.map((cfg) => {
-            const active = typeFilter.has(cfg.value)
-            return (
+        {/* Report type filter: chips on sm+, dropdown checkboxes on mobile */}
+        <div className="pb-6">
+          <div className="hidden sm:flex flex-wrap items-center gap-2">
+            {REPORT_TYPE_CONFIG.map((cfg) => {
+              const active = typeFilter.has(cfg.value)
+              return (
+                <button
+                  key={cfg.value}
+                  onClick={() => toggleTypeFilter(cfg.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    active
+                      ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3] hover:text-[#476B6B]'
+                  }`}
+                >
+                  {cfg.label}
+                </button>
+              )
+            })}
+            {(typeFilter.size > 0 || statusFilter !== 'all') && (
               <button
-                key={cfg.value}
-                onClick={() => toggleTypeFilter(cfg.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  active
-                    ? 'bg-[#476B6B] text-white border-[#476B6B]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3] hover:text-[#476B6B]'
-                }`}
+                onClick={() => { setTypeFilter(new Set()); setStatusFilter('all'); setPage(1) }}
+                className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
               >
-                {cfg.label}
+                <X className="w-3 h-3" /> Clear filters
               </button>
-            )
-          })}
-          {(typeFilter.size > 0 || statusFilter !== 'all') && (
-            <button
-              onClick={() => { setTypeFilter(new Set()); setStatusFilter('all'); setPage(1) }}
-              className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
-            >
-              <X className="w-3 h-3" /> Clear filters
-            </button>
-          )}
+            )}
+          </div>
+
+          <div className="flex sm:hidden items-center gap-2 flex-wrap">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600">
+                  {STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter)?.label ?? 'All'}
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-40">
+                <DropdownMenuRadioGroup
+                  value={statusFilter}
+                  onValueChange={(v) => { setStatusFilter(v as ReportStatusFilter | 'all'); setPage(1) }}
+                >
+                  {STATUS_FILTER_OPTIONS.map(({ value, label }) => (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      {label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600">
+                  <Filter className="w-3.5 h-3.5" />
+                  Report Type
+                  {typeFilter.size > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-[#476B6B] text-white text-[10px]">
+                      {typeFilter.size}
+                    </span>
+                  )}
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                {REPORT_TYPE_CONFIG.map((cfg) => (
+                  <DropdownMenuCheckboxItem
+                    key={cfg.value}
+                    checked={typeFilter.has(cfg.value)}
+                    onCheckedChange={() => toggleTypeFilter(cfg.value)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {cfg.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {(typeFilter.size > 0 || statusFilter !== 'all') && (
+              <button
+                onClick={() => { setTypeFilter(new Set()); setStatusFilter('all'); setPage(1) }}
+                className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+              >
+                <X className="w-3 h-3" /> Clear
+              </button>
+            )}
+          </div>
         </div>
         </div>
 
@@ -268,7 +340,9 @@ export default function VetReportsPage() {
                           <p className="font-semibold text-gray-900 group-hover:text-[#476B6B] truncate">
                             {r.title || `Report: ${r.petId?.name}`}
                           </p>
-                          <TypeBadge type={r.reportType} />
+                          <span className="hidden sm:inline-flex flex-shrink-0">
+                            <TypeBadge type={r.reportType} />
+                          </span>
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {r.petId?.name} &middot; {r.petId?.species === 'canine' ? 'Canine' : 'Feline'} / {r.petId?.breed}
@@ -288,6 +362,9 @@ export default function VetReportsPage() {
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <StatusBadge status={r.status} shared={r.sharedWithOwner} />
                       <span className="text-xs text-gray-400">{formatReportDate(r.reportDate)}</span>
+                      <span className="sm:hidden">
+                        <TypeBadge type={r.reportType} />
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -298,12 +375,12 @@ export default function VetReportsPage() {
 
         {/* Pagination */}
         {!loading && total > 0 && (
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-6">
             <p className="text-xs text-gray-400">
               Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total} report{total !== 1 ? 's' : ''}
             </p>
             {totalPages > 1 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}

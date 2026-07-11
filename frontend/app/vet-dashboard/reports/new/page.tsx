@@ -514,15 +514,15 @@ function NewReportContent() {
         />
 
         {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8">
+        <div className="flex items-center gap-1 sm:gap-2 mb-8 flex-wrap">
           {stepLabels.map((label, i) => {
             const n = i + 1
             const active = step === n
             const done = step > n
             return (
-              <div key={label} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 text-sm font-medium ${active ? 'text-[#476B6B]' : done ? 'text-[#35785C]' : 'text-gray-400'}`}>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 ${active ? 'border-[#476B6B] bg-[#f0f7f7] text-[#476B6B]' : done ? 'border-[#35785C] bg-[#35785C] text-white' : 'border-gray-300 text-gray-400'}`}>
+              <div key={label} className="flex items-center gap-1 sm:gap-2">
+                <div className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium ${active ? 'text-[#476B6B]' : done ? 'text-[#35785C]' : 'text-gray-400'}`}>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 flex-shrink-0 ${active ? 'border-[#476B6B] bg-[#f0f7f7] text-[#476B6B]' : done ? 'border-[#35785C] bg-[#35785C] text-white' : 'border-gray-300 text-gray-400'}`}>
                     {done ? '✓' : n}
                   </span>
                   {label}

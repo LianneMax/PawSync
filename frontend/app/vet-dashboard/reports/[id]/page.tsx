@@ -785,7 +785,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               </div>
             </div>
 
-            <div className="flex items-center gap-2 bg-[#f0f7f7] rounded-xl px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 bg-[#f0f7f7] rounded-xl px-4 py-3 text-sm flex-wrap">
               <Stethoscope className="w-4 h-4 text-[#5A7C7A] shrink-0" />
               <span className="text-xs text-gray-500 uppercase tracking-wide font-medium mr-1">Attending Veterinarian:</span>
               <span className="font-medium text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</span>
@@ -870,7 +870,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
             )}
 
             <hr className="border-gray-200" />
-            <div className="flex items-end justify-between pt-2">
+            <div className="flex items-end justify-between gap-4 flex-wrap pt-2">
               <div className="text-sm">
                 {report.vetSignature?.url ? (
                   <img src={report.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-1 object-contain" />
@@ -1598,7 +1598,7 @@ export default function ReportEditorPage() {
     <DashboardLayout userType={user?.userType as any}>
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Top bar */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:gap-4">
           <button
             onClick={() => router.push('/vet-dashboard/reports')}
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 flex-shrink-0"
@@ -1641,7 +1641,7 @@ export default function ReportEditorPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0">
             <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
               <button
                 onClick={() => setView('edit')}
@@ -1739,7 +1739,7 @@ export default function ReportEditorPage() {
         </div>
 
         {/* Patient banner */}
-        <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
+        <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 flex-wrap">
           <PawPrint className="w-4 h-4 text-indigo-400 flex-shrink-0" />
           <span>
             <strong className="text-gray-900">{pet?.name}</strong>
@@ -1751,7 +1751,7 @@ export default function ReportEditorPage() {
             <Tag className="w-3 h-3" /> {typeLabel}
           </span>
           {report.isAIGenerated && (
-            <span className="ml-auto text-xs text-indigo-500 flex items-center gap-1">
+            <span className="sm:ml-auto text-xs text-indigo-500 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> AI-generated
             </span>
           )}
@@ -1760,7 +1760,7 @@ export default function ReportEditorPage() {
               href={`/reports/${id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto text-xs text-blue-500 flex items-center gap-1 hover:underline"
+              className="sm:ml-auto text-xs text-blue-500 flex items-center gap-1 hover:underline"
             >
               <ExternalLink className="w-3 h-3" /> View shared
             </a>
@@ -1769,14 +1769,16 @@ export default function ReportEditorPage() {
 
         {/* New-visit staleness banner — not for per-visit types or locked finalized reports */}
         {newRecordCount > 0 && !updating && !isPerVisitType && !isFinalized && (
-          <div className="flex items-center gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="flex-1">
-              <strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong> for {pet?.name} since this report was {report.recordsSyncedAt ? 'last updated' : 'created'}.
-            </span>
+          <div className="flex flex-col gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3 flex-1">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <span>
+                <strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong> for {pet?.name} since this report was {report.recordsSyncedAt ? 'last updated' : 'created'}.
+              </span>
+            </div>
             <button
               onClick={() => setUpdateConfirmOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors flex-shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors flex-shrink-0"
             >
               <RefreshCw className="w-4 h-4" /> Update Report
             </button>
