@@ -127,7 +127,9 @@ export default function VetReportsPage() {
 
   return (
     <DashboardLayout userType={user?.userType as any}>
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 pb-8">
+        {/* Header, search, and filters stay pinned while the report list scrolls */}
+        <div className="sticky top-16 sm:top-0 z-30 bg-[#F8F6F2] -mx-4 px-4 pt-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <PageHeader
@@ -165,7 +167,7 @@ export default function VetReportsPage() {
         </div>
 
         {/* Report type filter chips (multi-select) */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 pb-6">
           {REPORT_TYPE_CONFIG.map((cfg) => {
             const active = typeFilter.has(cfg.value)
             return (
@@ -190,6 +192,7 @@ export default function VetReportsPage() {
               <X className="w-3 h-3" /> Clear filters
             </button>
           )}
+        </div>
         </div>
 
         {/* List */}
@@ -225,8 +228,13 @@ export default function VetReportsPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-                        <PawPrint className="w-5 h-5 text-indigo-500" />
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center overflow-hidden">
+                        {r.petId?.photo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.petId.photo} alt={r.petId?.name || 'Pet'} className="w-full h-full object-cover" />
+                        ) : (
+                          <PawPrint className="w-5 h-5 text-indigo-500" />
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
@@ -255,12 +263,6 @@ export default function VetReportsPage() {
                       <span className="text-xs text-gray-400">{formatReportDate(r.reportDate)}</span>
                     </div>
                   </div>
-                  {r.isAIGenerated && (
-                    <p className="mt-2 text-xs text-indigo-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />
-                      AI-generated
-                    </p>
-                  )}
                 </button>
               )
             })}

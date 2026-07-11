@@ -633,6 +633,10 @@ function buildDischargeSummaryPrompt(
   const visitDate = record.createdAt
     ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Unknown date';
+  const vitalLines = Object.entries(record.vitals || {})
+    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .join('\n');
   const medLines = (record.medications || [])
     .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
@@ -649,6 +653,10 @@ VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
 DISCHARGE DATE: ${visitDate}
 
 CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
+
+VITALS AT DISCHARGE:
+${vitalLines || '  (no vitals recorded)'}
+
 ASSESSMENT / DIAGNOSIS: ${record.assessment || '(none)'}
 VISIT SUMMARY: ${record.visitSummary || '(none)'}
 VET NOTES: ${record.vetNotes || '(none)'}
