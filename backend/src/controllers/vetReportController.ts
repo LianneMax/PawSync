@@ -898,7 +898,7 @@ function escapeRegex(s: string): string {
 export const listReports = async (req: Request, res: Response) => {
   try {
     const user = req.user!;
-    const { petId, limit = '20', offset = '0', search, types } = req.query;
+    const { petId, limit = '20', offset = '0', search, types, status } = req.query;
 
     const filter: Record<string, any> = {};
     if (user.userType === 'veterinarian') {
@@ -907,6 +907,17 @@ export const listReports = async (req: Request, res: Response) => {
       filter.clinicId = user.clinicId;
     }
     if (petId) filter.petId = petId;
+
+    // Status filter: ?status=draft|finalized|shared. Mirrors the list badge logic,
+    // where a shared report shows as Shared regardless of draft/finalized status.
+    if (typeof status === 'string' && status.trim()) {
+      if (status === 'shared') {
+        filter.sharedWithOwner = true;
+      } else if (status === 'finalized' || status === 'draft') {
+        filter.status = status;
+        filter.sharedWithOwner = { $ne: true };
+      }
+    }
 
     // Multi-select report type filter: ?types=soap,diagnostic
     if (typeof types === 'string' && types.trim()) {

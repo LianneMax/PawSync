@@ -284,6 +284,9 @@ export async function listSharedReportsForOwner(
   return json.data;
 }
 
+/** List filter for report lifecycle state; shared wins over draft/finalized, matching the badge. */
+export type ReportStatusFilter = 'draft' | 'finalized' | 'shared';
+
 export async function listVetReports(
   params?: {
     petId?: string;
@@ -293,6 +296,8 @@ export async function listVetReports(
     search?: string;
     /** Multi-select report type filter */
     types?: ReportType[];
+    /** Single-select status filter */
+    status?: ReportStatusFilter;
   },
   token?: string
 ): Promise<{ data: VetReport[]; total: number }> {
@@ -302,6 +307,7 @@ export async function listVetReports(
   if (params?.offset) qs.set('offset', String(params.offset));
   if (params?.search?.trim()) qs.set('search', params.search.trim());
   if (params?.types?.length) qs.set('types', params.types.join(','));
+  if (params?.status) qs.set('status', params.status);
 
   const json = await authenticatedFetch(
     `/vet-reports${qs.toString() ? `?${qs}` : ''}`,

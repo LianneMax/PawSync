@@ -11,6 +11,7 @@ import {
   REPORT_TYPE_CONFIG,
   type VetReport,
   type ReportType,
+  type ReportStatusFilter,
 } from '@/lib/vetReports'
 import {
   FileText,
@@ -32,7 +33,7 @@ const PAGE_SIZE = 10
 function StatusBadge({ status, shared }: { status: string; shared: boolean }) {
   if (shared)
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#E8F2EE] text-[#35785C]">
         <Share2 className="w-3 h-3" /> Shared
       </span>
     )
@@ -69,6 +70,7 @@ export default function VetReportsPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<Set<ReportType>>(new Set())
+  const [statusFilter, setStatusFilter] = useState<ReportStatusFilter | 'all'>('all')
   const [page, setPage] = useState(1)
 
   // Debounce the search input; reset to page 1 in the same update so the fetch
@@ -90,6 +92,7 @@ export default function VetReportsPage() {
           offset: (page - 1) * PAGE_SIZE,
           search: debouncedSearch || undefined,
           types: typeFilter.size > 0 ? [...typeFilter] : undefined,
+          status: statusFilter === 'all' ? undefined : statusFilter,
         },
         token || undefined
       )
@@ -100,7 +103,7 @@ export default function VetReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [token, page, debouncedSearch, typeFilter])
+  }, [token, page, debouncedSearch, typeFilter, statusFilter])
 
   useEffect(() => {
     fetchReports()
@@ -117,7 +120,7 @@ export default function VetReportsPage() {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const hasFilters = !!debouncedSearch || typeFilter.size > 0
+  const hasFilters = !!debouncedSearch || typeFilter.size > 0 || statusFilter !== 'all'
 
   const ownerName = (r: VetReport): string | null => {
     const owner = r.petId?.ownerId
@@ -139,11 +142,35 @@ export default function VetReportsPage() {
           />
           <button
             onClick={() => router.push('/vet-dashboard/reports/new')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Report
           </button>
+        </div>
+
+        {/* Status filter (single-select segmented pills, matching system-wide filter style) */}
+        <div className="flex flex-wrap bg-white border border-[#DCEAE3] rounded-full p-1 gap-1 mb-3">
+          {([
+            { value: 'all', label: 'All' },
+            { value: 'draft', label: 'Drafts' },
+            { value: 'finalized', label: 'Finalized' },
+            { value: 'shared', label: 'Shared' },
+          ] as const).map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => { setStatusFilter(value); setPage(1) }}
+              aria-pressed={statusFilter === value}
+              className={`flex-1 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-center transition-all ${
+                statusFilter === value
+                  ? 'bg-[#476B6B] text-white shadow-sm'
+                  : 'text-[#4F4F4F] hover:bg-[#F5FAF8]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Search */}
@@ -154,7 +181,7 @@ export default function VetReportsPage() {
             placeholder="Search by owner, patient name, or report title…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
           />
           {search && (
             <button
@@ -176,17 +203,17 @@ export default function VetReportsPage() {
                 onClick={() => toggleTypeFilter(cfg.value)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                   active
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                    ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3] hover:text-[#476B6B]'
                 }`}
               >
                 {cfg.label}
               </button>
             )
           })}
-          {typeFilter.size > 0 && (
+          {(typeFilter.size > 0 || statusFilter !== 'all') && (
             <button
-              onClick={() => { setTypeFilter(new Set()); setPage(1) }}
+              onClick={() => { setTypeFilter(new Set()); setStatusFilter('all'); setPage(1) }}
               className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
             >
               <X className="w-3 h-3" /> Clear filters
@@ -198,7 +225,7 @@ export default function VetReportsPage() {
         {/* List */}
         {loading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#476B6B]" />
           </div>
         ) : reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
@@ -209,7 +236,7 @@ export default function VetReportsPage() {
             {!hasFilters && (
               <button
                 onClick={() => router.push('/vet-dashboard/reports/new')}
-                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 text-sm hover:bg-indigo-50 transition-colors"
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#DCEAE3] text-[#476B6B] text-sm hover:bg-[#F5FAF8] transition-colors"
               >
                 <Plus className="w-4 h-4" /> Create Report
               </button>
@@ -224,21 +251,21 @@ export default function VetReportsPage() {
                 <button
                   key={r._id}
                   onClick={() => router.push(`/vet-dashboard/reports/${r._id}`)}
-                  className="w-full text-left bg-white border border-gray-200 rounded-xl px-5 py-4 hover:border-indigo-300 hover:shadow-sm transition-all group"
+                  className="w-full text-left bg-white border border-gray-200 rounded-xl px-5 py-4 hover:border-[#7FA5A3] hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center overflow-hidden">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#f0f7f7] flex items-center justify-center overflow-hidden">
                         {r.petId?.photo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={r.petId.photo} alt={r.petId?.name || 'Pet'} className="w-full h-full object-cover" />
                         ) : (
-                          <PawPrint className="w-5 h-5 text-indigo-500" />
+                          <PawPrint className="w-5 h-5 text-[#5A7C7A]" />
                         )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
-                          <p className="font-semibold text-gray-900 group-hover:text-indigo-700 truncate">
+                          <p className="font-semibold text-gray-900 group-hover:text-[#476B6B] truncate">
                             {r.title || `Report: ${r.petId?.name}`}
                           </p>
                           <TypeBadge type={r.reportType} />
@@ -300,8 +327,8 @@ export default function VetReportsPage() {
                         onClick={() => setPage(n)}
                         className={`min-w-8 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                           page === n
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                            ? 'bg-[#476B6B] text-white border-[#476B6B]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#7FA5A3]'
                         }`}
                       >
                         {n}

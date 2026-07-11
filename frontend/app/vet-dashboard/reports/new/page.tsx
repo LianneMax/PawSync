@@ -419,8 +419,8 @@ function NewReportContent() {
             const done = step > n
             return (
               <div key={label} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 text-sm font-medium ${active ? 'text-indigo-600' : done ? 'text-emerald-600' : 'text-gray-400'}`}>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 ${active ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-gray-400'}`}>
+                <div className={`flex items-center gap-1.5 text-sm font-medium ${active ? 'text-[#476B6B]' : done ? 'text-[#35785C]' : 'text-gray-400'}`}>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 ${active ? 'border-[#476B6B] bg-[#f0f7f7] text-[#476B6B]' : done ? 'border-[#35785C] bg-[#35785C] text-white' : 'border-gray-300 text-gray-400'}`}>
                     {done ? '✓' : n}
                   </span>
                   {label}
@@ -461,22 +461,22 @@ function NewReportContent() {
                         disabled={ineligibleForVisit && !selected}
                         className={`text-left rounded-xl border p-4 transition-all ${
                           selected
-                            ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
+                            ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
                             : ineligibleForVisit
                               ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                              : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'
+                              : 'border-gray-200 bg-white hover:border-[#7FA5A3] hover:bg-gray-50'
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className={selected ? 'text-indigo-500' : 'text-gray-400'}>
+                          <span className={selected ? 'text-[#476B6B]' : 'text-gray-400'}>
                             {REPORT_TYPE_ICONS[cfg.value]}
                           </span>
-                          <span className={`font-semibold text-sm ${selected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                          <span className={`font-semibold text-sm ${selected ? 'text-[#476B6B]' : 'text-gray-800'}`}>
                             {cfg.label}
                           </span>
                           <span className="ml-auto">
                             {selected
-                              ? <CheckSquare className="w-4 h-4 text-indigo-500" />
+                              ? <CheckSquare className="w-4 h-4 text-[#476B6B]" />
                               : <Square className="w-4 h-4 text-gray-300" />}
                           </span>
                         </div>
@@ -495,7 +495,7 @@ function NewReportContent() {
             ))}
 
             {selectedTypes.size > 1 && (
-              <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700">
+              <div className="mb-4 p-3 bg-[#f0f7f7] border border-[#DCEAE3] rounded-lg text-xs text-[#476B6B]">
                 {selectedTypes.size} reports will be created, one per selected type, all covering the same visits.
               </div>
             )}
@@ -503,7 +503,7 @@ function NewReportContent() {
             <button
               onClick={() => setStep(2)}
               disabled={selectedTypes.size === 0}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Next: Select Patient <ChevronRight className="w-4 h-4" />
             </button>
@@ -520,7 +520,7 @@ function NewReportContent() {
                 placeholder="Leave blank to auto-generate"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
               />
               {selectedTypes.size > 1 && title.trim() && (
                 <p className="text-xs text-gray-400 mt-1">Each report&apos;s title will be prefixed with its type.</p>
@@ -537,13 +537,13 @@ function NewReportContent() {
                 placeholder="Search by patient name…"
                 value={petSearch}
                 onChange={(e) => setPetSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
               />
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                <Loader2 className="w-6 h-6 animate-spin text-[#476B6B]" />
               </div>
             ) : (
               <div className="max-h-64 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-5">
@@ -563,12 +563,12 @@ function NewReportContent() {
                         onClick={() => selectPet(g.petId)}
                         className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
                           isSelected
-                            ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
-                            : 'border-gray-200 bg-white hover:border-indigo-200'
+                            ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                            : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <PawPrint className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-indigo-500' : 'text-gray-400'}`} />
+                          <PawPrint className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm text-gray-900 truncate">{g.name}</p>
                             <p className="text-xs text-gray-500 mt-0.5">
@@ -596,7 +596,7 @@ function NewReportContent() {
               <button
                 onClick={() => setStep(3)}
                 disabled={!canProceedStep2}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next: Select Records <ChevronRight className="w-4 h-4" />
               </button>
@@ -608,11 +608,11 @@ function NewReportContent() {
         {step === 3 && selectedPet && (
           <div>
             <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm">
-              <PawPrint className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+              <PawPrint className="w-4 h-4 text-[#5A7C7A] flex-shrink-0" />
               <span className="font-medium text-gray-900">{selectedPet.name}</span>
               <span className="text-gray-500">·</span>
               <span className="text-gray-500 text-xs">{selectedPet.species === 'canine' ? 'Canine' : 'Feline'} / {selectedPet.breed}</span>
-              <span className="ml-auto text-xs text-indigo-500">
+              <span className="ml-auto text-xs text-[#476B6B]">
                 {typeList.length} report{typeList.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -633,14 +633,14 @@ function NewReportContent() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => { setDateFrom(e.target.value); setSelectedRecordIds(new Set()); setAllMode(false) }}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                 />
                 <span className="self-center text-gray-400 text-sm">to</span>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => { setDateTo(e.target.value); setSelectedRecordIds(new Set()); setAllMode(false) }}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                 />
               </div>
             </div>
@@ -654,11 +654,11 @@ function NewReportContent() {
               onClick={toggleAllMode}
               className={`w-full mb-3 rounded-lg px-4 py-3 border text-left transition-all flex items-center gap-3 ${
                 allMode
-                  ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
-                  : 'border-gray-200 bg-white hover:border-indigo-200'
+                  ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                  : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
               }`}
             >
-              <Layers className={`w-4 h-4 flex-shrink-0 ${allMode ? 'text-indigo-500' : 'text-gray-400'}`} />
+              <Layers className={`w-4 h-4 flex-shrink-0 ${allMode ? 'text-[#476B6B]' : 'text-gray-400'}`} />
               <div className="flex-1">
                 <p className="font-medium text-sm text-gray-900">
                   {dateFrom || dateTo ? 'All records in date range' : 'All records to date'}
@@ -668,7 +668,7 @@ function NewReportContent() {
                   {!(dateFrom || dateTo) && !syncDisabled && ' · new visits can be folded in later'}
                 </p>
               </div>
-              {allMode ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4 text-gray-300" />}
+              {allMode ? <CheckSquare className="w-4 h-4 text-[#476B6B]" /> : <Square className="w-4 h-4 text-gray-300" />}
             </button>
 
             {/* Record list */}
@@ -689,12 +689,12 @@ function NewReportContent() {
                       onClick={() => toggleRecord(r._id)}
                       disabled={allMode}
                       className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
-                        checked ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200'
+                        checked ? 'border-[#7FA5A3] bg-[#f0f7f7]' : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
                       } ${allMode ? 'cursor-not-allowed' : ''}`}
                     >
                       <div className="flex items-center gap-3">
                         {checked ? (
-                          <CheckSquare className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                          <CheckSquare className="w-4 h-4 text-[#476B6B] flex-shrink-0" />
                         ) : (
                           <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
                         )}
@@ -720,7 +720,7 @@ function NewReportContent() {
             </div>
 
             {effectiveCount > 0 && (
-              <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700">
+              <div className="mb-4 p-3 bg-[#f0f7f7] border border-[#DCEAE3] rounded-lg text-sm text-[#476B6B]">
                 <strong>{selectedPet.name}</strong>: {allMode
                   ? `${!(dateFrom || dateTo) ? 'all records to date' : 'all in date range'} (${effectiveCount} visit${effectiveCount !== 1 ? 's' : ''})`
                   : `${effectiveCount} visit${effectiveCount !== 1 ? 's' : ''} selected`}
@@ -738,7 +738,7 @@ function NewReportContent() {
               <button
                 onClick={handleCreate}
                 disabled={effectiveCount === 0 || creating}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {creating ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
