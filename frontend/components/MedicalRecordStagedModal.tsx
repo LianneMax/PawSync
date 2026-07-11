@@ -1776,7 +1776,15 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         : referral
           ? 'referred'
           : 'stabilized')
-    const inferredSkipReasons = emergencyDeferredFields.map((field) => {
+    // A field only counts as deferred if the data is still actually missing —
+    // stale flags (e.g. vitals backfilled after triage) must not keep the record
+    // out of the report pipeline.
+    const missingVitals = REQUIRED_VITAL_KEYS.some((k) => !vitals[k]?.value && vitals[k]?.value !== 0)
+    const missingSoap = !subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()
+    const effectiveDeferredFields = emergencyDeferredFields.filter((field) =>
+      field === 'vitals' ? missingVitals : field === 'soap' ? missingSoap : true
+    )
+    const inferredSkipReasons = effectiveDeferredFields.map((field) => {
       if (field === 'vitals') return 'Vitals deferred due to active emergency stabilization'
       if (field === 'soap') return 'Complete SOAP deferred due to active emergency stabilization'
       return `${field} deferred due to emergency prioritization`
@@ -1788,8 +1796,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       outcome: resolvedOutcome,
       dispositionNotes: emergencyDispositionNotes,
       skipReasons: emergencySkipReasons.length > 0 ? emergencySkipReasons : inferredSkipReasons,
-      deferredFields: emergencyDeferredFields,
-      completedDeferredAt: emergencyDeferredFields.length === 0 ? new Date().toISOString() : null,
+      deferredFields: effectiveDeferredFields,
+      completedDeferredAt: effectiveDeferredFields.length === 0 ? new Date().toISOString() : null,
     }
   }
 
@@ -2129,6 +2137,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     if (useEmergencyFlow) {
       const deferred = new Set(emergencyDeferredFields)
       if (missingVitals) deferred.add('vitals')
+      else deferred.delete('vitals')
       if (!subjective.trim() || !objective.trim() || !assessment.trim() || !plan.trim()) deferred.add('soap')
       setEmergencyDeferredFields(Array.from(deferred))
     }

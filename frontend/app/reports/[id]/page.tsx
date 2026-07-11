@@ -16,7 +16,7 @@ import {
   Shield,
   Mail,
 } from 'lucide-react'
-import { PrintButton } from './PrintButton'
+import { ReportActions } from './ReportActions'
 import { formatReportDate, getSectionKeys, getSectionLabels, REPORT_TYPE_DOCUMENT_TITLES, getSharedReport } from '@/lib/vetReports'
 import type { VetReport, OwnerSummary, LinkedRecord, VaccinationRecord } from '@/lib/vetReports'
 
@@ -529,13 +529,15 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
   )
   const totalPages = hasOwnerSummary ? 2 : 1
 
+  const pdfFilename = `medical-report-${(pet?.name || 'pet').replace(/[^a-zA-Z0-9-]+/g, '-')}-${new Date(report.reportDate).toISOString().split('T')[0]}.pdf`
+
   return (
     <div className="report-print-root min-h-screen bg-gray-100 py-10 px-4">
-      <div className="max-w-204 mx-auto space-y-8">
+      <div id="shared-report-document" className="max-w-204 mx-auto space-y-8">
 
-        {/* Print button */}
+        {/* Print / Download actions */}
         <div className="report-no-print flex justify-end">
-          <PrintButton />
+          <ReportActions targetId="shared-report-document" filename={pdfFilename} />
         </div>
 
         {/* ── PAGE 1: Owner Summary (shown first to owner) ── */}

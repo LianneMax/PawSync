@@ -29,6 +29,7 @@
     "date-fns": "^4.1.0",
     "dog-breeds": "^2.1.0",
     "framer-motion": "^12.19",
+    "html2pdf.js": "^0.14.0",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "libphonenumber-js": "^1.12.40",

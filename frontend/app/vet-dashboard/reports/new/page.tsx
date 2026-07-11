@@ -198,10 +198,12 @@ function NewReportContent() {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
   }, [records])
 
-  // Pets that have at least one report-ready record eligible for every selected type
+  // Pets that have at least one record eligible for every selected type. Records
+  // with pending emergency documentation still surface the pet — the visit list
+  // shows them disabled with a hint instead of silently hiding the patient.
   const eligiblePetGroups = useMemo(() => {
     if (typeList.length === 0) return petGroups
-    return petGroups.filter((g) => g.records.some((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)))
+    return petGroups.filter((g) => g.records.some((r) => isEligibleForAllTypes(r, typeList)))
   }, [petGroups, typeList])
 
   const filteredPets = eligiblePetGroups.filter((g) => {
@@ -565,6 +567,7 @@ function NewReportContent() {
                   filteredPets.map((g) => {
                     const isSelected = selectedPetId === g.petId
                     const eligibleCount = g.records.filter((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
+                    const pendingCount = g.records.filter((r) => !isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
                     return (
                       <button
                         key={g.petId}
@@ -583,8 +586,11 @@ function NewReportContent() {
                               {g.species === 'canine' ? 'Canine' : 'Feline'} / {g.breed}
                             </p>
                           </div>
-                          <span className="text-xs text-gray-400 flex-shrink-0">
+                          <span className="text-xs text-gray-400 flex-shrink-0 text-right">
                             {eligibleCount} visit{eligibleCount !== 1 ? 's' : ''}
+                            {pendingCount > 0 && (
+                              <span className="block text-[10px] text-amber-600">{pendingCount} pending docs</span>
+                            )}
                           </span>
                         </div>
                       </button>
