@@ -44,6 +44,8 @@ interface ConfinementStay {
   admissionDate: string
   dischargeDate?: string | null
   status: 'admitted' | 'discharged'
+  /** Visits folded into this stay; combined report types are scoped to these records. */
+  medicalRecordIds: string[]
 }
 
 function fmtDate(d: string) {
@@ -61,24 +63,24 @@ const REPORT_TYPE_ICONS: Record<ReportType, React.ReactNode> = {
   confinement: <Stethoscope className="w-5 h-5" />,
 }
 
-/** These types stand alone; they cannot be combined with any other type. */
-const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter', 'confinement']
+/** These types stand alone; they cannot be combined with any other type, including confinement. */
+const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter']
 
-/** Step 1 groups: clinical reports vs. standalone documents (certificates & letters). */
+/** Step 1 groups: clinical reports (combinable with confinement) vs. standalone documents. */
 const TYPE_CATEGORIES: { label: string; description: string; types: ReportType[] }[] = [
   {
     label: 'Reports',
-    description: 'Clinical write-ups built from visit data. Combine freely; one report is created per type.',
+    description: 'Clinical write-ups built from visit data. Combine freely, including with a confinement report; one report is created per type.',
     types: ['general', 'soap', 'diagnostic', 'surgery', 'dischargeSummary'],
   },
   {
     label: 'Confinement',
-    description: 'Documents a single inpatient stay: admission, monitoring log, and current status. Selected on its own.',
+    description: 'Documents a single inpatient stay: admission, monitoring log, and current status. Can be combined with Reports above, scoped to the same stay; not combinable with certificates or letters.',
     types: ['confinement'],
   },
   {
     label: 'Certificates & Letters',
-    description: 'Standalone documents. Created on their own and cannot be combined with report types.',
+    description: 'Standalone documents. Created on their own and cannot be combined with any other type.',
     types: ['healthCertificate', 'referralLetter'],
   },
 ]
@@ -149,7 +151,9 @@ function NewReportContent() {
 
   const typeList = useMemo(() => [...selectedTypes], [selectedTypes])
   const syncDisabled = typeList.some((t) => SYNC_DISABLED_TYPES.includes(t))
-  const isConfinementOnly = typeList.length === 1 && typeList[0] === 'confinement'
+  // Confinement scopes the whole selection to one stay: pick the stay instead of a
+  // free patient/record search, and skip step 3 (the stay's own visits are the scope).
+  const includesConfinement = selectedTypes.has('confinement')
 
   useEffect(() => {
     const load = async () => {
@@ -191,9 +195,9 @@ function NewReportContent() {
   }, [token])
 
   // Fetch confinement stays + which ones already have a confinement report, once, when
-  // the vet enters the confinement-only flow.
+  // the vet enters a flow that includes a confinement report.
   useEffect(() => {
-    if (!isConfinementOnly || confinementStays.length > 0 || confinementLoading) return
+    if (!includesConfinement || confinementStays.length > 0 || confinementLoading) return
     const load = async () => {
       setConfinementLoading(true)
       try {
@@ -219,7 +223,7 @@ function NewReportContent() {
       }
     }
     load()
-  }, [isConfinementOnly, confinementStays.length, confinementLoading, token])
+  }, [includesConfinement, confinementStays.length, confinementLoading, token])
 
   const toggleType = (type: ReportType) => {
     setSelectedTypes((prev) => {
@@ -373,8 +377,37 @@ function NewReportContent() {
       ? selectedPet.records.find((r) => selectedRecordIds.has(r._id)) ?? null
       : null
 
+  // Shared tail for every creation path: summarize what happened and route to the
+  // single created/existing report, or back to the list when several were made.
+  const finishCreation = (
+    created: { id: string; label: string }[],
+    skipped: { id: string; label: string }[],
+    failed: string[]
+  ) => {
+    if (skipped.length > 0) {
+      toast.info(`Already exist${skipped.length === 1 ? 's' : ''} for this selection: ${skipped.map((s) => s.label).join(', ')}`)
+    }
+    if (failed.length > 0) {
+      toast.error(`Could not create: ${failed.join(', ')}`)
+    }
+
+    if (created.length === 1 && skipped.length === 0) {
+      router.push(`/vet-dashboard/reports/${created[0].id}`)
+    } else if (created.length > 0) {
+      toast.success(`Created ${created.length} report${created.length !== 1 ? 's' : ''}: ${created.map((c) => c.label).join(', ')}`)
+      router.push('/vet-dashboard/reports')
+    } else if (skipped.length === 1 && failed.length === 0) {
+      // Nothing new — open the existing report
+      router.push(`/vet-dashboard/reports/${skipped[0].id}`)
+    } else if (skipped.length > 0 && failed.length === 0) {
+      router.push('/vet-dashboard/reports')
+    } else {
+      setCreating(false)
+    }
+  }
+
   const handleCreate = async () => {
-    if (isConfinementOnly) {
+    if (includesConfinement) {
       const stay = confinementStays.find((s) => s._id === selectedConfinementId)
       if (!stay) {
         toast.error('Select a confinement stay')
@@ -382,20 +415,59 @@ function NewReportContent() {
       }
       setCreating(true)
       try {
-        const reportTitle = title.trim() || `Confinement Report: ${stay.petId.name} (${fmtDate(stay.admissionDate)})`
-        const report = await createVetReport(
-          { petId: stay.petId._id, reportType: 'confinement', confinementRecordId: stay._id, title: reportTitle },
-          token || undefined
-        )
-        router.push(`/vet-dashboard/reports/${report._id}`)
-      } catch (e: any) {
-        if (e instanceof DuplicateReportError) {
-          toast.info('A confinement report already exists for this stay')
-          router.push(`/vet-dashboard/reports/${e.existingReportId}`)
-        } else {
-          toast.error(e.message || 'Failed to create report')
-          setCreating(false)
+        // Order the selected types by REPORT_TYPE_CONFIG; confinement always among them here.
+        const orderedTypes = REPORT_TYPE_CONFIG.map((c) => c.value).filter((t) => selectedTypes.has(t))
+        const created: { id: string; label: string }[] = []
+        const skipped: { id: string; label: string }[] = []
+        const failed: string[] = []
+
+        for (const type of orderedTypes) {
+          const typeLabel = REPORT_TYPE_CONFIG.find((c) => c.value === type)?.label ?? 'Report'
+          try {
+            if (type === 'confinement') {
+              const reportTitle = title.trim()
+                ? (orderedTypes.length > 1 ? `${typeLabel}: ${title.trim()}` : title.trim())
+                : `Confinement Report: ${stay.petId.name} (${fmtDate(stay.admissionDate)})`
+              const report = await createVetReport(
+                { petId: stay.petId._id, reportType: 'confinement', confinementRecordId: stay._id, title: reportTitle },
+                token || undefined
+              )
+              created.push({ id: report._id, label: typeLabel })
+              continue
+            }
+
+            // Non-confinement types combined with confinement are scoped to the stay's
+            // own visits, filtered to whichever of those visits actually have data for the type.
+            const eligibleIds = stay.medicalRecordIds.filter((rid) => {
+              const rec = records.find((r) => r._id === rid)
+              return !!rec && isRecordReportReady(rec) && isEligibleForType(rec, type)
+            })
+            if (eligibleIds.length === 0) {
+              failed.push(`${typeLabel} (no eligible visits in this stay)`)
+              continue
+            }
+            const reportTitle = title.trim()
+              ? (orderedTypes.length > 1 ? `${typeLabel}: ${title.trim()}` : title.trim())
+              : `${typeLabel}: ${stay.petId.name} (${fmtDate(stay.admissionDate)})`
+            const report = await createVetReport(
+              { petId: stay.petId._id, reportType: type, medicalRecordIds: eligibleIds, scope: 'selected', title: reportTitle },
+              token || undefined
+            )
+            created.push({ id: report._id, label: typeLabel })
+          } catch (e: any) {
+            if (e instanceof DuplicateReportError) {
+              skipped.push({ id: e.existingReportId, label: typeLabel })
+            } else {
+              failed.push(typeLabel)
+              console.error(`Failed to create ${typeLabel}:`, e)
+            }
+          }
         }
+
+        finishCreation(created, skipped, failed)
+      } catch (e: any) {
+        toast.error(e.message || 'Failed to create report')
+        setCreating(false)
       }
       return
     }
@@ -467,27 +539,7 @@ function NewReportContent() {
         }
       }
 
-      if (skipped.length > 0) {
-        toast.info(`Already exist${skipped.length === 1 ? 's' : ''} for this selection: ${skipped.map((s) => s.label).join(', ')}`)
-      }
-      if (failed.length > 0) {
-        toast.error(`Could not create: ${failed.join(', ')}`)
-      }
-
-      if (created.length === 1 && skipped.length === 0) {
-        router.push(`/vet-dashboard/reports/${created[0].id}`)
-      } else if (created.length > 0) {
-        toast.success(`Created ${created.length} report${created.length !== 1 ? 's' : ''}: ${created.map((c) => c.label).join(', ')}`)
-        router.push('/vet-dashboard/reports')
-      } else if (skipped.length === 1 && failed.length === 0) {
-        // Nothing new — open the existing report
-        router.push(`/vet-dashboard/reports/${skipped[0].id}`)
-      } else if (skipped.length > 0 && failed.length === 0) {
-        router.push('/vet-dashboard/reports')
-      } else {
-        setCreating(false)
-        return
-      }
+      finishCreation(created, skipped, failed)
     } catch (e: any) {
       toast.error(e.message || 'Failed to create report')
       setCreating(false)
@@ -629,11 +681,16 @@ function NewReportContent() {
               )}
             </div>
 
-            {isConfinementOnly ? (
+            {includesConfinement ? (
               <>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Select Confinement Stay <span className="text-gray-400 font-normal">(required)</span>
                 </label>
+                {typeList.length > 1 && (
+                  <p className="text-xs text-gray-400 mb-3">
+                    The stay&apos;s own visits will be used to scope {typeList.length - 1} other report{typeList.length - 1 !== 1 ? 's' : ''} — no separate visit selection needed.
+                  </p>
+                )}
                 <div className="relative mb-3">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -705,7 +762,11 @@ function NewReportContent() {
                     disabled={!selectedConfinementId || creating}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {creating ? (<><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>) : 'Create Report & Open'}
+                    {creating ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
+                    ) : (
+                      `Create ${typeList.length > 1 ? `${typeList.length} Reports` : 'Report'} & Open`
+                    )}
                   </button>
                 </div>
               </>
