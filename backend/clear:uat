@@ -1,22 +1,0 @@
-Script started on Sat Jul 11 15:40:12 2026
-[1m[7m%[27m[1m[0m                                                                                                                                [0m[27m[24m[Jalyssa@Marias-MacBook-Air-2 backend % [K[?2004h[7mnpm run clear:uat[27m[17D[27mn[27mp[27mm[27m [27mr[27mu[27mn[27m [27mc[27ml[27me[27ma[27mr[27m:[27mu[27ma[27mt[?2004l
-
-> backend@1.0.0 clear:uat
-> ts-node src/scripts/clearUatUsers.ts
-
-[1G[0K📡 Mongoose connected to MongoDB
-✅ MongoDB Connected: ac-fvjizrr-shard-00-02.kw7lflf.mongodb.net
-✅ GridFS Bucket initialized
-Found 72 UAT user(s). Deleting all associated data...
-
-✅ Deleted 280 vaccination(s)
-✅ Deleted 8 billing record(s)
-✅ Deleted 420 diagnostic report(s)
-✅ Deleted 420 medical record(s)
-✅ Deleted 568 appointment(s)
-✅ Deleted 158 pet(s)
-✅ Deleted 72 user(s)
-
-✅ UAT data cleared. Database is back to its pre-seed state.
-📴 Mongoose disconnected from MongoDB
-[1G[0K⠙[1G[0K[1m[7m%[27m[1m[0m                                                                                                                                [0m[27m[24m[Jalyssa@Marias-MacBook-Air-2 backend % [K[?2004h
