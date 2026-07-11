@@ -790,6 +790,9 @@ export default function ClinicAdminMedicalRecordViewPage() {
                   Dr. {vet.firstName || ''} {vet.lastName || ''}
                 </p>
                 <p className="text-xs text-gray-500">Attending Veterinarian</p>
+                {record.vetSignature?.signedAt && (
+                  <p className="text-xs text-gray-400">Signed on {formatDate(record.vetSignature.signedAt)}</p>
+                )}
               </div>
             </div>
 

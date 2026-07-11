@@ -714,6 +714,9 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
                   {vet.prcLicenseNumber && (
                     <p className="text-gray-400 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>
                   )}
+                  {report.vetSignature?.signedAt && (
+                    <p className="text-gray-400 text-xs mt-0.5">Signed on {formatReportDate(report.vetSignature.signedAt)}</p>
+                  )}
                 </div>
                 <div className="text-right text-xs text-gray-400">
                   <p>Report Date: {formatReportDate(report.reportDate)}</p>

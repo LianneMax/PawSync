@@ -2175,7 +2175,7 @@ function ViewRecordModal({
       ${(record.preventiveCare||[]).length ? `<div class="section"><div class="section-header">🛡 Preventive Care</div><div class="section-body"><table><thead><tr><th>Type</th><th>Product</th><th>Administered</th><th>Next Due</th></tr></thead><tbody>${careRows}</tbody></table></div></div>` : ''}
       ${record.visitSummary ? `<div class="section"><div class="section-header">Visit Summary</div><div class="section-body"><p>${record.visitSummary}</p></div></div>` : ''}
       <div class="footer">
-        <div><div class="sig-line"></div><div class="sig-label">${vetName}</div><div class="sig-label">Attending Veterinarian</div></div>
+        <div>${record.vetSignature?.url ? `<img src="${record.vetSignature.url}" alt="Veterinarian signature" style="height:48px;object-fit:contain;display:block;margin-bottom:4px" />` : '<div class="sig-line"></div>'}<div class="sig-label">${vetName}</div><div class="sig-label">Attending Veterinarian</div>${record.vetSignature?.signedAt ? `<div class="sig-label">Signed on ${formatFullDate(record.vetSignature.signedAt)}</div>` : ''}</div>
         <div style="text-align:right"><div class="sig-label">${visitDate}</div><div class="sig-label">Date of Record</div></div>
       </div>
     </div>
@@ -3246,11 +3246,19 @@ function ViewRecordModal({
               <div className="border-t-2 border-gray-200 pt-5 mt-6">
                 <div className="flex items-end justify-between">
                   <div>
-                    <div className="w-48 border-b border-gray-300 mb-1" />
+                    {record.vetSignature?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={record.vetSignature.url} alt="Veterinarian signature" className="h-12 mb-1 object-contain" />
+                    ) : (
+                      <div className="w-48 border-b border-gray-300 mb-1" />
+                    )}
                     <p className="text-xs text-gray-500">
                       Dr. {vet?.firstName} {vet?.lastName}
                     </p>
                     <p className="text-[10px] text-gray-400">Attending Veterinarian</p>
+                    {record.vetSignature?.signedAt && (
+                      <p className="text-[10px] text-gray-400">Signed on {formatFullDate(record.vetSignature.signedAt)}</p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500">{formatFullDate(record.createdAt)}</p>

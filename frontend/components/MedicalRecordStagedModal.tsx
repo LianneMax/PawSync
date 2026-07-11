@@ -741,6 +741,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [confinementRecordId, setConfinementRecordId] = useState<string | null>(null)
   const [confined, setConfined] = useState(false)
   const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null)
+  // Signature already stored on the record itself (set when the visit was completed).
+  const [recordSignature, setRecordSignature] = useState<{ url: string | null; signedAt: string | null } | null>(null)
   const signatureCaptureRef = useRef<SignatureCaptureHandle | null>(null)
   const [referral, setReferral] = useState(false)
   const [surgery, setSurgery] = useState(false)
@@ -1422,6 +1424,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       // 'confined' records have already had their appointment closed — treat them the same
       // as 'completed' for the purpose of not re-closing the appointment on subsequent saves.
       setAlreadyCompleted(r.stage === 'completed' || r.stage === 'confined')
+      setRecordSignature(r.vetSignature || null)
       if ((isSurgeryAppt || !!r.surgeryRecord) && r.surgeryRecord) {
         if (!isSurgeryAppt) setEmergencySurgery(true)
         setSurgeryVetRemarks(r.surgeryRecord.vetRemarks || '')
@@ -2660,6 +2663,8 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         toast.success(recordStage === 'confined' ? 'Confinement record updated!' : 'Pet admitted. Visit closed, record stays open.')
       } else if (euthanasia) {
         toast.success('Visit completed. Pet has been marked as deceased.')
+      } else if (alreadyCompleted && recordStage !== 'confined') {
+        toast.success('Record updated!')
       } else {
         toast.success('Visit completed!')
       }
@@ -5849,6 +5854,20 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   className="data-checked:bg-[#476B6B]"
                 />
               </div>
+
+              {/* Existing signature on the record (shown when re-opening a completed record) */}
+              {recordSignature?.url && (
+                <div className="p-4 bg-gray-50 rounded-2xl">
+                  <p className="text-sm font-semibold text-[#4F4F4F] mb-2">Veterinarian Signature</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={recordSignature.url} alt="Veterinarian signature" className="h-12 object-contain bg-white rounded-lg border border-gray-200 px-2" />
+                  {recordSignature.signedAt && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Last signed on {new Date(recordSignature.signedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(recordSignature.signedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -5950,12 +5969,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
               >
                 {completing ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
                 <span className="sm:hidden truncate">
-                  {confined ? (recordStage === 'confined' ? 'Save' : 'Admit') : (recordStage === 'confined' ? 'Release' : 'Complete')}
+                  {confined ? (recordStage === 'confined' ? 'Save' : 'Admit') : (recordStage === 'confined' ? 'Release' : alreadyCompleted ? 'Update' : 'Complete')}
                 </span>
                 <span className="hidden sm:inline">
                   {confined
                     ? (recordStage === 'confined' ? 'Save Confinement Update' : 'Admit & Close Visit')
-                    : (recordStage === 'confined' ? 'Release & Complete Visit' : 'Complete Record & Finish Visit')}
+                    : (recordStage === 'confined' ? 'Release & Complete Visit' : alreadyCompleted ? 'Update Record' : 'Complete Record & Finish Visit')}
                 </span>
               </button>
             )}
@@ -5970,7 +5989,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
             <DialogTitle>
               {confined
                 ? (recordStage === 'confined' ? 'Save Confinement Update?' : 'Admit Pet for Confinement?')
-                : (recordStage === 'confined' ? 'Release Pet & Complete Visit?' : 'Complete Visit?')}
+                : (recordStage === 'confined' ? 'Release Pet & Complete Visit?' : alreadyCompleted ? 'Update Record?' : 'Complete Visit?')}
             </DialogTitle>
             <DialogDescription>
               {confined && recordStage !== 'confined'
@@ -5979,7 +5998,9 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                   ? 'This will save the current medications and services and update the running bill.'
                   : recordStage === 'confined'
                     ? 'The pet will be released from confinement, the confinement charge will be finalized, and the visit will be completed.'
-                    : 'Are you sure you want to complete this visit? This action cannot be undone.'}
+                    : alreadyCompleted
+                      ? 'This will save your changes to the completed medical record. Please sign again to confirm the update.'
+                      : 'Are you sure you want to complete this visit? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
           {!confined && (

@@ -803,6 +803,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                 <p className="font-bold text-[#4F4F4F]">Dr. {vet.firstName} {vet.lastName}</p>
                 <p className="text-gray-500 text-xs">Licensed Veterinarian</p>
                 {vet.prcLicenseNumber && <p className="text-gray-400 text-xs mt-0.5">P.R.C. Lic No. {vet.prcLicenseNumber}</p>}
+                {report.vetSignature?.signedAt && <p className="text-gray-400 text-xs mt-0.5">Signed on {formatReportDate(report.vetSignature.signedAt)}</p>}
               </div>
               <div className="text-right text-xs text-gray-400">
                 <p>Report Date: {formatReportDate(report.reportDate)}</p>
