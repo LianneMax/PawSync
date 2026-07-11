@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import VetReport from '../models/VetReport';
 import MedicalRecord from '../models/MedicalRecord';
+import ConfinementRecord from '../models/ConfinementRecord';
+import ConfinementMonitoringEntry from '../models/ConfinementMonitoringEntry';
 import Pet from '../models/Pet';
 import PetNotes from '../models/PetNotes';
 import User from '../models/User';
@@ -18,13 +20,15 @@ import type { ReportType } from '../models/VetReport';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 const VALID_REPORT_TYPES: ReportType[] = [
-  'general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter',
+  'general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter', 'confinement',
 ];
 
 // Post-creation "update with new visits" behavior for these types is still to be decided,
 // so sync-records stays disabled for them. Creation with multiple records IS supported —
 // their prompt builders handle any number of visits.
-const SYNC_DISABLED_REPORT_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary'];
+// 'confinement' is always disabled here: its record set is derived live from
+// ConfinementRecord.medicalRecordIds on every /generate call, so there is nothing to sync.
+const SYNC_DISABLED_REPORT_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary', 'confinement'];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -74,7 +78,7 @@ async function countNewRecords(report: any): Promise<number> {
 
 export const createReport = async (req: Request, res: Response) => {
   try {
-    const { petId, medicalRecordId, title, reportDate, vetContextNotes, scope, reportType } = req.body;
+    const { petId, medicalRecordId, title, reportDate, vetContextNotes, scope, reportType, confinementRecordId } = req.body;
     const user = req.user!;
 
     if (!petId) {
@@ -82,6 +86,63 @@ export const createReport = async (req: Request, res: Response) => {
     }
 
     const validatedReportType: ReportType = VALID_REPORT_TYPES.includes(reportType) ? reportType : 'general';
+
+    // Confinement reports aren't built from a free record selection: the vet picks the
+    // confinement stay and the record set is derived from it, so this branches before
+    // the generic scope/selection logic below.
+    if (validatedReportType === 'confinement') {
+      if (!confinementRecordId) {
+        return res.status(400).json({ status: 'ERROR', message: 'confinementRecordId is required for confinement reports.' });
+      }
+      const confinementRecord = await ConfinementRecord.findOne({ _id: confinementRecordId, petId }).lean() as any;
+      if (!confinementRecord) {
+        return res.status(400).json({ status: 'ERROR', message: 'Confinement record not found for this pet.' });
+      }
+
+      const existing = await VetReport.findOne({ petId, reportType: 'confinement', confinementRecordId }).select('_id').lean();
+      if (existing) {
+        return res.status(409).json({
+          status: 'ERROR',
+          message: 'A confinement report already exists for this stay. Update that report instead of creating a duplicate.',
+          existingReportId: (existing as any)._id,
+        });
+      }
+
+      const recordIds = (confinementRecord.medicalRecordIds || []).map((id: any) => id.toString());
+
+      let clinicId = user.clinicId || confinementRecord.clinicId;
+      let clinicBranchId = user.clinicBranchId || confinementRecord.clinicBranchId;
+      if (!clinicId || !clinicBranchId) {
+        const vetUser = await User.findById(user.userId).lean() as any;
+        if (vetUser) {
+          clinicId = clinicId || vetUser.clinicId;
+          clinicBranchId = clinicBranchId || vetUser.clinicBranchId;
+        }
+      }
+      if (!clinicId || !clinicBranchId) {
+        return res.status(400).json({ status: 'ERROR', message: 'Unable to determine clinic for this report. Please contact support.' });
+      }
+
+      const report = await VetReport.create({
+        petId,
+        medicalRecordId: (recordIds.length === 1 ? recordIds[0] : null) as any,
+        medicalRecordIds: recordIds as any,
+        confinementRecordId,
+        scope: 'selected',
+        recordsSyncedAt: new Date(),
+        reportType: 'confinement',
+        vetId: user.userId,
+        clinicId,
+        clinicBranchId,
+        title: title || '',
+        reportDate: reportDate ? new Date(reportDate) : new Date(),
+        vetContextNotes: vetContextNotes || '',
+        sections: {},
+      });
+
+      return res.status(201).json({ status: 'OK', data: report });
+    }
+
     const reportScope: 'selected' | 'all' = scope === 'all' ? 'all' : 'selected';
 
     let recordIds: string[] = [];
@@ -272,6 +333,7 @@ export const getReport = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordId')
       .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
+      .populate('confinementRecordId', 'reason notes admissionDate dischargeDate status')
       .lean();
 
     if (!report) {
@@ -298,6 +360,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
+      .populate('confinementRecordId', 'reason notes admissionDate dischargeDate status')
       .lean();
 
     if (!report) {
@@ -617,6 +680,21 @@ export const generateReport = async (req: Request, res: Response) => {
         .lean();
     }
 
+    let confinementRecord: any;
+    let monitoringEntries: any[] | undefined;
+    if (rType === 'confinement') {
+      if (!report.confinementRecordId) {
+        return res.status(400).json({ status: 'ERROR', message: 'This report has no linked confinement stay.' });
+      }
+      confinementRecord = await ConfinementRecord.findById(report.confinementRecordId).lean();
+      if (!confinementRecord) {
+        return res.status(404).json({ status: 'ERROR', message: 'Linked confinement record no longer exists.' });
+      }
+      monitoringEntries = await ConfinementMonitoringEntry.find({ confinementRecordId: report.confinementRecordId })
+        .sort({ recordedAt: 1 })
+        .lean();
+    }
+
     const sections = await generateReportSections({
       reportType: rType,
       pet,
@@ -625,6 +703,8 @@ export const generateReport = async (req: Request, res: Response) => {
       vetContextNotes: contextNotes,
       persistentNotes,
       vaccinations,
+      confinementRecord,
+      monitoringEntries,
     });
 
     report.sections = sections;

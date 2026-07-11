@@ -9,7 +9,8 @@ export type ReportType =
   | 'surgery'
   | 'healthCertificate'
   | 'dischargeSummary'
-  | 'referralLetter';
+  | 'referralLetter'
+  | 'confinement';
 
 export interface ReportTypeConfig {
   value: ReportType;
@@ -52,6 +53,11 @@ export const REPORT_TYPE_CONFIG: ReportTypeConfig[] = [
     value: 'referralLetter',
     label: 'Referral Letter',
     description: 'Professional letter summarizing history, findings, and consultation request for a specialist.',
+  },
+  {
+    value: 'confinement',
+    label: 'Confinement Report',
+    description: 'Admission summary, day-by-day monitoring log, treatments given, and current status for an inpatient stay.',
   },
 ];
 
@@ -105,6 +111,13 @@ export const SECTION_LABELS_BY_TYPE: Record<ReportType, Record<string, string>> 
     treatmentsToDate: 'IV. Treatments to Date',
     referralRequest: 'V. Specialist Consultation Request',
   },
+  confinement: {
+    admissionSummary: 'I. Admission Summary',
+    monitoringTimeline: 'II. Monitoring Timeline',
+    treatmentsGiven: 'III. Treatments Given',
+    currentStatus: 'IV. Current Status',
+    recommendations: 'V. Recommendations',
+  },
 };
 
 export const REPORT_TYPE_DOCUMENT_TITLES: Record<ReportType, string> = {
@@ -115,6 +128,7 @@ export const REPORT_TYPE_DOCUMENT_TITLES: Record<ReportType, string> = {
   healthCertificate: 'Veterinary Health Certificate',
   dischargeSummary: 'Discharge Summary',
   referralLetter: 'Veterinary Referral Letter',
+  confinement: 'Confinement Report',
 };
 
 export type VetReportSections = Record<string, string>;
@@ -206,6 +220,7 @@ export interface VetReport {
   };
   medicalRecordId?: string | null;
   medicalRecordIds?: (string | LinkedRecord)[];
+  confinementRecordId?: string | { _id: string; reason: string; notes?: string; admissionDate: string; dischargeDate?: string | null; status: 'admitted' | 'discharged' } | null;
   scope?: 'selected' | 'all';
   recordsSyncedAt?: string | null;
   newRecordCount?: number;
@@ -238,6 +253,8 @@ export interface CreateVetReportInput {
   reportType?: ReportType;
   medicalRecordId?: string;
   medicalRecordIds?: string[];
+  /** Required when reportType === 'confinement'; the report's record set is derived from this stay. */
+  confinementRecordId?: string;
   scope?: 'selected' | 'all';
   title?: string;
   reportDate?: string;

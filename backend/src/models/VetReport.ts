@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type ReportType = 'general' | 'soap' | 'diagnostic' | 'surgery' | 'healthCertificate' | 'dischargeSummary' | 'referralLetter';
+export type ReportType = 'general' | 'soap' | 'diagnostic' | 'surgery' | 'healthCertificate' | 'dischargeSummary' | 'referralLetter' | 'confinement';
 
 export interface IOwnerSummary {
   whatWeFound: string;
@@ -17,6 +17,8 @@ export interface IVetReport extends Document {
   medicalRecordId?: mongoose.Types.ObjectId;
   /** All medical records this report consolidates, in no guaranteed order. */
   medicalRecordIds: mongoose.Types.ObjectId[];
+  /** Only set when reportType === 'confinement'. medicalRecordIds is derived from this stay. */
+  confinementRecordId?: mongoose.Types.ObjectId | null;
   /** 'all' = report covers every completed record for the pet; 'selected' = vet hand-picked records. */
   scope: 'selected' | 'all';
   /** When the record set was last resolved — used to detect new records since. */
@@ -58,11 +60,12 @@ const VetReportSchema = new Schema<IVetReport>(
     petId: { type: Schema.Types.ObjectId, ref: 'Pet', required: true, index: true },
     medicalRecordId: { type: Schema.Types.ObjectId, ref: 'MedicalRecord', default: null },
     medicalRecordIds: { type: [Schema.Types.ObjectId], ref: 'MedicalRecord', default: [] },
+    confinementRecordId: { type: Schema.Types.ObjectId, ref: 'ConfinementRecord', default: null },
     scope: { type: String, enum: ['selected', 'all'], default: 'selected' },
     recordsSyncedAt: { type: Date, default: null },
     reportType: {
       type: String,
-      enum: ['general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter'],
+      enum: ['general', 'soap', 'diagnostic', 'surgery', 'healthCertificate', 'dischargeSummary', 'referralLetter', 'confinement'],
       default: 'general',
     },
     vetId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },

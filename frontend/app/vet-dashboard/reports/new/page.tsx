@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { getVetMedicalRecords, isRecordReportReady, type MedicalRecord } from '@/lib/medicalRecords'
 import { DateRangePicker } from '@/components/DateRangePicker'
+import { authenticatedFetch } from '@/lib/auth'
 import {
   createVetReport,
   listVetReports,
@@ -31,8 +32,19 @@ import {
   Home,
   Mail,
   ChevronRight,
+  Stethoscope,
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface ConfinementStay {
+  _id: string
+  petId: { _id: string; name: string; species?: string; breed?: string; photo?: string }
+  reason: string
+  notes?: string
+  admissionDate: string
+  dischargeDate?: string | null
+  status: 'admitted' | 'discharged'
+}
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -46,10 +58,11 @@ const REPORT_TYPE_ICONS: Record<ReportType, React.ReactNode> = {
   healthCertificate: <Shield className="w-5 h-5" />,
   dischargeSummary: <Home className="w-5 h-5" />,
   referralLetter: <Mail className="w-5 h-5" />,
+  confinement: <Stethoscope className="w-5 h-5" />,
 }
 
 /** These types stand alone; they cannot be combined with any other type. */
-const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter']
+const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter', 'confinement']
 
 /** Step 1 groups: clinical reports vs. standalone documents (certificates & letters). */
 const TYPE_CATEGORIES: { label: string; description: string; types: ReportType[] }[] = [
@@ -59,6 +72,11 @@ const TYPE_CATEGORIES: { label: string; description: string; types: ReportType[]
     types: ['general', 'soap', 'diagnostic', 'surgery', 'dischargeSummary'],
   },
   {
+    label: 'Confinement',
+    description: 'Documents a single inpatient stay: admission, monitoring log, and current status. Selected on its own.',
+    types: ['confinement'],
+  },
+  {
     label: 'Certificates & Letters',
     description: 'Standalone documents. Created on their own and cannot be combined with report types.',
     types: ['healthCertificate', 'referralLetter'],
@@ -66,7 +84,7 @@ const TYPE_CATEGORIES: { label: string; description: string; types: ReportType[]
 ]
 
 /** Update-with-new-visits is not available for these types yet (backend rejects sync). */
-const SYNC_DISABLED_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary']
+const SYNC_DISABLED_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary', 'confinement']
 
 interface PetGroup {
   petId: string
@@ -122,8 +140,16 @@ function NewReportContent() {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
 
+  // Confinement flow: a report is scoped to one stay, not a free record selection
+  const [confinementStays, setConfinementStays] = useState<ConfinementStay[]>([])
+  const [confinementLoading, setConfinementLoading] = useState(false)
+  const [confinementSearch, setConfinementSearch] = useState('')
+  const [selectedConfinementId, setSelectedConfinementId] = useState<string | null>(null)
+  const [usedConfinementIds, setUsedConfinementIds] = useState<Set<string>>(new Set())
+
   const typeList = useMemo(() => [...selectedTypes], [selectedTypes])
   const syncDisabled = typeList.some((t) => SYNC_DISABLED_TYPES.includes(t))
+  const isConfinementOnly = typeList.length === 1 && typeList[0] === 'confinement'
 
   useEffect(() => {
     const load = async () => {
@@ -163,6 +189,37 @@ function NewReportContent() {
     }
     load()
   }, [token])
+
+  // Fetch confinement stays + which ones already have a confinement report, once, when
+  // the vet enters the confinement-only flow.
+  useEffect(() => {
+    if (!isConfinementOnly || confinementStays.length > 0 || confinementLoading) return
+    const load = async () => {
+      setConfinementLoading(true)
+      try {
+        const [staysRes, reportsRes] = await Promise.all([
+          authenticatedFetch('/confinement', { method: 'GET' }, token || undefined),
+          listVetReports({ limit: 200, types: ['confinement'] }, token || undefined),
+        ])
+        if (staysRes?.status === 'SUCCESS') {
+          setConfinementStays(staysRes.data?.records ?? [])
+        } else {
+          toast.error('Failed to load confinement stays')
+        }
+        const used = new Set<string>()
+        for (const r of reportsRes.data) {
+          const cid = r.confinementRecordId
+          if (cid) used.add(typeof cid === 'object' ? cid._id : String(cid))
+        }
+        setUsedConfinementIds(used)
+      } catch {
+        toast.error('Failed to load confinement stays')
+      } finally {
+        setConfinementLoading(false)
+      }
+    }
+    load()
+  }, [isConfinementOnly, confinementStays.length, confinementLoading, token])
 
   const toggleType = (type: ReportType) => {
     setSelectedTypes((prev) => {
@@ -317,6 +374,32 @@ function NewReportContent() {
       : null
 
   const handleCreate = async () => {
+    if (isConfinementOnly) {
+      const stay = confinementStays.find((s) => s._id === selectedConfinementId)
+      if (!stay) {
+        toast.error('Select a confinement stay')
+        return
+      }
+      setCreating(true)
+      try {
+        const reportTitle = title.trim() || `Confinement Report: ${stay.petId.name} (${fmtDate(stay.admissionDate)})`
+        const report = await createVetReport(
+          { petId: stay.petId._id, reportType: 'confinement', confinementRecordId: stay._id, title: reportTitle },
+          token || undefined
+        )
+        router.push(`/vet-dashboard/reports/${report._id}`)
+      } catch (e: any) {
+        if (e instanceof DuplicateReportError) {
+          toast.info('A confinement report already exists for this stay')
+          router.push(`/vet-dashboard/reports/${e.existingReportId}`)
+        } else {
+          toast.error(e.message || 'Failed to create report')
+          setCreating(false)
+        }
+      }
+      return
+    }
+
     if (!selectedPet || typeList.length === 0) {
       toast.error('Select a patient and at least one report type')
       return
@@ -546,84 +629,168 @@ function NewReportContent() {
               )}
             </div>
 
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Select Patient <span className="text-gray-400 font-normal">(required)</span>
-            </label>
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by patient name…"
-                value={petSearch}
-                onChange={(e) => setPetSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-              />
-            </div>
+            {isConfinementOnly ? (
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Select Confinement Stay <span className="text-gray-400 font-normal">(required)</span>
+                </label>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by patient name…"
+                    value={confinementSearch}
+                    onChange={(e) => setConfinementSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
 
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-[#476B6B]" />
-              </div>
-            ) : (
-              <div className="max-h-64 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-5">
-                {filteredPets.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-8">
-                    {petSearch
-                      ? 'No patients match your search'
-                      : 'No patients with records eligible for the selected report types'}
-                  </p>
+                {confinementLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#476B6B]" />
+                  </div>
                 ) : (
-                  filteredPets.map((g) => {
-                    const isSelected = selectedPetId === g.petId
-                    const eligibleCount = g.records.filter((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
-                    const pendingCount = g.records.filter((r) => !isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
-                    return (
-                      <button
-                        key={g.petId}
-                        onClick={() => selectPet(g.petId)}
-                        className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
-                          isSelected
-                            ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
-                            : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <PawPrint className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm text-gray-900 truncate">{g.name}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {g.species === 'canine' ? 'Canine' : 'Feline'} / {g.breed}
-                            </p>
-                          </div>
-                          <span className="text-xs text-gray-400 flex-shrink-0 text-right">
-                            {eligibleCount} visit{eligibleCount !== 1 ? 's' : ''}
-                            {pendingCount > 0 && (
-                              <span className="block text-[10px] text-amber-600">{pendingCount} pending docs</span>
-                            )}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })
+                  <div className="max-h-72 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-5">
+                    {confinementStays
+                      .filter((s) => !confinementSearch.trim() || s.petId?.name?.toLowerCase().includes(confinementSearch.toLowerCase()))
+                      .map((s) => {
+                        const isSelected = selectedConfinementId === s._id
+                        const alreadyReported = usedConfinementIds.has(s._id)
+                        return (
+                          <button
+                            key={s._id}
+                            onClick={() => setSelectedConfinementId(s._id)}
+                            className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
+                              isSelected
+                                ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                                : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Stethoscope className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm text-gray-900 truncate">
+                                  {s.petId?.name ?? 'Unknown pet'} — {s.reason}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Admitted {fmtDate(s.admissionDate)}
+                                  {s.status === 'discharged' && s.dischargeDate ? ` · Discharged ${fmtDate(s.dischargeDate)}` : ' · Currently confined'}
+                                </p>
+                                {alreadyReported && (
+                                  <p className="text-[10px] text-amber-600 mt-1">A confinement report already exists for this stay</p>
+                                )}
+                              </div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${s.status === 'discharged' ? 'bg-gray-100 text-gray-500' : 'bg-[#f0f7f7] text-[#476B6B]'}`}>
+                                {s.status === 'discharged' ? 'Discharged' : 'Admitted'}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    {confinementStays.length === 0 && (
+                      <p className="text-center text-sm text-gray-400 py-8">No confinement stays found</p>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                disabled={!canProceedStep2}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Next: Select Records <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleCreate}
+                    disabled={!selectedConfinementId || creating}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {creating ? (<><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>) : 'Create Report & Open'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Select Patient <span className="text-gray-400 font-normal">(required)</span>
+                </label>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by patient name…"
+                    value={petSearch}
+                    onChange={(e) => setPetSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                  />
+                </div>
+
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#476B6B]" />
+                  </div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-5">
+                    {filteredPets.length === 0 ? (
+                      <p className="text-center text-sm text-gray-400 py-8">
+                        {petSearch
+                          ? 'No patients match your search'
+                          : 'No patients with records eligible for the selected report types'}
+                      </p>
+                    ) : (
+                      filteredPets.map((g) => {
+                        const isSelected = selectedPetId === g.petId
+                        const eligibleCount = g.records.filter((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
+                        const pendingCount = g.records.filter((r) => !isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
+                        return (
+                          <button
+                            key={g.petId}
+                            onClick={() => selectPet(g.petId)}
+                            className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
+                              isSelected
+                                ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                                : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <PawPrint className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm text-gray-900 truncate">{g.name}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {g.species === 'canine' ? 'Canine' : 'Feline'} / {g.breed}
+                                </p>
+                              </div>
+                              <span className="text-xs text-gray-400 flex-shrink-0 text-right">
+                                {eligibleCount} visit{eligibleCount !== 1 ? 's' : ''}
+                                {pendingCount > 0 && (
+                                  <span className="block text-[10px] text-amber-600">{pendingCount} pending docs</span>
+                                )}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setStep(3)}
+                    disabled={!canProceedStep2}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next: Select Records <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

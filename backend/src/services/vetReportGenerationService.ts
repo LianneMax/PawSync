@@ -720,6 +720,76 @@ Write a formal, professional Veterinary Referral Letter. Address it generically 
 }`;
 }
 
+function formatMonitoringEntryBlock(entry: any, index: number): string {
+  const when = entry.recordedAt
+    ? new Date(entry.recordedAt).toLocaleString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : 'Unknown time';
+  const metric = (m: any) => (m?.value !== undefined && m?.value !== null ? `${m.value} ${m.unit || ''}`.trim() : 'N/A');
+  return `LOG ${index + 1} — ${when} (${entry.entryType === 'daily' ? 'Daily check' : 'Spot check'}, flag: ${entry.clinicalFlag || 'normal'})
+  Temperature: ${metric(entry.temperature)} | Heart Rate: ${metric(entry.heartRate)} | Respiratory Rate: ${metric(entry.respiratoryRate)}
+  Weight: ${metric(entry.weight)} | SpO2: ${metric(entry.spo2)} | Blood Glucose: ${metric(entry.bloodGlucose)}
+  Body Condition Score: ${metric(entry.bodyConditionScore)} | Pain Score: ${entry.painScore ?? 'N/A'}
+  Hydration: ${entry.hydrationStatus || '(not noted)'} | Appetite: ${entry.appetite || '(not noted)'}
+  Clinical Notes: ${entry.clinicalNotes || '(none)'}
+  Follow-up Action: ${entry.followUpAction || 'watch'}${entry.followUpInHours ? ` (recheck in ${entry.followUpInHours}h)` : ''}${entry.requiresImmediateReview ? ' — FLAGGED FOR IMMEDIATE REVIEW' : ''}`;
+}
+
+function buildConfinementPrompt(
+  pet: any,
+  confinementRecord: any,
+  monitoringEntries: any[],
+  records: any[],
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string
+): string {
+  const admissionDate = confinementRecord.admissionDate
+    ? new Date(confinementRecord.admissionDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+  const dischargeDate = confinementRecord.dischargeDate
+    ? new Date(confinementRecord.dischargeDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
+
+  const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
+  const detailedRecords = records.slice(overflow);
+  const recordBlocks = detailedRecords.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
+
+  const logBlocks = monitoringEntries.map((e, i) => formatMonitoringEntryBlock(e, i)).join('\n\n');
+
+  return `You are a veterinary confinement report writer. Generate a Confinement Report documenting the patient's admission, day-by-day monitoring, and current status during this inpatient stay.
+
+${patientBlock(pet)}
+
+ATTENDING VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+REASON FOR CONFINEMENT: ${confinementRecord.reason || 'Not specified'}
+ADMISSION DATE: ${admissionDate}
+STATUS: ${confinementRecord.status === 'discharged' ? `Discharged on ${dischargeDate}` : 'Currently confined'}
+ADMISSION NOTES: ${confinementRecord.notes || '(none)'}
+
+VISITS / TREATMENTS DURING THIS STAY:
+${recordBlocks || '  (no linked medical records)'}
+
+MONITORING LOG (chronological, ${monitoringEntries.length} entr${monitoringEntries.length === 1 ? 'y' : 'ies'}):
+${logBlocks || '  (no monitoring entries recorded)'}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Generate the confinement report in the following JSON format. Reference specific log dates/times where relevant so the timeline is traceable. Use clinical language. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
+
+{
+  "admissionSummary": "Why the patient was admitted, presenting condition, and initial findings at admission. Include the admitting diagnosis or working problem list.",
+  "monitoringTimeline": "A chronological narrative of the monitoring log: how vitals and clinical condition trended over the stay, notable abnormal or critical entries with their dates, and how the team responded to each flagged finding.",
+  "treatmentsGiven": "All treatments, medications, procedures, and supportive care administered during the stay, drawn from the linked visit records, in chronological order.",
+  "currentStatus": "The patient's condition as of the most recent monitoring entry (or at discharge if discharged): stable, improving, critical, or resolved, with supporting vitals/observations.",
+  "recommendations": "Next steps: continued monitoring needs, discharge readiness or discharge instructions, follow-up care, and any warning signs to watch for going forward."
+}`;
+}
+
 function buildHumanizePrompt(sections: any, petName: string, petType: string): string {
   const sectionTexts = Object.entries(sections)
     .filter(([, v]) => typeof v === 'string' && (v as string).trim())
@@ -753,6 +823,10 @@ export interface GenerateReportParams {
   vetContextNotes: string;
   persistentNotes: string;
   vaccinations?: any[];
+  /** Required when reportType === 'confinement'. */
+  confinementRecord?: any;
+  /** Required when reportType === 'confinement'; chronological monitoring log entries. */
+  monitoringEntries?: any[];
 }
 
 /** Builds the type-specific prompt, calls the model, and returns a flat string-only sections map. */
@@ -762,10 +836,16 @@ export async function generateReportSections(params: GenerateReportParams): Prom
     throw new Error('AI service not configured');
   }
 
-  const { reportType, pet, vet, records, vetContextNotes, persistentNotes, vaccinations } = params;
+  const { reportType, pet, vet, records, vetContextNotes, persistentNotes, vaccinations, confinementRecord, monitoringEntries } = params;
 
   let prompt: string;
   switch (reportType) {
+    case 'confinement':
+      if (!confinementRecord) {
+        throw new Error('confinementRecord is required to generate a confinement report');
+      }
+      prompt = buildConfinementPrompt(pet, confinementRecord, monitoringEntries || [], records, vet, vetContextNotes, persistentNotes);
+      break;
     case 'soap':
       prompt = buildSoapPrompt(pet, records, vet, vetContextNotes, persistentNotes);
       break;
