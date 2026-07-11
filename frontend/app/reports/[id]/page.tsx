@@ -726,6 +726,31 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
                 </div>
               </div>
 
+              {/* Addenda — corrections added after the report was finalized/shared. The
+                  original content above is never edited in place; see AddendumSection. */}
+              {report.addenda && report.addenda.length > 0 && (
+                <div>
+                  <hr className="border-gray-100 mb-6" />
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-[#5A7C7A]" />
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Addenda</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {report.addenda.map((a) => {
+                      const author = typeof a.addedBy === 'object' ? a.addedBy : null
+                      return (
+                        <div key={a._id} className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                          <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{a.text}</p>
+                          <p className="text-xs text-amber-700 mt-2">
+                            Added {formatReportDate(a.addedAt)}{author ? ` by Dr. ${author.firstName} ${author.lastName}` : ''}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Disclaimer */}
               <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
                 {report.isAIGenerated && (

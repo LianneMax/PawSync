@@ -11,6 +11,19 @@ export interface IOwnerSummary {
   whatToExpect: string;
 }
 
+/**
+ * Append-only correction attached after finalization. Finalized/shared reports are
+ * immutable snapshots (medico-legal record + owner signature guarantee), so a later
+ * data fix (e.g. a medical record corrected post-share) is recorded here rather than
+ * mutating `sections`.
+ */
+export interface IReportAddendum {
+  _id: mongoose.Types.ObjectId;
+  text: string;
+  addedBy: mongoose.Types.ObjectId;
+  addedAt: Date;
+}
+
 export interface IVetReport extends Document {
   petId: mongoose.Types.ObjectId;
   /** Legacy single-record link. New reports use medicalRecordIds; kept for backward compat. */
@@ -39,6 +52,7 @@ export interface IVetReport extends Document {
   sharedWithOwner: boolean;
   sharedAt?: Date;
   vetSignature?: { url: string | null; signedAt: Date | null };
+  addenda: IReportAddendum[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +67,15 @@ const OwnerSummarySchema = new Schema<IOwnerSummary>(
     whatToExpect: { type: String, default: '' },
   },
   { _id: false }
+);
+
+const ReportAddendumSchema = new Schema<IReportAddendum>(
+  {
+    text: { type: String, required: true },
+    addedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    addedAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
 );
 
 const VetReportSchema = new Schema<IVetReport>(
@@ -84,6 +107,7 @@ const VetReportSchema = new Schema<IVetReport>(
       url: { type: String, default: null },
       signedAt: { type: Date, default: null },
     },
+    addenda: { type: [ReportAddendumSchema], default: [] },
   },
   { timestamps: true }
 );

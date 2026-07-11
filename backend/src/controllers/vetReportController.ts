@@ -344,6 +344,7 @@ export const getReport = async (req: Request, res: Response) => {
       .populate('medicalRecordId')
       .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
       .populate('confinementRecordId', 'reason notes admissionDate dischargeDate status')
+      .populate('addenda.addedBy', 'firstName lastName')
       .lean();
 
     if (!report) {
@@ -372,6 +373,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
       .populate('confinementRecordId', 'reason notes admissionDate dischargeDate status')
+      .populate('addenda.addedBy', 'firstName lastName')
       .lean();
 
     if (!report) {
@@ -735,6 +737,69 @@ export const generateReport = async (req: Request, res: Response) => {
       });
     }
 
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+// ─── ADDENDUM ─────────────────────────────────────────────────────────────────
+
+/**
+ * POST /vet-reports/:id/addenda
+ * Finalized reports are frozen snapshots — a data fix discovered later (e.g. a medical
+ * record corrected after the report was shared and signed) is appended as an addendum
+ * instead of mutating the original content, so the shared/signed document never changes
+ * retroactively. Only allowed once the report is finalized; unfinalized drafts should be
+ * edited directly.
+ */
+export const addReportAddendum = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+    const user = req.user!;
+
+    if (typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Addendum text is required.' });
+    }
+
+    const report = await VetReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    if (report.status !== 'finalized') {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Addenda can only be added to finalized reports. Edit the report directly instead.',
+      });
+    }
+
+    report.addenda.push({ text: text.trim(), addedBy: user.userId, addedAt: new Date() } as any);
+    await report.save();
+
+    const populated = await VetReport.findById(id).populate('addenda.addedBy', 'firstName lastName').lean();
+
+    if (report.sharedWithOwner) {
+      try {
+        const pet = await Pet.findById(report.petId).lean() as any;
+        const vet = await User.findById(report.vetId).select('firstName lastName').lean() as any;
+        const owner = pet?.ownerId ? await User.findById(pet.ownerId).select('_id').lean() as any : null;
+
+        if (owner?._id) {
+          await createNotification(
+            owner._id.toString(),
+            'medical_record_shared',
+            'Report Updated with an Addendum',
+            `Dr. ${vet ? `${vet.firstName} ${vet.lastName}` : 'your veterinarian'} added a correction to a diagnostic report for ${pet?.name || 'your pet'}.`,
+            { vetReportId: id },
+          );
+        }
+      } catch (notifyErr) {
+        console.error('[VetReport] Addendum notification failed:', notifyErr);
+      }
+    }
+
+    res.status(201).json({ status: 'OK', data: populated });
+  } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
 };

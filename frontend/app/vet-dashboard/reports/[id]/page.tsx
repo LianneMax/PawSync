@@ -12,6 +12,7 @@ import {
   shareVetReport,
   syncVetReportRecords,
   deleteVetReport,
+  addVetReportAddendum,
   formatReportDate,
   getSectionKeys,
   getSectionLabels,
@@ -66,6 +67,7 @@ import {
   ChevronDown,
   ChevronUp,
   StickyNote,
+  MessageSquarePlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPetNotes, savePetNotes } from '@/lib/petNotes'
@@ -886,6 +888,29 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               </div>
             </div>
 
+            {report.addenda && report.addenda.length > 0 && (
+              <div>
+                <hr className="border-gray-100 mb-6" />
+                <div className="flex items-center gap-2 mb-3">
+                  <MessageSquarePlus className="w-4 h-4 text-[#5A7C7A]" />
+                  <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Addenda</h3>
+                </div>
+                <div className="space-y-3">
+                  {report.addenda.map((a) => {
+                    const author = typeof a.addedBy === 'object' ? a.addedBy : null
+                    return (
+                      <div key={a._id} className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <p className="text-sm text-[#4F4F4F] whitespace-pre-wrap leading-relaxed">{a.text}</p>
+                        <p className="text-xs text-amber-700 mt-2">
+                          Added {formatReportDate(a.addedAt)}{author ? ` by Dr. ${author.firstName} ${author.lastName}` : ''}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
               {report.isAIGenerated && (
                 <>This report was drafted with AI assistance and has been reviewed, edited, and approved in full by Dr. {vet.firstName} {vet.lastName}. </>
@@ -1237,6 +1262,8 @@ export default function ReportEditorPage() {
   const [sharing, setSharing] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [addendumText, setAddendumText] = useState('')
+  const [addingAddendum, setAddingAddendum] = useState(false)
 
   const [title, setTitle] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
@@ -1501,6 +1528,24 @@ export default function ReportEditorPage() {
   const copyShareLink = () => {
     const url = `${window.location.origin}/reports/${id}`
     navigator.clipboard.writeText(url).then(() => toast.success('Link copied!'))
+  }
+
+  // Finalized reports are frozen snapshots (see the locked banner above) — a correction
+  // discovered after the fact (e.g. a linked medical record edited post-share) is appended
+  // here instead of touching the original content, so the signed/shared version never changes.
+  const handleAddAddendum = async () => {
+    if (!addendumText.trim()) return
+    setAddingAddendum(true)
+    try {
+      const updated = await addVetReportAddendum(id, addendumText.trim(), token || undefined)
+      applyUpdate(updated)
+      setAddendumText('')
+      toast.success('Addendum added')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to add addendum')
+    } finally {
+      setAddingAddendum(false)
+    }
   }
 
   const rType = (report?.reportType ?? 'general') as ReportType
@@ -1798,6 +1843,51 @@ export default function ReportEditorPage() {
                   {report.sharedWithOwner
                     ? 'This report has been shared with the owner and is permanently locked.'
                     : 'This report is finalized and locked. Revert it to draft to make changes.'}
+                </div>
+              )}
+
+              {isFinalized && (
+                <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageSquarePlus className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-semibold text-amber-800">Addenda</span>
+                  </div>
+                  <p className="text-xs text-amber-700 mb-3">
+                    Found something that changed since this report was finalized (e.g. a corrected
+                    medical record)? Add a dated note below — it&apos;s appended to the report and
+                    visible to the owner, without altering the original signed content.
+                  </p>
+                  {report.addenda && report.addenda.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {report.addenda.map((a) => {
+                        const author = typeof a.addedBy === 'object' ? a.addedBy : null
+                        return (
+                          <div key={a._id} className="bg-white border border-amber-100 rounded-lg p-3">
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{a.text}</p>
+                            <p className="text-xs text-amber-600 mt-1.5">
+                              {formatReportDate(a.addedAt)}{author ? ` · Dr. ${author.firstName} ${author.lastName}` : ''}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <textarea
+                    value={addendumText}
+                    onChange={(e) => setAddendumText(e.target.value)}
+                    disabled={addingAddendum}
+                    rows={3}
+                    placeholder="e.g. Patient's weight has since been corrected to 8kg in the medical record; this report's preoperative weight of 7.5kg reflects the value at the time the surgery report was finalized."
+                    className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60"
+                  />
+                  <button
+                    onClick={handleAddAddendum}
+                    disabled={addingAddendum || !addendumText.trim()}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <MessageSquarePlus className="w-4 h-4" />
+                    {addingAddendum ? 'Adding…' : 'Add Addendum'}
+                  </button>
                 </div>
               )}
               {!hasContent && !generating && (

@@ -11,6 +11,7 @@ import {
   listSharedReportsForOwner,
   syncReportRecords,
   deleteReport,
+  addReportAddendum,
 } from '../controllers/vetReportController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -32,5 +33,6 @@ router.patch('/:id/share', authMiddleware, vetOrClinicAdminOnly, shareReport);
 router.post('/:id/generate', authMiddleware, vetOrClinicAdminOnly, generateReport);
 router.post('/:id/sync-records', authMiddleware, vetOrClinicAdminOnly, syncReportRecords);
 router.post('/:id/humanize', authMiddleware, vetOrClinicAdminOnly, humanizeReport);
+router.post('/:id/addenda', authMiddleware, vetOrClinicAdminOnly, addReportAddendum);
 
 export default router;

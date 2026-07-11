@@ -227,6 +227,13 @@ export interface VaccinationRecord {
   notes?: string;
 }
 
+export interface ReportAddendum {
+  _id: string;
+  text: string;
+  addedBy: { _id: string; firstName: string; lastName: string } | string;
+  addedAt: string;
+}
+
 export interface VetReport {
   _id: string;
   petId: {
@@ -269,6 +276,7 @@ export interface VetReport {
   sharedWithOwner: boolean;
   sharedAt?: string | null;
   vetSignature?: { url: string | null; signedAt: string | null } | null;
+  addenda: ReportAddendum[];
   vaccinations?: VaccinationRecord[];
   /** Only populated for reportType === 'confinement'; the stay's monitoring log, oldest first. */
   monitoringEntries?: MonitoringEntry[];
@@ -480,6 +488,24 @@ export async function shareVetReport(
     token
   );
   if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to update share status');
+  return json.data;
+}
+
+export async function addVetReportAddendum(
+  id: string,
+  text: string,
+  token?: string
+): Promise<VetReport> {
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/addenda`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to add addendum');
   return json.data;
 }
 
