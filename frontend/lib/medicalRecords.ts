@@ -298,6 +298,17 @@ export const createFollowUp = async (
 };
 
 /**
+ * A completed record is report-ready only when any emergency-deferred documentation
+ * (vitals/SOAP skipped during triage) has been backfilled. Mirrors the backend
+ * REPORT_READY_FILTER in vetReportController so the wizard and API agree.
+ */
+export const isRecordReportReady = (record: MedicalRecord): boolean => {
+  const ec = record.emergencyCase;
+  if (!ec?.isEmergency) return true;
+  return (ec.deferredFields?.length ?? 0) === 0 || !!ec.completedDeferredAt;
+};
+
+/**
  * Get all medical records created by the current vet,
  * or all records in the clinic for clinic-admins.
  */

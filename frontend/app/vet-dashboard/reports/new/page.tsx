@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
-import { getVetMedicalRecords, type MedicalRecord } from '@/lib/medicalRecords'
+import { getVetMedicalRecords, isRecordReportReady, type MedicalRecord } from '@/lib/medicalRecords'
 import {
   createVetReport,
   listVetReports,
@@ -198,10 +198,10 @@ function NewReportContent() {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
   }, [records])
 
-  // Pets that have at least one record eligible for every selected type
+  // Pets that have at least one report-ready record eligible for every selected type
   const eligiblePetGroups = useMemo(() => {
     if (typeList.length === 0) return petGroups
-    return petGroups.filter((g) => g.records.some((r) => isEligibleForAllTypes(r, typeList)))
+    return petGroups.filter((g) => g.records.some((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)))
   }, [petGroups, typeList])
 
   const filteredPets = eligiblePetGroups.filter((g) => {
@@ -211,15 +211,21 @@ function NewReportContent() {
 
   const selectedPet = petGroups.find((g) => g.petId === selectedPetId) ?? null
 
-  // Records eligible for every selected type + inside the optional date range
-  const eligibleRecords = useMemo(() => {
-    if (!selectedPet || typeList.length === 0) return []
-    return selectedPet.records.filter((r) => {
+  // Records eligible for every selected type + inside the optional date range.
+  // Emergency records with deferred documentation are split out: shown disabled
+  // with a hint instead of being selectable.
+  const { eligibleRecords, pendingDocRecords } = useMemo(() => {
+    if (!selectedPet || typeList.length === 0) return { eligibleRecords: [], pendingDocRecords: [] }
+    const inScope = selectedPet.records.filter((r) => {
       if (!isEligibleForAllTypes(r, typeList)) return false
       if (dateFrom && new Date(r.createdAt) < new Date(dateFrom)) return false
       if (dateTo && new Date(r.createdAt) > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
+    return {
+      eligibleRecords: inScope.filter((r) => isRecordReportReady(r)),
+      pendingDocRecords: inScope.filter((r) => !isRecordReportReady(r)),
+    }
   }, [selectedPet, typeList, dateFrom, dateTo])
 
   const selectPet = (petId: string) => {
@@ -237,7 +243,7 @@ function NewReportContent() {
       const next = new Set(
         [...prev].filter((rid) => {
           const r = selectedPet.records.find((rr) => rr._id === rid)
-          return !!r && isEligibleForAllTypes(r, typeList)
+          return !!r && isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)
         })
       )
       return next.size === prev.size ? prev : next
@@ -252,7 +258,9 @@ function NewReportContent() {
     if (!group) return
     prefillApplied.current = true
     setSelectedPetId(prefillPetId)
-    const rec = prefillRecordId ? group.records.find((r) => r._id === prefillRecordId) : null
+    const rec = prefillRecordId
+      ? group.records.find((r) => r._id === prefillRecordId && isRecordReportReady(r))
+      : null
     if (rec) {
       setSelectedRecordIds(new Set([rec._id]))
       setSelectedTypes((prev) => {
@@ -556,7 +564,7 @@ function NewReportContent() {
                 ) : (
                   filteredPets.map((g) => {
                     const isSelected = selectedPetId === g.petId
-                    const eligibleCount = g.records.filter((r) => isEligibleForAllTypes(r, typeList)).length
+                    const eligibleCount = g.records.filter((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
                     return (
                       <button
                         key={g.petId}
@@ -673,7 +681,7 @@ function NewReportContent() {
 
             {/* Record list */}
             <div className={`max-h-72 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-4 ${allMode ? 'opacity-60' : ''}`}>
-              {eligibleRecords.length === 0 ? (
+              {eligibleRecords.length === 0 && pendingDocRecords.length === 0 ? (
                 <p className="text-center text-sm text-gray-400 py-8">
                   {dateFrom || dateTo
                     ? 'No eligible records in this date range'
@@ -717,6 +725,29 @@ function NewReportContent() {
                   )
                 })
               )}
+              {/* Emergency visits with deferred documentation: visible but not selectable */}
+              {pendingDocRecords.map((r) => (
+                <div
+                  key={r._id}
+                  className="w-full text-left rounded-lg px-4 py-3 border border-amber-200 bg-amber-50/60 opacity-75 cursor-not-allowed"
+                >
+                  <div className="flex items-center gap-3">
+                    <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm text-gray-500 truncate">
+                        {r.chiefComplaint || 'Visit'}
+                      </p>
+                      <p className="text-[10px] text-amber-700 mt-0.5">
+                        Emergency visit with deferred documentation; complete the medical record to include it in reports
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                      <CalendarDays className="w-3 h-3" />
+                      {fmtDate(r.createdAt)}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {effectiveCount > 0 && (

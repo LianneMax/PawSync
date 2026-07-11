@@ -63,8 +63,20 @@ function resolveReportRecordIds(report: any): string[] {
   return ids;
 }
 
+// A completed record is "report-ready" only when any emergency-deferred documentation
+// (vitals/SOAP skipped during triage) has been backfilled. Keeps hollow emergency
+// records out of the report pipeline without touching the emergency flow itself.
+const REPORT_READY_FILTER = {
+  $or: [
+    { 'emergencyCase.isEmergency': { $ne: true } },
+    { 'emergencyCase.deferredFields': { $exists: false } },
+    { 'emergencyCase.deferredFields': { $size: 0 } },
+    { 'emergencyCase.completedDeferredAt': { $ne: null } },
+  ],
+};
+
 async function findCompletedRecordIdsForPet(petId: any): Promise<string[]> {
-  const records = await MedicalRecord.find({ petId, stage: 'completed' })
+  const records = await MedicalRecord.find({ petId, stage: 'completed', ...REPORT_READY_FILTER })
     .select('_id')
     .lean();
   return records.map((r: any) => r._id.toString());
@@ -76,6 +88,7 @@ async function countNewRecords(report: any): Promise<number> {
   return MedicalRecord.countDocuments({
     petId: typeof report.petId === 'object' && report.petId?._id ? report.petId._id : report.petId,
     stage: 'completed',
+    ...REPORT_READY_FILTER,
     _id: { $nin: includedIds },
     createdAt: { $gt: since },
   });
@@ -794,7 +807,7 @@ export const createReport = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'ERROR', message: 'Select at least one medical record for the report.' });
       }
       const unique = [...new Set(requested)];
-      const found = await MedicalRecord.find({ _id: { $in: unique }, petId, stage: 'completed' })
+      const found = await MedicalRecord.find({ _id: { $in: unique }, petId, stage: 'completed', ...REPORT_READY_FILTER })
         .select('_id')
         .lean();
       if (found.length !== unique.length) {
@@ -1016,9 +1029,15 @@ export const updateReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
+    // Finalized reports are locked medico-legal documents: no content edits and no
+    // reverting to draft. (Owner summary generation goes through /humanize instead.)
+    if (report.status === 'finalized') {
+      return res.status(400).json({ status: 'ERROR', message: 'This report is finalized and can no longer be edited.' });
+    }
+
     // Finalization gates: a report must have content and a signature before it can be
     // finalized — once finalized it can no longer be deleted, so validate up front.
-    if (status === 'finalized' && report.status !== 'finalized') {
+    if (status === 'finalized') {
       const mergedSections = sections
         ? { ...(report.sections as any), ...sections }
         : (report.sections as any);
@@ -1089,6 +1108,11 @@ export const syncReportRecords = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
+    // Finalized reports are locked: new visits go into a new report instead.
+    if (report.status === 'finalized') {
+      return res.status(400).json({ status: 'ERROR', message: 'This report is finalized and can no longer be updated with new visits. Create a new report instead.' });
+    }
+
     // Update-with-new-visits behavior for these types is still to be decided — disabled for now.
     if (SYNC_DISABLED_REPORT_TYPES.includes((report.reportType as ReportType) || 'general')) {
       return res.status(400).json({
@@ -1107,6 +1131,7 @@ export const syncReportRecords = async (req: Request, res: Response) => {
       const newRecords = await MedicalRecord.find({
         petId: report.petId,
         stage: 'completed',
+        ...REPORT_READY_FILTER,
         _id: { $nin: currentIds },
         createdAt: { $gt: since },
       })
@@ -1122,7 +1147,7 @@ export const syncReportRecords = async (req: Request, res: Response) => {
       }
       const unique = [...new Set(addRecordIds)].filter((rid) => !currentIds.includes(rid));
       if (unique.length > 0) {
-        const found = await MedicalRecord.find({ _id: { $in: unique }, petId: report.petId, stage: 'completed' })
+        const found = await MedicalRecord.find({ _id: { $in: unique }, petId: report.petId, stage: 'completed', ...REPORT_READY_FILTER })
           .select('_id')
           .lean();
         if (found.length !== unique.length) {
@@ -1140,7 +1165,6 @@ export const syncReportRecords = async (req: Request, res: Response) => {
     report.medicalRecordIds = nextIds as any;
     report.recordsSyncedAt = new Date();
     if (added.length > 0) {
-      if (report.status === 'finalized') report.status = 'draft';
       report.ownerSummary = null;
     }
     await report.save();
@@ -1249,6 +1273,11 @@ export const generateReport = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    // Finalized reports are locked: regenerating would overwrite the signed content.
+    if (report.status === 'finalized') {
+      return res.status(400).json({ status: 'ERROR', message: 'This report is finalized and can no longer be regenerated.' });
     }
 
     const pet = await Pet.findById(report.petId).lean();

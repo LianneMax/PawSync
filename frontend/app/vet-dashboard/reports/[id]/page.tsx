@@ -101,12 +101,14 @@ function ContextPrompt({
   onGenerate,
   generating,
   hasContent,
+  locked = false,
 }: {
   value: string
   onChange: (v: string) => void
   onGenerate: () => void
   generating: boolean
   hasContent: boolean
+  locked?: boolean
 }) {
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 80, maxHeight: 250 })
 
@@ -123,14 +125,14 @@ function ContextPrompt({
         ref={textareaRef}
         value={value}
         onChange={(e) => { onChange(e.target.value); adjustHeight() }}
-        disabled={generating}
+        disabled={generating || locked}
         placeholder="e.g. Focus on the cardiac findings. Patient is currently on enalapril…"
         className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-60"
         style={{ minHeight: 80 }}
       />
       <button
         onClick={onGenerate}
-        disabled={generating}
+        disabled={generating || locked}
         className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
         {generating ? (
@@ -140,6 +142,9 @@ function ContextPrompt({
         )}
         {generating ? 'Generating…' : hasContent ? 'Regenerate Report' : 'Generate Report'}
       </button>
+      {locked && (
+        <p className="text-xs text-indigo-400 mt-2 text-center">Finalized reports can no longer be regenerated</p>
+      )}
     </div>
   )
 }
@@ -1131,18 +1136,24 @@ export default function ReportEditorPage() {
     [id, token]
   )
 
+  // Finalized reports are locked: backend rejects edits, so don't even queue autosaves
+  const isFinalized = report?.status === 'finalized'
+
   const handleSectionChange = (key: string, value: string) => {
+    if (isFinalized) return
     const updated = { ...sections, [key]: value }
     setSections(updated)
     triggerAutoSave(updated, contextNotes, title)
   }
 
   const handleContextChange = (v: string) => {
+    if (isFinalized) return
     setContextNotes(v)
     triggerAutoSave(sections, v, title)
   }
 
   const handleTitleChange = (v: string) => {
+    if (isFinalized) return
     setTitle(v)
     triggerAutoSave(sections, contextNotes, v)
   }
@@ -1201,6 +1212,10 @@ export default function ReportEditorPage() {
   }
 
   const handleGenerate = async () => {
+    if (isFinalized) {
+      toast.error('This report is finalized and can no longer be regenerated.')
+      return
+    }
     setGenerating(true)
     try {
       await updateVetReport(id, { vetContextNotes: contextNotes }, token || undefined)
@@ -1356,7 +1371,7 @@ export default function ReportEditorPage() {
           </button>
 
           <div className="flex-1 min-w-0">
-            {editingTitle ? (
+            {editingTitle && !isFinalized ? (
               <div className="flex items-center gap-2">
                 <input
                   ref={titleInputRef}
@@ -1376,13 +1391,15 @@ export default function ReportEditorPage() {
               </div>
             ) : (
               <button
-                onClick={() => setEditingTitle(true)}
-                className="group flex items-center gap-2 text-left w-full"
+                onClick={() => { if (!isFinalized) setEditingTitle(true) }}
+                className={`group flex items-center gap-2 text-left w-full ${isFinalized ? 'cursor-default' : ''}`}
               >
                 <h1 className="text-lg font-bold text-gray-900 truncate">
                   {title || `Untitled Report: ${pet?.name}`}
                 </h1>
-                <Pencil className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                {!isFinalized && (
+                  <Pencil className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                )}
               </button>
             )}
           </div>
@@ -1419,9 +1436,11 @@ export default function ReportEditorPage() {
 
             <button
               onClick={() => setSignModalOpen(true)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              disabled={isFinalized}
+              title={isFinalized ? 'Finalized reports can no longer be re-signed' : undefined}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:cursor-not-allowed ${
                 report.vetSignature?.url
-                  ? 'bg-[#476B6B] text-white hover:bg-[#3a5a5a]'
+                  ? 'bg-[#476B6B] text-white hover:bg-[#3a5a5a] disabled:hover:bg-[#476B6B]'
                   : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -1494,8 +1513,8 @@ export default function ReportEditorPage() {
           )}
         </div>
 
-        {/* New-visit staleness banner — not for per-visit report types */}
-        {newRecordCount > 0 && !updating && !isPerVisitType && (
+        {/* New-visit staleness banner — not for per-visit types or locked finalized reports */}
+        {newRecordCount > 0 && !updating && !isPerVisitType && !isFinalized && (
           <div className="flex items-center gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
             <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
             <span className="flex-1">
@@ -1522,6 +1541,7 @@ export default function ReportEditorPage() {
                 onGenerate={handleGenerate}
                 generating={generating}
                 hasContent={hasContent}
+                locked={isFinalized}
               />
 
               {generating && (
@@ -1564,6 +1584,12 @@ export default function ReportEditorPage() {
 
             {/* Right: editable sections */}
             <div className="lg:col-span-2">
+              {isFinalized && (
+                <div className="mb-6 p-4 bg-[#f0f7f7] border border-[#DCEAE3] rounded-xl text-sm text-[#476B6B] flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  This report is finalized. Content is locked and can no longer be edited.
+                </div>
+              )}
               {!hasContent && !generating && (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
                   Click <strong>Generate Report</strong> to auto-fill all sections, or start writing manually below.
@@ -1576,7 +1602,7 @@ export default function ReportEditorPage() {
                   label={activeSectionLabels[key]}
                   value={typeof sections[key] === 'string' ? sections[key] : ''}
                   onChange={(v) => handleSectionChange(key, v)}
-                  disabled={generating}
+                  disabled={generating || isFinalized}
                 />
               ))}
             </div>
@@ -1662,7 +1688,6 @@ export default function ReportEditorPage() {
             </p>
             <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
               <li>Manual edits to sections will be overwritten by the regenerated content.</li>
-              {report.status === 'finalized' && <li>The report will revert to draft and must be finalized again.</li>}
               {ownerSummary && <li>The owner summary will be cleared and must be regenerated.</li>}
               {report.sharedWithOwner && <li>The report stays shared; the owner will see the updated content.</li>}
             </ul>
