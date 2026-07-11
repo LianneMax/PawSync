@@ -259,6 +259,23 @@ html {
   animation: slide-down 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+/* ── Collapsible <details> sections (e.g. report addenda) ── */
+.details-chevron {
+  transition: transform 0.15s ease;
+}
+
+details[open] > summary .details-chevron {
+  transform: rotate(180deg);
+}
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -338,6 +355,11 @@ html {
 
   .report-no-print {
     display: none !important;
+  }
+
+  /* Addenda must appear in the printed/exported document even if collapsed on screen */
+  .report-addenda-details:not([open]) > :not(summary) {
+    display: block !important;
   }
 }
 

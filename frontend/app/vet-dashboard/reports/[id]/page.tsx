@@ -889,12 +889,17 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
             </div>
 
             {report.addenda && report.addenda.length > 0 && (
-              <div>
-                <hr className="border-gray-100 mb-6" />
-                <div className="flex items-center gap-2 mb-3">
-                  <MessageSquarePlus className="w-4 h-4 text-[#5A7C7A]" />
-                  <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Addenda</h3>
-                </div>
+              <details className="report-addenda-details" open>
+                <summary className="cursor-pointer">
+                  <hr className="border-gray-100 mb-6" />
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquarePlus className="w-4 h-4 text-[#5A7C7A]" />
+                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">
+                      Addenda ({report.addenda.length})
+                    </h3>
+                    <ChevronDown className="details-chevron w-4 h-4 text-gray-400 ml-auto" />
+                  </div>
+                </summary>
                 <div className="space-y-3">
                   {report.addenda.map((a) => {
                     const author = typeof a.addedBy === 'object' ? a.addedBy : null
@@ -908,7 +913,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                     )
                   })}
                 </div>
-              </div>
+              </details>
             )}
 
             <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
@@ -1847,11 +1852,14 @@ export default function ReportEditorPage() {
               )}
 
               {isFinalized && (
-                <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                <details className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4" open>
+                  <summary className="cursor-pointer flex items-center gap-2 mb-2">
                     <MessageSquarePlus className="w-4 h-4 text-amber-600" />
-                    <span className="text-sm font-semibold text-amber-800">Addenda</span>
-                  </div>
+                    <span className="text-sm font-semibold text-amber-800">
+                      Addenda{report.addenda?.length ? ` (${report.addenda.length})` : ''}
+                    </span>
+                    <ChevronDown className="details-chevron w-4 h-4 text-amber-500 ml-auto" />
+                  </summary>
                   <p className="text-xs text-amber-700 mb-3">
                     Found something that changed since this report was finalized (e.g. a corrected
                     medical record)? Add a dated note below — it&apos;s appended to the report and
@@ -1888,7 +1896,7 @@ export default function ReportEditorPage() {
                     <MessageSquarePlus className="w-4 h-4" />
                     {addingAddendum ? 'Adding…' : 'Add Addendum'}
                   </button>
-                </div>
+                </details>
               )}
               {!hasContent && !generating && (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">

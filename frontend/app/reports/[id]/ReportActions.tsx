@@ -14,6 +14,10 @@ export function ReportActions({ targetId, filename }: { targetId: string; filena
     const hidden = Array.from(document.querySelectorAll<HTMLElement>('.report-no-print'))
     const prevDisplay = hidden.map((el) => el.style.display)
     hidden.forEach((el) => { el.style.display = 'none' })
+    // html2canvas snapshots the on-screen DOM, not print media — force any collapsed
+    // addenda open so corrections aren't silently dropped from the exported PDF.
+    const collapsedAddenda = Array.from(document.querySelectorAll<HTMLDetailsElement>('.report-addenda-details:not([open])'))
+    collapsedAddenda.forEach((el) => { el.open = true })
     try {
       const html2pdf = (await import('html2pdf.js')).default
       await html2pdf()
@@ -31,6 +35,7 @@ export function ReportActions({ targetId, filename }: { targetId: string; filena
       window.alert('Unable to download the report PDF right now. Use Print instead.')
     } finally {
       hidden.forEach((el, i) => { el.style.display = prevDisplay[i] })
+      collapsedAddenda.forEach((el) => { el.open = false })
       setDownloading(false)
     }
   }

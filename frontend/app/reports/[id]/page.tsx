@@ -15,6 +15,7 @@ import {
   CalendarDays,
   Shield,
   Mail,
+  ChevronDown,
 } from 'lucide-react'
 import { ReportActions } from './ReportActions'
 import { formatReportDate, getSectionKeys, getSectionLabels, REPORT_TYPE_DOCUMENT_TITLES, getSharedReport } from '@/lib/vetReports'
@@ -727,14 +728,20 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
               </div>
 
               {/* Addenda — corrections added after the report was finalized/shared. The
-                  original content above is never edited in place; see AddendumSection. */}
+                  original content above is never edited in place; see AddendumSection.
+                  Native <details> so it collapses without client JS on this server page. */}
               {report.addenda && report.addenda.length > 0 && (
-                <div>
-                  <hr className="border-gray-100 mb-6" />
-                  <div className="flex items-center gap-2 mb-3">
-                    <FileText className="w-4 h-4 text-[#5A7C7A]" />
-                    <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">Addenda</h3>
-                  </div>
+                <details className="report-addenda-details" open>
+                  <summary className="cursor-pointer list-none">
+                    <hr className="border-gray-100 mb-6" />
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="w-4 h-4 text-[#5A7C7A]" />
+                      <h3 className="text-sm font-semibold text-[#4F4F4F] uppercase tracking-wide">
+                        Addenda ({report.addenda.length})
+                      </h3>
+                      <ChevronDown className="details-chevron w-4 h-4 text-gray-400 ml-auto" />
+                    </div>
+                  </summary>
                   <div className="space-y-3">
                     {report.addenda.map((a) => {
                       const author = typeof a.addedBy === 'object' ? a.addedBy : null
@@ -748,7 +755,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
                       )
                     })}
                   </div>
-                </div>
+                </details>
               )}
 
               {/* Disclaimer */}
