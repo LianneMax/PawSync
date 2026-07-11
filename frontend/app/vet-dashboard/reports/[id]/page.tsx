@@ -1075,6 +1075,9 @@ export default function ReportEditorPage() {
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false)
+  const [unfinalizeConfirmOpen, setUnfinalizeConfirmOpen] = useState(false)
+  const [shareConfirmOpen, setShareConfirmOpen] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -1253,18 +1256,43 @@ export default function ReportEditorPage() {
     }
   }
 
-  const handleShare = async () => {
+  // Sharing is one-way: confirm first, and never offer an unshare path
+  const requestShare = () => {
     if (!report) return
-    if (!report.sharedWithOwner && report.status !== 'finalized') {
+    if (report.sharedWithOwner) return
+    if (report.status !== 'finalized') {
       toast.error('Finalize the report before sharing it with the owner.')
       return
     }
+    setShareConfirmOpen(true)
+  }
+
+  const handleShare = async () => {
+    setShareConfirmOpen(false)
+    setSharing(true)
     try {
-      const updated = await shareVetReport(id, !report.sharedWithOwner, token || undefined)
+      const updated = await shareVetReport(id, true, token || undefined)
       applyUpdate(updated)
-      toast.success(updated.sharedWithOwner ? 'Report shared with owner' : 'Report unshared')
+      toast.success('Report shared with owner')
     } catch (e: any) {
-      toast.error(e.message || 'Failed to update share status')
+      toast.error(e.message || 'Failed to share report')
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  // Finalized reports can be reverted to draft only while still unshared
+  const handleUnfinalize = async () => {
+    setUnfinalizeConfirmOpen(false)
+    setSaving(true)
+    try {
+      const updated = await updateVetReport(id, { status: 'draft' }, token || undefined)
+      applyUpdate(updated)
+      toast.success('Report reverted to draft')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to revert report')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -1429,9 +1457,21 @@ export default function ReportEditorPage() {
                 <CheckCircle2 className="w-4 h-4" /> {saving ? 'Finalizing…' : 'Finalize'}
               </button>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm border border-emerald-200">
-                <CheckCircle2 className="w-4 h-4" /> Finalized
-              </span>
+              <>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm border border-emerald-200">
+                  <CheckCircle2 className="w-4 h-4" /> Finalized
+                </span>
+                {!report.sharedWithOwner && (
+                  <button
+                    onClick={() => setUnfinalizeConfirmOpen(true)}
+                    disabled={saving}
+                    title="Revert this report to draft so it can be edited"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Revert to Draft
+                  </button>
+                )}
+              </>
             )}
 
             <button
@@ -1448,19 +1488,24 @@ export default function ReportEditorPage() {
               {report.vetSignature?.url ? 'Signed' : 'Sign Report'}
             </button>
 
-            <button
-              onClick={handleShare}
-              disabled={!report.sharedWithOwner && report.status !== 'finalized'}
-              title={!report.sharedWithOwner && report.status !== 'finalized' ? 'Finalize the report before sharing' : undefined}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                report.sharedWithOwner
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Share2 className="w-4 h-4" />
-              {report.sharedWithOwner ? 'Shared' : 'Share'}
-            </button>
+            {report.sharedWithOwner ? (
+              <span
+                title="Shared with the owner; sharing cannot be undone"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-[#E8F2EE] text-[#35785C] border border-[#DCEAE3]"
+              >
+                <Share2 className="w-4 h-4" /> Shared
+              </span>
+            ) : (
+              <button
+                onClick={requestShare}
+                disabled={report.status !== 'finalized' || sharing}
+                title={report.status !== 'finalized' ? 'Finalize the report before sharing' : undefined}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                <Share2 className="w-4 h-4" />
+                {sharing ? 'Sharing…' : 'Share'}
+              </button>
+            )}
 
             {report.sharedWithOwner && (
               <button
@@ -1587,7 +1632,9 @@ export default function ReportEditorPage() {
               {isFinalized && (
                 <div className="mb-6 p-4 bg-[#f0f7f7] border border-[#DCEAE3] rounded-xl text-sm text-[#476B6B] flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  This report is finalized. Content is locked and can no longer be edited.
+                  {report.sharedWithOwner
+                    ? 'This report has been shared with the owner and is permanently locked.'
+                    : 'This report is finalized and locked. Revert it to draft to make changes.'}
                 </div>
               )}
               {!hasContent && !generating && (
@@ -1622,6 +1669,7 @@ export default function ReportEditorPage() {
             </p>
             <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
               <li><strong>A finalized report can never be deleted.</strong></li>
+              <li>Content is locked; you can revert to draft to edit, but only until the report is shared.</li>
               <li>It becomes eligible for sharing with the pet owner.</li>
               <li>An owner summary can be generated after finalizing.</li>
             </ul>
@@ -1641,6 +1689,75 @@ export default function ReportEditorPage() {
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Finalizing…' : 'Finalize Report'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share confirmation — sharing is permanent */}
+      <Dialog open={shareConfirmOpen} onOpenChange={setShareConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Share Report with Owner</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              This shares &ldquo;{title || `Untitled Report: ${pet?.name}`}&rdquo; with the pet owner. They will be
+              notified by email and can view the report at any time.
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
+              <li><strong>This action cannot be undone.</strong> A shared report cannot be unshared.</li>
+              <li>The report can no longer be reverted to draft or edited after sharing.</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setShareConfirmOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={sharing}
+              className="px-4 py-2 bg-[#476B6B] hover:bg-[#3a5858] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sharing ? 'Sharing…' : 'Share Permanently'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unfinalize confirmation — only offered while the report is unshared */}
+      <Dialog open={unfinalizeConfirmOpen} onOpenChange={setUnfinalizeConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#4F4F4F]">Revert to Draft</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>This reverts the finalized report to a draft so it can be edited again.</p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-gray-500">
+              <li>The report must be finalized again before it can be shared.</li>
+              <li>This is only possible because the report has not been shared with the owner yet.</li>
+            </ul>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setUnfinalizeConfirmOpen(false)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleUnfinalize}
+              disabled={saving}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Reverting…' : 'Revert to Draft'}
             </button>
           </DialogFooter>
         </DialogContent>

@@ -1029,10 +1029,22 @@ export const updateReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
-    // Finalized reports are locked medico-legal documents: no content edits and no
-    // reverting to draft. (Owner summary generation goes through /humanize instead.)
+    // Finalized reports are locked. Until shared they may be reverted to draft
+    // (unfinalized) to make corrections; once shared with the owner they are
+    // permanently immutable. (Owner summary generation goes through /humanize.)
     if (report.status === 'finalized') {
-      return res.status(400).json({ status: 'ERROR', message: 'This report is finalized and can no longer be edited.' });
+      const wantsUnfinalize = status === 'draft';
+      if (wantsUnfinalize && !report.sharedWithOwner) {
+        report.status = 'draft';
+        await report.save();
+        return res.json({ status: 'OK', data: report });
+      }
+      return res.status(400).json({
+        status: 'ERROR',
+        message: report.sharedWithOwner
+          ? 'This report has been shared with the owner and can no longer be edited or reverted to draft.'
+          : 'This report is finalized and can no longer be edited. Revert it to draft to make changes.',
+      });
     }
 
     // Finalization gates: a report must have content and a signature before it can be
@@ -1190,6 +1202,11 @@ export const shareReport = async (req: Request, res: Response) => {
     // Only finalized reports may be shared with the owner
     if (shared && report.status !== 'finalized') {
       return res.status(400).json({ status: 'ERROR', message: 'Finalize the report before sharing it with the owner.' });
+    }
+
+    // Sharing is one-way: once the owner has been given access it cannot be revoked
+    if (!shared && report.sharedWithOwner) {
+      return res.status(400).json({ status: 'ERROR', message: 'This report has been shared with the owner and can no longer be unshared.' });
     }
 
     const wasAlreadyShared = report.sharedWithOwner;
