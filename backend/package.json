@@ -10,7 +10,8 @@
     "test": "jest",
     "seed:uat": "ts-node src/scripts/seedUatUsers.ts",
     "clear:uat": "ts-node src/scripts/clearUatUsers.ts",
-    "backfill:branch-vet-status": "ts-node src/scripts/backfillBranchVetStatus.ts"
+    "backfill:branch-vet-status": "ts-node src/scripts/backfillBranchVetStatus.ts",
+    "seed:vet-appointments": "ts-node src/scripts/seedVetAppointments.ts"
   },
   "keywords": [],
   "author": "",
