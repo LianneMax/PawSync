@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import PageHeader from '@/components/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { getVetMedicalRecords, isRecordReportReady, type MedicalRecord } from '@/lib/medicalRecords'
+import { DateRangePicker } from '@/components/DateRangePicker'
 import {
   createVetReport,
   listVetReports,
@@ -30,7 +31,6 @@ import {
   Home,
   Mail,
   ChevronRight,
-  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -294,6 +294,17 @@ function NewReportContent() {
     setSelectedRecordIds(new Set())
   }
 
+  // Date-range validation: no future dates, and the end date can't precede the start
+  const today = new Date().toLocaleDateString('en-CA')
+  const dateRangeError =
+    dateFrom && dateFrom > today
+      ? 'Start date cannot be in the future.'
+      : dateTo && dateTo > today
+        ? 'End date cannot be in the future.'
+        : dateFrom && dateTo && dateTo < dateFrom
+          ? 'End date cannot be before the start date.'
+          : null
+
   const effectiveCount = allMode ? eligibleRecords.length : selectedRecordIds.size
   // Pet must still be eligible — going back and changing types can invalidate an earlier pick
   const canProceedStep2 = !!selectedPetId && eligiblePetGroups.some((g) => g.petId === selectedPetId)
@@ -312,6 +323,10 @@ function NewReportContent() {
     }
     if (effectiveCount === 0) {
       toast.error('Select at least one medical record')
+      return
+    }
+    if (dateRangeError) {
+      toast.error(dateRangeError)
       return
     }
     setCreating(true)
@@ -396,12 +411,6 @@ function NewReportContent() {
     }
   }
 
-  const clearDates = () => {
-    setDateFrom('')
-    setDateTo('')
-    setSelectedRecordIds(new Set())
-    setAllMode(false)
-  }
 
   const stepLabels = ['Report Types', 'Patient', 'Records']
 
@@ -636,27 +645,20 @@ function NewReportContent() {
               <div className="flex items-center gap-2 mb-2">
                 <CalendarDays className="w-4 h-4 text-gray-400" />
                 <span className="text-sm font-medium text-gray-700">Date Range (optional)</span>
-                {(dateFrom || dateTo) && (
-                  <button onClick={clearDates} className="ml-auto text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
-                    <X className="w-3 h-3" /> Clear
-                  </button>
-                )}
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setSelectedRecordIds(new Set()); setAllMode(false) }}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-                <span className="self-center text-gray-400 text-sm">to</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setSelectedRecordIds(new Set()); setAllMode(false) }}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                />
-              </div>
+              <DateRangePicker
+                from={dateFrom}
+                to={dateTo}
+                onApply={(newFrom, newTo) => {
+                  setDateFrom(newFrom)
+                  setDateTo(newTo)
+                  setSelectedRecordIds(new Set())
+                  setAllMode(false)
+                }}
+              />
+              {dateRangeError && (
+                <p className="text-xs text-[#900B09] mt-1.5">{dateRangeError}</p>
+              )}
             </div>
 
             <label className="block text-sm font-medium text-gray-700 mb-2">
