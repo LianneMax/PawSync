@@ -189,6 +189,32 @@ export interface LinkedRecord {
   assessment?: string;
 }
 
+export interface MonitoringMetric {
+  value: number;
+  unit: string;
+}
+
+export interface MonitoringEntry {
+  _id: string;
+  recordedAt: string;
+  entryType: 'daily' | 'spot';
+  temperature: MonitoringMetric;
+  heartRate: MonitoringMetric;
+  respiratoryRate?: MonitoringMetric | null;
+  weight: MonitoringMetric;
+  bodyConditionScore?: MonitoringMetric | null;
+  spo2?: MonitoringMetric | null;
+  bloodGlucose?: MonitoringMetric | null;
+  painScore?: number | null;
+  hydrationStatus?: string;
+  appetite?: string;
+  clinicalNotes: string;
+  clinicalFlag: 'normal' | 'abnormal' | 'critical';
+  followUpAction: string;
+  followUpInHours?: number | null;
+  requiresImmediateReview: boolean;
+}
+
 export interface VaccinationRecord {
   _id: string;
   vaccineName: string;
@@ -244,6 +270,8 @@ export interface VetReport {
   sharedAt?: string | null;
   vetSignature?: { url: string | null; signedAt: string | null } | null;
   vaccinations?: VaccinationRecord[];
+  /** Only populated for reportType === 'confinement'; the stay's monitoring log, oldest first. */
+  monitoringEntries?: MonitoringEntry[];
   createdAt: string;
   updatedAt: string;
 }

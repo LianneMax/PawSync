@@ -62,6 +62,16 @@ async function findCompletedRecordIdsForPet(petId: any): Promise<string[]> {
   return records.map((r: any) => r._id.toString());
 }
 
+async function fetchMonitoringEntries(report: any): Promise<any[] | undefined> {
+  if (report.reportType !== 'confinement' || !report.confinementRecordId) return undefined;
+  const confinementRecordId = typeof report.confinementRecordId === 'object' && report.confinementRecordId?._id
+    ? report.confinementRecordId._id
+    : report.confinementRecordId;
+  return ConfinementMonitoringEntry.find({ confinementRecordId })
+    .sort({ recordedAt: 1 })
+    .lean();
+}
+
 async function countNewRecords(report: any): Promise<number> {
   const includedIds = resolveReportRecordIds(report);
   const since = report.recordsSyncedAt || report.createdAt;
@@ -341,11 +351,12 @@ export const getReport = async (req: Request, res: Response) => {
     }
 
     const petId = typeof (report as any).petId === 'object' ? (report as any).petId._id : (report as any).petId;
-    const [newRecordCount, vaccinations] = await Promise.all([
+    const [newRecordCount, vaccinations, monitoringEntries] = await Promise.all([
       countNewRecords(report),
       Vaccination.find({ petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status manufacturer notes').lean(),
+      fetchMonitoringEntries(report),
     ]);
-    res.json({ status: 'OK', data: { ...report, newRecordCount, vaccinations } });
+    res.json({ status: 'OK', data: { ...report, newRecordCount, vaccinations, monitoringEntries } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -367,7 +378,8 @@ export const getSharedReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found or not shared' });
     }
 
-    res.json({ status: 'OK', data: report });
+    const monitoringEntries = await fetchMonitoringEntries(report);
+    res.json({ status: 'OK', data: { ...report, monitoringEntries } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }

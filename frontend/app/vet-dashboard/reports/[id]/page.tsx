@@ -23,6 +23,7 @@ import {
   type LinkedRecord,
   type ReportType,
   type VaccinationRecord,
+  type MonitoringEntry,
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
@@ -247,6 +248,11 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   currentFindings:          <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
   treatmentsToDate:         <Pill className="w-4 h-4 text-[#5A7C7A]" />,
   referralRequest:          <Mail className="w-4 h-4 text-[#5A7C7A]" />,
+  // confinement
+  admissionSummary:         <FileText className="w-4 h-4 text-[#5A7C7A]" />,
+  monitoringTimeline:       <Activity className="w-4 h-4 text-[#5A7C7A]" />,
+  treatmentsGiven:          <Pill className="w-4 h-4 text-[#5A7C7A]" />,
+  currentStatus:            <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
 }
 
 // ─── Report Preview ───────────────────────────────────────────────────────────
@@ -357,6 +363,9 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     currentFindings: ['vitals', 'diagnostics', 'immunityTesting'],
     treatmentsToDate: ['medications', 'preventiveCare'],
     clinicalHistory: ['vitals', 'diagnostics', 'medications', 'preventiveCare', 'surgery', 'immunityTesting', 'vaccinations'],
+    // confinement
+    admissionSummary: ['vitals'],
+    treatmentsGiven: ['medications', 'preventiveCare'],
   }
 
   const exclusiveSectionData: Record<string, DataType[]> = (() => {
@@ -498,6 +507,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                         <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Dosage · Route</th>
                         <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Frequency</th>
                         <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Duration</th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Notes / Indication</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -507,6 +517,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                           <td className="px-3 py-2 text-gray-600">{m.dosage} · {m.route}</td>
                           <td className="px-3 py-2 text-gray-600">{m.frequency}</td>
                           <td className="px-3 py-2 text-gray-400">{m.duration || 'N/A'}</td>
+                          <td className="px-3 py-2 text-gray-400">{m.notes || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -681,6 +692,66 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     )
   }
 
+  const renderMonitoringTable = (entries: MonitoringEntry[]) => {
+    if (!entries.length) return null
+    const metric = (m?: { value: number; unit: string } | null) =>
+      m?.value !== undefined && m?.value !== null ? `${m.value} ${m.unit}` : 'N/A'
+    const flagColor: Record<string, string> = {
+      normal: 'text-emerald-600',
+      abnormal: 'text-orange-500',
+      critical: 'text-red-500',
+    }
+    return (
+      <div>
+        <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-2">Monitoring Log</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+            <thead className="bg-[#f0f7f7]">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Date &amp; Time</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Type</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Temp</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Heart Rate</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Resp. Rate</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Weight</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">SpO2</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Pain</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Hydration</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Appetite</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Clinical Notes</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Flag</th>
+                <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Follow-up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e._id} className="border-t border-gray-100">
+                  <td className="px-3 py-2 font-medium text-[#4F4F4F] whitespace-nowrap">
+                    {new Date(e.recordedAt).toLocaleString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td className="px-3 py-2 text-gray-600 capitalize">{e.entryType}</td>
+                  <td className="px-3 py-2 text-gray-600">{metric(e.temperature)}</td>
+                  <td className="px-3 py-2 text-gray-600">{metric(e.heartRate)}</td>
+                  <td className="px-3 py-2 text-gray-600">{metric(e.respiratoryRate)}</td>
+                  <td className="px-3 py-2 text-gray-600">{metric(e.weight)}</td>
+                  <td className="px-3 py-2 text-gray-600">{metric(e.spo2)}</td>
+                  <td className="px-3 py-2 text-gray-600">{e.painScore ?? 'N/A'}</td>
+                  <td className="px-3 py-2 text-gray-600">{e.hydrationStatus || 'N/A'}</td>
+                  <td className="px-3 py-2 text-gray-600">{e.appetite || 'N/A'}</td>
+                  <td className="px-3 py-2 text-gray-600 min-w-[180px]">{e.clinicalNotes || 'N/A'}</td>
+                  <td className={`px-3 py-2 font-medium capitalize ${flagColor[e.clinicalFlag] ?? 'text-gray-600'}`}>{e.clinicalFlag}</td>
+                  <td className="px-3 py-2 text-gray-400">
+                    {e.followUpAction}{e.followUpInHours ? ` (${e.followUpInHours}h)` : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -729,7 +800,8 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''
               const dataCols = exclusiveSectionData[key]
               const tables = dataCols?.length ? renderClinicalTables(dataCols, allDataRecords) : null
-              if (!content.trim() && !tables) return null
+              const monitoringTable = key === 'monitoringTimeline' ? renderMonitoringTable(report.monitoringEntries ?? []) : null
+              if (!content.trim() && !tables && !monitoringTable) return null
               return (
                 <div key={key}>
                   {i > 0 && <hr className="border-gray-100 mb-6" />}
@@ -743,6 +815,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                     </div>
                   )}
                   {tables}
+                  {monitoringTable}
                 </div>
               )
             })}
@@ -1253,6 +1326,8 @@ export default function ReportEditorPage() {
           vetId: prev.vetId,
           medicalRecordIds: prev.medicalRecordIds,
           newRecordCount: prev.newRecordCount,
+          vaccinations: prev.vaccinations,
+          monitoringEntries: prev.monitoringEntries,
         }
       : updated)
 
