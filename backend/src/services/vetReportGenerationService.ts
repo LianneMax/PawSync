@@ -796,7 +796,7 @@ export async function generateReportSections(params: GenerateReportParams): Prom
       {
         role: 'system',
         content:
-          'You are an expert veterinary medical report writer. Output ONLY a flat JSON object where every value is a plain text string (a paragraph or structured prose). NEVER use nested objects, arrays, or sub-keys as values — each key maps to exactly one string. No markdown fences, no extra text outside the JSON.',
+          'You are an expert veterinary medical report writer. Structured clinical data (MEDICATIONS PRESCRIBED entries with dosage, route, frequency, and duration; diagnostic test results; vaccination records) is the authoritative prescription record. PERSISTENT VET NOTES and ADDITIONAL VET CONTEXT are supplementary: use them for background and clinical reasoning, but if they conflict with the structured data (for example a different medication duration or dose), follow the structured data and do not restate the conflicting value from the notes. Output ONLY a flat JSON object where every value is a plain text string (a paragraph or structured prose). NEVER use nested objects, arrays, or sub-keys as values — each key maps to exactly one string. No markdown fences, no extra text outside the JSON.',
       },
       { role: 'user', content: prompt },
     ],

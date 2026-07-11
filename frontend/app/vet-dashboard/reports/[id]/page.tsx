@@ -64,8 +64,10 @@ import {
   Tag,
   ChevronDown,
   ChevronUp,
+  StickyNote,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getPetNotes, savePetNotes } from '@/lib/petNotes'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -865,6 +867,87 @@ const VITAL_LABELS: Record<string, { label: string; unit: string }> = {
   crt: { label: 'CRT', unit: 'sec' },
 }
 
+function VetNotesPanel({ petId, token }: { petId: string; token?: string }) {
+  const [open, setOpen] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!petId) return
+    getPetNotes(petId, token)
+      .then((res) => {
+        if (res.status === 'SUCCESS') setNotes(res.data?.notes || '')
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true))
+  }, [petId, token])
+
+  const handleSave = async () => {
+    if (!petId) return
+    setSaving(true)
+    setSaved(false)
+    try {
+      const res = await savePetNotes(petId, notes, token)
+      if (res.status === 'SUCCESS') {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } else {
+        toast.error(res.message || 'Failed to save notes')
+      }
+    } catch {
+      toast.error('Failed to save notes')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden bg-white">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+      >
+        <StickyNote className="w-4 h-4 text-gray-400" />
+        <span className="text-sm font-semibold text-gray-700">Vet Notes</span>
+        {loaded && notes.trim() && !open && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">has notes</span>
+        )}
+        <span className="ml-auto flex items-center gap-2">
+          {saving && <span className="text-[10px] text-gray-400">Saving…</span>}
+          {saved && !saving && <span className="text-[10px] text-green-500 font-medium">Saved</span>}
+          {open ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+        </span>
+      </button>
+      {open && (
+        <div className="p-3 space-y-2 border-t border-gray-200">
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            Private notepad for this patient — same across all visits.
+          </p>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={handleSave}
+            rows={6}
+            placeholder="Write your notes about this patient here…"
+            className="w-full text-sm text-[#4F4F4F] resize-none focus:outline-none bg-white border border-gray-200 rounded-xl p-2.5 leading-relaxed focus:ring-1 focus:ring-[#7FA5A3]"
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-3 py-1.5 text-xs font-medium bg-[#476B6B] text-white rounded-lg hover:bg-[#3a5858] disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Saving…' : 'Save Notes'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RecordDataPanel({ records, scope }: { records: LinkedRecord[]; scope?: string }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
@@ -1610,6 +1693,10 @@ export default function ReportEditorPage() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {!generating && pet?._id && (
+                <VetNotesPanel petId={pet._id} token={token || undefined} />
               )}
 
               {!generating && sourceRecords.length > 0 && (
