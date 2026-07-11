@@ -38,7 +38,7 @@ function calcAge(dob: string): string {
 }
 
 const fmtRDate = (d?: string) =>
-  d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+  d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
 
 const OWNER_SUMMARY_CONFIG = [
   { key: 'whatWeFound' as keyof OwnerSummary, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800' },
@@ -181,7 +181,7 @@ function renderClinicalTables(
                         {vitalsRecs.map(r => {
                           const v = r.vitals?.[vkey]
                           const ok = v?.value !== '' && v?.value !== null && v?.value !== undefined
-                          return <td key={r._id} className="px-3 py-2 text-gray-600">{ok ? `${v!.value} ${unit}` : '—'}</td>
+                          return <td key={r._id} className="px-3 py-2 text-gray-600">{ok ? `${v!.value} ${unit}` : 'N/A'}</td>
                         })}
                       </tr>
                     )
@@ -212,7 +212,7 @@ function renderClinicalTables(
           {diagRecs.map(r => (
             <div key={r._id} className="mb-3 last:mb-0">
               {diagRecs.length > 1 && (
-                <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}{r.chiefComplaint ? ` — ${r.chiefComplaint}` : ''}</p>
+                <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}{r.chiefComplaint ? ` · ${r.chiefComplaint}` : ''}</p>
               )}
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
@@ -227,8 +227,8 @@ function renderClinicalTables(
                     {r.diagnosticTests!.map((t, ti) => (
                       <tr key={ti} className="border-t border-gray-100">
                         <td className="px-3 py-2 font-medium text-[#4F4F4F]">{t.name}</td>
-                        <td className="px-3 py-2 text-gray-600">{t.result || '—'}</td>
-                        <td className="px-3 py-2 text-gray-400">{t.normalRange || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600">{t.result || 'N/A'}</td>
+                        <td className="px-3 py-2 text-gray-400">{t.normalRange || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -263,7 +263,7 @@ function renderClinicalTables(
                         <td className="px-3 py-2 font-medium text-[#4F4F4F]">{m.name}</td>
                         <td className="px-3 py-2 text-gray-600">{m.dosage} · {m.route}</td>
                         <td className="px-3 py-2 text-gray-600">{m.frequency}</td>
-                        <td className="px-3 py-2 text-gray-400">{m.duration || '—'}</td>
+                        <td className="px-3 py-2 text-gray-400">{m.duration || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -319,7 +319,7 @@ function renderClinicalTables(
                   <tr key={r._id} className="border-t border-gray-100">
                     <td className="px-3 py-2 font-medium text-[#4F4F4F]">{r.surgeryRecord!.surgeryType}</td>
                     <td className="px-3 py-2 text-gray-600">{fmtRDate(r.createdAt)}</td>
-                    <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || '—'}</td>
+                    <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -339,7 +339,7 @@ function renderClinicalTables(
               <div>
                 <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">
                   Immunity / Titer Testing
-                  {r.immunityTesting.kitName && <span className="font-normal normal-case text-gray-400"> — {r.immunityTesting.kitName}</span>}
+                  {r.immunityTesting.kitName && <span className="font-normal normal-case text-gray-400"> · {r.immunityTesting.kitName}</span>}
                   {r.immunityTesting.testDate && <span className="font-normal normal-case text-gray-400"> ({fmtRDate(r.immunityTesting.testDate)})</span>}
                 </p>
                 <div className="overflow-x-auto">
@@ -356,9 +356,9 @@ function renderClinicalTables(
                       {r.immunityTesting.rows!.map((row, ri) => (
                         <tr key={ri} className="border-t border-gray-100">
                           <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.score ?? '—'}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.status || '—'}</td>
-                          <td className="px-3 py-2 text-gray-400">{row.action || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.score ?? 'N/A'}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.status || 'N/A'}</td>
+                          <td className="px-3 py-2 text-gray-400">{row.action || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -384,7 +384,7 @@ function renderClinicalTables(
                       {r.immunityTesting.antigenRows!.map((row, ri) => (
                         <tr key={ri} className="border-t border-gray-100">
                           <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.result || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.result || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -542,7 +542,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
         {hasOwnerSummary && ownerSummary && (
           <div>
             <p className="report-no-print text-xs text-gray-400 text-center mb-2">
-              Page 1 of {totalPages} — Owner Summary
+              Page 1 of {totalPages} · Owner Summary
             </p>
             <div
               className="report-print-page bg-white border border-gray-200 shadow-md overflow-hidden rounded-xl"
@@ -551,7 +551,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
               <PageHeader reportId={report._id} />
               <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
                 <h2 className="text-sm font-semibold tracking-wider uppercase">
-                  Owner Summary — For {pet.name}&apos;s Family
+                  Owner Summary for {pet.name}&apos;s Family
                 </h2>
               </div>
               <div className="px-8 py-6 space-y-4">
@@ -579,7 +579,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
         {/* ── PAGE 2 (or 1 if no owner summary): Veterinary Diagnostic Report ── */}
         <div className={hasOwnerSummary ? 'report-print-newpage' : undefined}>
           <p className="report-no-print text-xs text-gray-400 text-center mb-2">
-            Page {hasOwnerSummary ? 2 : 1} of {totalPages} — {REPORT_TYPE_DOCUMENT_TITLES[report.reportType] ?? 'Veterinary Report'}
+            Page {hasOwnerSummary ? 2 : 1} of {totalPages} · {REPORT_TYPE_DOCUMENT_TITLES[report.reportType] ?? 'Veterinary Report'}
           </p>
           <div
             className="report-print-page bg-white border border-gray-200 shadow-md overflow-hidden rounded-xl"
@@ -601,10 +601,10 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
                   <div><p className="text-xs text-gray-500">Name</p><p className="font-medium text-[#4F4F4F]">{pet.name}</p></div>
                   <div><p className="text-xs text-gray-500">Species</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.species === 'canine' ? 'Canine' : 'Feline'}</p></div>
                   <div><p className="text-xs text-gray-500">Breed</p><p className="font-medium text-[#4F4F4F]">{pet.breed}</p></div>
-                  <div><p className="text-xs text-gray-500">Sex</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? '—'}</p></div>
-                  <div><p className="text-xs text-gray-500">Age</p><p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : '—'}</p></div>
-                  <div><p className="text-xs text-gray-500">Weight</p><p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '—'}</p></div>
-                  <div><p className="text-xs text-gray-500">Sterilization</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? '—'}</p></div>
+                  <div><p className="text-xs text-gray-500">Sex</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? 'N/A'}</p></div>
+                  <div><p className="text-xs text-gray-500">Age</p><p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'N/A'}</p></div>
+                  <div><p className="text-xs text-gray-500">Weight</p><p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : 'N/A'}</p></div>
+                  <div><p className="text-xs text-gray-500">Sterilization</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? 'N/A'}</p></div>
                   <div><p className="text-xs text-gray-500">Microchip</p><p className="font-medium text-[#4F4F4F] font-mono">{pet.microchipNumber || 'N/A'}</p></div>
                   {pet.allergies && pet.allergies.length > 0 && (
                     <div><p className="text-xs text-gray-500">Allergies</p><p className="font-medium text-[#4F4F4F]">{pet.allergies.join(', ')}</p></div>

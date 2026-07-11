@@ -31,7 +31,7 @@ export const REPORT_TYPE_CONFIG: ReportTypeConfig[] = [
   {
     value: 'diagnostic',
     label: 'Diagnostic Report',
-    description: 'Technical write-up from diagnostic tests — blood work, urinalysis, X-rays, and more.',
+    description: 'Technical write-up from diagnostic tests: blood work, urinalysis, X-rays, and more.',
   },
   {
     value: 'surgery',
@@ -65,10 +65,10 @@ export const SECTION_LABELS_BY_TYPE: Record<ReportType, Record<string, string>> 
     prognosis: 'VI. Prognosis',
   },
   soap: {
-    subjective: 'S — Subjective (Owner\'s Report & History)',
-    objective: 'O — Objective (Physical Examination & Vitals)',
-    assessment: 'A — Assessment (Clinical Diagnosis)',
-    plan: 'P — Plan (Treatment & Next Steps)',
+    subjective: 'S: Subjective (Owner\'s Report & History)',
+    objective: 'O: Objective (Physical Examination & Vitals)',
+    assessment: 'A: Assessment (Clinical Diagnosis)',
+    plan: 'P: Plan (Treatment & Next Steps)',
   },
   diagnostic: {
     testsSummary: 'I. Tests Performed',

@@ -239,7 +239,7 @@ export default function VetReportsPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
                           <p className="font-semibold text-gray-900 group-hover:text-indigo-700 truncate">
-                            {r.title || `Report — ${r.petId?.name}`}
+                            {r.title || `Report: ${r.petId?.name}`}
                           </p>
                           <TypeBadge type={r.reportType} />
                         </div>

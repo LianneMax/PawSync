@@ -48,8 +48,22 @@ const REPORT_TYPE_ICONS: Record<ReportType, React.ReactNode> = {
   referralLetter: <Mail className="w-5 h-5" />,
 }
 
-/** These types stand alone — they cannot be combined with any other type. */
+/** These types stand alone; they cannot be combined with any other type. */
 const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter']
+
+/** Step 1 groups: clinical reports vs. standalone documents (certificates & letters). */
+const TYPE_CATEGORIES: { label: string; description: string; types: ReportType[] }[] = [
+  {
+    label: 'Reports',
+    description: 'Clinical write-ups built from visit data. Combine freely; one report is created per type.',
+    types: ['general', 'soap', 'diagnostic', 'surgery', 'dischargeSummary'],
+  },
+  {
+    label: 'Certificates & Letters',
+    description: 'Standalone documents. Created on their own and cannot be combined with report types.',
+    types: ['healthCertificate', 'referralLetter'],
+  },
+]
 
 /** Update-with-new-visits is not available for these types yet (backend rejects sync). */
 const SYNC_DISABLED_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary']
@@ -423,64 +437,66 @@ function NewReportContent() {
         {step === 1 && (
           <div>
             <p className="text-sm font-medium text-gray-700 mb-1">
-              What type of report do you want to create?
+              What do you want to create?
             </p>
-            <p className="text-xs text-gray-400 mb-3">
-              Select one or more — a separate report is created for each type. Health Certificate and Referral Letter cannot be combined with other types.
+            <p className="text-xs text-gray-400 mb-4">
+              Select one or more; a separate document is created for each type.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-              {REPORT_TYPE_CONFIG.map((cfg) => {
-                const selected = selectedTypes.has(cfg.value)
-                const isExclusive = EXCLUSIVE_TYPES.includes(cfg.value)
-                const ineligibleForVisit =
-                  !!soleSelectedRecord && !isEligibleForType(soleSelectedRecord, cfg.value)
-                const existsForVisit =
-                  !!soleSelectedRecord &&
-                  (singleRecordReportTypes[soleSelectedRecord._id] ?? []).includes(cfg.value)
-                return (
-                  <button
-                    key={cfg.value}
-                    onClick={() => toggleType(cfg.value)}
-                    disabled={ineligibleForVisit && !selected}
-                    className={`text-left rounded-xl border p-4 transition-all ${
-                      selected
-                        ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
-                        : ineligibleForVisit
-                          ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                          : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={selected ? 'text-indigo-500' : 'text-gray-400'}>
-                        {REPORT_TYPE_ICONS[cfg.value]}
-                      </span>
-                      <span className={`font-semibold text-sm ${selected ? 'text-indigo-700' : 'text-gray-800'}`}>
-                        {cfg.label}
-                      </span>
-                      <span className="ml-auto">
-                        {selected
-                          ? <CheckSquare className="w-4 h-4 text-indigo-500" />
-                          : <Square className="w-4 h-4 text-gray-300" />}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">{cfg.description}</p>
-                    {isExclusive && (
-                      <p className="text-[10px] text-amber-600 mt-1.5">Standalone — cannot be combined with other types</p>
-                    )}
-                    {ineligibleForVisit && (
-                      <p className="text-[10px] text-gray-400 mt-1.5">Selected visit has no data for this report type</p>
-                    )}
-                    {existsForVisit && !ineligibleForVisit && (
-                      <p className="text-[10px] text-amber-600 mt-1.5">Already exists for the selected visit — duplicates are blocked</p>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+            {TYPE_CATEGORIES.map((cat) => (
+              <div key={cat.label} className="mb-6">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-0.5">{cat.label}</p>
+                <p className="text-[11px] text-gray-400 mb-2.5">{cat.description}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {REPORT_TYPE_CONFIG.filter((cfg) => cat.types.includes(cfg.value)).map((cfg) => {
+                    const selected = selectedTypes.has(cfg.value)
+                    const ineligibleForVisit =
+                      !!soleSelectedRecord && !isEligibleForType(soleSelectedRecord, cfg.value)
+                    const existsForVisit =
+                      !!soleSelectedRecord &&
+                      (singleRecordReportTypes[soleSelectedRecord._id] ?? []).includes(cfg.value)
+                    return (
+                      <button
+                        key={cfg.value}
+                        onClick={() => toggleType(cfg.value)}
+                        disabled={ineligibleForVisit && !selected}
+                        className={`text-left rounded-xl border p-4 transition-all ${
+                          selected
+                            ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300'
+                            : ineligibleForVisit
+                              ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                              : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={selected ? 'text-indigo-500' : 'text-gray-400'}>
+                            {REPORT_TYPE_ICONS[cfg.value]}
+                          </span>
+                          <span className={`font-semibold text-sm ${selected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                            {cfg.label}
+                          </span>
+                          <span className="ml-auto">
+                            {selected
+                              ? <CheckSquare className="w-4 h-4 text-indigo-500" />
+                              : <Square className="w-4 h-4 text-gray-300" />}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 leading-relaxed">{cfg.description}</p>
+                        {ineligibleForVisit && (
+                          <p className="text-[10px] text-gray-400 mt-1.5">Selected visit has no data for this report type</p>
+                        )}
+                        {existsForVisit && !ineligibleForVisit && (
+                          <p className="text-[10px] text-amber-600 mt-1.5">Already exists for the selected visit; duplicates are blocked</p>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
 
             {selectedTypes.size > 1 && (
               <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700">
-                {selectedTypes.size} reports will be created — one per selected type, all covering the same visits.
+                {selectedTypes.size} reports will be created, one per selected type, all covering the same visits.
               </div>
             )}
 
@@ -649,7 +665,7 @@ function NewReportContent() {
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {eligibleRecords.length} eligible visit{eligibleRecords.length !== 1 ? 's' : ''}
-                  {!(dateFrom || dateTo) && !syncDisabled && ' — new visits can be folded in later'}
+                  {!(dateFrom || dateTo) && !syncDisabled && ' · new visits can be folded in later'}
                 </p>
               </div>
               {allMode ? <CheckSquare className="w-4 h-4 text-indigo-500" /> : <Square className="w-4 h-4 text-gray-300" />}
@@ -688,7 +704,7 @@ function NewReportContent() {
                           </p>
                           {hasReport && (
                             <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
-                              <FileText className="w-3 h-3" /> Has existing report(s) — more can be created
+                              <FileText className="w-3 h-3" /> Has existing report(s); more can be created
                             </span>
                           )}
                         </div>
@@ -705,7 +721,7 @@ function NewReportContent() {
 
             {effectiveCount > 0 && (
               <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700">
-                <strong>{selectedPet.name}</strong> — {allMode
+                <strong>{selectedPet.name}</strong>: {allMode
                   ? `${!(dateFrom || dateTo) ? 'all records to date' : 'all in date range'} (${effectiveCount} visit${effectiveCount !== 1 ? 's' : ''})`
                   : `${effectiveCount} visit${effectiveCount !== 1 ? 's' : ''} selected`}
                 {typeList.length > 1 && ` → ${typeList.length} reports`}

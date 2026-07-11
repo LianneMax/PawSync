@@ -303,7 +303,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   )).sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
 
   const fmtRDate = (d?: string) =>
-    d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+    d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
 
   // Attached photos are type-specific: diagnostic images appear only on Diagnostic
   // reports, surgery images only on Surgery reports.
@@ -417,7 +417,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                           {vitalsRecs.map(r => {
                             const v = r.vitals?.[vkey]
                             const ok = v?.value !== '' && v?.value !== null && v?.value !== undefined
-                            return <td key={r._id} className="px-3 py-2 text-gray-600">{ok ? `${v!.value} ${unit}` : '—'}</td>
+                            return <td key={r._id} className="px-3 py-2 text-gray-600">{ok ? `${v!.value} ${unit}` : 'N/A'}</td>
                           })}
                         </tr>
                       )
@@ -448,7 +448,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
             {diagRecs.map(r => (
               <div key={r._id} className="mb-3 last:mb-0">
                 {diagRecs.length > 1 && (
-                  <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}{r.chiefComplaint ? ` — ${r.chiefComplaint}` : ''}</p>
+                  <p className="text-xs text-gray-400 mb-1.5">{fmtRDate(r.createdAt)}{r.chiefComplaint ? ` · ${r.chiefComplaint}` : ''}</p>
                 )}
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
@@ -463,8 +463,8 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                       {r.diagnosticTests!.map((t, ti) => (
                         <tr key={ti} className="border-t border-gray-100">
                           <td className="px-3 py-2 font-medium text-[#4F4F4F]">{t.name}</td>
-                          <td className="px-3 py-2 text-gray-600">{t.result || '—'}</td>
-                          <td className="px-3 py-2 text-gray-400">{t.normalRange || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600">{t.result || 'N/A'}</td>
+                          <td className="px-3 py-2 text-gray-400">{t.normalRange || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -499,7 +499,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                           <td className="px-3 py-2 font-medium text-[#4F4F4F]">{m.name}</td>
                           <td className="px-3 py-2 text-gray-600">{m.dosage} · {m.route}</td>
                           <td className="px-3 py-2 text-gray-600">{m.frequency}</td>
-                          <td className="px-3 py-2 text-gray-400">{m.duration || '—'}</td>
+                          <td className="px-3 py-2 text-gray-400">{m.duration || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -555,7 +555,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                     <tr key={r._id} className="border-t border-gray-100">
                       <td className="px-3 py-2 font-medium text-[#4F4F4F]">{r.surgeryRecord!.surgeryType}</td>
                       <td className="px-3 py-2 text-gray-600">{fmtRDate(r.createdAt)}</td>
-                      <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || '—'}</td>
+                      <td className="px-3 py-2 text-gray-400">{r.surgeryRecord!.vetRemarks || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -575,7 +575,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                 <div>
                   <p className="text-xs font-semibold text-[#476B6B] uppercase tracking-wide mb-1">
                     Immunity / Titer Testing
-                    {r.immunityTesting.kitName && <span className="font-normal normal-case text-gray-400"> — {r.immunityTesting.kitName}</span>}
+                    {r.immunityTesting.kitName && <span className="font-normal normal-case text-gray-400"> · {r.immunityTesting.kitName}</span>}
                     {r.immunityTesting.testDate && <span className="font-normal normal-case text-gray-400"> ({fmtRDate(r.immunityTesting.testDate)})</span>}
                   </p>
                   <div className="overflow-x-auto">
@@ -592,9 +592,9 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                         {r.immunityTesting.rows!.map((row, ri) => (
                           <tr key={ri} className="border-t border-gray-100">
                             <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
-                            <td className="px-3 py-2 text-gray-600">{row.score ?? '—'}</td>
-                            <td className="px-3 py-2 text-gray-600">{row.status || '—'}</td>
-                            <td className="px-3 py-2 text-gray-400">{row.action || '—'}</td>
+                            <td className="px-3 py-2 text-gray-600">{row.score ?? 'N/A'}</td>
+                            <td className="px-3 py-2 text-gray-600">{row.status || 'N/A'}</td>
+                            <td className="px-3 py-2 text-gray-400">{row.action || 'N/A'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -620,7 +620,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                         {r.immunityTesting.antigenRows!.map((row, ri) => (
                           <tr key={ri} className="border-t border-gray-100">
                             <td className="px-3 py-2 font-medium text-[#4F4F4F]">{row.disease}</td>
-                            <td className="px-3 py-2 text-gray-600">{row.result || '—'}</td>
+                            <td className="px-3 py-2 text-gray-600">{row.result || 'N/A'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -677,7 +677,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-xs text-gray-400 text-center mb-2">Page 1 of {totalPages} — {docTitle}</p>
+        <p className="text-xs text-gray-400 text-center mb-2">Page 1 of {totalPages} · {docTitle}</p>
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm" style={{ minHeight: '1056px' }}>
           <PreviewPageHeader reportId={report._id} />
           <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
@@ -694,10 +694,10 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
                 <div><p className="text-xs text-gray-500">Name</p><p className="font-medium text-[#4F4F4F]">{pet.name}</p></div>
                 <div><p className="text-xs text-gray-500">Species</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.species === 'canine' ? 'Canine' : 'Feline'}</p></div>
                 <div><p className="text-xs text-gray-500">Breed</p><p className="font-medium text-[#4F4F4F]">{pet.breed}</p></div>
-                <div><p className="text-xs text-gray-500">Sex</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? '—'}</p></div>
-                <div><p className="text-xs text-gray-500">Age</p><p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : '—'}</p></div>
-                <div><p className="text-xs text-gray-500">Weight</p><p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : '—'}</p></div>
-                <div><p className="text-xs text-gray-500">Sterilization</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? '—'}</p></div>
+                <div><p className="text-xs text-gray-500">Sex</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sex ?? 'N/A'}</p></div>
+                <div><p className="text-xs text-gray-500">Age</p><p className="font-medium text-[#4F4F4F]">{pet.dateOfBirth ? calcAge(pet.dateOfBirth) : 'N/A'}</p></div>
+                <div><p className="text-xs text-gray-500">Weight</p><p className="font-medium text-[#4F4F4F]">{pet.weight ? `${pet.weight} kg` : 'N/A'}</p></div>
+                <div><p className="text-xs text-gray-500">Sterilization</p><p className="font-medium text-[#4F4F4F] capitalize">{pet.sterilization ?? 'N/A'}</p></div>
                 <div><p className="text-xs text-gray-500">Microchip</p><p className="font-medium text-[#4F4F4F] font-mono">{pet.microchipNumber || 'N/A'}</p></div>
                 {pet.allergies && pet.allergies.length > 0 && (
                   <div><p className="text-xs text-gray-500">Allergies</p><p className="font-medium text-[#4F4F4F]">{pet.allergies.join(', ')}</p></div>
@@ -818,11 +818,11 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
 
       {hasOwnerSummary && ownerSummary && (
         <div>
-          <p className="text-xs text-gray-400 text-center mb-2">Page 2 of {totalPages} — Owner Summary</p>
+          <p className="text-xs text-gray-400 text-center mb-2">Page 2 of {totalPages} · Owner Summary</p>
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm" style={{ minHeight: '1056px' }}>
             <PreviewPageHeader reportId={report._id} />
             <div className="bg-[#476B6B] text-white px-8 py-3 text-center">
-              <h2 className="text-sm font-semibold tracking-wider uppercase">Owner Summary — For {pet.name}&apos;s Family</h2>
+              <h2 className="text-sm font-semibold tracking-wider uppercase">Owner Summary for {pet.name}&apos;s Family</h2>
             </div>
             <div className="px-8 py-6 space-y-4">
               <p className="text-xs text-gray-500">A plain-language guide to this report, written for the pet owner.</p>
@@ -871,7 +871,7 @@ function RecordDataPanel({ records, scope }: { records: LinkedRecord[]; scope?: 
     })
 
   const fmtDate = (d?: string) =>
-    d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+    d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
 
   return (
     <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -883,7 +883,7 @@ function RecordDataPanel({ records, scope }: { records: LinkedRecord[]; scope?: 
         </span>
       </div>
       <p className="text-xs text-gray-400 px-4 py-2">
-        {records.length} visit{records.length !== 1 ? 's' : ''} — click to expand clinical data
+        {records.length} visit{records.length !== 1 ? 's' : ''} · click to expand clinical data
       </p>
       <div className="divide-y divide-gray-100">
         {records.map((r) => {
@@ -958,8 +958,8 @@ function RecordDataPanel({ records, scope }: { records: LinkedRecord[]; scope?: 
                                 {r.diagnosticTests!.map((t, i) => (
                                   <tr key={i} className="border-t border-gray-100">
                                     <td className="px-3 py-2 font-medium text-[#4F4F4F]">{t.name}</td>
-                                    <td className="px-3 py-2 text-gray-600">{t.result || '—'}</td>
-                                    <td className="px-3 py-2 text-gray-400">{t.normalRange || '—'}</td>
+                                    <td className="px-3 py-2 text-gray-600">{t.result || 'N/A'}</td>
+                                    <td className="px-3 py-2 text-gray-400">{t.normalRange || 'N/A'}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1380,7 +1380,7 @@ export default function ReportEditorPage() {
                 className="group flex items-center gap-2 text-left w-full"
               >
                 <h1 className="text-lg font-bold text-gray-900 truncate">
-                  {title || `Untitled Report — ${pet?.name}`}
+                  {title || `Untitled Report: ${pet?.name}`}
                 </h1>
                 <Pencil className="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 flex-shrink-0" />
               </button>
@@ -1627,7 +1627,7 @@ export default function ReportEditorPage() {
             <DialogTitle className="text-[#4F4F4F]">Delete Draft Report</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">
-            This permanently deletes the draft &ldquo;{title || `Untitled Report — ${pet?.name}`}&rdquo;. This cannot be undone.
+            This permanently deletes the draft &ldquo;{title || `Untitled Report: ${pet?.name}`}&rdquo;. This cannot be undone.
           </p>
           <DialogFooter>
             <button
@@ -1664,7 +1664,7 @@ export default function ReportEditorPage() {
               <li>Manual edits to sections will be overwritten by the regenerated content.</li>
               {report.status === 'finalized' && <li>The report will revert to draft and must be finalized again.</li>}
               {ownerSummary && <li>The owner summary will be cleared and must be regenerated.</li>}
-              {report.sharedWithOwner && <li>The report stays shared — the owner will see the updated content.</li>}
+              {report.sharedWithOwner && <li>The report stays shared; the owner will see the updated content.</li>}
             </ul>
           </div>
           <DialogFooter>
