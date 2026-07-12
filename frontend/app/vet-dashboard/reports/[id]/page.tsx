@@ -157,12 +157,12 @@ function ContextPrompt({
 }
 
 const OWNER_SUMMARY_CONFIG = [
-  { key: 'whatWeFound' as const, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800' },
-  { key: 'testResultsExplained' as const, label: 'Test Results Explained', Icon: Activity, bg: 'bg-purple-50', border: 'border-purple-200', ic: 'text-purple-600', tc: 'text-purple-800' },
-  { key: 'theDiagnosis' as const, label: 'The Diagnosis', Icon: FileText, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800' },
-  { key: 'whatsHappeningInTheirBody' as const, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800' },
-  { key: 'theTreatmentPlan' as const, label: 'The Treatment Plan', Icon: CheckCircle2, bg: 'bg-green-50', border: 'border-green-200', ic: 'text-green-600', tc: 'text-green-800' },
-  { key: 'whatToExpect' as const, label: 'What to Expect', Icon: TrendingUp, bg: 'bg-indigo-50', border: 'border-indigo-200', ic: 'text-indigo-600', tc: 'text-indigo-800' },
+  { key: 'whatWeFound' as const, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800', ring: 'focus:ring-blue-400' },
+  { key: 'testResultsExplained' as const, label: 'Test Results Explained', Icon: Activity, bg: 'bg-purple-50', border: 'border-purple-200', ic: 'text-purple-600', tc: 'text-purple-800', ring: 'focus:ring-purple-400' },
+  { key: 'theDiagnosis' as const, label: 'The Diagnosis', Icon: FileText, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800', ring: 'focus:ring-rose-400' },
+  { key: 'whatsHappeningInTheirBody' as const, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800', ring: 'focus:ring-amber-400' },
+  { key: 'theTreatmentPlan' as const, label: 'The Treatment Plan', Icon: CheckCircle2, bg: 'bg-green-50', border: 'border-green-200', ic: 'text-green-600', tc: 'text-green-800', ring: 'focus:ring-green-400' },
+  { key: 'whatToExpect' as const, label: 'What to Expect', Icon: TrendingUp, bg: 'bg-indigo-50', border: 'border-indigo-200', ic: 'text-indigo-600', tc: 'text-indigo-800', ring: 'focus:ring-indigo-400' },
 ]
 
 function HumanizeSection({
@@ -242,7 +242,7 @@ function OwnerSummaryEditor({
           Review and edit the AI-drafted plain-language summary. Changes save automatically and
           appear on the owner summary page of the report.
         </p>
-        {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => (
+        {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc, ring }) => (
           <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
             <div className={`flex items-center gap-2 mb-2 ${tc}`}>
               <Icon className={`w-4 h-4 ${ic}`} />
@@ -253,7 +253,7 @@ function OwnerSummaryEditor({
               onChange={(e) => onChange(key, e.target.value)}
               disabled={disabled}
               rows={key === 'theTreatmentPlan' && treatmentItems.length ? 2 : 4}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              className={`w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 leading-relaxed resize-y focus:outline-none focus:ring-2 ${ring} disabled:opacity-60 disabled:cursor-not-allowed`}
               placeholder="Write this part of the owner summary…"
             />
             {/* Treatment plan renders as an editable table/timeline; the textarea above is a short intro */}
