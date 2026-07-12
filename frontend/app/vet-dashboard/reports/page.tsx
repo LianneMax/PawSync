@@ -101,6 +101,7 @@ export default function VetReportsPage() {
   }, [search])
 
   const fetchReports = useCallback(async () => {
+    if (!token) return
     try {
       setLoading(true)
       const result = await listVetReports(

@@ -7,6 +7,9 @@ import Pet from '../models/Pet';
 import PetNotes from '../models/PetNotes';
 import User from '../models/User';
 import Vaccination from '../models/Vaccination';
+import AssignedVet from '../models/AssignedVet';
+import Referral from '../models/Referral';
+import Appointment from '../models/Appointment';
 import { createNotification } from '../services/notificationService';
 import { sendVetReportShared } from '../services/emailService';
 import {
@@ -32,6 +35,31 @@ const VALID_REPORT_TYPES: ReportType[] = [
 const SYNC_DISABLED_REPORT_TYPES: ReportType[] = ['soap', 'surgery', 'dischargeSummary', 'confinement'];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+// A vet is "authorized" for a pet — and so can see any report made for it — if they
+// have an active assignment, created a medical record, were referred, or have an
+// appointment with the pet. Mirrors the equivalent inline checks in
+// medicalRecordController.ts's getRecordsByPet/getCurrentRecord/etc.
+async function isVetAuthorizedForPet(vetId: string, petId: any): Promise<boolean> {
+  const [assigned, hasRecord, referred, hasAppt] = await Promise.all([
+    AssignedVet.exists({ vetId, petId, isActive: true }),
+    MedicalRecord.exists({ vetId, petId }),
+    Referral.exists({ referredVetId: vetId, petId }),
+    Appointment.exists({ vetId, petId, status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed'] } }),
+  ]);
+  return !!(assigned || hasRecord || referred || hasAppt);
+}
+
+// Only the vet who created the report (or a clinic-admin of the same clinic) may
+// edit/delete/share/generate it — viewing is open to any vet authorized on the pet
+// (see isVetAuthorizedForPet), but mutation stays scoped to the report's own vetId.
+function canWriteReport(req: Request, report: any): boolean {
+  const user = req.user!;
+  const reportVetId = typeof report.vetId === 'object' && report.vetId?._id ? report.vetId._id : report.vetId;
+  if (user.userType === 'veterinarian') return reportVetId?.toString() === user.userId;
+  if (user.userType === 'clinic-admin') return report.clinicId?.toString() === user.clinicId;
+  return false;
+}
 
 function resolveReportRecordIds(report: any): string[] {
   const ids: string[] = (report.medicalRecordIds || []).map((id: any) =>
@@ -110,6 +138,10 @@ export const createReport = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'ERROR', message: 'Confinement record not found for this pet.' });
       }
 
+      if (user.userType === 'veterinarian' && confinementRecord.vetId?.toString() !== user.userId) {
+        return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet of this confinement record can create a report from it.' });
+      }
+
       const existing = await VetReport.findOne({ petId, reportType: 'confinement', confinementRecordId }).select('_id').lean();
       if (existing) {
         return res.status(409).json({
@@ -173,13 +205,19 @@ export const createReport = async (req: Request, res: Response) => {
       }
       const unique = [...new Set(requested)];
       const found = await MedicalRecord.find({ _id: { $in: unique }, petId, stage: 'completed', ...REPORT_READY_FILTER })
-        .select('_id')
+        .select('_id vetId')
         .lean();
       if (found.length !== unique.length) {
         return res.status(400).json({
           status: 'ERROR',
           message: 'One or more selected records do not belong to this pet or are not completed.',
         });
+      }
+      if (user.userType === 'veterinarian') {
+        const notAttending = found.some((r: any) => r.vetId?.toString() !== user.userId);
+        if (notAttending) {
+          return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet of a medical record can create a report from it.' });
+        }
       }
       recordIds = unique;
     }
@@ -283,8 +321,29 @@ export const listReports = async (req: Request, res: Response) => {
     const { petId, limit = '20', offset = '0', search, types, status } = req.query;
 
     const filter: Record<string, any> = {};
+    let vetScopeOr: Record<string, any>[] | null = null;
     if (user.userType === 'veterinarian') {
-      filter.vetId = user.userId;
+      if (petId) {
+        // Single-pet view: any vet authorized on the pet sees all of its reports,
+        // not just their own — no need for the vetId restriction below.
+        const authorized = await isVetAuthorizedForPet(user.userId, petId);
+        if (!authorized) {
+          return res.json({ status: 'OK', data: [], total: 0 });
+        }
+      } else {
+        const [assignedPets, recordPets, referredPets, apptPets] = await Promise.all([
+          AssignedVet.find({ vetId: user.userId, isActive: true }).distinct('petId'),
+          MedicalRecord.find({ vetId: user.userId }).distinct('petId'),
+          Referral.find({ referredVetId: user.userId }).distinct('petId'),
+          Appointment.find({ vetId: user.userId, status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed'] } }).distinct('petId'),
+        ]);
+        const authorizedPetIds = [...new Set(
+          [...assignedPets, ...recordPets, ...referredPets, ...apptPets]
+            .filter(Boolean)
+            .map(String)
+        )];
+        vetScopeOr = [{ vetId: user.userId }, ...(authorizedPetIds.length ? [{ petId: { $in: authorizedPetIds } }] : [])];
+      }
     } else {
       filter.clinicId = user.clinicId;
     }
@@ -317,6 +376,17 @@ export const listReports = async (req: Request, res: Response) => {
       }).select('_id').lean();
       const petIds = matchingPets.map((p: any) => p._id);
       filter.$or = [{ title: rx }, ...(petIds.length ? [{ petId: { $in: petIds } }] : [])];
+    }
+
+    if (vetScopeOr) {
+      // Combine the vet's pet-scope with the free-text search scope (both use $or)
+      // via $and, rather than letting one clobber the other.
+      const clauses = [{ $or: vetScopeOr }];
+      if (filter.$or) {
+        clauses.push({ $or: filter.$or });
+        delete filter.$or;
+      }
+      filter.$and = clauses;
     }
 
     const total = await VetReport.countDocuments(filter);
@@ -356,7 +426,22 @@ export const getReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
 
+    const user = req.user!;
     const petId = typeof (report as any).petId === 'object' ? (report as any).petId._id : (report as any).petId;
+    const reportVetId = typeof (report as any).vetId === 'object' ? (report as any).vetId._id : (report as any).vetId;
+
+    if (user.userType === 'veterinarian') {
+      const isOwnReport = reportVetId?.toString() === user.userId;
+      const authorizedForPet = isOwnReport || (await isVetAuthorizedForPet(user.userId, petId));
+      if (!authorizedForPet) {
+        return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this report.' });
+      }
+    } else if (user.userType === 'clinic-admin') {
+      if ((report as any).clinicId?.toString() !== user.clinicId) {
+        return res.status(403).json({ status: 'ERROR', message: 'Not authorized to view this report.' });
+      }
+    }
+
     const [newRecordCount, vaccinations, monitoringEntries] = await Promise.all([
       countNewRecords(report),
       Vaccination.find({ petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status manufacturer notes').lean(),
@@ -406,6 +491,9 @@ export const updateReport = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can edit it.' });
     }
 
     // Finalized reports are locked. Until shared they may be reverted to draft
@@ -475,6 +563,9 @@ export const deleteReport = async (req: Request, res: Response) => {
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can delete it.' });
+    }
     if (report.status !== 'draft') {
       return res.status(400).json({ status: 'ERROR', message: 'Finalized reports cannot be deleted.' });
     }
@@ -497,6 +588,9 @@ export const syncReportRecords = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can update it.' });
     }
 
     // Finalized reports are locked: new visits go into a new report instead.
@@ -576,6 +670,9 @@ export const shareReport = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can share it.' });
     }
 
     // Only finalized reports may be shared with the owner
@@ -685,6 +782,9 @@ export const generateReport = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can generate it.' });
     }
 
     // Finalized reports are locked: regenerating would overwrite the signed content.
@@ -812,6 +912,9 @@ export const addReportAddendum = async (req: Request, res: Response) => {
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
     }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can add an addendum to it.' });
+    }
 
     if (report.status !== 'finalized') {
       return res.status(400).json({
@@ -864,6 +967,9 @@ export const humanizeReport = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can generate its owner summary.' });
     }
 
     if (report.status !== 'finalized') {
@@ -998,6 +1104,9 @@ export const updateOwnerSummary = async (req: Request, res: Response) => {
     const report = await VetReport.findById(id);
     if (!report) {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can edit its owner summary.' });
     }
 
     if (report.status !== 'finalized') {

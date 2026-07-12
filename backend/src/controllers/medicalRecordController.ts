@@ -684,7 +684,7 @@ export const getRecordsByPet = async (req: Request, res: Response) => {
         const hasAppointment = await Appointment.exists({
           vetId: req.user.userId,
           petId: pet._id,
-          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+          status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed'] },
         });
         isAuthorizedVet = !!hasAppointment;
       }
@@ -848,7 +848,7 @@ export const getHistoricalRecords = async (req: Request, res: Response) => {
         const hasAppointment = await Appointment.exists({
           vetId: req.user.userId,
           petId: pet._id,
-          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+          status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed'] },
         });
         isAuthorizedVet = !!hasAppointment;
       }
@@ -938,7 +938,7 @@ export const getRecordById = async (req: Request, res: Response) => {
         const hasAppointment = await Appointment.exists({
           vetId: req.user.userId,
           petId: pet._id,
-          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+          status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed'] },
         });
         isAuthorizedVet = !!hasAppointment;
       }
@@ -1934,7 +1934,7 @@ export const getMedicalHistory = async (req: Request, res: Response) => {
         const hasAppointment = await Appointment.exists({
           vetId: req.user.userId,
           petId,
-          status: { $in: ['pending', 'confirmed', 'in_progress', 'completed'] },
+          status: { $in: ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress', 'completed'] },
         });
         isAuthorizedVet = !!hasAppointment;
       }

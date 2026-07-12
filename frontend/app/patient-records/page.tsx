@@ -228,7 +228,7 @@ function emptyExtraCheckboxes(): ExtraCheckboxState {
 // ==================== MAIN PAGE ====================
 
 function PatientRecordsPageContent() {
-  const { token } = useAuthStore()
+  const { token, user } = useAuthStore()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [patients, setPatients] = useState<PatientPet[]>([])
@@ -294,6 +294,10 @@ function PatientRecordsPageContent() {
       for (const appt of vetAppointments) {
         const petId = appt.petId?._id
         if (!petId) continue
+        // A cancelled appointment is not a patient relationship — backend record/report
+        // authorization excludes cancelled, so listing the pet here would show an
+        // empty/403 record view. Pets with only cancelled appointments are hidden.
+        if (appt.status === 'cancelled') continue
 
         const latestVisitAt = appt.date ? new Date(appt.date).toISOString() : null
         if (!petMap.has(petId)) {
@@ -1231,14 +1235,17 @@ function PatientRecordsPageContent() {
                           <FileText className="w-3 h-3" /> View Report
                         </button>
                       )}
-                      {/* Multiple reports per record are allowed — always offer creation */}
-                      <button
-                        onClick={() => handleGenerateReport(currentRecord)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
-                        title="Create a report for this visit"
-                      >
-                        <Sparkles className="w-3 h-3" /> New Report
-                      </button>
+                      {/* Multiple reports per record are allowed — always offer creation,
+                          but only to the record's attending vet (clinic-admins keep full access) */}
+                      {(user?.userType !== 'veterinarian' || currentRecord.vetId?._id === user?.id) && (
+                        <button
+                          onClick={() => handleGenerateReport(currentRecord)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                          title="Create a report for this visit"
+                        >
+                          <Sparkles className="w-3 h-3" /> New Report
+                        </button>
+                      )}
                       <button
                         onClick={() => handleToggleShare(currentRecord._id, !!currentRecord.sharedWithOwner)}
                         className={`p-2 rounded-lg transition-colors ${
@@ -1376,14 +1383,17 @@ function PatientRecordsPageContent() {
                                 <FileText className="w-3 h-3" /> View Report
                               </button>
                             )}
-                            {/* Multiple reports per record are allowed — always offer creation */}
-                            <button
-                              onClick={() => handleGenerateReport(record)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
-                              title="Create a report for this visit"
-                            >
-                              <Sparkles className="w-3 h-3" /> New Report
-                            </button>
+                            {/* Multiple reports per record are allowed — always offer creation,
+                                but only to the record's attending vet (clinic-admins keep full access) */}
+                            {(user?.userType !== 'veterinarian' || record.vetId?._id === user?.id) && (
+                              <button
+                                onClick={() => handleGenerateReport(record)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                                title="Create a report for this visit"
+                              >
+                                <Sparkles className="w-3 h-3" /> New Report
+                              </button>
+                            )}
                             <button
                               onClick={() => handleToggleShare(record._id, !!record.sharedWithOwner)}
                               className={`p-2 rounded-lg transition-colors ${
