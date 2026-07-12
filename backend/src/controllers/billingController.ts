@@ -773,7 +773,7 @@ export const submitQrPaymentProof = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Payment screenshot is required' });
     }
     const isDataUrl = typeof screenshot === 'string' && screenshot.startsWith('data:image/');
-    const isLocalUploadsPath = typeof screenshot === 'string' && screenshot.startsWith('/uploads/');
+    const isLocalUploadsPath = typeof screenshot === 'string' && (screenshot.startsWith('/uploads/') || screenshot.startsWith('/api/images/'));
     const isLegacyAbsoluteUploadsUrl = typeof screenshot === 'string' && /^https?:\/\/[^\s]+\/uploads\//i.test(screenshot);
     if (!isDataUrl && !isLocalUploadsPath && !isLegacyAbsoluteUploadsUrl) {
       return res.status(400).json({ status: 'ERROR', message: 'Invalid image format' });
