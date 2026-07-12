@@ -284,7 +284,6 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   // general
   clinicalSummary:          <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
   laboratoryInterpretation: <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
-  diagnosticIntegration:    <Activity className="w-4 h-4 text-[#5A7C7A]" />,
   assessment:               <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
   managementPlan:           <Pill className="w-4 h-4 text-[#5A7C7A]" />,
   prognosis:                <TrendingUp className="w-4 h-4 text-[#5A7C7A]" />,
@@ -417,7 +416,6 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   const SECTION_DATA_MAP: Record<string, Array<DataType>> = {
     clinicalSummary: ['vitals'],
     laboratoryInterpretation: ['diagnostics', 'immunityTesting'],
-    diagnosticIntegration: ['vitals', 'diagnostics', 'immunityTesting'],
     managementPlan: ['medications', 'preventiveCare', 'vaccinations'],
     objective: ['vitals', 'diagnostics', 'immunityTesting'],
     plan: ['medications'],

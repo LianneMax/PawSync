@@ -65,10 +65,9 @@ export const SECTION_LABELS_BY_TYPE: Record<ReportType, Record<string, string>> 
   general: {
     clinicalSummary: 'I. Clinical Summary',
     laboratoryInterpretation: 'II. Laboratory Interpretation',
-    diagnosticIntegration: 'III. Overall Diagnostic Integration',
-    assessment: 'IV. Assessment',
-    managementPlan: 'V. Recommendations and Management Plan',
-    prognosis: 'VI. Prognosis',
+    assessment: 'III. Assessment',
+    managementPlan: 'IV. Recommendations and Management Plan',
+    prognosis: 'V. Prognosis',
   },
   soap: {
     subjective: 'S: Subjective (Owner\'s Report & History)',

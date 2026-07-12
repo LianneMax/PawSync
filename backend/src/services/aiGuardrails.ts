@@ -12,7 +12,7 @@ import type { OwnerSummary } from './vetReportGenerationService';
 // The exact JSON keys each report type's prompt requests. Anything outside this set
 // is a stray key the model invented (or an injected extra section) and is dropped.
 export const SECTION_KEYS_BY_TYPE: Record<ReportType, string[]> = {
-  general: ['clinicalSummary', 'laboratoryInterpretation', 'diagnosticIntegration', 'assessment', 'managementPlan', 'prognosis'],
+  general: ['clinicalSummary', 'laboratoryInterpretation', 'assessment', 'managementPlan', 'prognosis'],
   soap: ['subjective', 'objective', 'assessment', 'plan'],
   diagnostic: ['testsSummary', 'resultsInterpretation', 'clinicalCorrelation', 'recommendations'],
   surgery: ['preoperativeSummary', 'surgicalProcedure', 'intraoperativeMonitoring', 'postoperativeCare', 'complications'],

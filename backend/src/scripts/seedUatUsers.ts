@@ -395,7 +395,6 @@ async function seedOwnerData(
           laboratoryInterpretation: primaryTest
             ? `${primaryTest.name}: ${primaryTest.result}`
             : 'No laboratory testing performed at this visit.',
-          diagnosticIntegration: visit.assessment,
           assessment: visit.assessment,
           managementPlan: visit.plan,
           prognosis: visit.prognosis,
