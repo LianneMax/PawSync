@@ -109,7 +109,7 @@ const SECTION_DATA_MAP: Record<string, Array<'vitals' | 'diagnostics' | 'medicat
   clinicalSummary:          ['vitals'],
   laboratoryInterpretation: ['diagnostics', 'immunityTesting'],
   diagnosticIntegration:    ['vitals', 'diagnostics', 'immunityTesting'],
-  managementPlan:           ['medications', 'preventiveCare'],
+  managementPlan:           ['medications', 'preventiveCare', 'vaccinations'],
   objective:                ['vitals', 'diagnostics', 'immunityTesting'],
   plan:                     ['medications'],
   testsSummary:             ['diagnostics', 'immunityTesting'],

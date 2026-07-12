@@ -417,7 +417,7 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     clinicalSummary: ['vitals'],
     laboratoryInterpretation: ['diagnostics', 'immunityTesting'],
     diagnosticIntegration: ['vitals', 'diagnostics', 'immunityTesting'],
-    managementPlan: ['medications', 'preventiveCare'],
+    managementPlan: ['medications', 'preventiveCare', 'vaccinations'],
     objective: ['vitals', 'diagnostics', 'immunityTesting'],
     plan: ['medications'],
     testsSummary: ['diagnostics', 'immunityTesting'],

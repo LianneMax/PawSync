@@ -380,8 +380,12 @@ export const getSharedReport = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Report not found or not shared' });
     }
 
-    const monitoringEntries = await fetchMonitoringEntries(report);
-    res.json({ status: 'OK', data: { ...report, monitoringEntries } });
+    const petId = typeof (report as any).petId === 'object' ? (report as any).petId._id : (report as any).petId;
+    const [vaccinations, monitoringEntries] = await Promise.all([
+      Vaccination.find({ petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status manufacturer notes').lean(),
+      fetchMonitoringEntries(report),
+    ]);
+    res.json({ status: 'OK', data: { ...report, vaccinations, monitoringEntries } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -703,7 +707,7 @@ export const generateReport = async (req: Request, res: Response) => {
     const rType = (report.reportType as ReportType) || 'general';
 
     let vaccinations: any[] | undefined;
-    if (rType === 'referralLetter') {
+    if (rType === 'referralLetter' || rType === 'general') {
       vaccinations = await Vaccination.find({ petId: report.petId })
         .sort({ dateAdministered: 1 })
         .select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status')

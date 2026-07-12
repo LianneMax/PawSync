@@ -81,6 +81,16 @@ function patientBlock(pet: any): string {
 - Sterilization: ${pet.sterilization}`;
 }
 
+function formatVaccinationBlock(vaccinations?: any[]): string {
+  if (!vaccinations || vaccinations.length === 0) return 'VACCINATION HISTORY:\n  (none on file)';
+  return `VACCINATION HISTORY:\n${vaccinations.map((v) => {
+    const date = v.dateAdministered ? new Date(v.dateAdministered).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+    const nextDue = v.nextDueDate ? new Date(v.nextDueDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+    const dose = v.boosterNumber > 0 ? `Booster #${v.boosterNumber}` : `Dose #${v.doseNumber}`;
+    return `  - ${v.vaccineName} | ${dose} | Administered: ${date} | Next due: ${nextDue} | Status: ${v.status}`;
+  }).join('\n')}`;
+}
+
 // ─── Prompt builders ─────────────────────────────────────────────────────────
 
 function buildAIPrompt(
@@ -88,7 +98,8 @@ function buildAIPrompt(
   record: any,
   vet: any,
   vetContextNotes: string,
-  persistentVetNotes: string
+  persistentVetNotes: string,
+  vaccinations?: any[]
 ): string {
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
@@ -134,6 +145,8 @@ ${testLines || '  (none)'}
 PREVENTIVE CARE:
 ${preventiveLines || '  (none)'}
 
+${formatVaccinationBlock(vaccinations)}
+
 PERSISTENT VET NOTES (ongoing notes kept by the vet across all visits for this patient):
 ${persistentVetNotes || '(none on file)'}
 
@@ -148,7 +161,7 @@ Generate the report in the following JSON format. Each value should be a well-wr
   "laboratoryInterpretation": "Detailed interpretation of all diagnostic tests. If there are blood work results, include a structured interpretation (parameter, result, reference, interpretation). Include hematology if available. Group by test type. If no tests were done, say so briefly.",
   "diagnosticIntegration": "A summary table-style text integrating all body systems examined: System | Findings | Interpretation. Cover Cardiac, Respiratory, Hepatic, Renal, Metabolic, Oral/Inflammatory as applicable based on available data.",
   "assessment": "Working diagnoses listed and supported by evidence from labs, vitals, and clinical signs. Include current status (stable/critical/improving).",
-  "managementPlan": "All treatment and management orders: confinement, IV fluids, medications (with dosages, routes, frequencies from the prescriptions), supportive care, monitoring parameters, diet, and activity restrictions.",
+  "managementPlan": "All treatment and management orders: confinement, IV fluids, medications (with dosages, routes, frequencies from the prescriptions), supportive care, monitoring parameters, diet, and activity restrictions, and any vaccinations administered or due (name, date, next due date from VACCINATION HISTORY).",
   "prognosis": "Overall prognosis with supporting rationale based on findings. Include outlook with compliance to treatment plan."
 }`;
 }
@@ -229,7 +242,8 @@ function buildConsolidatedAIPrompt(
   records: any[],
   vet: any,
   vetContextNotes: string,
-  persistentVetNotes: string
+  persistentVetNotes: string,
+  vaccinations?: any[]
 ): string {
   const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
   const summarized = records.slice(0, overflow);
@@ -247,6 +261,8 @@ VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
 
 ${summaryBlock}${detailBlock}
 
+${formatVaccinationBlock(vaccinations)}
+
 PERSISTENT VET NOTES (ongoing notes kept by the vet across all visits for this patient):
 ${persistentVetNotes || '(none on file)'}
 
@@ -261,7 +277,7 @@ Generate the consolidated report in the following JSON format. Each value should
   "laboratoryInterpretation": "Interpretation of all diagnostic tests across visits, grouped by test type and ordered chronologically. Highlight changes between repeat tests. If no tests were done, say so briefly.",
   "diagnosticIntegration": "A summary table-style text integrating all body systems examined across the visit history: System | Findings | Interpretation. Note where findings changed between visits.",
   "assessment": "Working diagnoses across the case history, supported by evidence from labs, vitals, and clinical signs over time. Note resolved vs ongoing problems and current status (stable/critical/improving).",
-  "managementPlan": "The current treatment and management orders, plus a brief history of prior treatments and the patient's response: medications (with dosages, routes, frequencies), supportive care, monitoring parameters, diet, and activity restrictions.",
+  "managementPlan": "The current treatment and management orders, plus a brief history of prior treatments and the patient's response: medications (with dosages, routes, frequencies), supportive care, monitoring parameters, diet, and activity restrictions, and any vaccinations administered or due (name, date, next due date from VACCINATION HISTORY).",
   "prognosis": "Overall prognosis with supporting rationale based on the full visit history and treatment response. Include outlook with compliance to treatment plan."
 }`;
 }
@@ -683,14 +699,7 @@ function buildReferralLetterPrompt(
     : '';
   const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
 
-  const vaccinationBlock = vaccinations && vaccinations.length > 0
-    ? `VACCINATION HISTORY:\n${vaccinations.map((v) => {
-        const date = v.dateAdministered ? new Date(v.dateAdministered).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
-        const nextDue = v.nextDueDate ? new Date(v.nextDueDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
-        const dose = v.boosterNumber > 0 ? `Booster #${v.boosterNumber}` : `Dose #${v.doseNumber}`;
-        return `  - ${v.vaccineName} | ${dose} | Administered: ${date} | Next due: ${nextDue} | Status: ${v.status}`;
-      }).join('\n')}`
-    : 'VACCINATION HISTORY:\n  (none on file)';
+  const vaccinationBlock = formatVaccinationBlock(vaccinations);
 
   return `You are a veterinary referral letter writer. Generate a professional Veterinary Referral Letter from the attending veterinarian to a specialist.
 
@@ -904,8 +913,8 @@ export async function generateReportSections(params: GenerateReportParams): Prom
       break;
     default:
       prompt = records.length > 1
-        ? buildConsolidatedAIPrompt(pet, records, vet, vetContextNotes, persistentNotes)
-        : buildAIPrompt(pet, records[0] || {}, vet, vetContextNotes, persistentNotes);
+        ? buildConsolidatedAIPrompt(pet, records, vet, vetContextNotes, persistentNotes, vaccinations)
+        : buildAIPrompt(pet, records[0] || {}, vet, vetContextNotes, persistentNotes, vaccinations);
   }
 
   const completion = await openai.chat.completions.create({
