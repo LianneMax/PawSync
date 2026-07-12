@@ -1428,6 +1428,11 @@ export default function ReportEditorPage() {
   // Finalized reports are locked: backend rejects edits, so don't even queue autosaves
   const isFinalized = report?.status === 'finalized'
 
+  // Owners are shown the plain-language summary first, so it gates sharing
+  const hasOwnerSummary = !!ownerSummary && Object.values(ownerSummary).some(
+    (v) => (typeof v === 'string' ? v.trim().length > 0 : Array.isArray(v) && v.length > 0)
+  )
+
   const handleSectionChange = (key: string, value: string) => {
     if (isFinalized) return
     const updated = { ...sections, [key]: value }
@@ -1589,6 +1594,11 @@ export default function ReportEditorPage() {
     if (report.sharedWithOwner) return
     if (report.status !== 'finalized') {
       toast.error('Finalize the report before sharing it with the owner.')
+      return
+    }
+    // Owners see the plain-language summary first, so it must exist before sharing
+    if (!hasOwnerSummary) {
+      toast.error('Generate an owner summary before sharing the report with the owner.')
       return
     }
     setShareConfirmOpen(true)
@@ -1843,8 +1853,14 @@ export default function ReportEditorPage() {
             ) : (
               <button
                 onClick={requestShare}
-                disabled={report.status !== 'finalized' || sharing}
-                title={report.status !== 'finalized' ? 'Finalize the report before sharing' : undefined}
+                disabled={report.status !== 'finalized' || !hasOwnerSummary || sharing}
+                title={
+                  report.status !== 'finalized'
+                    ? 'Finalize the report before sharing'
+                    : !hasOwnerSummary
+                      ? 'Generate an owner summary before sharing'
+                      : undefined
+                }
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 text-gray-700 hover:bg-gray-50"
               >
                 <Share2 className="w-4 h-4" />
