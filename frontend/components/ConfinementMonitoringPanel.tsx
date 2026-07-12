@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { HeartPulse, Activity, Thermometer, Weight, RefreshCw } from 'lucide-react'
+import { HeartPulse, Activity, Thermometer, Weight, RefreshCw, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   createConfinementMonitoringEntry,
@@ -18,6 +18,9 @@ type MonitoringForm = {
   bodyConditionScore: string
   dentalScore: string
   capillaryRefillTime: string
+  painScore: string
+  hydrationStatus: string
+  appetite: string
   clinicalNotes: string
 }
 
@@ -30,8 +33,14 @@ const emptyForm = (): MonitoringForm => ({
   bodyConditionScore: '',
   dentalScore: '',
   capillaryRefillTime: '',
+  painScore: '',
+  hydrationStatus: '',
+  appetite: '',
   clinicalNotes: '',
 })
+
+const HYDRATION_OPTIONS = ['Normal', 'Mild Dehydration', 'Moderate Dehydration', 'Severe Dehydration']
+const APPETITE_OPTIONS = ['Normal', 'Reduced', 'Poor', 'Anorexic']
 
 function toLocalDateTimeInput(date: Date): string {
   const pad = (num: number) => String(num).padStart(2, '0')
@@ -110,6 +119,11 @@ export default function ConfinementMonitoringPanel({
       return
     }
 
+    if (form.painScore.trim() !== '' && (isNaN(Number(form.painScore)) || Number(form.painScore) < 0 || Number(form.painScore) > 10)) {
+      toast.error('Pain score must be a number between 0 and 10')
+      return
+    }
+
     setSubmitting(true)
     try {
       const payload: Record<string, unknown> = {
@@ -126,6 +140,9 @@ export default function ConfinementMonitoringPanel({
         clinicalFlag: 'normal',
         followUpAction: 'watch',
         requiresImmediateReview: false,
+        ...(form.painScore.trim() !== '' ? { painScore: Number(form.painScore) } : {}),
+        ...(form.hydrationStatus ? { hydrationStatus: form.hydrationStatus } : {}),
+        ...(form.appetite ? { appetite: form.appetite } : {}),
       }
 
       const res = await createConfinementMonitoringEntry(confinementRecordId, payload, token)
@@ -203,6 +220,29 @@ export default function ConfinementMonitoringPanel({
             <input placeholder="Body Condition Score (1-5)*" className="border rounded-lg px-2 py-2 text-sm" value={form.bodyConditionScore} onChange={(e) => onChange('bodyConditionScore', e.target.value)} />
             <input placeholder="Dental Score (1-3)*" className="border rounded-lg px-2 py-2 text-sm" value={form.dentalScore} onChange={(e) => onChange('dentalScore', e.target.value)} />
             <input placeholder="CRT (sec)*" className="border rounded-lg px-2 py-2 text-sm" value={form.capillaryRefillTime} onChange={(e) => onChange('capillaryRefillTime', e.target.value)} />
+            <input type="number" min="0" max="10" step="1" placeholder="Pain Score (0-10)" className="border rounded-lg px-2 py-2 text-sm" value={form.painScore} onChange={(e) => onChange('painScore', e.target.value)} />
+            <div className="relative">
+              <select
+                className="w-full appearance-none border rounded-lg px-2 py-2 pr-8 text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]"
+                value={form.hydrationStatus}
+                onChange={(e) => onChange('hydrationStatus', e.target.value)}
+              >
+                <option value="">Hydration Status</option>
+                {HYDRATION_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+            <div className="relative">
+              <select
+                className="w-full appearance-none border rounded-lg px-2 py-2 pr-8 text-sm text-[#4F4F4F] focus:outline-none focus:border-[#7FA5A3]"
+                value={form.appetite}
+                onChange={(e) => onChange('appetite', e.target.value)}
+              >
+                <option value="">Appetite</option>
+                {APPETITE_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
           <textarea
@@ -259,6 +299,9 @@ export default function ConfinementMonitoringPanel({
                   <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">BCS: {entry.bodyConditionScore?.value ?? '—'}/5</span>
                   <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">Dental: {entry.dentalScore?.value ?? '—'}/3</span>
                   <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">CRT: {entry.capillaryRefillTime?.value ?? '—'} sec</span>
+                  <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">Pain: {entry.painScore ?? '—'}/10</span>
+                  <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">Hydration: {entry.hydrationStatus || '—'}</span>
+                  <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">Appetite: {entry.appetite || '—'}</span>
                 </div>
               </div>
             )
