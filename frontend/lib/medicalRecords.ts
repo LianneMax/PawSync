@@ -366,7 +366,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   stage: MedicalRecord['stage'];
   chiefComplaint: string;
   vitals: Partial<Vitals>;
-  images: { data: string; contentType: string; description?: string }[];
+  images: { url?: string; data?: string; contentType?: string; description?: string }[];
   overallObservation: string;
   visitSummary: string;
   vetNotes: string;
@@ -381,7 +381,7 @@ export const updateMedicalRecord = async (id: string, updates: Partial<{
   confinementAction: 'none' | 'confined' | 'released';
   confinementDays: number;
   confinementRecordId: string | null;
-  surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { data: string; contentType: string; description: string }[] } | null;
+  surgeryRecord: { surgeryType: string; vetRemarks: string; images?: { url: string; description: string }[] } | null;
   pregnancyRecord: PregnancyRecord | null;
   pregnancyDelivery: PregnancyDelivery | null;
   pregnancyLoss: PregnancyLoss | null;

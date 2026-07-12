@@ -1770,13 +1770,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
     resolveActiveConfinementRecord()
   }, [token, petId, confined, confinementRecordId])
 
-  // Build surgery images payload from previews (data URLs) for updateMedicalRecord
+  // Build surgery images payload from previews (uploaded URLs) for updateMedicalRecord
   const buildSurgeryImagesPayload = () =>
     surgeryImages
       .filter((img) => img.preview !== null)
       .map((img) => ({
-        data: img.preview!.split(',')[1] ?? img.preview!,
-        contentType: img.file?.type || 'image/jpeg',
+        url: img.preview!,
         description: `${img.type} surgery image`,
       }))
 
