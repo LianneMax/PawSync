@@ -15,6 +15,8 @@ import { sendVetReportShared } from '../services/emailService';
 import {
   generateReportSections,
   humanizeReportSections,
+  draftReportAddendum,
+  validateReportAddendum,
   isAIConfigured,
   ReportGenerationError,
 } from '../services/vetReportGenerationService';
@@ -110,6 +112,18 @@ async function countNewRecords(report: any): Promise<number> {
     ...REPORT_READY_FILTER,
     _id: { $nin: includedIds },
     createdAt: { $gt: since },
+  });
+}
+
+async function countUpdatedSourceRecords(report: any): Promise<number> {
+  const includedIds = resolveReportRecordIds(report);
+  const since = report.recordsSyncedAt || report.createdAt;
+  return MedicalRecord.countDocuments({
+    _id: { $in: includedIds },
+    stage: 'completed',
+    ...REPORT_READY_FILTER,
+    updatedAt: { $gt: since },
+    createdAt: { $lte: since },
   });
 }
 
@@ -402,7 +416,15 @@ export const listReports = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .lean();
 
-    res.json({ status: 'OK', data: reports, total });
+    const reportsWithCounts = await Promise.all(reports.map(async (report: any) => {
+      const [newRecordCount, updatedSourceCount] = await Promise.all([
+        countNewRecords(report),
+        countUpdatedSourceRecords(report),
+      ]);
+      return { ...report, newRecordCount, updatedSourceCount };
+    }));
+
+    res.json({ status: 'OK', data: reportsWithCounts, total });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -417,7 +439,7 @@ export const getReport = async (req: Request, res: Response) => {
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
       .populate('medicalRecordId')
-      .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt updatedAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
       .populate('confinementRecordId', 'reason notes admissionDate dischargeDate status')
       .populate('addenda.addedBy', 'firstName lastName')
       .lean();
@@ -442,12 +464,13 @@ export const getReport = async (req: Request, res: Response) => {
       }
     }
 
-    const [newRecordCount, vaccinations, monitoringEntries] = await Promise.all([
+    const [newRecordCount, updatedSourceCount, vaccinations, monitoringEntries] = await Promise.all([
       countNewRecords(report),
+      countUpdatedSourceRecords(report),
       Vaccination.find({ petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status manufacturer notes').lean(),
       fetchMonitoringEntries(report),
     ]);
-    res.json({ status: 'OK', data: { ...report, newRecordCount, vaccinations, monitoringEntries } });
+    res.json({ status: 'OK', data: { ...report, newRecordCount, updatedSourceCount, vaccinations, monitoringEntries } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -461,7 +484,7 @@ export const getSharedReport = async (req: Request, res: Response) => {
     const report = await VetReport.findOne({ _id: id, sharedWithOwner: true })
       .populate('petId', 'name species breed sex dateOfBirth weight photo allergies sterilization microchipNumber')
       .populate('vetId', 'firstName lastName prcLicenseNumber')
-      .populate('medicalRecordIds', 'chiefComplaint createdAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt updatedAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
       .populate('confinementRecordId', 'reason notes admissionDate dischargeDate status')
       .populate('addenda.addedBy', 'firstName lastName')
       .lean();
@@ -471,11 +494,13 @@ export const getSharedReport = async (req: Request, res: Response) => {
     }
 
     const petId = typeof (report as any).petId === 'object' ? (report as any).petId._id : (report as any).petId;
-    const [vaccinations, monitoringEntries] = await Promise.all([
+    const [newRecordCount, updatedSourceCount, vaccinations, monitoringEntries] = await Promise.all([
+      countNewRecords(report),
+      countUpdatedSourceRecords(report),
       Vaccination.find({ petId }).sort({ dateAdministered: 1 }).select('vaccineName dateAdministered nextDueDate doseNumber boosterNumber status manufacturer notes').lean(),
       fetchMonitoringEntries(report),
     ]);
-    res.json({ status: 'OK', data: { ...report, vaccinations, monitoringEntries } });
+    res.json({ status: 'OK', data: { ...report, newRecordCount, updatedSourceCount, vaccinations, monitoringEntries } });
   } catch (err: any) {
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
@@ -950,6 +975,106 @@ export const addReportAddendum = async (req: Request, res: Response) => {
 
     res.status(201).json({ status: 'OK', data: populated });
   } catch (err: any) {
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+export const draftReportAddendumText = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const report = await VetReport.findById(id)
+      .populate('petId', 'name species breed')
+      .populate('vetId', 'firstName lastName prcLicenseNumber')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt updatedAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
+      .lean();
+
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can draft an addendum for it.' });
+    }
+
+    const pet = (report as any).petId;
+    const vet = (report as any).vetId;
+    const sourceRecords = resolveReportRecordIds(report).length
+      ? await MedicalRecord.find({ _id: { $in: resolveReportRecordIds(report) } }).sort({ createdAt: 1 }).lean()
+      : [];
+    const changeLogRecords = sourceRecords.flatMap((record: any) =>
+      Array.isArray(record.updateHistory) && record.updateHistory.length
+        ? record.updateHistory.map((entry: any) => ({
+            ...entry,
+            sourceRecordId: record._id,
+            sourceRecordDate: record.updatedAt || record.createdAt,
+          }))
+        : []
+    );
+    const newRecordCount = await countNewRecords(report);
+    const updatedSourceCount = await countUpdatedSourceRecords(report);
+    const updatedRecords = sourceRecords.filter((record: any) => new Date(record.updatedAt).getTime() > new Date(report.recordsSyncedAt || report.createdAt).getTime() && new Date(record.createdAt).getTime() <= new Date(report.recordsSyncedAt || report.createdAt).getTime());
+
+    if (updatedSourceCount === 0) {
+      return res.status(400).json({ status: 'ERROR', message: 'No edited source records were found for this report.' });
+    }
+
+    const text = await draftReportAddendum({
+      reportType: (report.reportType as ReportType) || 'general',
+      pet,
+      vet,
+      reportTitle: report.title,
+      records: changeLogRecords.length ? changeLogRecords : updatedRecords,
+      updatedSourceCount,
+      newRecordCount,
+    });
+
+    res.json({ status: 'OK', data: { text, newRecordCount, updatedSourceCount } });
+  } catch (err: any) {
+    if (err instanceof ReportGenerationError) {
+      return res.status(502).json({ status: 'ERROR', message: err.message, raw: err.raw });
+    }
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+export const validateReportAddendumText = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+
+    if (typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ status: 'ERROR', message: 'Addendum text is required.' });
+    }
+
+    const report = await VetReport.findById(id)
+      .populate('petId', 'name species breed')
+      .populate('vetId', 'firstName lastName prcLicenseNumber')
+      .populate('medicalRecordIds', 'chiefComplaint createdAt updatedAt stage vitals diagnosticTests medications preventiveCare surgeryRecord overallObservation assessment immunityTesting')
+      .lean();
+
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+    if (!canWriteReport(req, report)) {
+      return res.status(403).json({ status: 'ERROR', message: 'Only the attending vet who created this report can validate an addendum for it.' });
+    }
+
+    const sourceRecords = resolveReportRecordIds(report).length
+      ? await MedicalRecord.find({ _id: { $in: resolveReportRecordIds(report) } }).sort({ createdAt: 1 }).lean()
+      : [];
+
+    const result = await validateReportAddendum({
+      reportType: (report.reportType as ReportType) || 'general',
+      pet: (report as any).petId,
+      reportTitle: report.title,
+      addendumText: text.trim(),
+      records: sourceRecords,
+    });
+
+    res.json({ status: 'OK', data: result });
+  } catch (err: any) {
+    if (err instanceof ReportGenerationError) {
+      return res.status(502).json({ status: 'ERROR', message: err.message, raw: err.raw });
+    }
     res.status(500).json({ status: 'ERROR', message: err.message });
   }
 };

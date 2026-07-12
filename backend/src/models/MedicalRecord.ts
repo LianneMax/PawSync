@@ -104,6 +104,20 @@ export interface IFollowUp {
   createdAt: Date;
 }
 
+export interface IMedicalRecordFieldChange {
+  field: string;
+  label: string;
+  before: string;
+  after: string;
+}
+
+export interface IMedicalRecordUpdateEntry {
+  updatedAt: Date;
+  updatedBy: mongoose.Types.ObjectId | null;
+  summary: string;
+  changes: IMedicalRecordFieldChange[];
+}
+
 export interface IMedicalRecord extends Document {
   petId: mongoose.Types.ObjectId;
   ownerId: mongoose.Types.ObjectId;
@@ -175,6 +189,7 @@ export interface IMedicalRecord extends Document {
   billingId: mongoose.Types.ObjectId | null;
   preventiveAssociatedExclusions: string[];
   followUps: IFollowUp[];
+  updateHistory?: IMedicalRecordUpdateEntry[];
   vetSignature?: { url: string | null; signedAt: Date | null };
   createdAt: Date;
   updatedAt: Date;
@@ -397,6 +412,26 @@ const FollowUpSchema = new Schema(
   { _id: true, timestamps: { createdAt: true, updatedAt: false } }
 );
 
+const MedicalRecordFieldChangeSchema = new Schema(
+  {
+    field: { type: String, default: '' },
+    label: { type: String, default: '' },
+    before: { type: String, default: '' },
+    after: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const MedicalRecordUpdateEntrySchema = new Schema(
+  {
+    updatedAt: { type: Date, default: Date.now },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    summary: { type: String, default: '' },
+    changes: { type: [MedicalRecordFieldChangeSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const MedicalRecordSchema = new Schema(
   {
     petId: {
@@ -587,6 +622,7 @@ const MedicalRecordSchema = new Schema(
       type: [FollowUpSchema],
       default: []
     },
+    updateHistory: { type: [MedicalRecordUpdateEntrySchema], default: [] },
     vetSignature: {
       url: { type: String, default: null },
       signedAt: { type: Date, default: null },

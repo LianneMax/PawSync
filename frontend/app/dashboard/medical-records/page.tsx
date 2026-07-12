@@ -50,6 +50,16 @@ function formatDate(dateStr: string): string {
   })
 }
 
+function formatDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 // ==================== MAIN CONTENT COMPONENT ====================
 
 function MedicalRecordsPageContent() {
@@ -329,6 +339,9 @@ function MedicalRecordsPageContent() {
                           Dr. {record.vetId?.firstName} {record.vetId?.lastName}
                         </p>
                       </div>
+                      <div className="col-span-2 text-xs text-gray-400">
+                        Last updated by veterinarian: {formatDateTime(record.updatedAt)}
+                      </div>
                     </div>
                     {record.clinicId && (
                       <p className="text-xs text-gray-500 mt-2">
@@ -371,6 +384,12 @@ function MedicalRecordsPageContent() {
                     <p className="text-xs text-gray-500 uppercase font-semibold">Attending Veterinarian</p>
                     <p className="text-sm font-medium text-[#4F4F4F] mt-1">
                       Dr. {viewRecord.vetId?.firstName} {viewRecord.vetId?.lastName}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Last Updated by Veterinarian</p>
+                    <p className="text-sm font-medium text-[#4F4F4F] mt-1">
+                      {formatDateTime(viewRecord.updatedAt)}
                     </p>
                   </div>
                 </div>

@@ -108,6 +108,118 @@ function formatVaccinationBlock(vaccinations?: any[]): string {
   }).join('\n')}`;
 }
 
+const MAX_DETAILED_RECORDS = 15;
+
+function formatRecordSummaryLine(record: any, index: number): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
+    : 'Unknown date';
+  const assessment = (record.assessment || '').slice(0, 160);
+  return `VISIT ${index + 1} — ${visitDate}: ${record.chiefComplaint || 'No chief complaint'}${assessment ? ` | Assessment: ${assessment}` : ''}`;
+}
+
+function formatRecordBlock(record: any, index: number): string {
+  const visitDate = record.createdAt
+    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown date';
+  const vitalLines = Object.entries(record.vitals || {})
+    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
+    .map(([k, v]: any) => `    - ${k}: ${v.value}`)
+    .join('\n');
+  const vitalsNotes = extractVitalsNotes(record.vitals);
+  const medLines = (record.medications || [])
+    .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
+    .join('\n');
+  const testLines = (record.diagnosticTests || [])
+    .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
+    .join('\n');
+  const preventiveLines = (record.preventiveCare || [])
+    .map((p: any) => `    - ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`)
+    .join('\n');
+  const extras: string[] = [];
+  if (record.surgeryRecord?.surgeryType) {
+    extras.push(`  Surgery: ${record.surgeryRecord.surgeryType}${record.surgeryRecord.vetRemarks ? ` — ${record.surgeryRecord.vetRemarks}` : ''}`);
+  }
+  if (record.confinementAction === 'confined') {
+    extras.push(`  Confinement: ${record.confinementDays || 0} day(s)`);
+  }
+  if (record.immunityTesting?.enabled && record.immunityTesting.rows?.length) {
+    const titers = record.immunityTesting.rows
+      .map((r: any) => `    - ${r.disease}: Score ${r.score ?? 'N/A'} | ${r.status}${r.action ? ` — ${r.action}` : ''}`)
+      .join('\n');
+    extras.push(`  Immunity/Titer Testing (${record.immunityTesting.kitName || 'kit'}, ${record.immunityTesting.testDate ? new Date(record.immunityTesting.testDate).toLocaleDateString('en-PH') : 'N/A'}):\n${titers}`);
+  }
+  if (record.immunityTesting?.antigenEnabled && record.immunityTesting.antigenRows?.length) {
+    const antigens = record.immunityTesting.antigenRows
+      .map((r: any) => `    - ${r.disease}: ${r.result}`)
+      .join('\n');
+    extras.push(`  Antigen Testing (${record.immunityTesting.antigenDate ? new Date(record.immunityTesting.antigenDate).toLocaleDateString('en-PH') : 'N/A'}):\n${antigens}`);
+  }
+
+  return `VISIT ${index + 1} — ${visitDate}
+  Chief Complaint: ${record.chiefComplaint || 'Not specified'}
+  Vitals:
+${vitalLines || '    (no vitals recorded)'}
+  Vitals Notes: ${vitalsNotes || '(none)'}
+  SOAP:
+    Subjective: ${record.subjective || '(none)'}
+    Assessment: ${record.assessment || '(none)'}
+    Plan: ${record.plan || '(none)'}
+  Visit Summary: ${record.visitSummary || '(none)'}
+  Vet Notes: ${record.vetNotes || '(none)'}
+  Medications:
+${medLines || '    (none)'}
+  Diagnostic Tests:
+${testLines || '    (none)'}
+  Preventive Care:
+${preventiveLines || '    (none)'}${extras.length ? '\n' + extras.join('\n') : ''}`;
+}
+
+function buildConsolidatedAIPrompt(
+  pet: any,
+  records: any[],
+  vet: any,
+  vetContextNotes: string,
+  persistentVetNotes: string,
+  vaccinations?: any[]
+): string {
+  const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
+  const summarized = records.slice(0, overflow);
+  const detailed = records.slice(overflow);
+  const summaryBlock = summarized.length
+    ? `EARLIER VISITS (condensed):\n${summarized.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n\n`
+    : '';
+  const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
+
+  return `You are a veterinary medical report writer. Generate a CONSOLIDATED Veterinary Diagnostic Report covering the patient's ${records.length} visit${records.length !== 1 ? 's' : ''} listed below, in chronological order (oldest first). This is a longitudinal case history, not a single-visit report: identify trends across visits and integrate findings across the whole timeline.
+
+${patientBlock(pet)}
+
+VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+${summaryBlock}${detailBlock}
+
+${formatVaccinationBlock(vaccinations)}
+
+PERSISTENT VET NOTES:
+${persistentVetNotes || '(none on file)'}
+
+ADDITIONAL VET CONTEXT:
+${vetContextNotes || '(none provided)'}
+
+---
+Generate the consolidated report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
+
+{
+  "clinicalSummary": "A narrative covering the patient's presentation across all visits: initial presenting signs, how the condition evolved, physical exam findings over time, vital trends (especially weight), and current status.",
+  "laboratoryInterpretation": "Interpretation of all diagnostic tests across visits, grouped by test type and ordered chronologically. Highlight changes between repeat tests. If no tests were done, say so briefly.",
+  "diagnosticIntegration": "A summary table-style text integrating all body systems examined across the visit history: System | Findings | Interpretation. Note where findings changed between visits.",
+  "assessment": "Working diagnoses across the case history, supported by evidence from labs, vitals, and clinical signs over time. Note resolved vs ongoing problems and current status (stable/critical/improving).",
+  "managementPlan": "The current treatment and management orders, plus a brief history of prior treatments and the patient's response: medications (with dosages, routes, frequencies), supportive care, monitoring parameters, diet, activity restrictions, and any vaccinations administered or due.",
+  "prognosis": "Overall prognosis with supporting rationale based on the full visit history and treatment response. Include outlook with compliance to treatment plan."
+}`;
+}
+
 // ─── Prompt builders ─────────────────────────────────────────────────────────
 
 function buildAIPrompt(
@@ -132,6 +244,7 @@ function buildAIPrompt(
   const preventiveLines = (record.preventiveCare || [])
     .map((p: any) => `  - ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`)
     .join('\n');
+  const vaccinationLines = formatVaccinationBlock(vaccinations);
 
   return `You are a veterinary medical report writer. Generate a formal Veterinary Diagnostic Report using the clinical data below.
 
@@ -142,10 +255,10 @@ CLINIC: ${record.clinicId}
 
 CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
 
-VITALS (already shown to the reader as a table; reference for grounding only, do not repeat as prose):
+VITALS:
 ${vitalLines || '  (no vitals recorded)'}
 
-VITALS NOTES (the vet's own free-text remarks on the vitals — this is what clinicalSummary should draw on): ${vitalsNotes || '(none)'}
+VITALS NOTES: ${vitalsNotes || '(none)'}
 
 SOAP NOTES:
   Subjective: ${record.subjective || '(none)'}
@@ -165,7 +278,7 @@ ${testLines || '  (none)'}
 PREVENTIVE CARE:
 ${preventiveLines || '  (none)'}
 
-${formatVaccinationBlock(vaccinations)}
+${vaccinationLines}
 
 PERSISTENT VET NOTES (ongoing notes kept by the vet across all visits for this patient):
 ${persistentVetNotes || '(none on file)'}
@@ -177,129 +290,11 @@ ${vetContextNotes || '(none provided)'}
 Generate the report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
-  "clinicalSummary": "A narrative paragraph covering the patient's presenting signs, physical exam findings, and body condition. A vitals table is already shown to the reader elsewhere in the report — do NOT catalog or restate vital readings (e.g. do not write things like 'weight 4kg, temperature 38.9C, pulse 139bpm'). Mention a specific vital only if its value is clinically abnormal for the species, and describe it qualitatively (e.g. 'mildly tachycardic') rather than quoting the raw number. Otherwise, base this paragraph on VITALS NOTES, the vet's own free-text remarks, for clinical context and interpretation. If VITALS NOTES is empty and nothing is abnormal, keep this paragraph focused on presenting signs and exam findings without mentioning vitals at all.",
+  "clinicalSummary": "A narrative paragraph covering the patient's presenting signs, physical exam findings, vital parameter interpretation, body condition, and any notable abnormalities.",
   "laboratoryInterpretation": "Detailed interpretation of all diagnostic tests. If there are blood work results, include a structured interpretation (parameter, result, reference, interpretation). Include hematology if available. Group by test type. If no tests were done, say so briefly.",
-  "diagnosticIntegration": "A summary table-style text integrating all body systems examined: System | Findings | Interpretation. Cover Cardiac, Respiratory, Hepatic, Renal, Metabolic, Oral/Inflammatory as applicable based on available data.",
+  "diagnosticIntegration": "A summary table-style text integrating all body systems examined across the visit history: System | Findings | Interpretation. Cover Cardiac, Respiratory, Hepatic, Renal, Metabolic, Oral/Inflammatory as applicable based on available data.",
   "assessment": "Working diagnoses listed and supported by evidence from labs, vitals, and clinical signs. Include current status (stable/critical/improving).",
   "managementPlan": "All treatment and management orders: confinement, IV fluids, medications (with dosages, routes, frequencies from the prescriptions), supportive care, monitoring parameters, diet, and activity restrictions, and any vaccinations administered or due (name, date, next due date from VACCINATION HISTORY).",
-  "prognosis": "Overall prognosis with supporting rationale based on findings. Include outlook with compliance to treatment plan."
-}`;
-}
-
-const MAX_DETAILED_RECORDS = 15;
-
-function formatRecordBlock(record: any, index: number): string {
-  const visitDate = record.createdAt
-    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
-    : 'Unknown date';
-  const vitalLines = Object.entries(record.vitals || {})
-    .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
-    .map(([k, v]: any) => `    - ${k}: ${v.value}`)
-    .join('\n');
-  const vitalsNotes = extractVitalsNotes(record.vitals);
-  const medLines = (record.medications || [])
-    .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
-    .join('\n');
-  const testLines = (record.diagnosticTests || [])
-    .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
-    .join('\n');
-  const preventiveLines = (record.preventiveCare || [])
-    .map((p: any) => `    - ${p.careType}: ${p.product}${p.notes ? ` — ${p.notes}` : ''}`)
-    .join('\n');
-  const extras: string[] = [];
-  if (record.surgeryRecord?.surgeryType) {
-    extras.push(`  Surgery: ${record.surgeryRecord.surgeryType}${record.surgeryRecord.vetRemarks ? ` — ${record.surgeryRecord.vetRemarks}` : ''}`);
-  }
-  if (record.emergencyCase?.isEmergency) {
-    extras.push(`  Emergency case: triage ${record.emergencyCase.triageLevel || 'unspecified'}, outcome ${record.emergencyCase.outcome || 'unspecified'}`);
-  }
-  if (record.pregnancyRecord?.isPregnant) {
-    extras.push(`  Pregnancy: confirmed via ${record.pregnancyRecord.confirmationMethod}, due ${record.pregnancyRecord.expectedDueDate ? new Date(record.pregnancyRecord.expectedDueDate).toDateString() : 'unknown'}`);
-  }
-  if (record.confinementAction === 'confined') {
-    extras.push(`  Confinement: ${record.confinementDays || 0} day(s)`);
-  }
-  const immunity = record.immunityTesting;
-  if (immunity?.enabled && immunity.rows?.length) {
-    const titers = immunity.rows
-      .map((r: any) => `    - ${r.disease}: Score ${r.score ?? 'N/A'} | ${r.status}${r.action ? ` — ${r.action}` : ''}`)
-      .join('\n');
-    extras.push(`  Immunity/Titer Testing (${immunity.kitName || 'kit'}, ${immunity.testDate ? new Date(immunity.testDate).toLocaleDateString('en-PH') : 'N/A'}):\n${titers}`);
-  }
-  if (immunity?.antigenEnabled && immunity.antigenRows?.length) {
-    const antigens = immunity.antigenRows
-      .map((r: any) => `    - ${r.disease}: ${r.result}`)
-      .join('\n');
-    extras.push(`  Antigen Testing (${immunity.antigenDate ? new Date(immunity.antigenDate).toLocaleDateString('en-PH') : 'N/A'}):\n${antigens}`);
-  }
-  return `VISIT ${index + 1} — ${visitDate}
-  Chief Complaint: ${record.chiefComplaint || 'Not specified'}
-  Vitals:
-${vitalLines || '    (no vitals recorded)'}
-  Vitals Notes: ${vitalsNotes || '(none)'}
-  SOAP:
-    Subjective: ${record.subjective || '(none)'}
-    Assessment: ${record.assessment || '(none)'}
-    Plan: ${record.plan || '(none)'}
-  Visit Summary: ${record.visitSummary || '(none)'}
-  Vet Notes: ${record.vetNotes || '(none)'}
-  Medications:
-${medLines || '    (none)'}
-  Diagnostic Tests:
-${testLines || '    (none)'}
-  Preventive Care:
-${preventiveLines || '    (none)'}${extras.length ? '\n' + extras.join('\n') : ''}`;
-}
-
-function formatRecordSummaryLine(record: any, index: number): string {
-  const visitDate = record.createdAt
-    ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
-    : 'Unknown date';
-  const assessment = (record.assessment || '').slice(0, 160);
-  return `VISIT ${index + 1} — ${visitDate}: ${record.chiefComplaint || 'No chief complaint'}${assessment ? ` | Assessment: ${assessment}` : ''}`;
-}
-
-function buildConsolidatedAIPrompt(
-  pet: any,
-  records: any[],
-  vet: any,
-  vetContextNotes: string,
-  persistentVetNotes: string,
-  vaccinations?: any[]
-): string {
-  const overflow = Math.max(0, records.length - MAX_DETAILED_RECORDS);
-  const summarized = records.slice(0, overflow);
-  const detailed = records.slice(overflow);
-  const summaryBlock = summarized.length
-    ? `EARLIER VISITS (condensed):\n${summarized.map((r, i) => formatRecordSummaryLine(r, i)).join('\n')}\n\n`
-    : '';
-  const detailBlock = detailed.map((r, i) => formatRecordBlock(r, overflow + i)).join('\n\n');
-
-  return `You are a veterinary medical report writer. Generate a CONSOLIDATED Veterinary Diagnostic Report covering the patient's ${records.length} visit${records.length !== 1 ? 's' : ''} listed below, in chronological order (oldest first). This is a longitudinal case history, not a single-visit report: identify trends across visits (weight changes, recurring complaints, response to treatment, disease progression or resolution) and integrate findings across the whole timeline.
-
-${patientBlock(pet)}
-
-VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
-
-${summaryBlock}${detailBlock}
-
-${formatVaccinationBlock(vaccinations)}
-
-PERSISTENT VET NOTES (ongoing notes kept by the vet across all visits for this patient):
-${persistentVetNotes || '(none on file)'}
-
-ADDITIONAL VET CONTEXT (provided by the attending vet for this report):
-${vetContextNotes || '(none provided)'}
-
----
-Generate the consolidated report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language. Reference visits by date where relevant. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
-
-{
-  "clinicalSummary": "A narrative covering the patient's presentation across all visits: initial presenting signs, how the condition evolved, physical exam findings over time, and current status. A vitals table covering all visits is already shown to the reader elsewhere — do NOT catalog or restate vital readings. Mention a vital only if it was clinically abnormal at some visit, described qualitatively rather than quoted as a number. Otherwise draw on each visit's Vitals Notes (the vet's own free-text remarks) for clinical context.",
-  "laboratoryInterpretation": "Interpretation of all diagnostic tests across visits, grouped by test type and ordered chronologically. Highlight changes between repeat tests. If no tests were done, say so briefly.",
-  "diagnosticIntegration": "A summary table-style text integrating all body systems examined across the visit history: System | Findings | Interpretation. Note where findings changed between visits.",
-  "assessment": "Working diagnoses across the case history, supported by evidence from labs, vitals, and clinical signs over time. Note resolved vs ongoing problems and current status (stable/critical/improving).",
-  "managementPlan": "The current treatment and management orders, plus a brief history of prior treatments and the patient's response: medications (with dosages, routes, frequencies), supportive care, monitoring parameters, diet, and activity restrictions, and any vaccinations administered or due (name, date, next due date from VACCINATION HISTORY).",
   "prognosis": "Overall prognosis with supporting rationale based on the full visit history and treatment response. Include outlook with compliance to treatment plan."
 }`;
 }
@@ -892,6 +887,188 @@ Rewrite each section in plain language for the pet owner. Avoid em-dashes (—);
 }`;
 }
 
+function buildAddendumDraftPrompt(params: {
+  reportType: ReportType;
+  pet: any;
+  vet: any;
+  reportTitle: string;
+  records: any[];
+  updatedSourceCount: number;
+  newRecordCount: number;
+}): string {
+  const { reportType, pet, vet, reportTitle, records, updatedSourceCount, newRecordCount } = params;
+  const updatedBlocks = records.length
+    ? records.map((record: any, index) => {
+        if (record?.changes && Array.isArray(record.changes) && record.changes.length) {
+          const when = record.updatedAt
+            ? new Date(record.updatedAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+            : 'Unknown date';
+          const details = record.changes
+            .map((change: any) => `${change.label || change.field}: ${change.before} -> ${change.after}`)
+            .join('; ');
+          return `UPDATE ${index + 1} — ${when}: ${details}`;
+        }
+        return formatRecordSummaryLine(record, index);
+      }).join('\n')
+    : '(no updated medical records provided)';
+
+  return `You are writing an addendum for a finalized veterinary report.
+
+Report title: ${reportTitle || 'Untitled Report'}
+Report type: ${reportType}
+
+PATIENT INFORMATION:
+- Name: ${pet?.name || 'Unknown'}
+- Species: ${pet?.species || 'Unknown'}
+- Breed: ${pet?.breed || 'Unknown'}
+
+ATTENDING VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
+
+UPDATE CONTEXT:
+- New completed visits since last sync: ${newRecordCount}
+- Updated linked medical records: ${updatedSourceCount}
+
+UPDATED MEDICAL RECORDS:
+${updatedBlocks}
+
+---
+Write a concise addendum that only describes the current updated medical-record facts. Do not invent prior values. Do not mention internal database or sync terminology. Keep it suitable for a medico-legal report note. Output ONLY this JSON object:
+
+{
+  "text": "A concise addendum describing the correction or updated record facts in complete clinical sentences. Mention dates or record identifiers only when they help the clinician understand what changed."
+}`;
+}
+
+function buildAddendumValidationPrompt(params: {
+  reportType: ReportType;
+  pet: any;
+  reportTitle: string;
+  addendumText: string;
+  records: any[];
+}): string {
+  const { reportType, pet, reportTitle, addendumText, records } = params;
+  const recordSummary = records.length
+    ? records.map((record, index) => formatRecordBlock(record, index)).join('\n\n')
+    : '(no linked medical records provided)';
+
+  return `You are checking whether a proposed addendum matches the current veterinary medical record data.
+
+Report title: ${reportTitle || 'Untitled Report'}
+Report type: ${reportType}
+Patient: ${pet?.name || 'Unknown'}
+
+CURRENT MEDICAL RECORD DATA:
+${recordSummary}
+
+PROPOSED ADDENDUM:
+"""
+${addendumText}
+"""
+
+---
+Judge whether the addendum is faithful to the medical record data above. Flag contradictions, unsupported values, missing critical facts, or wording that changes the meaning of the records. If the addendum is accurate but too vague, say so. Output ONLY this JSON object:
+
+{
+  "valid": true,
+  "confidence": "high",
+  "issues": [],
+  "suggestedRevision": "",
+  "summary": "A short verdict sentence explaining whether the addendum matches the record data."
+}`;
+}
+
+export async function draftReportAddendum(params: {
+  reportType: ReportType;
+  pet: any;
+  vet: any;
+  reportTitle: string;
+  records: any[];
+  updatedSourceCount: number;
+  newRecordCount: number;
+}): Promise<string> {
+  const openai = getOpenAI();
+  if (!openai) {
+    throw new Error('AI service not configured');
+  }
+
+  const prompt = buildAddendumDraftPrompt(params);
+
+  const completion = await openai.chat.completions.create({
+    model: REPORT_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are a veterinary medico-legal report assistant. Output valid JSON only, with a single text field that contains a concise addendum. Do not invent facts.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.2,
+    max_tokens: 1200,
+    response_format: { type: 'json_object' },
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim() ?? '';
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = extractJSON(raw);
+  } catch {
+    throw new ReportGenerationError('AI returned an unexpected response. Please try again.', raw);
+  }
+
+  const text = typeof parsed.text === 'string' ? parsed.text.trim() : '';
+  if (!text) {
+    throw new ReportGenerationError('AI returned an empty addendum draft. Please try again.', raw);
+  }
+  return text;
+}
+
+export async function validateReportAddendum(params: {
+  reportType: ReportType;
+  pet: any;
+  reportTitle: string;
+  addendumText: string;
+  records: any[];
+}): Promise<{ valid: boolean; confidence: string; issues: string[]; suggestedRevision: string; summary: string }> {
+  const openai = getOpenAI();
+  if (!openai) {
+    throw new Error('AI service not configured');
+  }
+
+  const prompt = buildAddendumValidationPrompt(params);
+
+  const completion = await openai.chat.completions.create({
+    model: REPORT_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are a veterinary documentation auditor. Output valid JSON only. Be strict about factual accuracy and unsupported claims.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.1,
+    max_tokens: 1600,
+    response_format: { type: 'json_object' },
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim() ?? '';
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = extractJSON(raw);
+  } catch {
+    throw new ReportGenerationError('AI returned an unexpected response. Please try again.', raw);
+  }
+
+  return {
+    valid: Boolean(parsed.valid),
+    confidence: typeof parsed.confidence === 'string' ? parsed.confidence : 'unknown',
+    issues: Array.isArray(parsed.issues) ? parsed.issues.map(String) : [],
+    suggestedRevision: typeof parsed.suggestedRevision === 'string' ? parsed.suggestedRevision : '',
+    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface GenerateReportParams {
@@ -929,6 +1106,7 @@ export async function generateReportSections(params: GenerateReportParams): Prom
       }
       prompt = buildConfinementPrompt(pet, confinementRecord, monitoringEntries || [], records, vet, vetContextNotes, persistentNotes);
       break;
+
     case 'soap':
       prompt = buildSoapPrompt(pet, records, vet, vetContextNotes, persistentNotes);
       break;

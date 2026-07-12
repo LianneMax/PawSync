@@ -329,6 +329,7 @@ export default function VetReportsPage() {
             {reports.map((r) => {
               const owner = ownerName(r)
               const count = r.medicalRecordIds?.length || (r.medicalRecordId ? 1 : 0)
+              const sourceChanges = (r.newRecordCount ?? 0) + (r.updatedSourceCount ?? 0)
               return (
                 <button
                   key={r._id}
@@ -371,6 +372,11 @@ export default function VetReportsPage() {
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <StatusBadge status={r.status} shared={r.sharedWithOwner} />
+                      {sourceChanges > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                          Source updated
+                        </span>
+                      )}
                       <span className="text-xs text-gray-400">{formatReportDate(r.reportDate)}</span>
                       <span className="sm:hidden">
                         <TypeBadge type={r.reportType} />

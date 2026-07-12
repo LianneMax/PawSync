@@ -13,6 +13,8 @@ import {
   shareVetReport,
   syncVetReportRecords,
   deleteVetReport,
+  draftVetReportAddendum,
+  validateVetReportAddendum,
   addVetReportAddendum,
   formatReportDate,
   getSectionKeys,
@@ -1369,6 +1371,8 @@ export default function ReportEditorPage() {
   const [deleting, setDeleting] = useState(false)
   const [addendumText, setAddendumText] = useState('')
   const [addingAddendum, setAddingAddendum] = useState(false)
+  const [draftingAddendum, setDraftingAddendum] = useState(false)
+  const [addendumValidation, setAddendumValidation] = useState<{ valid: boolean; confidence: string; issues: string[]; suggestedRevision: string; summary: string } | null>(null)
 
   const [title, setTitle] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
@@ -1473,6 +1477,7 @@ export default function ReportEditorPage() {
           vetId: prev.vetId,
           medicalRecordIds: prev.medicalRecordIds,
           newRecordCount: prev.newRecordCount,
+          updatedSourceCount: prev.updatedSourceCount,
           vaccinations: prev.vaccinations,
           monitoringEntries: prev.monitoringEntries,
         }
@@ -1678,7 +1683,12 @@ export default function ReportEditorPage() {
       await updateVetReport(id, { vetContextNotes: contextNotes }, token || undefined).catch(() => {})
       const { addedCount } = await syncVetReportRecords(id, token || undefined)
       if (addedCount === 0) {
-        toast.info('No new completed records found for this patient')
+        const updatedSourceCount = report?.updatedSourceCount ?? 0
+        if (updatedSourceCount > 0) {
+          toast.info(`${updatedSourceCount} linked medical record${updatedSourceCount !== 1 ? 's were' : ' was'} updated since the last sync`)
+        } else {
+          toast.info('No new completed records found for this patient')
+        }
         await loadReport()
         return
       }
@@ -1706,14 +1716,50 @@ export default function ReportEditorPage() {
     if (!addendumText.trim()) return
     setAddingAddendum(true)
     try {
+      const validation = await validateVetReportAddendum(id, addendumText.trim(), token || undefined)
+      setAddendumValidation(validation)
+      if (!validation.valid) {
+        toast.error(validation.summary || 'Addendum does not match the current record data')
+        return
+      }
       const updated = await addVetReportAddendum(id, addendumText.trim(), token || undefined)
       applyUpdate(updated)
       setAddendumText('')
+      setAddendumValidation(null)
       toast.success('Addendum added')
     } catch (e: any) {
       toast.error(e.message || 'Failed to add addendum')
     } finally {
       setAddingAddendum(false)
+    }
+  }
+
+  const handleDraftAddendum = async () => {
+    setDraftingAddendum(true)
+    try {
+      const drafted = await draftVetReportAddendum(id, token || undefined)
+      setAddendumText(drafted.text)
+      setAddendumValidation(null)
+      toast.success('Addendum drafted from the updated record')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to draft addendum')
+    } finally {
+      setDraftingAddendum(false)
+    }
+  }
+
+  const handleValidateAddendum = async () => {
+    if (!addendumText.trim()) return
+    try {
+      const validation = await validateVetReportAddendum(id, addendumText.trim(), token || undefined)
+      setAddendumValidation(validation)
+      if (validation.valid) {
+        toast.success(validation.summary || 'Addendum matches the current record data')
+      } else {
+        toast.error(validation.summary || 'Addendum needs correction')
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to validate addendum')
     }
   }
 
@@ -1757,6 +1803,8 @@ export default function ReportEditorPage() {
       : null
   const sourceRecords = linkedRecords.length > 0 ? linkedRecords : legacyRecord ? [legacyRecord] : []
   const newRecordCount = report.newRecordCount ?? 0
+  const updatedSourceCount = report.updatedSourceCount ?? 0
+  const hasSourceChanges = newRecordCount > 0 || updatedSourceCount > 0
 
   return (
     <DashboardLayout userType={user?.userType as any}>
@@ -1938,12 +1986,14 @@ export default function ReportEditorPage() {
         </div>
 
         {/* New-visit staleness banner — not for per-visit types or locked finalized reports */}
-        {newRecordCount > 0 && !updating && !isPerVisitType && !isFinalized && (
+        {hasSourceChanges && !updating && !isPerVisitType && !isFinalized && (
           <div className="flex flex-col gap-3 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 sm:flex-row sm:items-center">
             <div className="flex items-start gap-3 flex-1">
               <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5 sm:mt-0" />
               <span>
-                <strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong> for {pet?.name} since this report was {report.recordsSyncedAt ? 'last updated' : 'created'}.
+                {newRecordCount > 0 ? <><strong>{newRecordCount} new completed visit{newRecordCount !== 1 ? 's' : ''}</strong>{updatedSourceCount > 0 ? ' and ' : ''}</> : null}
+                {updatedSourceCount > 0 ? <><strong>{updatedSourceCount} updated medical record{updatedSourceCount !== 1 ? 's' : ''}</strong> </> : null}
+                for {pet?.name} since this report was {report.recordsSyncedAt ? 'last synced' : 'created'}.
               </span>
             </div>
             <button
@@ -2037,6 +2087,28 @@ export default function ReportEditorPage() {
                     medical record)? Add a dated note below — it&apos;s appended to the report and
                     visible to the owner, without altering the original signed content.
                   </p>
+                  {updatedSourceCount > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={handleDraftAddendum}
+                        disabled={draftingAddendum}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        {draftingAddendum ? 'Drafting…' : 'Draft Addendum from Updated Record'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleValidateAddendum}
+                        disabled={draftingAddendum || !addendumText.trim()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Validate Addendum
+                      </button>
+                    </div>
+                  )}
                   {report.addenda && report.addenda.length > 0 && (
                     <div className="space-y-2 mb-3">
                       {report.addenda.map((a) => {
@@ -2054,12 +2126,30 @@ export default function ReportEditorPage() {
                   )}
                   <textarea
                     value={addendumText}
-                    onChange={(e) => setAddendumText(e.target.value)}
+                    onChange={(e) => {
+                      setAddendumText(e.target.value)
+                      setAddendumValidation(null)
+                    }}
                     disabled={addingAddendum}
                     rows={3}
                     placeholder="e.g. Patient's weight has since been corrected to 8kg in the medical record; this report's preoperative weight of 7.5kg reflects the value at the time the surgery report was finalized."
                     className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60"
                   />
+                  {addendumValidation && (
+                    <div className={`mt-2 rounded-lg border px-3 py-2 text-xs ${addendumValidation.valid ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>
+                      <p className="font-medium mb-1">{addendumValidation.summary || (addendumValidation.valid ? 'Addendum validated' : 'Addendum needs changes')}</p>
+                      {!!addendumValidation.issues.length && (
+                        <ul className="list-disc pl-4 space-y-0.5">
+                          {addendumValidation.issues.map((issue, index) => (
+                            <li key={`${issue}-${index}`}>{issue}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {!addendumValidation.valid && addendumValidation.suggestedRevision && (
+                        <p className="mt-1 whitespace-pre-wrap">Suggested revision: {addendumValidation.suggestedRevision}</p>
+                      )}
+                    </div>
+                  )}
                   <button
                     onClick={handleAddAddendum}
                     disabled={addingAddendum || !addendumText.trim()}

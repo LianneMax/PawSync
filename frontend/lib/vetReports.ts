@@ -165,6 +165,7 @@ export interface LinkedRecord {
   _id: string;
   chiefComplaint?: string;
   createdAt?: string;
+  updatedAt?: string;
   stage?: string;
   vitals?: Record<string, { value: string | number; notes?: string }>;
   diagnosticTests?: Array<{
@@ -276,6 +277,7 @@ export interface VetReport {
   scope?: 'selected' | 'all';
   recordsSyncedAt?: string | null;
   newRecordCount?: number;
+  updatedSourceCount?: number;
   reportType: ReportType;
   vetId: {
     _id: string;
@@ -555,6 +557,37 @@ export async function addVetReportAddendum(
     token
   );
   if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to add addendum');
+  return json.data;
+}
+
+export async function draftVetReportAddendum(
+  id: string,
+  token?: string
+): Promise<{ text: string; newRecordCount?: number; updatedSourceCount?: number }> {
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/addenda/draft`,
+    { method: 'POST' },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to draft addendum');
+  return json.data;
+}
+
+export async function validateVetReportAddendum(
+  id: string,
+  text: string,
+  token?: string
+): Promise<{ valid: boolean; confidence: string; issues: string[]; suggestedRevision: string; summary: string }> {
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/addenda/validate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to validate addendum');
   return json.data;
 }
 

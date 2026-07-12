@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import MedicalRecord from '../models/MedicalRecord';
+import MedicalRecord, { type IMedicalRecordFieldChange, type IMedicalRecordUpdateEntry } from '../models/MedicalRecord';
 import Pet from '../models/Pet';
 import AssignedVet from '../models/AssignedVet';
 import Vaccination from '../models/Vaccination';
@@ -81,6 +81,176 @@ function normalizeImmunityTestingPayload(immunityTesting: any) {
       : [],
     antigenDate: immunityTesting.antigenDate || null,
   };
+}
+
+function formatChangeValue(value: any, fieldName?: string): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (fieldName === 'weight') return `${value} kg`;
+  if (typeof value === 'boolean') return value ? 'yes' : 'no';
+  if (typeof value === 'number') return String(value);
+  if (value instanceof Date) return value.toLocaleDateString('en-US');
+  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value).trim();
+}
+
+function addChangeIfDifferent(
+  changes: IMedicalRecordFieldChange[],
+  field: string,
+  label: string,
+  beforeValue: any,
+  afterValue: any
+) {
+  const before = formatChangeValue(beforeValue, field);
+  const after = formatChangeValue(afterValue, field);
+  if (before !== after) {
+    changes.push({
+      field,
+      label,
+      before: before || '(blank)',
+      after: after || '(blank)',
+    });
+  }
+}
+
+function collectMedicalRecordChanges(before: any, updates: any): IMedicalRecordFieldChange[] {
+  const changes: IMedicalRecordFieldChange[] = [];
+  const beforeVitals = before?.vitals || {};
+  const nextVitals = updates?.vitals || {};
+
+  const vitalFields: Array<[string, string]> = [
+    ['weight', 'Weight'],
+    ['temperature', 'Temperature'],
+    ['pulseRate', 'Pulse rate'],
+    ['spo2', 'SpO2'],
+    ['bodyConditionScore', 'Body condition score'],
+    ['dentalScore', 'Dental score'],
+    ['crt', 'CRT'],
+    ['pregnancy', 'Pregnancy'],
+    ['xray', 'X-ray'],
+    ['vaccinated', 'Vaccination status'],
+  ];
+
+  for (const [field, label] of vitalFields) {
+    if (updates?.vitals && updates.vitals[field] !== undefined) {
+      addChangeIfDifferent(changes, `vitals.${field}.value`, label, beforeVitals[field]?.value, nextVitals[field]?.value);
+      if ((updates.vitals[field]?.notes ?? undefined) !== undefined) {
+        addChangeIfDifferent(changes, `vitals.${field}.notes`, `${label} notes`, beforeVitals[field]?.notes, nextVitals[field]?.notes);
+      }
+    }
+  }
+
+  const scalarFields: Array<[string, string]> = [
+    ['vitalsNotes', 'Vitals notes'],
+    ['overallObservation', 'Overall observation'],
+    ['visitSummary', 'Visit summary'],
+    ['vetNotes', 'Vet notes'],
+    ['sharedWithOwner', 'Share status'],
+    ['stage', 'Stage'],
+    ['chiefComplaint', 'Chief complaint'],
+    ['subjective', 'Subjective'],
+    ['assessment', 'Assessment'],
+    ['plan', 'Plan'],
+    ['confinementAction', 'Confinement action'],
+    ['confinementDays', 'Confinement days'],
+    ['referral', 'Referral flag'],
+    ['discharge', 'Discharge flag'],
+    ['scheduledSurgery', 'Scheduled surgery flag'],
+  ];
+
+  for (const [field, label] of scalarFields) {
+    if (updates[field] !== undefined) {
+      addChangeIfDifferent(changes, field, label, before[field], updates[field]);
+    }
+  }
+
+  if (updates.medications !== undefined && JSON.stringify(before.medications || []) !== JSON.stringify(updates.medications || [])) {
+    changes.push({
+      field: 'medications',
+      label: 'Medications',
+      before: `${(before.medications || []).length} item${(before.medications || []).length === 1 ? '' : 's'}`,
+      after: `${(updates.medications || []).length} item${(updates.medications || []).length === 1 ? '' : 's'}`,
+    });
+  }
+
+  if (updates.diagnosticTests !== undefined && JSON.stringify(before.diagnosticTests || []) !== JSON.stringify(updates.diagnosticTests || [])) {
+    changes.push({
+      field: 'diagnosticTests',
+      label: 'Diagnostic tests',
+      before: `${(before.diagnosticTests || []).length} item${(before.diagnosticTests || []).length === 1 ? '' : 's'}`,
+      after: `${(updates.diagnosticTests || []).length} item${(updates.diagnosticTests || []).length === 1 ? '' : 's'}`,
+    });
+  }
+
+  if (updates.preventiveCare !== undefined && JSON.stringify(before.preventiveCare || []) !== JSON.stringify(updates.preventiveCare || [])) {
+    changes.push({
+      field: 'preventiveCare',
+      label: 'Preventive care',
+      before: `${(before.preventiveCare || []).length} item${(before.preventiveCare || []).length === 1 ? '' : 's'}`,
+      after: `${(updates.preventiveCare || []).length} item${(updates.preventiveCare || []).length === 1 ? '' : 's'}`,
+    });
+  }
+
+  if (updates.surgeryRecord !== undefined && JSON.stringify(before.surgeryRecord || null) !== JSON.stringify(updates.surgeryRecord || null)) {
+    changes.push({
+      field: 'surgeryRecord',
+      label: 'Surgery record',
+      before: before.surgeryRecord?.surgeryType ? 'existing entry' : '(blank)',
+      after: updates.surgeryRecord?.surgeryType ? 'updated entry' : '(blank)',
+    });
+  }
+
+  if (updates.pregnancyRecord !== undefined && JSON.stringify(before.pregnancyRecord || null) !== JSON.stringify(updates.pregnancyRecord || null)) {
+    changes.push({
+      field: 'pregnancyRecord',
+      label: 'Pregnancy record',
+      before: before.pregnancyRecord ? 'existing entry' : '(blank)',
+      after: updates.pregnancyRecord ? 'updated entry' : '(blank)',
+    });
+  }
+
+  if (updates.pregnancyDelivery !== undefined && JSON.stringify(before.pregnancyDelivery || null) !== JSON.stringify(updates.pregnancyDelivery || null)) {
+    changes.push({
+      field: 'pregnancyDelivery',
+      label: 'Pregnancy delivery',
+      before: before.pregnancyDelivery ? 'existing entry' : '(blank)',
+      after: updates.pregnancyDelivery ? 'updated entry' : '(blank)',
+    });
+  }
+
+  if (updates.pregnancyLoss !== undefined && JSON.stringify(before.pregnancyLoss || null) !== JSON.stringify(updates.pregnancyLoss || null)) {
+    changes.push({
+      field: 'pregnancyLoss',
+      label: 'Pregnancy loss',
+      before: before.pregnancyLoss ? 'existing entry' : '(blank)',
+      after: updates.pregnancyLoss ? 'updated entry' : '(blank)',
+    });
+  }
+
+  if (updates.immunityTesting !== undefined && JSON.stringify(before.immunityTesting || null) !== JSON.stringify(updates.immunityTesting || null)) {
+    changes.push({
+      field: 'immunityTesting',
+      label: 'Immunity testing',
+      before: before.immunityTesting ? 'existing entry' : '(blank)',
+      after: updates.immunityTesting ? 'updated entry' : '(blank)',
+    });
+  }
+
+  if (updates.emergencyCase !== undefined && JSON.stringify(before.emergencyCase || null) !== JSON.stringify(updates.emergencyCase || null)) {
+    changes.push({
+      field: 'emergencyCase',
+      label: 'Emergency case',
+      before: before.emergencyCase ? 'existing entry' : '(blank)',
+      after: updates.emergencyCase ? 'updated entry' : '(blank)',
+    });
+  }
+
+  return changes;
+}
+
+function summarizeMedicalRecordChanges(changes: IMedicalRecordFieldChange[]): string {
+  if (!changes.length) return '';
+  return changes.map((change) => `${change.label} changed from ${change.before} to ${change.after}`).join('; ');
 }
 
 
@@ -1167,6 +1337,8 @@ export const updateRecord = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'ERROR', message: 'Medical record not found' });
     }
 
+    const originalRecord = record.toObject();
+
     const pet = await Pet.findById(record.petId).select('isAlive status deceasedAt');
     if (pet && (!pet.isAlive || pet.status === 'deceased')) {
       return res.status(403).json({
@@ -1467,6 +1639,17 @@ export const updateRecord = async (req: Request, res: Response) => {
     if (!record.ownerId) {
       const petForOwner = await Pet.findById(record.petId).select('ownerId').lean();
       if ((petForOwner as any)?.ownerId) record.ownerId = (petForOwner as any).ownerId;
+    }
+
+    const changeSet = collectMedicalRecordChanges(originalRecord, req.body);
+    if (changeSet.length) {
+      const updateEntry: IMedicalRecordUpdateEntry = {
+        updatedAt: new Date(),
+        updatedBy: req.user.userId ? (req.user.userId as any) : null,
+        summary: summarizeMedicalRecordChanges(changeSet),
+        changes: changeSet,
+      };
+      (record as any).updateHistory = [...((record as any).updateHistory || []), updateEntry];
     }
 
     await record.save();

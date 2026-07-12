@@ -75,6 +75,16 @@ function formatTime(dateStr: string) {
   })
 }
 
+function formatDateTime(dateStr: string) {
+  return new Date(dateStr).toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function calculateAge(dateOfBirth: string): string {
   const birth = new Date(dateOfBirth)
   const now = new Date()
@@ -315,6 +325,10 @@ export default function MedicalRecordReportPage() {
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase">Date of Examination</p>
                     <p className="text-sm font-medium text-[#4F4F4F]">{formatDate(record.createdAt)} at {formatTime(record.createdAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase">Last Updated by Veterinarian</p>
+                    <p className="text-sm font-medium text-[#4F4F4F]">{formatDateTime(record.updatedAt)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase">{ownerLabel}</p>

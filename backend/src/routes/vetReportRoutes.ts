@@ -13,6 +13,8 @@ import {
   syncReportRecords,
   deleteReport,
   addReportAddendum,
+  draftReportAddendumText,
+  validateReportAddendumText,
 } from '../controllers/vetReportController';
 import { authMiddleware, vetOrClinicAdminOnly } from '../middleware/auth';
 
@@ -35,6 +37,8 @@ router.post('/:id/generate', authMiddleware, vetOrClinicAdminOnly, generateRepor
 router.post('/:id/sync-records', authMiddleware, vetOrClinicAdminOnly, syncReportRecords);
 router.post('/:id/humanize', authMiddleware, vetOrClinicAdminOnly, humanizeReport);
 router.patch('/:id/owner-summary', authMiddleware, vetOrClinicAdminOnly, updateOwnerSummary);
+router.post('/:id/addenda/draft', authMiddleware, vetOrClinicAdminOnly, draftReportAddendumText);
+router.post('/:id/addenda/validate', authMiddleware, vetOrClinicAdminOnly, validateReportAddendumText);
 router.post('/:id/addenda', authMiddleware, vetOrClinicAdminOnly, addReportAddendum);
 
 export default router;
