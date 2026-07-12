@@ -1428,10 +1428,15 @@ export default function ReportEditorPage() {
   // Finalized reports are locked: backend rejects edits, so don't even queue autosaves
   const isFinalized = report?.status === 'finalized'
 
-  // Owners are shown the plain-language summary first, so it gates sharing
-  const hasOwnerSummary = !!ownerSummary && Object.values(ownerSummary).some(
-    (v) => (typeof v === 'string' ? v.trim().length > 0 : Array.isArray(v) && v.length > 0)
-  )
+  // Owners are shown the plain-language summary first, so every text section must be
+  // filled before sharing. treatmentPlan is optional (empty for medication-less reports).
+  const ownerSummaryComplete = !!ownerSummary && (
+    ['whatWeFound', 'testResultsExplained', 'whatsHappeningInTheirBody',
+     'theDiagnosis', 'theTreatmentPlan', 'whatToExpect'] as const
+  ).every((k) => {
+    const v = ownerSummary[k]
+    return typeof v === 'string' && v.trim().length > 0
+  })
 
   const handleSectionChange = (key: string, value: string) => {
     if (isFinalized) return
@@ -1596,9 +1601,9 @@ export default function ReportEditorPage() {
       toast.error('Finalize the report before sharing it with the owner.')
       return
     }
-    // Owners see the plain-language summary first, so it must exist before sharing
-    if (!hasOwnerSummary) {
-      toast.error('Generate an owner summary before sharing the report with the owner.')
+    // Owners see the plain-language summary first, so every section must be filled
+    if (!ownerSummaryComplete) {
+      toast.error('Complete every section of the owner summary before sharing the report with the owner.')
       return
     }
     setShareConfirmOpen(true)
@@ -1853,12 +1858,12 @@ export default function ReportEditorPage() {
             ) : (
               <button
                 onClick={requestShare}
-                disabled={report.status !== 'finalized' || !hasOwnerSummary || sharing}
+                disabled={report.status !== 'finalized' || !ownerSummaryComplete || sharing}
                 title={
                   report.status !== 'finalized'
                     ? 'Finalize the report before sharing'
-                    : !hasOwnerSummary
-                      ? 'Generate an owner summary before sharing'
+                    : !ownerSummaryComplete
+                      ? 'Complete every section of the owner summary before sharing'
                       : undefined
                 }
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 text-gray-700 hover:bg-gray-50"

@@ -574,14 +574,19 @@ export const shareReport = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'ERROR', message: 'Finalize the report before sharing it with the owner.' });
     }
 
-    // Owners are shown the plain-language summary first, so it must exist before sharing
+    // Owners are shown the plain-language summary first, so every text section must be
+    // filled before sharing — a blank section reads as a gap to the owner. treatmentPlan
+    // is intentionally optional (empty for medication-less reports). ownerSummary is a
+    // Mongoose subdocument, so read its typed fields directly — Object.values on the subdoc
+    // returns internal Mongoose props, not the text fields.
     if (shared) {
-      const os = report.ownerSummary as Record<string, unknown> | null | undefined;
-      const hasSummary = !!os && Object.values(os).some((v) =>
-        typeof v === 'string' ? v.trim().length > 0 : Array.isArray(v) && v.length > 0
-      );
-      if (!hasSummary) {
-        return res.status(400).json({ status: 'ERROR', message: 'Generate an owner summary before sharing the report with the owner.' });
+      const os = report.ownerSummary;
+      const complete = !!os &&
+        [os.whatWeFound, os.testResultsExplained, os.whatsHappeningInTheirBody,
+         os.theDiagnosis, os.theTreatmentPlan, os.whatToExpect]
+          .every((v) => typeof v === 'string' && v.trim().length > 0);
+      if (!complete) {
+        return res.status(400).json({ status: 'ERROR', message: 'Complete every section of the owner summary before sharing the report with the owner.' });
       }
     }
 
