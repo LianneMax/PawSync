@@ -6175,7 +6175,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       <div className={`order-2 sm:order-none sm:contents flex gap-3 ${notesMinimized && historyMinimized ? 'flex-row' : 'flex-col'}`}>
 
       {/* ===== VET NOTEPAD PANEL (right, collapsible) ===== */}
-      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${notesMinimized ? `h-10 sm:w-10 ${historyMinimized ? 'flex-1 min-w-0' : 'w-full'}` : 'w-full h-56 sm:h-full sm:w-80'}`}>
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${notesMinimized ? `h-10 sm:w-10 ${historyMinimized ? 'max-sm:flex-1 max-sm:min-w-0' : 'w-full'}` : 'w-full h-56 sm:h-full sm:w-80'}`}>
         {notesMinimized ? (
           <button
             onClick={() => setNotesMinimized(false)}
@@ -6229,7 +6229,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       </div>
 
       {/* ===== HISTORICAL MEDICAL RECORD PANEL (right, collapsible) ===== */}
-      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${historyMinimized ? `h-10 sm:w-10 ${notesMinimized ? 'flex-1 min-w-0' : 'w-full'}` : 'absolute inset-0 z-20 sm:static sm:z-auto sm:h-full sm:w-96'}`}>
+      <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 shrink-0 sm:h-full ${historyMinimized ? `h-10 sm:w-10 ${notesMinimized ? 'max-sm:flex-1 max-sm:min-w-0' : 'w-full'}` : 'absolute inset-0 z-20 sm:static sm:z-auto sm:h-full sm:w-96'}`}>
         {historyMinimized ? (
           <button
             onClick={() => setHistoryMinimized(false)}
