@@ -613,6 +613,7 @@ function VetBilling() {
         <ViewBillingModal
           billing={viewingBilling}
           onClose={() => setViewingBilling(null)}
+          canManageBir={false}
         />
       )}
     </div>
@@ -1823,7 +1824,7 @@ function ViewBillingModal({
             </div>
           </div>
 
-          {canManageBir && (
+          {canManageBir ? (
             <div className="bg-gray-50 rounded-lg px-3 py-2">
               <p className="text-[10px] uppercase tracking-wide text-gray-400">BIR Accreditation No.</p>
               <div className="mt-1 flex items-center gap-2 print:hidden">
@@ -1844,7 +1845,12 @@ function ViewBillingModal({
               </div>
               <p className="hidden print:block text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.birNumber || '-'}</p>
             </div>
-          )}
+          ) : billing.birNumber ? (
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400">BIR Accreditation No.</p>
+              <p className="text-sm font-semibold text-[#4F4F4F] mt-0.5">{billing.birNumber}</p>
+            </div>
+          ) : null}
 
           {/* Contextual status banners */}
           {billing.status === 'pending_payment' && billing.medicalRecordId && billing.medicalRecordId.stage !== 'completed' && (
