@@ -448,30 +448,30 @@ export default function ClinicNfcManagementPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {pendingRequests.map((request) => (
+              {pendingRequests.filter((request) => request.petId).map((request) => (
                 <div
                   key={request._id}
                   className="bg-linear-to-r from-blue-50 to-blue-25 rounded-lg border border-blue-200 p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-4">
-                    {request.petId.photo && (
+                    {request.petId?.photo && (
                       <img
                         src={request.petId.photo}
-                        alt={request.petId.name}
+                        alt={request.petId?.name}
                         className="w-12 h-12 rounded-lg object-cover"
                       />
                     )}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-bold text-[#476B6B]">
-                          {request.petId.name}
+                          {request.petId?.name}
                         </h3>
                         <span className="text-xs bg-blue-200 text-blue-700 px-2 py-1 rounded capitalize">
-                          {request.petId.species}
+                          {request.petId?.species}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-2">
-                        {request.petId.breed} • Owner: {request.ownerId.firstName} {request.ownerId.lastName}
+                        {request.petId?.breed} • Owner: {request.ownerId?.firstName} {request.ownerId?.lastName}
                       </p>
                       {request.reason && (
                         <p className="text-xs text-gray-500 italic">
