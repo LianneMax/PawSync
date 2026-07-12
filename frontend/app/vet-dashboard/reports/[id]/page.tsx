@@ -1428,6 +1428,10 @@ export default function ReportEditorPage() {
   // Finalized reports are locked: backend rejects edits, so don't even queue autosaves
   const isFinalized = report?.status === 'finalized'
 
+  // Once shared, the report and its owner summary are a frozen snapshot the owner has seen —
+  // no more editing or regenerating the summary (backend enforces this too)
+  const isShared = !!report?.sharedWithOwner
+
   // Owners are shown the plain-language summary first, so every text section must be
   // filled before sharing. treatmentPlan is optional (empty for medication-less reports).
   const ownerSummaryComplete = !!ownerSummary && (
@@ -1541,6 +1545,10 @@ export default function ReportEditorPage() {
   }
 
   const handleHumanize = async () => {
+    if (isShared) {
+      toast.error('This report has been shared and its owner summary can no longer be regenerated.')
+      return
+    }
     setHumanizing(true)
     try {
       const updated = await humanizeVetReport(id, token || undefined)
@@ -1562,6 +1570,7 @@ export default function ReportEditorPage() {
   // endpoint (summaries stay editable after finalization, unlike sections). The backend
   // keeps the treatment plan's clinical fields and only accepts whatItDoes edits.
   const scheduleSummarySave = (updated: OwnerSummary) => {
+    if (isShared) return // shared summaries are frozen; backend rejects edits
     if (summarySaveTimer.current) clearTimeout(summarySaveTimer.current)
     summarySaveTimer.current = setTimeout(async () => {
       setSummarySaveState('saving')
@@ -1812,13 +1821,13 @@ export default function ReportEditorPage() {
               <button
                 onClick={requestFinalize}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-600 text-emerald-700 text-sm hover:bg-emerald-50 disabled:opacity-50"
               >
                 <CheckCircle2 className="w-4 h-4" /> {saving ? 'Finalizing…' : 'Finalize'}
               </button>
             ) : (
               <>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm border border-emerald-200">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm">
                   <CheckCircle2 className="w-4 h-4" /> Finalized
                 </span>
                 {!report.sharedWithOwner && (
@@ -1841,7 +1850,7 @@ export default function ReportEditorPage() {
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:cursor-not-allowed ${
                 report.vetSignature?.url
                   ? 'bg-[#476B6B] text-white hover:bg-[#3a5a5a] disabled:hover:bg-[#476B6B]'
-                  : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                  : 'border border-[#476B6B] text-[#476B6B] hover:bg-[#476B6B]/10'
               }`}
             >
               <PenTool className="w-4 h-4" />
@@ -1851,7 +1860,7 @@ export default function ReportEditorPage() {
             {report.sharedWithOwner ? (
               <span
                 title="Shared with the owner; sharing cannot be undone"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-[#E8F2EE] text-[#35785C] border border-[#DCEAE3]"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-blue-600 text-white"
               >
                 <Share2 className="w-4 h-4" /> Shared
               </span>
@@ -1866,7 +1875,7 @@ export default function ReportEditorPage() {
                       ? 'Complete every section of the owner summary before sharing'
                       : undefined
                 }
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200 text-gray-700 hover:bg-gray-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-blue-600 text-blue-700 hover:bg-blue-50"
               >
                 <Share2 className="w-4 h-4" />
                 {sharing ? 'Sharing…' : 'Share'}
@@ -1969,7 +1978,7 @@ export default function ReportEditorPage() {
                     onHumanize={handleHumanize}
                     humanizing={humanizing}
                     hasOwnerSummary={!!ownerSummary}
-                    disabled={report.status !== 'finalized'}
+                    disabled={report.status !== 'finalized' || isShared}
                   />
                   {humanizing && (
                     <div className="mt-3 border border-emerald-100 rounded-xl p-4 bg-white flex items-center">
@@ -2089,7 +2098,7 @@ export default function ReportEditorPage() {
                     summary={ownerSummary}
                     onChange={handleOwnerSummaryChange}
                     onTreatmentChange={handleTreatmentItemChange}
-                    disabled={humanizing}
+                    disabled={humanizing || isShared}
                     saveState={summarySaveState}
                     petName={pet?.name}
                   />

@@ -846,6 +846,14 @@ export const humanizeReport = async (req: Request, res: Response) => {
       });
     }
 
+    // Once shared, the report (and its owner summary) is a frozen snapshot the owner has seen
+    if (report.sharedWithOwner) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'This report has been shared with the owner and its summary can no longer be regenerated.',
+      });
+    }
+
     const pet = await Pet.findById(report.petId).lean() as any;
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
@@ -969,6 +977,14 @@ export const updateOwnerSummary = async (req: Request, res: Response) => {
       return res.status(400).json({
         status: 'ERROR',
         message: 'The report must be finalized before its owner summary can be edited.',
+      });
+    }
+
+    // Once shared, the owner summary is locked — the owner already has this version
+    if (report.sharedWithOwner) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'This report has been shared with the owner and its summary can no longer be edited.',
       });
     }
 
