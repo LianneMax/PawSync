@@ -16,3 +16,4 @@ uploads/
 temp/
 .vscode/settings.json
 backend/.env
+package-lock.json
