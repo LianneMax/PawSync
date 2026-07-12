@@ -506,7 +506,6 @@ Generate a formal Surgical and Anesthesia Report covering ALL procedures above. 
 
 {
   "preoperativeSummary": "For each procedure: the patient's condition and fitness for anesthesia prior to surgery, relevant history, and indication. Present chronologically by date. Pre-op vital values are already shown in a table elsewhere in the report — do NOT catalog or restate them; mention a value only if clinically abnormal, described qualitatively, and otherwise draw on each procedure's Pre-operative Vitals Notes for context.",
-  "anesthesiaProtocol": "Anesthetic agents used per procedure (pre-medication, induction, maintenance), dosages, routes, and monitoring parameters. Note any changes in protocol between procedures.",
   "surgicalProcedure": "Description of each surgical procedure performed: approach, technique, intraoperative findings, closure, and materials. Cover every procedure by date.",
   "intraoperativeMonitoring": "Vital parameters monitored during each procedure, intraoperative events or interventions, and patient response.",
   "postoperativeCare": "Post-operative recovery, pain management, wound care, post-op medications, dietary restrictions, and activity limitations for each procedure, plus the current active care plan.",
@@ -569,7 +568,6 @@ Generate a formal Surgical and Anesthesia Report. Use clinical language appropri
 
 {
   "preoperativeSummary": "Patient condition and fitness for anesthesia prior to surgery. Include relevant history, physical status, and indication for the procedure. Pre-op vital values are already shown in a table elsewhere in the report — do NOT catalog or restate them; mention a value only if clinically abnormal, described qualitatively, and otherwise draw on PRE-OPERATIVE VITALS NOTES for context.",
-  "anesthesiaProtocol": "Anesthetic agents used (pre-medication, induction, maintenance), dosages, routes, and monitoring parameters. Include any considerations specific to this patient.",
   "surgicalProcedure": "Step-by-step description of the surgical procedure performed: patient positioning, surgical approach, technique, findings intraoperatively, closure, and materials used.",
   "intraoperativeMonitoring": "Vital parameters monitored during the procedure, any intraoperative events, interventions, or complications encountered, and patient response.",
   "postoperativeCare": "Immediate post-operative recovery, pain management, wound care instructions, medications prescribed post-op, dietary restrictions, and activity limitations.",

@@ -15,7 +15,7 @@ export const SECTION_KEYS_BY_TYPE: Record<ReportType, string[]> = {
   general: ['clinicalSummary', 'laboratoryInterpretation', 'diagnosticIntegration', 'assessment', 'managementPlan', 'prognosis'],
   soap: ['subjective', 'objective', 'assessment', 'plan'],
   diagnostic: ['testsSummary', 'resultsInterpretation', 'clinicalCorrelation', 'recommendations'],
-  surgery: ['preoperativeSummary', 'anesthesiaProtocol', 'surgicalProcedure', 'intraoperativeMonitoring', 'postoperativeCare', 'complications'],
+  surgery: ['preoperativeSummary', 'surgicalProcedure', 'intraoperativeMonitoring', 'postoperativeCare', 'complications'],
   healthCertificate: ['patientHealthStatus', 'vaccinationHistory', 'parasiteControl', 'travelClearance'],
   dischargeSummary: ['diagnosisSummary', 'medications', 'feedingInstructions', 'activityRestrictions', 'followUpCare', 'warningSignsToWatch'],
   referralLetter: ['referralReason', 'clinicalHistory', 'currentFindings', 'treatmentsToDate', 'referralRequest'],

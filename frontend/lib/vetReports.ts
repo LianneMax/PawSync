@@ -37,7 +37,7 @@ export const REPORT_TYPE_CONFIG: ReportTypeConfig[] = [
   {
     value: 'surgery',
     label: 'Surgery / Anesthesia Report',
-    description: 'Operative log with pre-op summary, anesthesia protocol, surgical steps, and post-op care.',
+    description: 'Operative log with pre-op summary, surgical steps, intraoperative monitoring, and post-op care.',
   },
   {
     value: 'healthCertificate',
@@ -84,11 +84,10 @@ export const SECTION_LABELS_BY_TYPE: Record<ReportType, Record<string, string>> 
   },
   surgery: {
     preoperativeSummary: 'I. Pre-operative Summary',
-    anesthesiaProtocol: 'II. Anesthesia Protocol',
-    surgicalProcedure: 'III. Surgical Procedure',
-    intraoperativeMonitoring: 'IV. Intraoperative Monitoring',
-    postoperativeCare: 'V. Post-operative Care',
-    complications: 'VI. Complications & Remarks',
+    surgicalProcedure: 'II. Surgical Procedure',
+    intraoperativeMonitoring: 'III. Intraoperative Monitoring',
+    postoperativeCare: 'IV. Post-operative Care',
+    complications: 'V. Complications & Remarks',
   },
   healthCertificate: {
     patientHealthStatus: 'I. Current Health Status',

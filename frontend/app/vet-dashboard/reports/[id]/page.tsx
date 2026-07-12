@@ -299,7 +299,6 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   recommendations:          <ClipboardList className="w-4 h-4 text-[#5A7C7A]" />,
   // surgery
   preoperativeSummary:      <Stethoscope className="w-4 h-4 text-[#5A7C7A]" />,
-  anesthesiaProtocol:       <FlaskConical className="w-4 h-4 text-[#5A7C7A]" />,
   surgicalProcedure:        <Scissors className="w-4 h-4 text-[#5A7C7A]" />,
   intraoperativeMonitoring: <Activity className="w-4 h-4 text-[#5A7C7A]" />,
   postoperativeCare:        <Heart className="w-4 h-4 text-[#5A7C7A]" />,
@@ -426,7 +425,6 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     resultsInterpretation: ['diagnostics', 'immunityTesting'],
     clinicalCorrelation: ['vitals'],
     preoperativeSummary: ['vitals'],
-    anesthesiaProtocol: ['medications'],
     surgicalProcedure: ['surgery'],
     postoperativeCare: ['medications', 'preventiveCare'],
     // Health certificate intentionally has NO vitals table
