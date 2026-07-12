@@ -175,6 +175,16 @@ const emptyDiagnosticTest = (): Omit<DiagnosticTest, '_id'> & { images?: { data:
   images: [],
 })
 
+const inferDiagnosticTestType = (name: string): DiagnosticTest['testType'] => {
+  const n = name.toLowerCase()
+  if (n.includes('ultrasound')) return 'ultrasound'
+  if (n.includes('x-ray') || n.includes('x ray') || n.includes('xray')) return 'x_ray'
+  if (n.includes('blood')) return 'blood_work'
+  if (n.includes('urinalysis') || n.includes('urine')) return 'urinalysis'
+  if (n.includes('ecg') || n.includes('ekg') || n.includes('electrocardiogram')) return 'ecg'
+  return 'other'
+}
+
 const emptyPreventiveCare = (): Omit<PreventiveCare, '_id'> => ({
   careType: 'other',
   product: '',
@@ -3728,8 +3738,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
                           <DropdownField
                             value={test.name}
                             onValueChange={(name) => {
-                              const isUltrasound = name.toLowerCase().includes('ultrasound')
-                              setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name, testType: isUltrasound ? 'ultrasound' : 'other' } : t))
+                              setDiagnosticTests((prev) => prev.map((t, j) => j === i ? { ...t, name, testType: inferDiagnosticTestType(name) } : t))
                               if (name.trim()) {
                                 clearDiagnosticFieldError(i, 'name')
                               }
