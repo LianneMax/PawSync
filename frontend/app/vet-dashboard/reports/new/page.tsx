@@ -93,6 +93,7 @@ interface PetGroup {
   name: string
   species?: string
   breed?: string
+  ownerName?: string
   records: MedicalRecord[]
 }
 
@@ -254,7 +255,9 @@ function NewReportContent() {
       if (!pet?._id) continue
       let group = map.get(pet._id)
       if (!group) {
-        group = { petId: pet._id, name: pet.name ?? 'Unknown pet', species: pet.species, breed: pet.breed, records: [] }
+        const owner = typeof pet.ownerId === 'object' && pet.ownerId ? pet.ownerId : null
+        const ownerName = owner ? [owner.firstName, owner.lastName].filter(Boolean).join(' ') : undefined
+        group = { petId: pet._id, name: pet.name ?? 'Unknown pet', species: pet.species, breed: pet.breed, ownerName, records: [] }
         map.set(pet._id, group)
       }
       group.records.push(r)
@@ -274,8 +277,8 @@ function NewReportContent() {
   }, [petGroups, typeList])
 
   const filteredPets = eligiblePetGroups.filter((g) => {
-    const q = petSearch.toLowerCase()
-    return !q || g.name.toLowerCase().includes(q)
+    const q = petSearch.trim().toLowerCase()
+    return !q || g.name.toLowerCase().includes(q) || (g.ownerName?.toLowerCase().includes(q) ?? false)
   })
 
   const selectedPet = petGroups.find((g) => g.petId === selectedPetId) ?? null
@@ -806,7 +809,7 @@ function NewReportContent() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search by patient name…"
+                    placeholder="Search by patient or owner name…"
                     value={petSearch}
                     onChange={(e) => setPetSearch(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
@@ -846,6 +849,7 @@ function NewReportContent() {
                                 <p className="font-medium text-sm text-gray-900 truncate">{g.name}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">
                                   {g.species === 'canine' ? 'Canine' : 'Feline'} / {g.breed}
+                                  {g.ownerName && <span className="text-gray-400"> · Owner: {g.ownerName}</span>}
                                 </p>
                               </div>
                               <span className="text-xs text-gray-400 flex-shrink-0 text-right">
