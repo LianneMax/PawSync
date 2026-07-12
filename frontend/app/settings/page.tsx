@@ -512,8 +512,7 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
     const errors: Record<string, string> = {}
     if (!firstName.trim()) errors.firstName = 'First name is required'
     if (!lastName.trim()) errors.lastName = 'Last name is required'
-    if (!email.trim()) errors.email = 'Email is required'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Please enter a valid email'
+    // Email is read-only (account identity) — not validated or sent.
     if (contactNumber && !/^\+63\d{9,10}$/.test(contactNumber.replace(/\s/g, ''))) {
       errors.contactNumber = 'Please enter a valid Philippine phone number'
     }
@@ -526,13 +525,13 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firstName, lastName, email, contactNumber: contactNumber.trim() || null }),
+          body: JSON.stringify({ firstName, lastName, contactNumber: contactNumber.trim() || null }),
         },
         token || undefined
       )
       if (res.status === 'SUCCESS') {
         toast.success('Profile updated successfully')
-        if (authUser) setUser({ ...authUser, firstName, lastName, email })
+        if (authUser) setUser({ ...authUser, firstName, lastName })
       } else {
         toast.error(res.message || 'Failed to update profile')
       }
@@ -799,10 +798,12 @@ const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => { setEmail(e.target.value); setProfileErrors((p) => ({ ...p, email: '' })) }}
-                    className={`w-full px-4 py-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-[#7FA5A3]/20 focus:border-[#7FA5A3] transition-all ${profileErrors.email ? 'border-[#900B09]/20' : 'border-gray-200'}`}
+                    readOnly
+                    disabled
+                    title="Email is your account identity and cannot be changed here"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 outline-none cursor-not-allowed"
                   />
-                  {profileErrors.email && <p className="text-[#900B09] text-xs mt-1">{profileErrors.email}</p>}
+                  <p className="text-xs text-gray-400 mt-1">Your email is your login identity and can&apos;t be changed here. Contact support to update it.</p>
                 </div>
 
                 <div>

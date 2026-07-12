@@ -75,8 +75,7 @@ export default function VetSettingsPage() {
     const errors: Record<string, boolean> = {}
     if (!firstName.trim()) errors.firstName = true
     if (!lastName.trim()) errors.lastName = true
-    if (!email.trim()) errors.email = true
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.emailFormat = true
+    // Email is read-only (account identity) — not validated or sent.
 
     if (Object.keys(errors).length > 0) {
       setProfileErrors(errors)
@@ -298,20 +297,12 @@ export default function VetSettingsPage() {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value)
-                        setProfileErrors(prev => ({ ...prev, email: false, emailFormat: false }))
-                      }}
-                      className={`w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-[#7FA5A3] focus:border-transparent ${
-                        profileErrors.email || profileErrors.emailFormat ? 'border-[#900B09]/20' : 'border-gray-200'
-                      }`}
+                      readOnly
+                      disabled
+                      title="Email is your account identity and cannot be changed here"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none"
                     />
-                    {profileErrors.email && (
-                      <p className="text-xs text-[#900B09] mt-1">Email is required</p>
-                    )}
-                    {profileErrors.emailFormat && (
-                      <p className="text-xs text-[#900B09] mt-1">Please enter a valid email</p>
-                    )}
+                    <p className="text-xs text-gray-400 mt-1">Your email is your login identity and can&apos;t be changed here. Contact support to update it.</p>
                   </div>
 
                   {/* Contact Number */}

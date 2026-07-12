@@ -64,11 +64,13 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    const { firstName, lastName, email, contactNumber, photo, signature } = req.body;
+    // Email is the account's login identity (unique, and the target for OTP/password-reset).
+    // It is intentionally NOT self-editable here — changing it would need verification of the
+    // new address. Any `email` in the body is ignored; changes go through support/admin.
+    const { firstName, lastName, contactNumber, photo, signature } = req.body;
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
-    if (email) user.email = email.toLowerCase().trim();
     if (contactNumber !== undefined) {
       const normalizedContact = normalizeContactNumber(contactNumber);
       if (normalizedContact) {
