@@ -762,6 +762,12 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const [diagnosticTestServices, setDiagnosticTestServices] = useState<ProductService[]>([])
   const [medicationServices, setMedicationServices] = useState<ProductService[]>([])
   const [preventiveCareServices, setPreventiveCareServices] = useState<ProductService[]>([])
+  // Names (lowercased) of ProductService catalog items with type "Service" and
+  // category "Surgeries" — clinic-admin manual bookings store the appointment
+  // type as the free-text service name (e.g. "Herniorrhaphy"), which never
+  // matches the fixed owner-facing slug list below. Matching against the
+  // actual catalog is the only reliable way to detect these as surgeries.
+  const [surgeryServiceNamesLower, setSurgeryServiceNamesLower] = useState<Set<string>>(new Set())
   
   // Billing sync
   const [billingId, setBillingId] = useState<string | null>(null)
@@ -796,12 +802,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   const isVaccinationAppt = appointmentTypes.some((t) => VACCINATION_APPOINTMENT_TYPES.has(t))
   const hasTiterTestingService = appointmentTypes.some((t) => isTiterTestingService(t))
 
-  // Whether this appointment is a surgery appointment
-  const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) =>
-    t === 'sterilization' || t === 'Sterilization' ||
-    t === 'abdominal-surgery' || t === 'orthopedic-surgery' ||
-    t === 'dental-scaling' || t === 'laser-therapy'
-  )
+  // Whether this appointment is a surgery appointment. Checks the fixed
+  // owner-facing slugs first, then falls back to the loaded catalog of
+  // category "Surgeries" service names for clinic-admin manual bookings.
+  const isSurgeryAppt = !isVaccinationAppt && appointmentTypes.some((t) => {
+    if (
+      t === 'sterilization' || t === 'Sterilization' ||
+      t === 'abdominal-surgery' || t === 'orthopedic-surgery' ||
+      t === 'dental-scaling' || t === 'laser-therapy'
+    ) return true
+    return surgeryServiceNamesLower.has(String(t || '').trim().toLowerCase())
+  })
   const patientTiterSpecies: TiterSpecies = pet?.species === 'feline' ? 'feline' : 'canine'
 
   // Discharge is auto-derived: pet is sent home unless confined or euthanised.
@@ -819,6 +830,17 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       if (res.status === 'SUCCESS') setPetNotesDraft(res.data?.notes || '')
     })
   }, [petId, token])
+
+  // Load the surgery ProductService catalog once on mount so isSurgeryAppt can
+  // match free-text appointment types against category "Surgeries" service names.
+  useEffect(() => {
+    if (!token) return
+    getSurgeryServices(token).then((res) => {
+      if (res.status === 'SUCCESS' && res.data?.items) {
+        setSurgeryServiceNamesLower(new Set(res.data.items.map((s) => s.name.toLowerCase())))
+      }
+    })
+  }, [token])
 
   useEffect(() => {
     if (!token) return
