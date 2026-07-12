@@ -155,6 +155,8 @@ function NewReportContent() {
 
   const typeList = useMemo(() => [...selectedTypes], [selectedTypes])
   const syncDisabled = typeList.some((t) => SYNC_DISABLED_TYPES.includes(t))
+  // Discharge summary covers exactly one visit — record selection collapses to single-pick
+  const singleRecordOnly = selectedTypes.has('dischargeSummary')
   // Confinement scopes the whole selection to one stay: pick the stay instead of a
   // free patient/record search, and skip step 3 (the stay's own visits are the scope).
   const includesConfinement = selectedTypes.has('confinement')
@@ -307,15 +309,17 @@ function NewReportContent() {
     if (!selectedPet || typeList.length === 0) return
     setSelectedRecordIds((prev) => {
       if (prev.size === 0) return prev
-      const next = new Set(
+      let next = new Set(
         [...prev].filter((rid) => {
           const r = selectedPet.records.find((rr) => rr._id === rid)
           return !!r && isRecordReportReady(r) && isEligibleForAnyType(r, typeList)
         })
       )
+      if (singleRecordOnly && next.size > 1) next = new Set([[...next][0]])
       return next.size === prev.size ? prev : next
     })
-  }, [typeList, selectedPet])
+    if (singleRecordOnly && allMode) setAllMode(false)
+  }, [typeList, selectedPet, singleRecordOnly, allMode])
 
   // Apply deep-link prefill once records are loaded: preselect pet + visit and pick
   // a sensible default report type from the visit's content
@@ -346,6 +350,10 @@ function NewReportContent() {
 
   const toggleRecord = (recordId: string) => {
     if (allMode) return
+    if (singleRecordOnly) {
+      setSelectedRecordIds((prev) => (prev.has(recordId) ? new Set() : new Set([recordId])))
+      return
+    }
     setSelectedRecordIds((prev) => {
       const next = new Set(prev)
       if (next.has(recordId)) next.delete(recordId)
@@ -355,6 +363,7 @@ function NewReportContent() {
   }
 
   const toggleAllMode = () => {
+    if (singleRecordOnly) return
     setAllMode((v) => !v)
     setSelectedRecordIds(new Set())
   }
@@ -908,30 +917,37 @@ function NewReportContent() {
             </div>
 
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Visits to include
+              {singleRecordOnly ? 'Visit to include' : 'Visits to include'}
             </label>
+            {singleRecordOnly && (
+              <p className="text-xs text-gray-400 mb-2 -mt-1">
+                Discharge summary covers exactly one visit; pick a single record.
+              </p>
+            )}
 
             {/* All-records toggle */}
-            <button
-              onClick={toggleAllMode}
-              className={`w-full mb-3 rounded-lg px-4 py-3 border text-left transition-all flex items-center gap-3 ${
-                allMode
-                  ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
-                  : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
-              }`}
-            >
-              <Layers className={`w-4 h-4 flex-shrink-0 ${allMode ? 'text-[#476B6B]' : 'text-gray-400'}`} />
-              <div className="flex-1">
-                <p className="font-medium text-sm text-gray-900">
-                  {dateFrom || dateTo ? 'All records in date range' : 'All records to date'}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {eligibleRecords.length} eligible visit{eligibleRecords.length !== 1 ? 's' : ''}
-                  {!(dateFrom || dateTo) && !syncDisabled && ' · new visits can be folded in later'}
-                </p>
-              </div>
-              {allMode ? <CheckSquare className="w-4 h-4 text-[#476B6B]" /> : <Square className="w-4 h-4 text-gray-300" />}
-            </button>
+            {!singleRecordOnly && (
+              <button
+                onClick={toggleAllMode}
+                className={`w-full mb-3 rounded-lg px-4 py-3 border text-left transition-all flex items-center gap-3 ${
+                  allMode
+                    ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                    : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
+                }`}
+              >
+                <Layers className={`w-4 h-4 flex-shrink-0 ${allMode ? 'text-[#476B6B]' : 'text-gray-400'}`} />
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-gray-900">
+                    {dateFrom || dateTo ? 'All records in date range' : 'All records to date'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {eligibleRecords.length} eligible visit{eligibleRecords.length !== 1 ? 's' : ''}
+                    {!(dateFrom || dateTo) && !syncDisabled && ' · new visits can be folded in later'}
+                  </p>
+                </div>
+                {allMode ? <CheckSquare className="w-4 h-4 text-[#476B6B]" /> : <Square className="w-4 h-4 text-gray-300" />}
+              </button>
+            )}
 
             {/* Record list */}
             <div className={`max-h-72 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-4 ${allMode ? 'opacity-60' : ''}`}>

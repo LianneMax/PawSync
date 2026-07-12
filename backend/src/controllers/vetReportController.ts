@@ -184,6 +184,10 @@ export const createReport = async (req: Request, res: Response) => {
       recordIds = unique;
     }
 
+    if (validatedReportType === 'dischargeSummary' && recordIds.length > 1) {
+      return res.status(400).json({ status: 'ERROR', message: 'A discharge summary can only cover one medical record.' });
+    }
+
     // Multiple reports per medical record are allowed (e.g. a SOAP note and a discharge
     // summary for the same visit), but an exact duplicate — same type covering the same
     // record set — is not. 'all'-scope reports auto-cover everything, so one per type per pet.
