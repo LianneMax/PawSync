@@ -33,8 +33,35 @@ export interface Appointment {
   isEmergency: boolean;
   medicalRecordId: string | null;
   rescheduleCount: number;
+  transferRequest?: {
+    newVetId: any;
+    previousVetId: any;
+    reason?: string;
+    requestedBy: any;
+    requestedAt: string;
+    status: 'pending' | 'approved' | 'declined';
+  } | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// Sensitive appointment types: all surgery types + pregnancy deliveries.
+// Appointment.types values come from two sources with no shared vocabulary:
+// the fixed owner-facing booking slugs (AppointmentServiceSelector.tsx) and
+// the clinic-admin manual booking flow, which pulls free-text service names
+// straight from each clinic's own ProductService catalog (e.g. "Sterilization",
+// "Spay Surgery"). So classification is case-insensitive keyword matching,
+// not an exact-value list. Keep in sync with backend/src/constants/appointmentTypes.ts.
+const SENSITIVE_KEYWORDS = [
+  'surg', 'sterili', 'neuter', 'spay', 'castrat',
+  'pregnan', 'deliver', 'whelp', 'c-section', 'cesarean', 'caesarean',
+];
+
+export function isSensitiveAppointmentType(types: string[] = []): boolean {
+  return types.some((t) => {
+    const norm = String(t).toLowerCase();
+    return SENSITIVE_KEYWORDS.some((kw) => norm.includes(kw));
+  });
 }
 
 export interface ClinicBranch {
@@ -263,6 +290,17 @@ export const transferAppointmentVet = async (
   return authenticatedFetch(`/appointments/${id}/transfer-vet`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  }, token);
+};
+
+export const respondToVetTransfer = async (
+  id: string,
+  approve: boolean,
+  token?: string
+) => {
+  return authenticatedFetch(`/appointments/${id}/transfer-vet/respond`, {
+    method: 'PATCH',
+    body: JSON.stringify({ approve }),
   }, token);
 };
 

@@ -16,6 +16,7 @@ import {
   getNextAppointment,
   getAppointmentById,
   transferAppointmentVet,
+  respondToVetTransfer,
   getClinicBranches,
   getVetsByBranchId,
   createGuestIntakeAppointment,
@@ -154,5 +155,11 @@ router.patch('/:id/reschedule', authMiddleware, rescheduleAppointment);
  * Transfer an appointment to a different veterinarian (clinic admin)
  */
 router.patch('/:id/transfer-vet', authMiddleware, clinicAdminOnly, transferAppointmentVet);
+
+/**
+ * PATCH /api/appointments/:id/transfer-vet/respond
+ * Pet owner approves or declines a pending sensitive-procedure vet transfer request
+ */
+router.patch('/:id/transfer-vet/respond', authMiddleware, petOwnerOnly, respondToVetTransfer);
 
 export default router;

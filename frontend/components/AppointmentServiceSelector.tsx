@@ -52,6 +52,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     label: 'Surgical Procedures',
     services: [
       { value: 'sterilization', label: 'Sterilization' },
+      { value: 'pregnancy-delivery', label: 'Pregnancy Delivery / Whelping Assistance' },
     ],
   },
   {
