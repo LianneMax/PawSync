@@ -15,6 +15,7 @@ import {
   isAIConfigured,
   ReportGenerationError,
 } from '../services/vetReportGenerationService';
+import { sanitizeVetContext } from '../services/aiGuardrails';
 import type { ReportType } from '../models/VetReport';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -703,7 +704,10 @@ export const generateReport = async (req: Request, res: Response) => {
     ]);
 
     const persistentNotes = petNotesDoc?.notes || '';
-    const contextNotes = report.vetContextNotes;
+    // Harden the free-text vet note before it enters the prompt: strip control chars, neutralize
+    // model-directed override phrases, cap length. Clinical facts are preserved; only injection
+    // attempts are redacted. See aiGuardrails.sanitizeVetContext.
+    const contextNotes = sanitizeVetContext(report.vetContextNotes || '');
     const rType = (report.reportType as ReportType) || 'general';
 
     let vaccinations: any[] | undefined;
@@ -729,6 +733,23 @@ export const generateReport = async (req: Request, res: Response) => {
         .lean();
     }
 
+    // Phase 2 vet-style adaptation: the vet's explicit style profile + up to two of their own past
+    // finalized reports of the same type as fact-masked voice exemplars. Style only — the grounding
+    // guard in generateReportSections prevents any clinical fact from leaking out of the exemplars.
+    const priorReports = await VetReport.find({
+      vetId: report.vetId,
+      reportType: rType,
+      status: 'finalized',
+      _id: { $ne: report._id },
+    })
+      .sort({ updatedAt: -1 })
+      .limit(2)
+      .select('sections')
+      .lean();
+    const styleExemplars = priorReports.map((r: any) =>
+      Object.values(r.sections || {}).filter((v): v is string => typeof v === 'string' && v.trim().length > 0).join('\n\n')
+    );
+
     const sections = await generateReportSections({
       reportType: rType,
       pet,
@@ -739,6 +760,8 @@ export const generateReport = async (req: Request, res: Response) => {
       vaccinations,
       confinementRecord,
       monitoringEntries,
+      styleProfile: (vet as any)?.reportStyleProfile ?? null,
+      styleExemplars,
     });
 
     report.sections = sections;

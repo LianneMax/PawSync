@@ -10,6 +10,15 @@ export interface IUser extends Document {
   contactNumberNormalized?: string | null;
   photo?: string;
   signature?: string | null;
+  /** Veterinarian-only: tone/format preferences applied to AI-generated reports (style, not facts). */
+  reportStyleProfile?: {
+    verbosity?: 'concise' | 'standard' | 'detailed';
+    format?: 'prose' | 'bulleted';
+    analogies?: boolean;
+    readingLevel?: string;
+    spelling?: 'US' | 'UK';
+    extraNotes?: string;
+  } | null;
   userType: 'pet-owner' | 'veterinarian' | 'clinic-admin' | 'inactive';
   inviteStatus?: 'pending' | 'invited' | 'resent' | 'activated' | null;
   isGuest?: boolean;
@@ -152,6 +161,18 @@ const UserSchema = new Schema(
     signature: {
       type: String,
       default: null
+    },
+    reportStyleProfile: {
+      type: {
+        verbosity: { type: String, enum: ['concise', 'standard', 'detailed'] },
+        format: { type: String, enum: ['prose', 'bulleted'] },
+        analogies: { type: Boolean },
+        readingLevel: { type: String },
+        spelling: { type: String, enum: ['US', 'UK'] },
+        extraNotes: { type: String },
+      },
+      _id: false,
+      default: null,
     },
     googleId: {
       type: String,

@@ -1,5 +1,14 @@
 import OpenAI from 'openai';
 import type { ReportType } from '../models/VetReport';
+import {
+  GROUNDING_RULES,
+  extractGrounding,
+  sanitizeSections,
+  sanitizeOwnerSummary,
+  buildStyleDirectives,
+  buildStyleReferenceBlock,
+  type ReportStyleProfile,
+} from './aiGuardrails';
 
 export const REPORT_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
@@ -639,7 +648,7 @@ function buildDischargeSummaryPrompt(
     ? `Confined for ${record.confinementDays || 0} day(s).`
     : 'Not confined.';
 
-  return `You are a veterinary discharge summary writer. Generate a Discharge Summary in plain, warm, owner-friendly language for the most recent visit below${priorVisits.length ? ', taking the prior visits into account as case history' : ''}.
+  return `You are a veterinary discharge summary writer. Generate a Discharge Summary in plain, clear, owner-friendly language for the most recent visit below${priorVisits.length ? ', taking the prior visits into account as case history' : ''}.
 ${priorBlock}
 
 ${patientBlock(pet)}
@@ -671,12 +680,12 @@ ADDITIONAL VET CONTEXT:
 ${vetContextNotes || '(none provided)'}
 
 ---
-Write a Discharge Summary for the pet owner. Use plain, caring language — no medical jargon unless explained. Address the owner directly. Avoid em-dashes (—). Do NOT include markdown headers. Output ONLY this JSON object.
+Write a Discharge Summary for the pet owner. Use plain, clear language, no medical jargon unless explained. Address the owner directly. Avoid em-dashes. Do NOT include markdown headers. Output ONLY this JSON object.
 
 {
   "diagnosisSummary": "Plain-language summary of what was found and diagnosed today. Explain the condition simply. What does it mean for the pet's daily life?",
   "medications": "For each medication prescribed: what it is called, what it does, how to give it (dose, route, timing with or without food), and for how long. Write as a practical guide for the owner.",
-  "feedingInstructions": "Dietary instructions for the recovery period: what to feed, what to avoid, portion sizes, and feeding schedule. If no restrictions, say so clearly and reassuringly.",
+  "feedingInstructions": "Dietary instructions for the recovery period: what to feed, what to avoid, portion sizes, and feeding schedule. If no restrictions, say so clearly.",
   "activityRestrictions": "What the pet can and cannot do during recovery. Include rest requirements, exercise limits, bathing restrictions, and any special handling instructions.",
   "followUpCare": "When to return for a recheck visit, what the veterinarian will check, and what the owner should monitor at home between now and the follow-up.",
   "warningSignsToWatch": "Specific signs that mean the owner should contact the clinic immediately or go to an emergency vet. Be specific and clear — list each sign separately."
@@ -838,12 +847,12 @@ function buildHumanizePrompt(
     ? `,
   "treatments": [
     ${medications
-      .map((m) => `{ "name": "${m.name.replace(/"/g, "'")}", "whatItDoes": "One warm, simple sentence: what this medication does for ${petName} and why it matters. Do NOT mention doses, dates, or schedules (those are shown separately)." }`)
+      .map((m) => `{ "name": "${m.name.replace(/"/g, "'")}", "whatItDoes": "One plain, simple sentence stating what this medication does for ${petName}. Do NOT mention doses, dates, or schedules (those are shown separately)." }`)
       .join(',\n    ')}
   ]`
     : '';
 
-  return `Below is a formal veterinary report for a pet owner. Translate each section into plain, friendly language a non-medical pet owner can understand. Keep it honest but compassionate. Use "${petName}" or "your ${petType}" naturally throughout.
+  return `Below is a formal veterinary report for a pet owner. Translate each section into plain language a non-medical pet owner can understand. Keep it honest and clear; do not add reassurance or filler that states no fact. Use "${petName}" or "your ${petType}" naturally throughout.
 
 ${sectionTexts || '(no sections available)'}${medBlock}${dateBlock}
 
@@ -851,12 +860,12 @@ ${sectionTexts || '(no sections available)'}${medBlock}${dateBlock}
 Rewrite each section in plain language for the pet owner. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY this JSON object:
 
 {
-  "whatWeFound": "A warm, plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
-  "testResultsExplained": "Explain the lab or test results in simple terms. What does each result mean for ${petName}'s health? Use a conversational tone.",
+  "whatWeFound": "A plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
+  "testResultsExplained": "Explain the lab or test results in simple terms. What does each result mean for ${petName}'s health?",
   "theDiagnosis": "State the diagnoses in plain language. What condition does ${petName} have and what does it mean for daily life?",
-  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
-  "theTreatmentPlan": "A short, warm 1-2 sentence intro to the treatment plan for ${petName}. The individual medications are listed separately in the treatments array, so do NOT repeat each one here.",
-  "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}, and what to watch out for. When you mention a recheck or return visit, be SPECIFIC about timing: give an actual date (e.g. 'around July 19, when the treatment course finishes') using the KEY DATES above or the interval stated in the report, rather than vague phrases like 'in a few days'. If the report gives no follow-up timing, say so plainly instead of guessing. End on a hopeful but realistic note."${treatmentsSchema}
+  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body.",
+  "theTreatmentPlan": "A short 1-2 sentence intro to the treatment plan for ${petName}. The individual medications are listed separately in the treatments array, so do NOT repeat each one here.",
+  "whatToExpect": "In a plain, honest tone, explain what the future looks like for ${petName}, and what to watch out for. When you mention a recheck or return visit, be SPECIFIC about timing: give an actual date (e.g. 'around July 19, when the treatment course finishes') using the KEY DATES above or the interval stated in the report, rather than vague phrases like 'in a few days'. If the report gives no follow-up timing, say so plainly instead of guessing."${treatmentsSchema}
 }`;
 }
 
@@ -874,6 +883,10 @@ export interface GenerateReportParams {
   confinementRecord?: any;
   /** Required when reportType === 'confinement'; chronological monitoring log entries. */
   monitoringEntries?: any[];
+  /** Phase 2 vet-style adaptation: the attending vet's explicit style preferences (tone/format only). */
+  styleProfile?: ReportStyleProfile | null;
+  /** Phase 2 vet-style adaptation: section text from the vet's own past finalized reports (voice only). */
+  styleExemplars?: string[];
 }
 
 /** Builds the type-specific prompt, calls the model, and returns a flat string-only sections map. */
@@ -883,7 +896,7 @@ export async function generateReportSections(params: GenerateReportParams): Prom
     throw new Error('AI service not configured');
   }
 
-  const { reportType, pet, vet, records, vetContextNotes, persistentNotes, vaccinations, confinementRecord, monitoringEntries } = params;
+  const { reportType, pet, vet, records, vetContextNotes, persistentNotes, vaccinations, confinementRecord, monitoringEntries, styleProfile, styleExemplars } = params;
 
   let prompt: string;
   switch (reportType) {
@@ -923,9 +936,13 @@ export async function generateReportSections(params: GenerateReportParams): Prom
       {
         role: 'system',
         content:
-          'You are an expert veterinary medical report writer. Structured clinical data (MEDICATIONS PRESCRIBED entries with dosage, route, frequency, and duration; diagnostic test results; vaccination records) is the authoritative prescription record. PERSISTENT VET NOTES and ADDITIONAL VET CONTEXT are supplementary: use them for background and clinical reasoning, but if they conflict with the structured data (for example a different medication duration or dose), follow the structured data and do not restate the conflicting value from the notes. Output ONLY a flat JSON object where every value is a plain text string (a paragraph or structured prose). NEVER use nested objects, arrays, or sub-keys as values — each key maps to exactly one string. No markdown fences, no extra text outside the JSON.',
+          'You are an expert veterinary medical report writer. Structured clinical data (MEDICATIONS PRESCRIBED entries with dosage, route, frequency, and duration; diagnostic test results; vaccination records) is the authoritative prescription record. PERSISTENT VET NOTES and ADDITIONAL VET CONTEXT are supplementary: use them for background and clinical reasoning, but if they conflict with the structured data (for example a different medication duration or dose), follow the structured data and do not restate the conflicting value from the notes. Output ONLY a flat JSON object where every value is a plain text string (a paragraph or structured prose). NEVER use nested objects, arrays, or sub-keys as values — each key maps to exactly one string. No markdown fences, no extra text outside the JSON.' +
+          GROUNDING_RULES,
       },
-      { role: 'user', content: prompt },
+      // Style directives + fact-masked few-shot exemplars are appended AFTER the clean prompt.
+      // Grounding is computed from the clean prompt only (below), so exemplar text can never make
+      // another patient's numbers count as grounded.
+      { role: 'user', content: prompt + buildStyleDirectives(styleProfile) + buildStyleReferenceBlock(styleExemplars || []) },
     ],
     temperature: 0.3,
     max_tokens: 8000,
@@ -941,7 +958,12 @@ export async function generateReportSections(params: GenerateReportParams): Prom
     throw new ReportGenerationError('AI returned an unexpected response. Please try again.', raw);
   }
 
-  return normalizeToStringMap(parsed);
+  // Deterministic guardrails: key-lock to the report type, strip fluff/formatting, and log any
+  // numeric value not present in the source. The clean `prompt` (without style exemplars) contains
+  // every real number, medication, and date the model was given, so it is the grounding source.
+  const medNames = records.flatMap((r: any) => (r.medications || []).map((m: any) => m.name).filter(Boolean));
+  const grounding = extractGrounding(prompt, medNames);
+  return sanitizeSections(normalizeToStringMap(parsed), reportType, grounding);
 }
 
 /** Minimal medication shape the humanize prompt needs to request a per-med explanation. */
@@ -987,7 +1009,8 @@ export async function humanizeReportSections(
       {
         role: 'system',
         content:
-          'You are a compassionate veterinary health communicator. Your job is to translate formal veterinary diagnostic reports into plain, warm, easy-to-understand language for pet owners who have no medical background. Avoid jargon. Use simple words. Always reassure where appropriate without downplaying serious findings. Output valid JSON only — no markdown fences, no extra text.',
+          'You are a veterinary health communicator. Your job is to translate formal veterinary diagnostic reports into plain, easy-to-understand language for pet owners who have no medical background. Avoid jargon. Use simple words. Use plain, respectful, non-alarming language; do not add reassurance, encouragement, or filler that states no fact. Output valid JSON only — no markdown fences, no extra text.' +
+          GROUNDING_RULES,
       },
       { role: 'user', content: prompt },
     ],
@@ -1011,7 +1034,7 @@ export async function humanizeReportSections(
         .map((t: any) => ({ name: String(t.name), whatItDoes: typeof t.whatItDoes === 'string' ? t.whatItDoes : '' }))
     : [];
 
-  return {
+  const draft: OwnerSummary = {
     whatWeFound: parsed.whatWeFound ?? '',
     testResultsExplained: parsed.testResultsExplained ?? '',
     whatsHappeningInTheirBody: parsed.whatsHappeningInTheirBody ?? '',
@@ -1020,4 +1043,15 @@ export async function humanizeReportSections(
     whatToExpect: parsed.whatToExpect ?? '',
     treatments,
   };
+
+  // Grounding source: the (vet-approved) clinical sections plus the real medication data and
+  // report date. The owner narrative should carry no raw numbers/dates, so any ungrounded number
+  // in a sentence marks it as invented and that sentence is dropped by sanitizeOwnerSummary.
+  const medNames = (medications || []).map((m) => m.name).filter(Boolean);
+  const groundingSource = [
+    JSON.stringify(sections ?? {}),
+    (medications || []).map((m) => `${m.name} ${m.dosage} ${m.frequency} ${m.duration} ${m.endDate ?? ''}`).join(' '),
+    reportDate ?? '',
+  ].join(' ');
+  return sanitizeOwnerSummary(draft, extractGrounding(groundingSource, medNames));
 }

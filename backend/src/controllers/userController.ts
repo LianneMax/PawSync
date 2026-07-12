@@ -32,6 +32,7 @@ export const getProfile = async (req: Request, res: Response) => {
           contactNumber: user.contactNumber || null,
           photo: user.photo || null,
           signature: user.signature || null,
+          reportStyleProfile: user.reportStyleProfile || null,
           createdAt: user.createdAt
         }
       }
@@ -67,7 +68,7 @@ export const updateProfile = async (req: Request, res: Response) => {
     // Email is the account's login identity (unique, and the target for OTP/password-reset).
     // It is intentionally NOT self-editable here — changing it would need verification of the
     // new address. Any `email` in the body is ignored; changes go through support/admin.
-    const { firstName, lastName, contactNumber, photo, signature } = req.body;
+    const { firstName, lastName, contactNumber, photo, signature, reportStyleProfile } = req.body;
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
@@ -87,6 +88,19 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
     if (photo !== undefined) user.photo = photo;
     if (signature !== undefined) user.signature = signature;
+    // Veterinarian-only AI report style preferences (tone/format, never clinical facts).
+    if (reportStyleProfile !== undefined && user.userType === 'veterinarian') {
+      user.reportStyleProfile = reportStyleProfile === null
+        ? null
+        : {
+            verbosity: reportStyleProfile.verbosity,
+            format: reportStyleProfile.format,
+            analogies: typeof reportStyleProfile.analogies === 'boolean' ? reportStyleProfile.analogies : undefined,
+            readingLevel: reportStyleProfile.readingLevel,
+            spelling: reportStyleProfile.spelling,
+            extraNotes: typeof reportStyleProfile.extraNotes === 'string' ? reportStyleProfile.extraNotes.slice(0, 300) : undefined,
+          };
+    }
 
     await user.save({ validateBeforeSave: false });
 
@@ -102,6 +116,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           contactNumber: user.contactNumber,
           photo: user.photo || null,
           signature: user.signature || null,
+          reportStyleProfile: user.reportStyleProfile || null,
           userType: user.userType,
           isVerified: user.isVerified
         }

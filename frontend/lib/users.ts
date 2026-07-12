@@ -15,11 +15,21 @@ export const getProfile = async (token?: string): Promise<ProfileResponse> => {
   return authenticatedFetch('/users/profile', { method: 'GET' }, token);
 };
 
+/** Veterinarian-only AI report style preferences (tone/format only; never clinical facts). */
+export interface ReportStyleProfile {
+  verbosity?: 'concise' | 'standard' | 'detailed';
+  format?: 'prose' | 'bulleted';
+  analogies?: boolean;
+  readingLevel?: string;
+  spelling?: 'US' | 'UK';
+  extraNotes?: string;
+}
+
 /**
  * Update user profile
  */
 export const updateProfile = async (
-  data: { firstName?: string; lastName?: string; contactNumber?: string },
+  data: { firstName?: string; lastName?: string; contactNumber?: string; reportStyleProfile?: ReportStyleProfile | null },
   token?: string
 ): Promise<ProfileResponse> => {
   return authenticatedFetch('/users/profile', {

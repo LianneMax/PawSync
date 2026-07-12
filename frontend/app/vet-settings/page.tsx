@@ -9,7 +9,8 @@ import AvatarUpload from '@/components/avatar-upload'
 import { uploadImage } from '@/lib/upload'
 import { useAuthStore } from '@/store/authStore'
 import { authenticatedFetch } from '@/lib/auth'
-import { Mail, Phone, Lock, Camera } from 'lucide-react'
+import type { ReportStyleProfile } from '@/lib/users'
+import { Mail, Phone, Lock, Camera, Sparkles } from 'lucide-react'
 
 export default function VetSettingsPage() {
   const { token } = useAuthStore()
@@ -31,6 +32,10 @@ export default function VetSettingsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
+
+  // AI report style profile (tone/format only; never changes clinical facts)
+  const [style, setStyle] = useState<ReportStyleProfile>({})
+  const [styleSaving, setStyleSaving] = useState(false)
 
   // Errors
   const [profileErrors, setProfileErrors] = useState<Record<string, boolean>>({})
@@ -57,6 +62,7 @@ export default function VetSettingsPage() {
             setCurrentAvatar(userData.photo)
             if (authUser) setUser({ ...authUser, avatar: userData.photo })
           }
+          if (userData.reportStyleProfile) setStyle(userData.reportStyleProfile)
         }
       } catch (err) {
         console.error('Failed to load profile:', err)
@@ -117,6 +123,28 @@ export default function VetSettingsPage() {
       toast.error('Failed to update profile')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveStyle = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStyleSaving(true)
+    try {
+      const res = await authenticatedFetch('/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportStyleProfile: style }),
+      }, token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success('Report style saved')
+      } else {
+        toast.error(res.message || 'Failed to save report style')
+      }
+    } catch (err) {
+      console.error('Error saving report style:', err)
+      toast.error('Failed to save report style')
+    } finally {
+      setStyleSaving(false)
     }
   }
 
@@ -329,6 +357,105 @@ export default function VetSettingsPage() {
                     className="px-6 py-2 rounded-xl bg-[#7FA5A3] text-white font-medium hover:bg-[#476B6B] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {saving ? 'Updating...' : 'Update Settings'}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+          {/* AI Report Style Form */}
+          <form onSubmit={handleSaveStyle} className="space-y-6">
+              <div className="bg-white rounded-2xl p-8 shadow-sm">
+                <h2 className="text-lg font-semibold text-[#4F4F4F] mb-1 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#7FA5A3]" />
+                  AI Report Style
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">
+                  Tune the tone and formatting of AI-drafted reports to match how you write. This only
+                  affects style, never the clinical facts, which always come from the medical record.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Length</label>
+                      <select
+                        value={style.verbosity ?? ''}
+                        onChange={(e) => setStyle((s) => ({ ...s, verbosity: (e.target.value || undefined) as ReportStyleProfile['verbosity'] }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      >
+                        <option value="">No preference</option>
+                        <option value="concise">Concise</option>
+                        <option value="standard">Standard</option>
+                        <option value="detailed">Detailed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Structure</label>
+                      <select
+                        value={style.format ?? ''}
+                        onChange={(e) => setStyle((s) => ({ ...s, format: (e.target.value || undefined) as ReportStyleProfile['format'] }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      >
+                        <option value="">No preference</option>
+                        <option value="prose">Flowing prose</option>
+                        <option value="bulleted">Bulleted</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Reading level</label>
+                      <input
+                        type="text"
+                        value={style.readingLevel ?? ''}
+                        onChange={(e) => setStyle((s) => ({ ...s, readingLevel: e.target.value || undefined }))}
+                        placeholder="e.g. grade 8, professional"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Spelling</label>
+                      <select
+                        value={style.spelling ?? ''}
+                        onChange={(e) => setStyle((s) => ({ ...s, spelling: (e.target.value || undefined) as ReportStyleProfile['spelling'] }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                      >
+                        <option value="">No preference</option>
+                        <option value="US">US English</option>
+                        <option value="UK">UK English</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm font-medium text-[#4F4F4F]">
+                    <input
+                      type="checkbox"
+                      checked={style.analogies === false}
+                      onChange={(e) => setStyle((s) => ({ ...s, analogies: e.target.checked ? false : undefined }))}
+                      className="w-4 h-4 rounded border-gray-300 text-[#7FA5A3] focus:ring-[#7FA5A3]"
+                    />
+                    Do not use analogies or metaphors
+                  </label>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#4F4F4F] mb-2">Extra style notes (optional)</label>
+                    <textarea
+                      value={style.extraNotes ?? ''}
+                      onChange={(e) => setStyle((s) => ({ ...s, extraNotes: e.target.value || undefined }))}
+                      maxLength={300}
+                      rows={2}
+                      placeholder="e.g. Lead with the diagnosis. Keep sentences short."
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Tone and formatting only. Clinical facts always come from the record.</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+                  <button
+                    type="submit"
+                    disabled={styleSaving}
+                    className="px-6 py-2 rounded-xl bg-[#7FA5A3] text-white font-medium hover:bg-[#476B6B] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {styleSaving ? 'Saving...' : 'Save Report Style'}
                   </button>
                 </div>
               </div>
