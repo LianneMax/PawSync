@@ -844,8 +844,8 @@ Rewrite each section in plain language for the pet owner. Avoid em-dashes (—);
 {
   "whatWeFound": "A warm, plain-language summary of how ${petName} presented and what the vet observed. Explain any abnormal findings simply.",
   "testResultsExplained": "Explain the lab or test results in simple terms. What does each result mean for ${petName}'s health? Use a conversational tone.",
-  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
   "theDiagnosis": "State the diagnoses in plain language. What condition does ${petName} have and what does it mean for daily life?",
+  "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
   "theTreatmentPlan": "A short, warm 1-2 sentence intro to the treatment plan for ${petName}. The individual medications are listed separately in the treatments array, so do NOT repeat each one here.",
   "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}, and what to watch out for. When you mention a recheck or return visit, be SPECIFIC about timing: give an actual date (e.g. 'around July 19, when the treatment course finishes') using the KEY DATES above or the interval stated in the report, rather than vague phrases like 'in a few days'. If the report gives no follow-up timing, say so plainly instead of guessing. End on a hopeful but realistic note."${treatmentsSchema}
 }`;

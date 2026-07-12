@@ -159,8 +159,8 @@ function ContextPrompt({
 const OWNER_SUMMARY_CONFIG = [
   { key: 'whatWeFound' as const, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800' },
   { key: 'testResultsExplained' as const, label: 'Test Results Explained', Icon: Activity, bg: 'bg-purple-50', border: 'border-purple-200', ic: 'text-purple-600', tc: 'text-purple-800' },
-  { key: 'whatsHappeningInTheirBody' as const, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800' },
-  { key: 'theDiagnosis' as const, label: 'The Diagnosis', Icon: FileText, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800' },
+  { key: 'theDiagnosis' as const, label: 'The Diagnosis', Icon: FileText, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800' },
+  { key: 'whatsHappeningInTheirBody' as const, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800' },
   { key: 'theTreatmentPlan' as const, label: 'The Treatment Plan', Icon: CheckCircle2, bg: 'bg-green-50', border: 'border-green-200', ic: 'text-green-600', tc: 'text-green-800' },
   { key: 'whatToExpect' as const, label: 'What to Expect', Icon: TrendingUp, bg: 'bg-indigo-50', border: 'border-indigo-200', ic: 'text-indigo-600', tc: 'text-indigo-800' },
 ]
@@ -225,19 +225,19 @@ function OwnerSummaryEditor({
 }) {
   const treatmentItems = summary.treatmentPlan ?? []
   return (
-    <details id="owner-summary-editor" className="mb-6 bg-white border border-emerald-200 rounded-xl overflow-hidden" open>
-      <summary className="cursor-pointer flex items-center gap-2 px-4 py-3 bg-emerald-50 hover:bg-emerald-100/70 transition-colors">
-        <Users className="w-4 h-4 text-emerald-600" />
-        <span className="text-sm font-semibold text-emerald-800">
+    <details id="owner-summary-editor" className="mb-6 bg-white border border-gray-200 rounded-xl overflow-hidden" open>
+      <summary className="cursor-pointer flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+        <Users className="w-4 h-4 text-[#5A7C7A]" />
+        <span className="text-sm font-semibold text-gray-700">
           Owner Summary{petName ? ` for ${petName}'s Family` : ''}
         </span>
         <span className="ml-auto flex items-center gap-2">
-          {saveState === 'saving' && <span className="text-[10px] text-emerald-500">Saving…</span>}
-          {saveState === 'saved' && <span className="text-[10px] text-emerald-600 font-medium">Saved</span>}
-          <ChevronDown className="details-chevron w-4 h-4 text-emerald-500" />
+          {saveState === 'saving' && <span className="text-[10px] text-gray-400">Saving…</span>}
+          {saveState === 'saved' && <span className="text-[10px] text-gray-600 font-medium">Saved</span>}
+          <ChevronDown className="details-chevron w-4 h-4 text-gray-400" />
         </span>
       </summary>
-      <div className="p-4 space-y-4 border-t border-emerald-100">
+      <div className="p-4 space-y-4 border-t border-gray-200">
         <p className="text-xs text-gray-500">
           Review and edit the AI-drafted plain-language summary. Changes save automatically and
           appear on the owner summary page of the report.

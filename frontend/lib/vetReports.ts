@@ -339,11 +339,13 @@ export type OwnerSummaryTextKey =
   | 'theTreatmentPlan'
   | 'whatToExpect';
 
+// Order = the pet owner's reading flow: what happened, the evidence, the answer,
+// then the biology, the plan, and the outlook.
 export const OWNER_SUMMARY_LABELS: Record<OwnerSummaryTextKey, string> = {
   whatWeFound: 'What We Found',
   testResultsExplained: 'Test Results Explained',
-  whatsHappeningInTheirBody: "What's Happening in Their Body",
   theDiagnosis: 'The Diagnosis',
+  whatsHappeningInTheirBody: "What's Happening in Their Body",
   theTreatmentPlan: 'The Treatment Plan',
   whatToExpect: 'What to Expect',
 };

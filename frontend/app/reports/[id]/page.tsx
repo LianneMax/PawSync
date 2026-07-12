@@ -45,8 +45,8 @@ const fmtRDate = (d?: string) =>
 const OWNER_SUMMARY_CONFIG = [
   { key: 'whatWeFound' as keyof OwnerSummary, label: 'What We Found', Icon: Search, bg: 'bg-blue-50', border: 'border-blue-200', ic: 'text-blue-600', tc: 'text-blue-800' },
   { key: 'testResultsExplained' as keyof OwnerSummary, label: 'Test Results Explained', Icon: Activity, bg: 'bg-purple-50', border: 'border-purple-200', ic: 'text-purple-600', tc: 'text-purple-800' },
-  { key: 'whatsHappeningInTheirBody' as keyof OwnerSummary, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800' },
-  { key: 'theDiagnosis' as keyof OwnerSummary, label: 'The Diagnosis', Icon: FileText, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800' },
+  { key: 'theDiagnosis' as keyof OwnerSummary, label: 'The Diagnosis', Icon: FileText, bg: 'bg-rose-50', border: 'border-rose-200', ic: 'text-rose-600', tc: 'text-rose-800' },
+  { key: 'whatsHappeningInTheirBody' as keyof OwnerSummary, label: "What's Happening in Their Body", Icon: Heart, bg: 'bg-amber-50', border: 'border-amber-200', ic: 'text-amber-600', tc: 'text-amber-800' },
   { key: 'theTreatmentPlan' as keyof OwnerSummary, label: 'The Treatment Plan', Icon: CheckCircle2, bg: 'bg-green-50', border: 'border-green-200', ic: 'text-green-600', tc: 'text-green-800' },
   { key: 'whatToExpect' as keyof OwnerSummary, label: 'What to Expect', Icon: TrendingUp, bg: 'bg-indigo-50', border: 'border-indigo-200', ic: 'text-indigo-600', tc: 'text-indigo-800' },
 ]
