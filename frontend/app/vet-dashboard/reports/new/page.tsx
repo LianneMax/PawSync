@@ -102,9 +102,13 @@ function isEligibleForType(record: MedicalRecord, reportType: ReportType): boole
   return true
 }
 
-/** Record must satisfy every selected type so each created report covers the same visits. */
-function isEligibleForAllTypes(record: MedicalRecord, reportTypes: ReportType[]): boolean {
-  return reportTypes.every((t) => isEligibleForType(record, t))
+/**
+ * Record must satisfy at least one selected type — each selected type becomes its own
+ * report (see handleCreate), so a record only needs to be usable by one of them to
+ * belong in the candidate list. Per-report record sets are narrowed by type at creation time.
+ */
+function isEligibleForAnyType(record: MedicalRecord, reportTypes: ReportType[]): boolean {
+  return reportTypes.some((t) => isEligibleForType(record, t))
 }
 
 function NewReportContent() {
@@ -264,7 +268,7 @@ function NewReportContent() {
   // shows them disabled with a hint instead of silently hiding the patient.
   const eligiblePetGroups = useMemo(() => {
     if (typeList.length === 0) return petGroups
-    return petGroups.filter((g) => g.records.some((r) => isEligibleForAllTypes(r, typeList)))
+    return petGroups.filter((g) => g.records.some((r) => isEligibleForAnyType(r, typeList)))
   }, [petGroups, typeList])
 
   const filteredPets = eligiblePetGroups.filter((g) => {
@@ -280,7 +284,7 @@ function NewReportContent() {
   const { eligibleRecords, pendingDocRecords } = useMemo(() => {
     if (!selectedPet || typeList.length === 0) return { eligibleRecords: [], pendingDocRecords: [] }
     const inScope = selectedPet.records.filter((r) => {
-      if (!isEligibleForAllTypes(r, typeList)) return false
+      if (!isEligibleForAnyType(r, typeList)) return false
       if (dateFrom && new Date(r.createdAt) < new Date(dateFrom)) return false
       if (dateTo && new Date(r.createdAt) > new Date(dateTo + 'T23:59:59')) return false
       return true
@@ -306,7 +310,7 @@ function NewReportContent() {
       const next = new Set(
         [...prev].filter((rid) => {
           const r = selectedPet.records.find((rr) => rr._id === rid)
-          return !!r && isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)
+          return !!r && isRecordReportReady(r) && isEligibleForAnyType(r, typeList)
         })
       )
       return next.size === prev.size ? prev : next
@@ -490,16 +494,11 @@ function NewReportContent() {
       const hasDateFilter = !!dateFrom || !!dateTo
       const useAllScope = allMode && !hasDateFilter
 
-      const recordIds = useAllScope
+      const baseRecordIds = useAllScope
         ? undefined
         : allMode
           ? eligibleRecords.map((r) => r._id)
           : [...selectedRecordIds]
-
-      const isConsolidated = useAllScope || (recordIds?.length ?? 0) > 1
-      const singleRecord = !isConsolidated && recordIds?.length === 1
-        ? selectedPet.records.find((r) => r._id === recordIds![0])
-        : null
 
       // Create one report per selected type, in the order they appear in the config
       const orderedTypes = REPORT_TYPE_CONFIG.map((c) => c.value).filter((t) => selectedTypes.has(t))
@@ -509,6 +508,25 @@ function NewReportContent() {
 
       for (const type of orderedTypes) {
         const typeLabel = REPORT_TYPE_CONFIG.find((c) => c.value === type)?.label ?? 'Report'
+
+        // Narrow the selection to records actually eligible for THIS type — a mixed
+        // selection (e.g. a diagnostic-only visit + a surgery-only visit) must not put
+        // ineligible records onto a report that isn't theirs.
+        const recordIds = useAllScope
+          ? undefined
+          : baseRecordIds!.filter((id) => {
+              const rec = selectedPet.records.find((r) => r._id === id)
+              return !!rec && isEligibleForType(rec, type)
+            })
+        if (!useAllScope && recordIds!.length === 0) {
+          failed.push(`${typeLabel} (no eligible records in selection)`)
+          continue
+        }
+
+        const isConsolidated = useAllScope || (recordIds?.length ?? 0) > 1
+        const singleRecord = !isConsolidated && recordIds?.length === 1
+          ? selectedPet.records.find((r) => r._id === recordIds![0])
+          : null
         const autoTitle = isConsolidated
           ? `${typeLabel}: ${selectedPet.name} (${useAllScope ? 'All records' : `${recordIds?.length} visits`})`
           : `${typeLabel}: ${selectedPet.name} (${fmtDate(singleRecord?.createdAt ?? new Date().toISOString())})`
@@ -801,8 +819,8 @@ function NewReportContent() {
                     ) : (
                       filteredPets.map((g) => {
                         const isSelected = selectedPetId === g.petId
-                        const eligibleCount = g.records.filter((r) => isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
-                        const pendingCount = g.records.filter((r) => !isRecordReportReady(r) && isEligibleForAllTypes(r, typeList)).length
+                        const eligibleCount = g.records.filter((r) => isRecordReportReady(r) && isEligibleForAnyType(r, typeList)).length
+                        const pendingCount = g.records.filter((r) => !isRecordReportReady(r) && isEligibleForAnyType(r, typeList)).length
                         return (
                           <button
                             key={g.petId}
