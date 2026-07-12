@@ -826,11 +826,6 @@ export const humanizeReport = async (req: Request, res: Response) => {
       });
     }
 
-    const os = report.ownerSummary as any;
-    if (os?.whatWeFound && os?.theDiagnosis && os?.theTreatmentPlan) {
-      return res.json({ status: 'OK', data: report });
-    }
-
     const pet = await Pet.findById(report.petId).lean() as any;
     if (!pet) {
       return res.status(404).json({ status: 'ERROR', message: 'Pet not found' });
@@ -847,6 +842,77 @@ export const humanizeReport = async (req: Request, res: Response) => {
       theTreatmentPlan: summary.theTreatmentPlan ?? '',
       whatToExpect: summary.whatToExpect ?? '',
     };
+    await report.save();
+
+    res.json({ status: 'OK', data: report });
+  } catch (err: any) {
+    if (err instanceof ReportGenerationError) {
+      return res.status(502).json({
+        status: 'ERROR',
+        message: err.message,
+        raw: err.raw,
+      });
+    }
+
+    res.status(500).json({ status: 'ERROR', message: err.message });
+  }
+};
+
+// ─── UPDATE OWNER SUMMARY ────────────────────────────────────────────────────
+
+const OWNER_SUMMARY_FIELDS = [
+  'whatWeFound',
+  'testResultsExplained',
+  'whatsHappeningInTheirBody',
+  'theDiagnosis',
+  'theTreatmentPlan',
+  'whatToExpect',
+] as const;
+
+/**
+ * PATCH /vet-reports/:id/owner-summary
+ * The owner summary is an AI-drafted explanatory layer over the finalized report,
+ * so — unlike `sections` — the vet may still edit it after finalization (matching
+ * /humanize, which also runs post-finalize). A summary must already exist;
+ * generation goes through /humanize.
+ */
+export const updateOwnerSummary = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { ownerSummary } = req.body;
+
+    if (!ownerSummary || typeof ownerSummary !== 'object' || Array.isArray(ownerSummary)) {
+      return res.status(400).json({ status: 'ERROR', message: 'ownerSummary object is required.' });
+    }
+
+    const report = await VetReport.findById(id);
+    if (!report) {
+      return res.status(404).json({ status: 'ERROR', message: 'Report not found' });
+    }
+
+    if (report.status !== 'finalized') {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'The report must be finalized before its owner summary can be edited.',
+      });
+    }
+
+    if (!report.ownerSummary) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Generate an owner summary before editing it.',
+      });
+    }
+
+    for (const field of OWNER_SUMMARY_FIELDS) {
+      const value = (ownerSummary as Record<string, unknown>)[field];
+      if (value === undefined) continue;
+      if (typeof value !== 'string') {
+        return res.status(400).json({ status: 'ERROR', message: `${field} must be a string.` });
+      }
+      (report.ownerSummary as any)[field] = value;
+    }
+    report.markModified('ownerSummary');
     await report.save();
 
     res.json({ status: 'OK', data: report });

@@ -8,6 +8,7 @@ import {
   shareReport,
   generateReport,
   humanizeReport,
+  updateOwnerSummary,
   listSharedReportsForOwner,
   syncReportRecords,
   deleteReport,
@@ -33,6 +34,7 @@ router.patch('/:id/share', authMiddleware, vetOrClinicAdminOnly, shareReport);
 router.post('/:id/generate', authMiddleware, vetOrClinicAdminOnly, generateReport);
 router.post('/:id/sync-records', authMiddleware, vetOrClinicAdminOnly, syncReportRecords);
 router.post('/:id/humanize', authMiddleware, vetOrClinicAdminOnly, humanizeReport);
+router.patch('/:id/owner-summary', authMiddleware, vetOrClinicAdminOnly, updateOwnerSummary);
 router.post('/:id/addenda', authMiddleware, vetOrClinicAdminOnly, addReportAddendum);
 
 export default router;

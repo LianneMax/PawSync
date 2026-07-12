@@ -9,6 +9,7 @@ import {
   updateVetReport,
   generateVetReport,
   humanizeVetReport,
+  updateVetReportOwnerSummary,
   shareVetReport,
   syncVetReportRecords,
   deleteVetReport,
@@ -203,6 +204,58 @@ function HumanizeSection({
         <p className="text-xs text-emerald-500 mt-2 text-center">Finalize the report before generating an owner summary</p>
       )}
     </div>
+  )
+}
+
+function OwnerSummaryEditor({
+  summary,
+  onChange,
+  disabled,
+  saveState,
+  petName,
+}: {
+  summary: OwnerSummary
+  onChange: (key: keyof OwnerSummary, value: string) => void
+  disabled: boolean
+  saveState: 'idle' | 'saving' | 'saved'
+  petName?: string
+}) {
+  return (
+    <details id="owner-summary-editor" className="mb-6 bg-white border border-emerald-200 rounded-xl overflow-hidden" open>
+      <summary className="cursor-pointer flex items-center gap-2 px-4 py-3 bg-emerald-50 hover:bg-emerald-100/70 transition-colors">
+        <Users className="w-4 h-4 text-emerald-600" />
+        <span className="text-sm font-semibold text-emerald-800">
+          Owner Summary{petName ? ` for ${petName}'s Family` : ''}
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          {saveState === 'saving' && <span className="text-[10px] text-emerald-500">Saving…</span>}
+          {saveState === 'saved' && <span className="text-[10px] text-emerald-600 font-medium">Saved</span>}
+          <ChevronDown className="details-chevron w-4 h-4 text-emerald-500" />
+        </span>
+      </summary>
+      <div className="p-4 space-y-4 border-t border-emerald-100">
+        <p className="text-xs text-gray-500">
+          Review and edit the AI-drafted plain-language summary. Changes save automatically and
+          appear on the owner summary page of the report.
+        </p>
+        {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => (
+          <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
+            <div className={`flex items-center gap-2 mb-2 ${tc}`}>
+              <Icon className={`w-4 h-4 ${ic}`} />
+              <span className="font-semibold text-sm">{label}</span>
+            </div>
+            <textarea
+              value={summary[key] ?? ''}
+              onChange={(e) => onChange(key, e.target.value)}
+              disabled={disabled}
+              rows={4}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              placeholder="Write this part of the owner summary…"
+            />
+          </div>
+        ))}
+      </div>
+    </details>
   )
 }
 
@@ -1256,6 +1309,7 @@ export default function ReportEditorPage() {
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState<'edit' | 'preview'>('edit')
   const [ownerSummary, setOwnerSummary] = useState<OwnerSummary | null>(null)
+  const [summarySaveState, setSummarySaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null)
   const [signModalOpen, setSignModalOpen] = useState(false)
   const [signing, setSigning] = useState(false)
@@ -1277,6 +1331,7 @@ export default function ReportEditorPage() {
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const summarySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const signatureCaptureRef = useRef<SignatureCaptureHandle | null>(null)
 
   const loadReport = useCallback(async () => {
@@ -1440,11 +1495,35 @@ export default function ReportEditorPage() {
       applyUpdate(updated)
       setOwnerSummary(updated.ownerSummary ?? null)
       toast.success('Owner summary generated!')
+      // The editable summary renders below the (now collapsible) report — bring it into view
+      setTimeout(() => {
+        document.getElementById('owner-summary-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
     } catch (e: any) {
       toast.error(e.message || 'Humanization failed')
     } finally {
       setHumanizing(false)
     }
+  }
+
+  // Owner summary edits auto-save like report sections, but through the dedicated
+  // endpoint (summaries stay editable after finalization, unlike sections).
+  const handleOwnerSummaryChange = (key: keyof OwnerSummary, value: string) => {
+    if (!ownerSummary) return
+    const updated = { ...ownerSummary, [key]: value }
+    setOwnerSummary(updated)
+    if (summarySaveTimer.current) clearTimeout(summarySaveTimer.current)
+    summarySaveTimer.current = setTimeout(async () => {
+      setSummarySaveState('saving')
+      try {
+        await updateVetReportOwnerSummary(id, updated, token || undefined)
+        setSummarySaveState('saved')
+        setTimeout(() => setSummarySaveState('idle'), 2000)
+      } catch (e: any) {
+        setSummarySaveState('idle')
+        toast.error(e.message || 'Failed to save owner summary')
+      }
+    }, 2000)
   }
 
   // Sharing is one-way: confirm first, and never offer an unshare path
@@ -1906,15 +1985,47 @@ export default function ReportEditorPage() {
                 </div>
               )}
 
-              {activeSectionKeys.map((key) => (
-                <SectionEditor
-                  key={key}
-                  label={activeSectionLabels[key]}
-                  value={typeof sections[key] === 'string' ? sections[key] : ''}
-                  onChange={(v) => handleSectionChange(key, v)}
-                  disabled={generating || isFinalized}
-                />
-              ))}
+              {ownerSummary ? (
+                <>
+                  {/* With a summary to edit below, the vet's report collapses out of the way */}
+                  <details className="mb-6 bg-white border border-gray-200 rounded-xl overflow-hidden" open>
+                    <summary className="cursor-pointer flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <FileText className="w-4 h-4 text-[#5A7C7A]" />
+                      <span className="text-sm font-semibold text-gray-700">Veterinary Report</span>
+                      <ChevronDown className="details-chevron w-4 h-4 text-gray-400 ml-auto" />
+                    </summary>
+                    <div className="p-4 border-t border-gray-200">
+                      {activeSectionKeys.map((key) => (
+                        <SectionEditor
+                          key={key}
+                          label={activeSectionLabels[key]}
+                          value={typeof sections[key] === 'string' ? sections[key] : ''}
+                          onChange={(v) => handleSectionChange(key, v)}
+                          disabled={generating || isFinalized}
+                        />
+                      ))}
+                    </div>
+                  </details>
+
+                  <OwnerSummaryEditor
+                    summary={ownerSummary}
+                    onChange={handleOwnerSummaryChange}
+                    disabled={humanizing}
+                    saveState={summarySaveState}
+                    petName={pet?.name}
+                  />
+                </>
+              ) : (
+                activeSectionKeys.map((key) => (
+                  <SectionEditor
+                    key={key}
+                    label={activeSectionLabels[key]}
+                    value={typeof sections[key] === 'string' ? sections[key] : ''}
+                    onChange={(v) => handleSectionChange(key, v)}
+                    disabled={generating || isFinalized}
+                  />
+                ))
+              )}
             </div>
           </div>
         )}

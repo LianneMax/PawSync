@@ -455,6 +455,25 @@ export async function humanizeVetReport(id: string, token?: string): Promise<Vet
   return json.data;
 }
 
+/** Owner summaries stay editable after finalization (unlike sections); a summary must exist first. */
+export async function updateVetReportOwnerSummary(
+  id: string,
+  ownerSummary: Partial<OwnerSummary>,
+  token?: string
+): Promise<VetReport> {
+  const json = await authenticatedFetch(
+    `/vet-reports/${id}/owner-summary`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerSummary }),
+    },
+    token
+  );
+  if (json?.status !== 'OK') throw new Error(json?.message || 'Failed to save owner summary');
+  return json.data;
+}
+
 export async function syncVetReportRecords(
   id: string,
   token?: string,
