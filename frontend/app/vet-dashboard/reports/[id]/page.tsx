@@ -1952,7 +1952,7 @@ export default function ReportEditorPage() {
                   />
                   {humanizing && (
                     <div className="mt-3 border border-emerald-100 rounded-xl p-4 bg-white flex items-center">
-                      <AILoadingState />
+                      <AILoadingState mode="humanize" />
                     </div>
                   )}
                 </div>

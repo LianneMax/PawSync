@@ -12,45 +12,39 @@
 
 import { useEffect, useState, useRef } from "react";
 
-const TASK_SEQUENCES = [
+type TaskSequence = { status: string; lines: string[] };
+
+// Steps reflect the ACTUAL data the backend reads (see vetReportGenerationService.ts):
+// the pet profile, the vet's notes, and the linked medical records — never the web.
+const GENERATE_SEQUENCES: TaskSequence[] = [
     {
-        status: "Searching the web",
+        status: "Compiling the report",
         lines: [
-            "Initializing web search...",
-            "Scanning web pages...",
-            "Visiting 5 websites...",
-            "Analyzing content...",
-            "Generating summary...",
-        ],
-    },
-    {
-        status: "Analyzing results",
-        lines: [
-            "Analyzing search results...",
-            "Generating summary...",
-            "Checking for relevant information...",
-            "Finalizing analysis...",
-            "Setting up lazy loading...",
-            "Configuring caching strategies...",
-            "Running performance tests...",
-            "Finalizing optimizations...",
-        ],
-    },
-    {
-        status: "Enhancing UI/UX",
-        lines: [
-            "Initializing UI enhancement scan...",
-            "Checking accessibility compliance...",
-            "Analyzing component animations...",
-            "Reviewing loading states...",
-            "Testing responsive layouts...",
-            "Optimizing user interactions...",
-            "Validating color contrast...",
-            "Checking motion preferences...",
-            "Finalizing UI improvements...",
+            "Loading pet profile...",
+            "Gathering vet notes...",
+            "Reviewing persistent vet notes...",
+            "Collecting linked medical records...",
+            "Drafting report sections...",
         ],
     },
 ];
+
+// Owner Summary translates the finished report sections into plain language,
+// drawing on the same pet profile, notes, records, and prescribed medications.
+const HUMANIZE_SEQUENCES: TaskSequence[] = [
+    {
+        status: "Writing the owner summary",
+        lines: [
+            "Loading pet profile...",
+            "Reading vet notes...",
+            "Reviewing medical records...",
+            "Checking prescribed medications...",
+            "Translating into plain, compassionate language...",
+        ],
+    },
+];
+
+export type AILoadingMode = "generate" | "humanize";
 
 const LoadingAnimation = ({ progress }: { progress: number }) => (
     <div className="relative w-6 h-6">
@@ -155,7 +149,13 @@ const LoadingAnimation = ({ progress }: { progress: number }) => (
     </div>
 );
 
-export default function AILoadingState() {
+export default function AILoadingState({
+    mode = "generate",
+}: {
+    mode?: AILoadingMode;
+} = {}) {
+    const sequences =
+        mode === "humanize" ? HUMANIZE_SEQUENCES : GENERATE_SEQUENCES;
     const [sequenceIndex, setSequenceIndex] = useState(0);
     const [visibleLines, setVisibleLines] = useState<
         Array<{ text: string; number: number }>
@@ -164,7 +164,7 @@ export default function AILoadingState() {
     const codeContainerRef = useRef<HTMLDivElement>(null);
     const lineHeight = 28;
 
-    const currentSequence = TASK_SEQUENCES[sequenceIndex];
+    const currentSequence = sequences[sequenceIndex];
     const totalLines = currentSequence.lines.length;
 
     useEffect(() => {
@@ -191,7 +191,7 @@ export default function AILoadingState() {
             // If we're about to wrap around, move to next sequence
             if (nextLineIndex < firstVisibleLineIndex && nextLineIndex !== 0) {
                 setSequenceIndex(
-                    (prevIndex) => (prevIndex + 1) % TASK_SEQUENCES.length
+                    (prevIndex) => (prevIndex + 1) % sequences.length
                 );
                 return;
             }
@@ -236,7 +236,9 @@ export default function AILoadingState() {
             <div className="space-y-4 w-auto">
                 <div className="ml-2 flex items-center space-x-2 text-gray-600 dark:text-gray-300 font-medium">
                     <LoadingAnimation
-                        progress={(sequenceIndex / TASK_SEQUENCES.length) * 100}
+                        progress={
+                            ((sequenceIndex + 1) / sequences.length) * 100
+                        }
                     />
                     <span className="text-sm">{currentSequence.status}...</span>
                 </div>
