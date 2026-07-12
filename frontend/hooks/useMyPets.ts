@@ -22,5 +22,13 @@ export function useMyPets() {
     [data]
   )
 
-  return { pets, isLoading, error, mutate }
+  // `pets` is only an authoritative empty list once a successful response is in hand.
+  // Before the auth token rehydrates the SWR key is null (SWR reports isLoading:false
+  // with no data), and a failed revalidation yields a non-SUCCESS payload — in both
+  // cases `pets` is a transient [] that must NOT be read as "owner has no pets".
+  const loaded = data?.status === 'SUCCESS'
+
+  // Treat the pre-token window as loading so consumers wait instead of acting on the
+  // transient empty list (e.g. the dashboard's redirect-to-onboarding guard).
+  return { pets, isLoading: isLoading || !token, error, loaded, mutate }
 }

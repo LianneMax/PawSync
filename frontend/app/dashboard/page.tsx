@@ -1158,7 +1158,7 @@ export default function DashboardPage() {
   const token = useAuthStore((state) => state.token)
   const [userName, setUserName] = useState('User')
   const [pets, setPets] = useState<Pet[]>([])
-  const { pets: apiPets, isLoading: petsLoading, mutate: refreshPets } = useMyPets()
+  const { pets: apiPets, isLoading: petsLoading, loaded: petsLoaded, mutate: refreshPets } = useMyPets()
   const [appointments, setAppointments] = useState<DashboardAppointment[]>([])
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null)
   const [petModalOpen, setPetModalOpen] = useState(false)
@@ -1187,6 +1187,9 @@ export default function DashboardPage() {
   // Map them into dashboard-shaped pets and redirect to onboarding if the owner has none.
   useEffect(() => {
     if (petsLoading) return
+    // Only redirect on an authoritative empty list. A transient [] from the auth-token
+    // rehydration window or a failed revalidation must not yank the owner into onboarding.
+    if (!petsLoaded) return
     if (apiPets.length === 0) {
       router.replace('/onboarding/pet')
       return
@@ -1203,7 +1206,7 @@ export default function DashboardPage() {
         setShowStrangerReportedLostModal(true)
       }
     }
-  }, [apiPets, petsLoading, router])
+  }, [apiPets, petsLoading, petsLoaded, router])
 
   // Appointments are fetched via the shared `useMyAppointments` SWR hook (deduped/cached
   // across dashboard, my-appointments and my-pets/[id]). SWR's refreshInterval replaces
