@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import VetReport from '../models/VetReport';
 import MedicalRecord from '../models/MedicalRecord';
 import ConfinementRecord from '../models/ConfinementRecord';
@@ -146,6 +147,11 @@ export const createReport = async (req: Request, res: Response) => {
     if (validatedReportType === 'confinement') {
       if (!confinementRecordId) {
         return res.status(400).json({ status: 'ERROR', message: 'confinementRecordId is required for confinement reports.' });
+      }
+      // A confinement report documents exactly one stay — reject arrays or anything
+      // that isn't a single valid id so multiple stays can never be conjoined.
+      if (typeof confinementRecordId !== 'string' || !mongoose.Types.ObjectId.isValid(confinementRecordId)) {
+        return res.status(400).json({ status: 'ERROR', message: 'A confinement report must reference exactly one confinement record.' });
       }
       const confinementRecord = await ConfinementRecord.findOne({ _id: confinementRecordId, petId }).lean() as any;
       if (!confinementRecord) {
