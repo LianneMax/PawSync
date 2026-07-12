@@ -285,6 +285,7 @@ function renderClinicalTables(
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Service</th>
                   <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Product</th>
+                  <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Date Administered</th>
                   {prevRecs.length > 1 && <th className="px-3 py-2 text-left font-semibold text-[#476B6B]">Visit</th>}
                 </tr>
               </thead>
@@ -294,6 +295,7 @@ function renderClinicalTables(
                     <tr key={`${r._id}-${pi}`} className="border-t border-gray-100">
                       <td className="px-3 py-2 font-medium text-[#4F4F4F] capitalize">{p.careType}</td>
                       <td className="px-3 py-2 text-gray-600">{p.product}</td>
+                      <td className="px-3 py-2 text-gray-600">{p.dateAdministered ? fmtRDate(p.dateAdministered) : fmtRDate(r.createdAt)}</td>
                       {prevRecs.length > 1 && <td className="px-3 py-2 text-gray-400">{fmtRDate(r.createdAt)}</td>}
                     </tr>
                   ))
