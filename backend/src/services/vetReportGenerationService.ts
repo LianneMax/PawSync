@@ -666,7 +666,11 @@ function buildDischargeSummaryPrompt(
     .map(([k, v]: any) => `  - ${k}: ${v.value}`)
     .join('\n');
   const vitalsNotes = extractVitalsNotes(record.vitals);
-  const medLines = (record.medications || [])
+  // Pull medications from every selected visit, not just the discharge visit itself —
+  // the medications table shown alongside this report is built the same way, and a med
+  // prescribed on an earlier visit in the case is still relevant to send the pet home with.
+  const medLines = records
+    .flatMap((r: any) => r.medications || [])
     .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
   const confinement = record.confinementAction === 'confined'
