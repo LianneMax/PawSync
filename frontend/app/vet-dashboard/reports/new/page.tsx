@@ -66,17 +66,12 @@ const REPORT_TYPE_ICONS: Record<ReportType, React.ReactNode> = {
 /** These types stand alone; they cannot be combined with any other type, including confinement. */
 const EXCLUSIVE_TYPES: ReportType[] = ['healthCertificate', 'referralLetter']
 
-/** Step 1 groups: clinical reports (combinable with confinement) vs. standalone documents. */
+/** Step 1 groups: clinical reports (including confinement) vs. standalone documents. */
 const TYPE_CATEGORIES: { label: string; description: string; types: ReportType[] }[] = [
   {
     label: 'Reports',
     description: 'Clinical write-ups built from visit data. Combine freely, including with a confinement report; one report is created per type.',
-    types: ['general', 'soap', 'diagnostic', 'surgery', 'dischargeSummary'],
-  },
-  {
-    label: 'Confinement',
-    description: 'Documents a single inpatient stay: admission, monitoring log, and current status. Can be combined with Reports above, scoped to the same stay; not combinable with certificates or letters.',
-    types: ['confinement'],
+    types: ['general', 'soap', 'diagnostic', 'surgery', 'dischargeSummary', 'confinement'],
   },
   {
     label: 'Certificates & Letters',
@@ -156,7 +151,6 @@ function NewReportContent() {
   // Confinement flow: a report is scoped to one stay, not a free record selection
   const [confinementStays, setConfinementStays] = useState<ConfinementStay[]>([])
   const [confinementLoading, setConfinementLoading] = useState(false)
-  const [confinementSearch, setConfinementSearch] = useState('')
   const [selectedConfinementId, setSelectedConfinementId] = useState<string | null>(null)
   const [usedConfinementIds, setUsedConfinementIds] = useState<Set<string>>(new Set())
 
@@ -287,6 +281,29 @@ function NewReportContent() {
     return !q || g.name.toLowerCase().includes(q) || (g.ownerName?.toLowerCase().includes(q) ?? false)
   })
 
+  // Confinement flow keeps the same patient-first steps, but the patient list comes
+  // from confinement stays (a stay may exist before its visits are completed).
+  const confinementPetGroups = useMemo(() => {
+    const map = new Map<string, { petId: string; name: string; species?: string; breed?: string; stays: ConfinementStay[] }>()
+    for (const s of confinementStays) {
+      if (!s.petId?._id) continue
+      let g = map.get(s.petId._id)
+      if (!g) {
+        g = { petId: s.petId._id, name: s.petId.name ?? 'Unknown pet', species: s.petId.species, breed: s.petId.breed, stays: [] }
+        map.set(s.petId._id, g)
+      }
+      g.stays.push(s)
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [confinementStays])
+
+  const filteredConfinementPets = confinementPetGroups.filter((g) => {
+    const q = petSearch.trim().toLowerCase()
+    return !q || g.name.toLowerCase().includes(q)
+  })
+
+  const selectedConfinementPet = confinementPetGroups.find((g) => g.petId === selectedPetId) ?? null
+
   const selectedPet = petGroups.find((g) => g.petId === selectedPetId) ?? null
 
   // Records eligible for every selected type + inside the optional date range.
@@ -309,6 +326,7 @@ function NewReportContent() {
   const selectPet = (petId: string) => {
     setSelectedPetId(petId)
     setSelectedRecordIds(new Set())
+    setSelectedConfinementId(null)
     setAllMode(false)
   }
 
@@ -390,7 +408,9 @@ function NewReportContent() {
 
   const effectiveCount = allMode ? eligibleRecords.length : selectedRecordIds.size
   // Pet must still be eligible — going back and changing types can invalidate an earlier pick
-  const canProceedStep2 = !!selectedPetId && eligiblePetGroups.some((g) => g.petId === selectedPetId)
+  const canProceedStep2 = includesConfinement
+    ? !!selectedPetId && confinementPetGroups.some((g) => g.petId === selectedPetId)
+    : !!selectedPetId && eligiblePetGroups.some((g) => g.petId === selectedPetId)
 
   // When exactly one visit is selected (typical for deep-link prefill), the type cards
   // can show visit-specific hints: no data for the type, or an exact duplicate existing
@@ -717,118 +737,66 @@ function NewReportContent() {
               )}
             </div>
 
-            {includesConfinement ? (
-              <>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Select Confinement Stay <span className="text-gray-400 font-normal">(required)</span>
+                  Select Patient <span className="text-gray-400 font-normal">(required)</span>
                 </label>
-                {typeList.length > 1 && (
-                  <p className="text-xs text-gray-400 mb-3">
-                    The stay&apos;s own visits will be used to scope {typeList.length - 1} other report{typeList.length - 1 !== 1 ? 's' : ''} — no separate visit selection needed.
+                {includesConfinement && (
+                  <p className="text-xs text-gray-400 mb-2">
+                    Showing patients with a confinement stay — you&apos;ll pick the stay in the next step.
                   </p>
                 )}
                 <div className="relative mb-3">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search by patient name…"
-                    value={confinementSearch}
-                    onChange={(e) => setConfinementSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
-                  />
-                </div>
-
-                {confinementLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-[#476B6B]" />
-                  </div>
-                ) : (
-                  <div className="max-h-72 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-5">
-                    {confinementStays
-                      .filter((s) => !confinementSearch.trim() || s.petId?.name?.toLowerCase().includes(confinementSearch.toLowerCase()))
-                      .map((s) => {
-                        const isSelected = selectedConfinementId === s._id
-                        const alreadyReported = usedConfinementIds.has(s._id)
-                        return (
-                          <button
-                            key={s._id}
-                            onClick={() => setSelectedConfinementId(s._id)}
-                            className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
-                              isSelected
-                                ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
-                                : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <Stethoscope className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-sm text-gray-900 truncate">
-                                  {s.petId?.name ?? 'Unknown pet'} — {s.reason}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  Admitted {fmtDate(s.admissionDate)}
-                                  {s.status === 'discharged' && s.dischargeDate ? ` · Discharged ${fmtDate(s.dischargeDate)}` : ' · Currently confined'}
-                                </p>
-                                {alreadyReported && (
-                                  <p className="text-[10px] text-amber-600 mt-1">A confinement report already exists for this stay</p>
-                                )}
-                              </div>
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${s.status === 'discharged' ? 'bg-gray-100 text-gray-500' : 'bg-[#f0f7f7] text-[#476B6B]'}`}>
-                                {s.status === 'discharged' ? 'Discharged' : 'Admitted'}
-                              </span>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    {confinementStays.length === 0 && (
-                      <p className="text-center text-sm text-gray-400 py-8">No confinement stays found</p>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleCreate}
-                    disabled={!selectedConfinementId || creating}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {creating ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
-                    ) : (
-                      `Create ${typeList.length > 1 ? `${typeList.length} Reports` : 'Report'} & Open`
-                    )}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Select Patient <span className="text-gray-400 font-normal">(required)</span>
-                </label>
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by patient or owner name…"
+                    placeholder={includesConfinement ? 'Search by patient name…' : 'Search by patient or owner name…'}
                     value={petSearch}
                     onChange={(e) => setPetSearch(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7FA5A3]"
                   />
                 </div>
 
-                {loading ? (
+                {(includesConfinement ? confinementLoading : loading) ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-6 h-6 animate-spin text-[#476B6B]" />
                   </div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-5">
-                    {filteredPets.length === 0 ? (
+                    {includesConfinement ? (
+                      filteredConfinementPets.length === 0 ? (
+                        <p className="text-center text-sm text-gray-400 py-8">
+                          {petSearch ? 'No patients match your search' : 'No patients with confinement stays found'}
+                        </p>
+                      ) : (
+                        filteredConfinementPets.map((g) => {
+                          const isSelected = selectedPetId === g.petId
+                          return (
+                            <button
+                              key={g.petId}
+                              onClick={() => selectPet(g.petId)}
+                              className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
+                                isSelected
+                                  ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                                  : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <PawPrint className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-sm text-gray-900 truncate">{g.name}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {g.species === 'canine' ? 'Canine' : 'Feline'} / {g.breed}
+                                  </p>
+                                </div>
+                                <span className="text-xs text-gray-400 flex-shrink-0">
+                                  {g.stays.length} stay{g.stays.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })
+                      )
+                    ) : filteredPets.length === 0 ? (
                       <p className="text-center text-sm text-gray-400 py-8">
                         {petSearch
                           ? 'No patients match your search'
@@ -887,13 +855,94 @@ function NewReportContent() {
                     Next: Select Records <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
-              </>
-            )}
+          </div>
+        )}
+
+        {/* ── Step 3 (confinement): pick the single stay to report on ── */}
+        {step === 3 && includesConfinement && selectedConfinementPet && (
+          <div>
+            <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm">
+              <PawPrint className="w-4 h-4 text-[#5A7C7A] flex-shrink-0" />
+              <span className="font-medium text-gray-900">{selectedConfinementPet.name}</span>
+              <span className="text-gray-500">·</span>
+              <span className="text-gray-500 text-xs">{selectedConfinementPet.species === 'canine' ? 'Canine' : 'Feline'} / {selectedConfinementPet.breed}</span>
+              <span className="ml-auto text-xs text-[#476B6B]">
+                {typeList.length} report{typeList.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confinement stay to include <span className="text-gray-400 font-normal">(required)</span>
+            </label>
+            <p className="text-xs text-gray-400 mb-2 -mt-1">
+              A confinement report covers exactly one stay; pick a single stay.
+              {typeList.length > 1 && ` The stay's own visits will scope the other ${typeList.length - 1} report${typeList.length - 1 !== 1 ? 's' : ''}.`}
+            </p>
+
+            <div className="max-h-72 overflow-y-auto space-y-2 rounded-lg border border-gray-100 p-2 bg-gray-50 mb-4">
+              {selectedConfinementPet.stays.map((s) => {
+                const isSelected = selectedConfinementId === s._id
+                const alreadyReported = usedConfinementIds.has(s._id)
+                return (
+                  <button
+                    key={s._id}
+                    onClick={() => setSelectedConfinementId((prev) => (prev === s._id ? null : s._id))}
+                    className={`w-full text-left rounded-lg px-4 py-3 border transition-all ${
+                      isSelected
+                        ? 'border-[#7FA5A3] bg-[#f0f7f7] ring-1 ring-[#7FA5A3]'
+                        : 'border-gray-200 bg-white hover:border-[#7FA5A3]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Stethoscope className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#476B6B]' : 'text-gray-400'}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm text-gray-900 truncate">
+                          {s.reason}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Admitted {fmtDate(s.admissionDate)}
+                          {s.status === 'discharged' && s.dischargeDate ? ` · Discharged ${fmtDate(s.dischargeDate)}` : ' · Currently confined'}
+                        </p>
+                        {alreadyReported && (
+                          <p className="text-[10px] text-amber-600 mt-1">A confinement report already exists for this stay</p>
+                        )}
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${s.status === 'discharged' ? 'bg-gray-100 text-gray-500' : 'bg-[#f0f7f7] text-[#476B6B]'}`}>
+                        {s.status === 'discharged' ? 'Discharged' : 'Admitted'}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+              {selectedConfinementPet.stays.length === 0 && (
+                <p className="text-center text-sm text-gray-400 py-8">No confinement stays found for this patient</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!selectedConfinementId || creating}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#476B6B] text-white text-sm font-medium hover:bg-[#3a5858] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {creating ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
+                ) : (
+                  `Create ${typeList.length > 1 ? `${typeList.length} Reports` : 'Report'} & Open`
+                )}
+              </button>
+            </div>
           </div>
         )}
 
         {/* ── Step 3: Records ── */}
-        {step === 3 && selectedPet && (
+        {step === 3 && !includesConfinement && selectedPet && (
           <div>
             <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm">
               <PawPrint className="w-4 h-4 text-[#5A7C7A] flex-shrink-0" />
