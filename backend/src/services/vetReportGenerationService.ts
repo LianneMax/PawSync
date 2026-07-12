@@ -412,11 +412,24 @@ function buildDiagnosticPrompt(
     const tests = (r.diagnosticTests || [])
       .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
       .join('\n');
+    const immunityLines: string[] = [];
+    if (r.immunityTesting?.enabled && r.immunityTesting.rows?.length) {
+      const titers = r.immunityTesting.rows
+        .map((row: any) => `    - ${row.disease}: Score ${row.score ?? 'N/A'} | ${row.status}${row.action ? ` — ${row.action}` : ''}`)
+        .join('\n');
+      immunityLines.push(`  Immunity/Titer Testing (${r.immunityTesting.kitName || 'kit'}, ${r.immunityTesting.testDate ? new Date(r.immunityTesting.testDate).toLocaleDateString('en-PH') : 'N/A'}):\n${titers}`);
+    }
+    if (r.immunityTesting?.antigenEnabled && r.immunityTesting.antigenRows?.length) {
+      const antigens = r.immunityTesting.antigenRows
+        .map((row: any) => `    - ${row.disease}: ${row.result}`)
+        .join('\n');
+      immunityLines.push(`  Antigen Testing (${r.immunityTesting.antigenDate ? new Date(r.immunityTesting.antigenDate).toLocaleDateString('en-PH') : 'N/A'}):\n${antigens}`);
+    }
     const vitalsNotes = extractVitalsNotes(r.vitals);
     return `VISIT ${i + 1} — ${visitDate} (Chief Complaint: ${r.chiefComplaint || 'N/A'})
   Diagnostic Tests:
 ${tests || '    (no diagnostic tests recorded for this visit)'}
-  Vitals Notes: ${vitalsNotes || '(none)'}
+${immunityLines.length ? immunityLines.join('\n') + '\n' : ''}  Vitals Notes: ${vitalsNotes || '(none)'}
   SOAP Assessment: ${r.assessment || '(none)'}
   Overall Observation: ${r.overallObservation || '(none)'}`;
   }).join('\n\n');

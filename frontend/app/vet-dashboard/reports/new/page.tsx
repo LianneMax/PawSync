@@ -98,7 +98,13 @@ interface PetGroup {
 }
 
 function isEligibleForType(record: MedicalRecord, reportType: ReportType): boolean {
-  if (reportType === 'diagnostic') return (record.diagnosticTests?.length ?? 0) > 0
+  if (reportType === 'diagnostic') {
+    return (
+      (record.diagnosticTests?.length ?? 0) > 0 ||
+      !!(record.immunityTesting?.enabled && record.immunityTesting.rows?.length) ||
+      !!(record.immunityTesting?.antigenEnabled && record.immunityTesting.antigenRows?.length)
+    )
+  }
   if (reportType === 'surgery') return !!(record.surgeryRecord?.surgeryType)
   return true
 }
