@@ -28,6 +28,21 @@ export interface PhoneInputProps extends VariantProps<typeof phoneInputVariants>
   disabled?: boolean
 }
 
+// Reduce any stored form (+639XXXXXXXXX, 09XXXXXXXXX, 9XXXXXXXXX) to the 10 local digits.
+// +63 is shown as a fixed badge, so it never appears in the field itself.
+function toLocalDigits(raw?: string): string {
+  let digits = (raw ?? '').replace(/\D/g, '')
+  if (digits.startsWith('63')) digits = digits.slice(2)
+  if (digits.startsWith('0')) digits = digits.slice(1)
+  return digits.slice(0, 10)
+}
+
+// Group PH mobile digits as 9XX XXX XXXX (3-3-4).
+function formatLocal(digits: string): string {
+  const parts = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 10)]
+  return parts.filter(Boolean).join(' ')
+}
+
 function PhoneInput({
   className,
   variant,
@@ -36,14 +51,12 @@ function PhoneInput({
   value,
   onChange,
 }: PhoneInputProps) {
-  // value is stored as E.164 (+639XXXXXXXXX); strip +63 for display
-  const displayValue = value?.startsWith('+63') ? value.slice(3) : (value ?? '')
+  const displayValue = formatLocal(toLocalDigits(value))
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/\D/g, '')
-    // Strip leading 0 (e.g. 09XX → 9XX) then prepend +63
-    const normalized = digits.startsWith('0') ? digits.slice(1) : digits
-    onChange?.(normalized ? `+63${normalized}` : '')
+    const digits = toLocalDigits(e.target.value)
+    // Store E.164; +63 lives only in the badge, never doubled into the value
+    onChange?.(digits ? `+63${digits}` : '')
   }
 
   return (
