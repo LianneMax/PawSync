@@ -133,6 +133,24 @@ export const REPORT_TYPE_DOCUMENT_TITLES: Record<ReportType, string> = {
 
 export type VetReportSections = Record<string, string>;
 
+/**
+ * One row of the owner-summary treatment timeline. Clinical fields mirror the linked
+ * medical record's medication; only `whatItDoes` is the AI blurb the vet may edit.
+ * Dates are ISO strings over the wire.
+ */
+export interface TreatmentItem {
+  name: string;
+  dosage: string;
+  route: string;
+  frequency: string;
+  duration: string;
+  startDate: string | null;
+  endDate: string | null;
+  visitDate: string | null;
+  status: string;
+  whatItDoes: string;
+}
+
 export interface OwnerSummary {
   whatWeFound: string;
   testResultsExplained: string;
@@ -140,6 +158,7 @@ export interface OwnerSummary {
   theDiagnosis: string;
   theTreatmentPlan: string;
   whatToExpect: string;
+  treatmentPlan?: TreatmentItem[];
 }
 
 export interface LinkedRecord {
@@ -311,7 +330,16 @@ export interface UpdateVetReportInput {
 export const SECTION_LABELS = SECTION_LABELS_BY_TYPE.general;
 export const SECTION_KEYS = Object.keys(SECTION_LABELS_BY_TYPE.general);
 
-export const OWNER_SUMMARY_LABELS: Record<keyof OwnerSummary, string> = {
+/** The six plain-text summary sections (excludes the structured `treatmentPlan` array). */
+export type OwnerSummaryTextKey =
+  | 'whatWeFound'
+  | 'testResultsExplained'
+  | 'whatsHappeningInTheirBody'
+  | 'theDiagnosis'
+  | 'theTreatmentPlan'
+  | 'whatToExpect';
+
+export const OWNER_SUMMARY_LABELS: Record<OwnerSummaryTextKey, string> = {
   whatWeFound: 'What We Found',
   testResultsExplained: 'Test Results Explained',
   whatsHappeningInTheirBody: "What's Happening in Their Body",
@@ -320,7 +348,7 @@ export const OWNER_SUMMARY_LABELS: Record<keyof OwnerSummary, string> = {
   whatToExpect: 'What to Expect',
 };
 
-export const OWNER_SUMMARY_KEYS = Object.keys(OWNER_SUMMARY_LABELS) as (keyof OwnerSummary)[];
+export const OWNER_SUMMARY_KEYS = Object.keys(OWNER_SUMMARY_LABELS) as OwnerSummaryTextKey[];
 
 // ─── API Helpers ─────────────────────────────────────────────────────────────
 

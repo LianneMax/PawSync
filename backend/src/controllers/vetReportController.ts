@@ -832,7 +832,60 @@ export const humanizeReport = async (req: Request, res: Response) => {
     }
 
     const petType = pet.species === 'canine' ? 'dog' : 'cat';
-    const summary = await humanizeReportSections(report.sections, pet.name, petType);
+
+    // Load the linked records so the treatment plan is built from REAL medications
+    // (accurate dose/dates/status) rather than re-parsed from the AI narrative.
+    const recordIds = resolveReportRecordIds(report);
+    const records = recordIds.length > 0
+      ? await MedicalRecord.find({ _id: { $in: recordIds } }).sort({ createdAt: 1 }).lean() as any[]
+      : [];
+
+    // Flatten every prescription across visits, tagging each with its owning visit date.
+    const structuredMeds = records.flatMap((r: any) =>
+      (r.medications || []).map((m: any) => ({
+        name: m.name ?? '',
+        dosage: m.dosage ?? '',
+        route: m.route ?? '',
+        frequency: m.frequency ?? '',
+        duration: m.duration ?? '',
+        startDate: m.startDate ?? null,
+        endDate: m.endDate ?? null,
+        visitDate: r.createdAt ?? null,
+        status: m.status ?? '',
+      }))
+    );
+
+    const summary = await humanizeReportSections(
+      report.sections,
+      pet.name,
+      petType,
+      structuredMeds.map((m) => ({
+        name: m.name,
+        dosage: m.dosage,
+        route: m.route,
+        frequency: m.frequency,
+        duration: m.duration,
+        endDate: m.endDate ? new Date(m.endDate).toISOString() : null,
+      })),
+      report.reportDate ? new Date(report.reportDate).toISOString() : null
+    );
+
+    // Merge: clinical columns come only from the record; whatItDoes is the AI blurb,
+    // matched by exact name (first unused match), falling back to positional order.
+    const blurbs = summary.treatments.slice();
+    const takeBlurb = (name: string): string => {
+      const i = blurbs.findIndex((b) => b.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (i !== -1) return blurbs.splice(i, 1)[0].whatItDoes;
+      return blurbs.length ? blurbs.shift()!.whatItDoes : '';
+    };
+
+    const treatmentPlan = structuredMeds
+      .map((m) => ({ ...m, whatItDoes: takeBlurb(m.name) }))
+      .sort((a, b) => {
+        const at = new Date(a.startDate ?? a.visitDate ?? 0).getTime();
+        const bt = new Date(b.startDate ?? b.visitDate ?? 0).getTime();
+        return at - bt;
+      });
 
     report.ownerSummary = {
       whatWeFound: summary.whatWeFound ?? '',
@@ -841,7 +894,9 @@ export const humanizeReport = async (req: Request, res: Response) => {
       theDiagnosis: summary.theDiagnosis ?? '',
       theTreatmentPlan: summary.theTreatmentPlan ?? '',
       whatToExpect: summary.whatToExpect ?? '',
+      treatmentPlan: treatmentPlan as any,
     };
+    report.markModified('ownerSummary');
     await report.save();
 
     res.json({ status: 'OK', data: report });
@@ -912,6 +967,22 @@ export const updateOwnerSummary = async (req: Request, res: Response) => {
       }
       (report.ownerSummary as any)[field] = value;
     }
+
+    // Treatment plan: only `whatItDoes` is owner-editable. Clinical columns (dose, dates,
+    // status) are authoritative from the record, so we keep the stored values and update
+    // just the explanation, matching incoming rows to stored rows positionally.
+    const incomingPlan = (ownerSummary as Record<string, unknown>).treatmentPlan;
+    if (Array.isArray(incomingPlan)) {
+      const stored = (report.ownerSummary as any).treatmentPlan;
+      if (Array.isArray(stored)) {
+        incomingPlan.forEach((item: any, i: number) => {
+          if (stored[i] && item && typeof item.whatItDoes === 'string') {
+            stored[i].whatItDoes = item.whatItDoes;
+          }
+        });
+      }
+    }
+
     report.markModified('ownerSummary');
     await report.save();
 

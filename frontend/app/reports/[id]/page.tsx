@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { ReportActions } from './ReportActions'
+import OwnerTreatmentTimeline from '@/components/OwnerTreatmentTimeline'
 import { formatReportDate, getSectionKeys, getSectionLabels, REPORT_TYPE_DOCUMENT_TITLES, getSharedReport } from '@/lib/vetReports'
 import type { VetReport, OwnerSummary, LinkedRecord, VaccinationRecord } from '@/lib/vetReports'
 
@@ -562,15 +563,21 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
                   A plain-language guide to this report, written for you.
                 </p>
                 {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
-                  const content = ownerSummary[key]
-                  if (!content?.trim()) return null
+                  const content = ownerSummary[key] as string | undefined
+                  const treatmentItems = key === 'theTreatmentPlan' ? (ownerSummary.treatmentPlan ?? []) : []
+                  if (!content?.trim() && treatmentItems.length === 0) return null
                   return (
                     <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
                       <div className={`flex items-center gap-2 mb-2 ${tc}`}>
                         <Icon className={`w-4 h-4 ${ic}`} />
                         <span className="font-semibold text-sm">{label}</span>
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
+                      {content?.trim() && <p className="text-sm text-gray-700 leading-relaxed">{content}</p>}
+                      {treatmentItems.length > 0 && (
+                        <div className={content?.trim() ? 'mt-3' : ''}>
+                          <OwnerTreatmentTimeline items={treatmentItems} />
+                        </div>
+                      )}
                     </div>
                   )
                 })}

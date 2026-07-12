@@ -790,15 +790,53 @@ Generate the confinement report in the following JSON format. Reference specific
 }`;
 }
 
-function buildHumanizePrompt(sections: any, petName: string, petType: string): string {
+function buildHumanizePrompt(
+  sections: any,
+  petName: string,
+  petType: string,
+  medications?: HumanizeMedication[],
+  reportDate?: string | null
+): string {
   const sectionTexts = Object.entries(sections)
     .filter(([, v]) => typeof v === 'string' && (v as string).trim())
     .map(([k, v]) => `${k}:\n"${v}"`)
     .join('\n\n');
 
+  const fmt = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+
+  // The owner-summary treatment plan is rendered as a structured table/timeline whose clinical
+  // columns (dose, schedule, dates, status) come straight from the record — never the model.
+  // The model only writes one plain-language "what it does" line per medication, matched by name.
+  const medBlock = medications?.length
+    ? `\n\nMEDICATIONS (${petName}'s actual prescriptions — write one plain-language explanation for each, matched by exact name):\n` +
+      medications
+        .map((m, i) => `  ${i + 1}. "${m.name}" — ${m.dosage} via ${m.route}, ${m.frequency}${m.duration ? ` for ${m.duration}` : ''}${fmt(m.endDate) ? ` (course ends ${fmt(m.endDate)})` : ''}`)
+        .join('\n')
+    : '';
+
+  // Concrete dates the model may reference so the follow-up guidance is specific, not vague.
+  // Never invent a date beyond these; if none apply, give the clearest timeframe the report states.
+  const treatmentEnds = (medications ?? [])
+    .map((m) => fmt(m.endDate))
+    .filter((d): d is string => !!d);
+  const latestEnd = treatmentEnds.length ? treatmentEnds[treatmentEnds.length - 1] : null;
+  const dateBlock = fmt(reportDate) || latestEnd
+    ? `\n\nKEY DATES (use these to give a SPECIFIC return/recheck date — do not invent others):${fmt(reportDate) ? `\n  - Report date: ${fmt(reportDate)}` : ''}${latestEnd ? `\n  - Treatment course ends: ${latestEnd}` : ''}`
+    : '';
+
+  const treatmentsSchema = medications?.length
+    ? `,
+  "treatments": [
+    ${medications
+      .map((m) => `{ "name": "${m.name.replace(/"/g, "'")}", "whatItDoes": "One warm, simple sentence: what this medication does for ${petName} and why it matters. Do NOT mention doses, dates, or schedules (those are shown separately)." }`)
+      .join(',\n    ')}
+  ]`
+    : '';
+
   return `Below is a formal veterinary report for a pet owner. Translate each section into plain, friendly language a non-medical pet owner can understand. Keep it honest but compassionate. Use "${petName}" or "your ${petType}" naturally throughout.
 
-${sectionTexts || '(no sections available)'}
+${sectionTexts || '(no sections available)'}${medBlock}${dateBlock}
 
 ---
 Rewrite each section in plain language for the pet owner. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY this JSON object:
@@ -808,8 +846,8 @@ Rewrite each section in plain language for the pet owner. Avoid em-dashes (—);
   "testResultsExplained": "Explain the lab or test results in simple terms. What does each result mean for ${petName}'s health? Use a conversational tone.",
   "whatsHappeningInTheirBody": "In plain language, explain what is going on inside ${petName}'s body. Use an analogy if it helps.",
   "theDiagnosis": "State the diagnoses in plain language. What condition does ${petName} have and what does it mean for daily life?",
-  "theTreatmentPlan": "List each medication or treatment and what it does for ${petName} in simple terms. Make it feel like a care guide.",
-  "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}. What should the owner watch out for? End on a hopeful but realistic note."
+  "theTreatmentPlan": "A short, warm 1-2 sentence intro to the treatment plan for ${petName}. The individual medications are listed separately in the treatments array, so do NOT repeat each one here.",
+  "whatToExpect": "In a warm, honest tone, explain what the future looks like for ${petName}, and what to watch out for. When you mention a recheck or return visit, be SPECIFIC about timing: give an actual date (e.g. 'around July 19, when the treatment course finishes') using the KEY DATES above or the interval stated in the report, rather than vague phrases like 'in a few days'. If the report gives no follow-up timing, say so plainly instead of guessing. End on a hopeful but realistic note."${treatmentsSchema}
 }`;
 }
 
@@ -897,6 +935,17 @@ export async function generateReportSections(params: GenerateReportParams): Prom
   return normalizeToStringMap(parsed);
 }
 
+/** Minimal medication shape the humanize prompt needs to request a per-med explanation. */
+export interface HumanizeMedication {
+  name: string;
+  dosage: string;
+  route: string;
+  frequency: string;
+  duration: string;
+  /** ISO date the treatment course ends; anchors a specific recheck date in whatToExpect. */
+  endDate?: string | null;
+}
+
 export interface OwnerSummary {
   whatWeFound: string;
   testResultsExplained: string;
@@ -904,16 +953,24 @@ export interface OwnerSummary {
   theDiagnosis: string;
   theTreatmentPlan: string;
   whatToExpect: string;
+  /** Plain-language blurbs keyed by exact medication name; empty when no medications supplied. */
+  treatments: { name: string; whatItDoes: string }[];
 }
 
 /** Translates an already-generated sections map into a plain-language owner summary. */
-export async function humanizeReportSections(sections: any, petName: string, petType: string): Promise<OwnerSummary> {
+export async function humanizeReportSections(
+  sections: any,
+  petName: string,
+  petType: string,
+  medications?: HumanizeMedication[],
+  reportDate?: string | null
+): Promise<OwnerSummary> {
   const openai = getOpenAI();
   if (!openai) {
     throw new Error('AI service not configured');
   }
 
-  const prompt = buildHumanizePrompt(sections, petName, petType);
+  const prompt = buildHumanizePrompt(sections, petName, petType, medications, reportDate);
 
   const completion = await openai.chat.completions.create({
     model: REPORT_MODEL,
@@ -932,12 +989,18 @@ export async function humanizeReportSections(sections: any, petName: string, pet
 
   const raw = completion.choices[0]?.message?.content?.trim() ?? '';
 
-  let parsed: Record<string, string>;
+  let parsed: Record<string, any>;
   try {
-    parsed = extractJSON(raw) as Record<string, string>;
+    parsed = extractJSON(raw) as Record<string, any>;
   } catch {
     throw new ReportGenerationError('AI returned an unexpected response. Please try again.', raw);
   }
+
+  const treatments = Array.isArray(parsed.treatments)
+    ? parsed.treatments
+        .filter((t: any) => t && typeof t.name === 'string')
+        .map((t: any) => ({ name: String(t.name), whatItDoes: typeof t.whatItDoes === 'string' ? t.whatItDoes : '' }))
+    : [];
 
   return {
     whatWeFound: parsed.whatWeFound ?? '',
@@ -946,5 +1009,6 @@ export async function humanizeReportSections(sections: any, petName: string, pet
     theDiagnosis: parsed.theDiagnosis ?? '',
     theTreatmentPlan: parsed.theTreatmentPlan ?? '',
     whatToExpect: parsed.whatToExpect ?? '',
+    treatments,
   };
 }

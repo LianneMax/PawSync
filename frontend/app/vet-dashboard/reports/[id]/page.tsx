@@ -28,6 +28,7 @@ import {
   type MonitoringEntry,
 } from '@/lib/vetReports'
 import AILoadingState from '@/components/kokonutui/ai-loading'
+import OwnerTreatmentTimeline from '@/components/OwnerTreatmentTimeline'
 import { useAutoResizeTextarea } from '@/hooks/use-auto-resize-textarea'
 import { authenticatedFetch } from '@/lib/auth'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -210,16 +211,19 @@ function HumanizeSection({
 function OwnerSummaryEditor({
   summary,
   onChange,
+  onTreatmentChange,
   disabled,
   saveState,
   petName,
 }: {
   summary: OwnerSummary
   onChange: (key: keyof OwnerSummary, value: string) => void
+  onTreatmentChange: (index: number, whatItDoes: string) => void
   disabled: boolean
   saveState: 'idle' | 'saving' | 'saved'
   petName?: string
 }) {
+  const treatmentItems = summary.treatmentPlan ?? []
   return (
     <details id="owner-summary-editor" className="mb-6 bg-white border border-emerald-200 rounded-xl overflow-hidden" open>
       <summary className="cursor-pointer flex items-center gap-2 px-4 py-3 bg-emerald-50 hover:bg-emerald-100/70 transition-colors">
@@ -248,10 +252,23 @@ function OwnerSummaryEditor({
               value={summary[key] ?? ''}
               onChange={(e) => onChange(key, e.target.value)}
               disabled={disabled}
-              rows={4}
+              rows={key === 'theTreatmentPlan' && treatmentItems.length ? 2 : 4}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="Write this part of the owner summary…"
             />
+            {/* Treatment plan renders as an editable table/timeline; the textarea above is a short intro */}
+            {key === 'theTreatmentPlan' && treatmentItems.length > 0 && (
+              <div className="mt-3">
+                <p className="text-[11px] text-gray-500 mb-2">
+                  Medications are pulled from the record — only the &ldquo;What it does&rdquo; explanation is editable.
+                </p>
+                <OwnerTreatmentTimeline
+                  items={treatmentItems}
+                  editable={!disabled}
+                  onChange={onTreatmentChange}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -992,14 +1009,20 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
               <p className="text-xs text-gray-500">A plain-language guide to this report, written for the pet owner.</p>
               {OWNER_SUMMARY_CONFIG.map(({ key, label, Icon, bg, border, ic, tc }) => {
                 const content = ownerSummary[key]
-                if (!content?.trim()) return null
+                const treatmentItems = key === 'theTreatmentPlan' ? (ownerSummary.treatmentPlan ?? []) : []
+                if (!content?.trim() && treatmentItems.length === 0) return null
                 return (
                   <div key={key} className={`rounded-xl border p-4 ${bg} ${border}`}>
                     <div className={`flex items-center gap-2 mb-2 ${tc}`}>
                       <Icon className={`w-4 h-4 ${ic}`} />
                       <span className="font-semibold text-sm">{label}</span>
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">{content}</p>
+                    {content?.trim() && <p className="text-sm text-gray-700 leading-relaxed">{content}</p>}
+                    {treatmentItems.length > 0 && (
+                      <div className={content?.trim() ? 'mt-3' : ''}>
+                        <OwnerTreatmentTimeline items={treatmentItems} />
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -1507,11 +1530,9 @@ export default function ReportEditorPage() {
   }
 
   // Owner summary edits auto-save like report sections, but through the dedicated
-  // endpoint (summaries stay editable after finalization, unlike sections).
-  const handleOwnerSummaryChange = (key: keyof OwnerSummary, value: string) => {
-    if (!ownerSummary) return
-    const updated = { ...ownerSummary, [key]: value }
-    setOwnerSummary(updated)
+  // endpoint (summaries stay editable after finalization, unlike sections). The backend
+  // keeps the treatment plan's clinical fields and only accepts whatItDoes edits.
+  const scheduleSummarySave = (updated: OwnerSummary) => {
     if (summarySaveTimer.current) clearTimeout(summarySaveTimer.current)
     summarySaveTimer.current = setTimeout(async () => {
       setSummarySaveState('saving')
@@ -1524,6 +1545,23 @@ export default function ReportEditorPage() {
         toast.error(e.message || 'Failed to save owner summary')
       }
     }, 2000)
+  }
+
+  const handleOwnerSummaryChange = (key: keyof OwnerSummary, value: string) => {
+    if (!ownerSummary) return
+    const updated = { ...ownerSummary, [key]: value }
+    setOwnerSummary(updated)
+    scheduleSummarySave(updated)
+  }
+
+  const handleTreatmentItemChange = (index: number, whatItDoes: string) => {
+    if (!ownerSummary?.treatmentPlan) return
+    const nextPlan = ownerSummary.treatmentPlan.map((item, i) =>
+      i === index ? { ...item, whatItDoes } : item
+    )
+    const updated = { ...ownerSummary, treatmentPlan: nextPlan }
+    setOwnerSummary(updated)
+    scheduleSummarySave(updated)
   }
 
   // Sharing is one-way: confirm first, and never offer an unshare path
@@ -2010,6 +2048,7 @@ export default function ReportEditorPage() {
                   <OwnerSummaryEditor
                     summary={ownerSummary}
                     onChange={handleOwnerSummaryChange}
+                    onTreatmentChange={handleTreatmentItemChange}
                     disabled={humanizing}
                     saveState={summarySaveState}
                     petName={pet?.name}

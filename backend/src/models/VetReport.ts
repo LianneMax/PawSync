@@ -2,13 +2,36 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export type ReportType = 'general' | 'soap' | 'diagnostic' | 'surgery' | 'healthCertificate' | 'dischargeSummary' | 'referralLetter' | 'confinement';
 
+/**
+ * One row of the owner-summary treatment timeline. Clinical fields are copied verbatim
+ * from the linked medical record's medication (never AI-generated); only `whatItDoes` is
+ * the AI's plain-language explanation, and it is the sole field the vet may edit afterward.
+ */
+export interface ITreatmentItem {
+  name: string;
+  dosage: string;
+  route: string;
+  frequency: string;
+  duration: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  /** The owning record's visit date (createdAt); ordering fallback when startDate is absent. */
+  visitDate: Date | null;
+  status: string;
+  /** AI plain-language "what it does for your pet"; the only owner-editable field. */
+  whatItDoes: string;
+}
+
 export interface IOwnerSummary {
   whatWeFound: string;
   testResultsExplained: string;
   whatsHappeningInTheirBody: string;
   theDiagnosis: string;
+  /** Short narrative intro; also the fallback render when there are no medications. */
   theTreatmentPlan: string;
   whatToExpect: string;
+  /** Structured treatment rows rendered as a table/timeline; empty for medication-less reports. */
+  treatmentPlan?: ITreatmentItem[];
 }
 
 /**
@@ -57,6 +80,22 @@ export interface IVetReport extends Document {
   updatedAt: Date;
 }
 
+const TreatmentItemSchema = new Schema<ITreatmentItem>(
+  {
+    name: { type: String, default: '' },
+    dosage: { type: String, default: '' },
+    route: { type: String, default: '' },
+    frequency: { type: String, default: '' },
+    duration: { type: String, default: '' },
+    startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+    visitDate: { type: Date, default: null },
+    status: { type: String, default: '' },
+    whatItDoes: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const OwnerSummarySchema = new Schema<IOwnerSummary>(
   {
     whatWeFound: { type: String, default: '' },
@@ -65,6 +104,7 @@ const OwnerSummarySchema = new Schema<IOwnerSummary>(
     theDiagnosis: { type: String, default: '' },
     theTreatmentPlan: { type: String, default: '' },
     whatToExpect: { type: String, default: '' },
+    treatmentPlan: { type: [TreatmentItemSchema], default: [] },
   },
   { _id: false }
 );
