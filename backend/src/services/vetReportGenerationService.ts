@@ -90,6 +90,14 @@ function patientBlock(pet: any): string {
 - Sterilization: ${pet.sterilization}`;
 }
 
+// All vital fields share one vet-authored note (see updateAllVitalNotes in the staged
+// modal), so any one of them carries it — pull it out once instead of repeating it
+// per vital line in the prompt.
+function extractVitalsNotes(vitals: any): string {
+  const note = Object.values(vitals || {}).find((v: any) => !!v?.notes) as any;
+  return note?.notes || '';
+}
+
 function formatVaccinationBlock(vaccinations?: any[]): string {
   if (!vaccinations || vaccinations.length === 0) return 'VACCINATION HISTORY:\n  (none on file)';
   return `VACCINATION HISTORY:\n${vaccinations.map((v) => {
@@ -112,8 +120,9 @@ function buildAIPrompt(
 ): string {
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
-    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}`)
     .join('\n');
+  const vitalsNotes = extractVitalsNotes(record.vitals);
   const medLines = (record.medications || [])
     .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
@@ -133,8 +142,10 @@ CLINIC: ${record.clinicId}
 
 CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
 
-VITALS:
+VITALS (already shown to the reader as a table; reference for grounding only, do not repeat as prose):
 ${vitalLines || '  (no vitals recorded)'}
+
+VITALS NOTES (the vet's own free-text remarks on the vitals — this is what clinicalSummary should draw on): ${vitalsNotes || '(none)'}
 
 SOAP NOTES:
   Subjective: ${record.subjective || '(none)'}
@@ -166,7 +177,7 @@ ${vetContextNotes || '(none provided)'}
 Generate the report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language appropriate for a formal veterinary document. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
-  "clinicalSummary": "A narrative paragraph covering the patient's presenting signs, physical exam findings, vital parameter interpretation, body condition, and any notable abnormalities.",
+  "clinicalSummary": "A narrative paragraph covering the patient's presenting signs, physical exam findings, and body condition. A vitals table is already shown to the reader elsewhere in the report — do NOT catalog or restate vital readings (e.g. do not write things like 'weight 4kg, temperature 38.9C, pulse 139bpm'). Mention a specific vital only if its value is clinically abnormal for the species, and describe it qualitatively (e.g. 'mildly tachycardic') rather than quoting the raw number. Otherwise, base this paragraph on VITALS NOTES, the vet's own free-text remarks, for clinical context and interpretation. If VITALS NOTES is empty and nothing is abnormal, keep this paragraph focused on presenting signs and exam findings without mentioning vitals at all.",
   "laboratoryInterpretation": "Detailed interpretation of all diagnostic tests. If there are blood work results, include a structured interpretation (parameter, result, reference, interpretation). Include hematology if available. Group by test type. If no tests were done, say so briefly.",
   "diagnosticIntegration": "A summary table-style text integrating all body systems examined: System | Findings | Interpretation. Cover Cardiac, Respiratory, Hepatic, Renal, Metabolic, Oral/Inflammatory as applicable based on available data.",
   "assessment": "Working diagnoses listed and supported by evidence from labs, vitals, and clinical signs. Include current status (stable/critical/improving).",
@@ -183,8 +194,9 @@ function formatRecordBlock(record: any, index: number): string {
     : 'Unknown date';
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
-    .map(([k, v]: any) => `    - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .map(([k, v]: any) => `    - ${k}: ${v.value}`)
     .join('\n');
+  const vitalsNotes = extractVitalsNotes(record.vitals);
   const medLines = (record.medications || [])
     .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
@@ -224,6 +236,7 @@ function formatRecordBlock(record: any, index: number): string {
   Chief Complaint: ${record.chiefComplaint || 'Not specified'}
   Vitals:
 ${vitalLines || '    (no vitals recorded)'}
+  Vitals Notes: ${vitalsNotes || '(none)'}
   SOAP:
     Subjective: ${record.subjective || '(none)'}
     Assessment: ${record.assessment || '(none)'}
@@ -282,7 +295,7 @@ ${vetContextNotes || '(none provided)'}
 Generate the consolidated report in the following JSON format. Each value should be a well-written paragraph or structured text suitable for a professional medical report. Use clinical language. Reference visits by date where relevant. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
-  "clinicalSummary": "A narrative covering the patient's presentation across all visits: initial presenting signs, how the condition evolved, physical exam findings over time, vital trends (especially weight), and current status.",
+  "clinicalSummary": "A narrative covering the patient's presentation across all visits: initial presenting signs, how the condition evolved, physical exam findings over time, and current status. A vitals table covering all visits is already shown to the reader elsewhere — do NOT catalog or restate vital readings. Mention a vital only if it was clinically abnormal at some visit, described qualitatively rather than quoted as a number. Otherwise draw on each visit's Vitals Notes (the vet's own free-text remarks) for clinical context.",
   "laboratoryInterpretation": "Interpretation of all diagnostic tests across visits, grouped by test type and ordered chronologically. Highlight changes between repeat tests. If no tests were done, say so briefly.",
   "diagnosticIntegration": "A summary table-style text integrating all body systems examined across the visit history: System | Findings | Interpretation. Note where findings changed between visits.",
   "assessment": "Working diagnoses across the case history, supported by evidence from labs, vitals, and clinical signs over time. Note resolved vs ongoing problems and current status (stable/critical/improving).",
@@ -406,9 +419,11 @@ function buildDiagnosticPrompt(
     const tests = (r.diagnosticTests || [])
       .map((t: any) => `    - [${t.testType}] ${t.name}: Result: ${t.result || 'N/A'}, Normal Range: ${t.normalRange || 'N/A'}${t.notes ? ` — ${t.notes}` : ''}`)
       .join('\n');
+    const vitalsNotes = extractVitalsNotes(r.vitals);
     return `VISIT ${i + 1} — ${visitDate} (Chief Complaint: ${r.chiefComplaint || 'N/A'})
   Diagnostic Tests:
 ${tests || '    (no diagnostic tests recorded for this visit)'}
+  Vitals Notes: ${vitalsNotes || '(none)'}
   SOAP Assessment: ${r.assessment || '(none)'}
   Overall Observation: ${r.overallObservation || '(none)'}`;
   }).join('\n\n');
@@ -433,7 +448,7 @@ Generate a formal Diagnostic Test Report. Write each section as flowing prose or
 {
   "testsSummary": "Plain-text list of all diagnostic tests performed. For each test state: test name, type, date performed, and the clinical indication. Write as a prose paragraph or a simple line-by-line list using hyphens.",
   "resultsInterpretation": "Plain-text interpretation of every test result. State the parameter name, the recorded result, the reference range, and the clinical significance in plain prose. Note any abnormal values explicitly. Do not use nested JSON — write this as a single plain-text block.",
-  "clinicalCorrelation": "Prose paragraph integrating the laboratory and imaging findings with the patient's clinical signs, physical examination, and history. Explain how the results support or refine the clinical picture.",
+  "clinicalCorrelation": "Prose paragraph integrating the laboratory and imaging findings with the patient's clinical signs, physical examination, and history. Explain how the results support or refine the clinical picture. A vitals table is already shown to the reader elsewhere — do NOT catalog or restate vital readings; mention a vital only if clinically abnormal, described qualitatively, and otherwise draw on each visit's Vitals Notes for context.",
   "recommendations": "Plain-text list of recommended follow-up tests, monitoring intervals, treatment adjustments, or referrals, in order of urgency. Write as prose or a hyphen-separated list."
 }`;
 }
@@ -457,8 +472,9 @@ function buildSurgeryPrompt(
         : 'Unknown date';
       const vitals = Object.entries(r.vitals || {})
         .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
-        .map(([k, v]: any) => `    - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+        .map(([k, v]: any) => `    - ${k}: ${v.value}`)
         .join('\n');
+      const vitalsNotes = extractVitalsNotes(r.vitals);
       const meds = (r.medications || [])
         .map((m: any) => `    - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
         .join('\n');
@@ -468,6 +484,7 @@ function buildSurgeryPrompt(
   Indication / Chief Complaint: ${r.chiefComplaint || 'Not specified'}
   Pre-operative Vitals:
 ${vitals || '    (no vitals recorded)'}
+  Pre-operative Vitals Notes: ${vitalsNotes || '(none)'}
   SOAP Assessment: ${r.assessment || '(none)'}
   SOAP Plan: ${r.plan || '(none)'}
   Medications / Anesthetic Agents:
@@ -493,7 +510,7 @@ ${vetContextNotes || '(none provided)'}
 Generate a formal Surgical and Anesthesia Report covering ALL procedures above. Use clinical language appropriate for a surgical log. Reference each procedure by date. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
 
 {
-  "preoperativeSummary": "For each procedure: the patient's condition and fitness for anesthesia prior to surgery, relevant history, pre-op vitals, and indication. Present chronologically by date.",
+  "preoperativeSummary": "For each procedure: the patient's condition and fitness for anesthesia prior to surgery, relevant history, and indication. Present chronologically by date. Pre-op vital values are already shown in a table elsewhere in the report — do NOT catalog or restate them; mention a value only if clinically abnormal, described qualitatively, and otherwise draw on each procedure's Pre-operative Vitals Notes for context.",
   "anesthesiaProtocol": "Anesthetic agents used per procedure (pre-medication, induction, maintenance), dosages, routes, and monitoring parameters. Note any changes in protocol between procedures.",
   "surgicalProcedure": "Description of each surgical procedure performed: approach, technique, intraoperative findings, closure, and materials. Cover every procedure by date.",
   "intraoperativeMonitoring": "Vital parameters monitored during each procedure, intraoperative events or interventions, and patient response.",
@@ -508,8 +525,9 @@ Generate a formal Surgical and Anesthesia Report covering ALL procedures above. 
     : 'Unknown date';
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
-    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}`)
     .join('\n');
+  const vitalsNotes = extractVitalsNotes(record.vitals);
   const medLines = (record.medications || [])
     .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
@@ -528,6 +546,8 @@ SURGEON REMARKS: ${record.surgeryRecord?.vetRemarks || '(none)'}
 
 PRE-OPERATIVE VITALS:
 ${vitalLines || '  (no vitals recorded)'}
+
+PRE-OPERATIVE VITALS NOTES: ${vitalsNotes || '(none)'}
 
 SOAP NOTES:
   Subjective: ${record.subjective || '(none)'}
@@ -553,7 +573,7 @@ ${vetContextNotes || '(none provided)'}
 Generate a formal Surgical and Anesthesia Report. Use clinical language appropriate for a surgical log. Do NOT include markdown headers. Avoid em-dashes (—). Output ONLY this JSON object.
 
 {
-  "preoperativeSummary": "Patient condition and fitness for anesthesia prior to surgery. Include relevant history, physical status, pre-op vitals, and indication for the procedure.",
+  "preoperativeSummary": "Patient condition and fitness for anesthesia prior to surgery. Include relevant history, physical status, and indication for the procedure. Pre-op vital values are already shown in a table elsewhere in the report — do NOT catalog or restate them; mention a value only if clinically abnormal, described qualitatively, and otherwise draw on PRE-OPERATIVE VITALS NOTES for context.",
   "anesthesiaProtocol": "Anesthetic agents used (pre-medication, induction, maintenance), dosages, routes, and monitoring parameters. Include any considerations specific to this patient.",
   "surgicalProcedure": "Step-by-step description of the surgical procedure performed: patient positioning, surgical approach, technique, findings intraoperatively, closure, and materials used.",
   "intraoperativeMonitoring": "Vital parameters monitored during the procedure, any intraoperative events, interventions, or complications encountered, and patient response.",
@@ -639,8 +659,9 @@ function buildDischargeSummaryPrompt(
     : 'Unknown date';
   const vitalLines = Object.entries(record.vitals || {})
     .filter(([, v]: any) => v?.value !== undefined && v?.value !== '' && v?.value !== null)
-    .map(([k, v]: any) => `  - ${k}: ${v.value}${v.notes ? ` (${v.notes})` : ''}`)
+    .map(([k, v]: any) => `  - ${k}: ${v.value}`)
     .join('\n');
+  const vitalsNotes = extractVitalsNotes(record.vitals);
   const medLines = (record.medications || [])
     .map((m: any) => `  - ${m.name} ${m.dosage} via ${m.route}, ${m.frequency} for ${m.duration}${m.notes ? ` — ${m.notes}` : ''}`)
     .join('\n');
@@ -660,6 +681,8 @@ CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
 
 VITALS AT DISCHARGE:
 ${vitalLines || '  (no vitals recorded)'}
+
+VITALS NOTES: ${vitalsNotes || '(none)'}
 
 ASSESSMENT / DIAGNOSIS: ${record.assessment || '(none)'}
 VISIT SUMMARY: ${record.visitSummary || '(none)'}
@@ -683,7 +706,7 @@ ${vetContextNotes || '(none provided)'}
 Write a Discharge Summary for the pet owner. Use plain, clear language, no medical jargon unless explained. Address the owner directly. Avoid em-dashes. Do NOT include markdown headers. Output ONLY this JSON object.
 
 {
-  "diagnosisSummary": "Plain-language summary of what was found and diagnosed today. Explain the condition simply. What does it mean for the pet's daily life?",
+  "diagnosisSummary": "Plain-language summary of what was found and diagnosed today. Explain the condition simply. What does it mean for the pet's daily life? A vitals table is already shown to the owner elsewhere in the report — do NOT catalog or restate vital readings; mention a vital only if clinically abnormal, described in plain terms, and otherwise draw on VITALS NOTES for context the owner should know.",
   "medications": "For each medication prescribed: what it is called, what it does, how to give it (dose, route, timing with or without food), and for how long. Write as a practical guide for the owner.",
   "feedingInstructions": "Dietary instructions for the recovery period: what to feed, what to avoid, portion sizes, and feeding schedule. If no restrictions, say so clearly.",
   "activityRestrictions": "What the pet can and cannot do during recovery. Include rest requirements, exercise limits, bathing restrictions, and any special handling instructions.",
@@ -800,7 +823,7 @@ ${vetContextNotes || '(none provided)'}
 Generate the confinement report in the following JSON format. Reference specific log dates/times where relevant so the timeline is traceable. Use clinical language. Do NOT include markdown headers. Avoid em-dashes (—); use commas, semicolons, or regular hyphens instead. Output ONLY the JSON object.
 
 {
-  "admissionSummary": "Why the patient was admitted, presenting condition, and initial findings at admission. Include the admitting diagnosis or working problem list.",
+  "admissionSummary": "Why the patient was admitted, presenting condition, and initial findings at admission. Include the admitting diagnosis or working problem list. A vitals table is already shown to the reader elsewhere in the report — do NOT catalog or restate vital readings at admission; mention a value only if clinically abnormal, described qualitatively, and otherwise draw on the linked visit's Vitals Notes for context.",
   "monitoringTimeline": "A chronological narrative of the monitoring log: how vitals and clinical condition trended over the stay, notable abnormal or critical entries with their dates, and how the team responded to each flagged finding.",
   "treatmentsGiven": "All treatments, medications, procedures, and supportive care administered during the stay, drawn from the linked visit records, in chronological order.",
   "currentStatus": "The patient's condition as of the most recent monitoring entry (or at discharge if discharged): stable, improving, critical, or resolved, with supporting vitals/observations.",
