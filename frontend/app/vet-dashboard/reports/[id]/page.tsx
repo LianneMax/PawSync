@@ -1052,12 +1052,18 @@ function VetNotesPanel({ petId, token }: { petId: string; token?: string }) {
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [updatedBy, setUpdatedBy] = useState<{ firstName: string; lastName: string } | null>(null)
 
   useEffect(() => {
     if (!petId) return
     getPetNotes(petId, token)
       .then((res) => {
-        if (res.status === 'SUCCESS') setNotes(res.data?.notes || '')
+        if (res.status === 'SUCCESS') {
+          setNotes(res.data?.notes || '')
+          setUpdatedAt(res.data?.updatedAt ?? null)
+          setUpdatedBy(res.data?.updatedBy ?? null)
+        }
       })
       .catch(() => {})
       .finally(() => setLoaded(true))
@@ -1071,6 +1077,8 @@ function VetNotesPanel({ petId, token }: { petId: string; token?: string }) {
       const res = await savePetNotes(petId, notes, token)
       if (res.status === 'SUCCESS') {
         setSaved(true)
+        setUpdatedAt(res.data?.updatedAt ?? new Date().toISOString())
+        setUpdatedBy(res.data?.updatedBy ?? null)
         setTimeout(() => setSaved(false), 2000)
       } else {
         toast.error(res.message || 'Failed to save notes')
@@ -1081,6 +1089,12 @@ function VetNotesPanel({ petId, token }: { petId: string; token?: string }) {
       setSaving(false)
     }
   }
+
+  const lastUpdatedLabel = updatedAt
+    ? `Last updated ${new Date(updatedAt).toLocaleString('en-PH', {
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+      })}${updatedBy ? ` by Dr. ${updatedBy.firstName} ${updatedBy.lastName}` : ''}`
+    : null
 
   return (
     <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -1104,6 +1118,11 @@ function VetNotesPanel({ petId, token }: { petId: string; token?: string }) {
           <p className="text-[10px] text-gray-400 leading-relaxed">
             Private notepad for this patient — same across all visits.
           </p>
+          {lastUpdatedLabel && (
+            <p className="text-[10px] text-gray-400 flex items-center gap-1">
+              <RefreshCw className="w-2.5 h-2.5" /> {lastUpdatedLabel}
+            </p>
+          )}
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
