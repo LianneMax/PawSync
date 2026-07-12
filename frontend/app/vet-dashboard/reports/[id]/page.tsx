@@ -443,7 +443,8 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
   }
 
   const exclusiveSectionData: Record<string, DataType[]> = (() => {
-    const seen = new Set<DataType>()
+    // 'vitals' rendered once as its own table above the first section — never claimed by a section
+    const seen = new Set<DataType>(['vitals'])
     const result: Record<string, DataType[]> = {}
     for (const key of sectionKeys) {
       const cols = SECTION_DATA_MAP[key] ?? []
@@ -828,6 +829,8 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
     )
   }
 
+  const vitalsTable = renderClinicalTables(['vitals'], allDataRecords)
+
   return (
     <div className="space-y-8">
       <div>
@@ -871,6 +874,8 @@ function ReportPreview({ report, ownerSummary }: { report: VetReport; ownerSumma
             )}
 
             <hr className="border-gray-200" />
+
+            {vitalsTable}
 
             {sectionKeys.map((key, i) => {
               const content = typeof report.sections[key] === 'string' ? report.sections[key] : ''

@@ -478,7 +478,8 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
   // Each data table renders once per document — the first section that claims a
   // data type keeps it, later sections skip it (mirrors the vet editor preview)
   const exclusiveSectionData: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = (() => {
-    const seen = new Set<string>()
+    // 'vitals' rendered once as its own table above the first section — never claimed by a section
+    const seen = new Set<string>(['vitals'])
     const result: Record<string, Array<'vitals' | 'diagnostics' | 'medications' | 'preventiveCare' | 'surgery' | 'immunityTesting' | 'vaccinations'>> = {}
     for (const key of sectionKeys) {
       const cols = SECTION_DATA_MAP[key] ?? []
@@ -494,6 +495,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
   )).sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
 
   const reportVaccinations: VaccinationRecord[] = report.vaccinations ?? []
+  const vitalsTable = renderClinicalTables(['vitals'], allDataRecords, reportVaccinations)
 
   const fmtImgDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : null
@@ -640,6 +642,8 @@ export default async function SharedReportPage({ params }: { params: Promise<{ i
               )}
 
               <hr className="border-gray-200" />
+
+              {vitalsTable}
 
               {/* Clinical sections with data tables */}
               {sectionKeys.map((key, i) => {
