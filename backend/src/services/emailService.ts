@@ -291,6 +291,49 @@ export async function sendAppointmentTransferred(params: {
   }
 }
 
+// ─── Vet Transfer Consent Request (Sensitive Procedure) ──────────────────────
+
+export async function sendVetTransferConsentRequest(params: {
+  ownerEmail: string;
+  ownerFirstName: string;
+  petName: string;
+  previousVetName: string;
+  newVetName: string;
+  clinicName: string;
+  date: Date | string;
+  startTime: string;
+  types: string[];
+  reason?: string;
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: params.ownerEmail,
+      subject: 'PawSync – Your Approval Needed: Veterinarian Change Requested',
+      html: emailHtml(`
+        <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #5A7C7A;">Veterinarian Change Requested</h2>
+          <p>Hi ${params.ownerFirstName},</p>
+          <p>The clinic would like to move <strong>${params.petName}</strong>'s appointment to a different veterinarian. Because this appointment is for a sensitive procedure, we need your approval before making the change.</p>
+          <div style="background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${formatDate(params.date)}</p>
+            <p style="margin: 4px 0;"><strong>Time:</strong> ${params.startTime}</p>
+            <p style="margin: 4px 0;"><strong>Current Vet:</strong> Dr. ${params.previousVetName}</p>
+            <p style="margin: 4px 0;"><strong>Proposed Vet:</strong> Dr. ${params.newVetName}</p>
+            <p style="margin: 4px 0;"><strong>Clinic:</strong> ${params.clinicName}</p>
+            <p style="margin: 4px 0;"><strong>Type:</strong> ${params.types.join(', ')}</p>
+            ${params.reason ? `<p style="margin: 4px 0;"><strong>Reason for Transfer:</strong> ${params.reason}</p>` : ''}
+          </div>
+          <p style="color: #666;">Please log in to PawSync to approve or decline this change. Your current veterinarian remains assigned until you respond.</p>
+          <p style="color: #999; font-size: 12px;">- PawSync Team</p>
+        </div>
+      `),
+    });
+  } catch (err) {
+    console.error('[Email] sendVetTransferConsentRequest error:', err);
+  }
+}
+
 // ─── New Vet Assignment Notice ───────────────────────────────────────────────
 
 export async function sendAppointmentAssignedToVet(params: {

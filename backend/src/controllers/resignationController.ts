@@ -13,6 +13,7 @@ import AuditTrail from '../models/AuditTrail';
 import { createNotification } from '../services/notificationService';
 import { alertClinicAdmins } from '../services/clinicAdminAlertService';
 import { getClinicForAdmin } from './clinicController';
+import { sendAppointmentReassigned } from '../services/emailService';
 
 const ACTIVE_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'rescheduled', 'in_clinic', 'in_progress'];
 const RESCHEDULABLE_STATUSES = ['pending', 'confirmed', 'rescheduled'];
@@ -420,8 +421,17 @@ export const approveResignation = async (req: Request, res: Response) => {
       status: { $in: RESCHEDULABLE_STATUSES },
     })
       .populate('petId', 'name ownerId')
-      .populate('ownerId', 'firstName lastName')
+      .populate('ownerId', 'firstName lastName email')
       .sort({ date: 1, startTime: 1 });
+
+    const [resigningVetForEmail, backupVetForEmail, branchForEmail] = await Promise.all([
+      User.findById(resignation.vetId).select('firstName lastName'),
+      User.findById(resignation.backupVetId).select('firstName lastName'),
+      ClinicBranch.findById(resignation.clinicBranchId).select('name'),
+    ]);
+    const resigningVetNameForEmail = `${(resigningVetForEmail as any)?.firstName || ''} ${(resigningVetForEmail as any)?.lastName || ''}`.trim() || 'previous veterinarian';
+    const backupVetNameForEmail = `${(backupVetForEmail as any)?.firstName || ''} ${(backupVetForEmail as any)?.lastName || ''}`.trim() || 'backup veterinarian';
+    const clinicNameForEmail = (branchForEmail as any)?.name || 'your clinic';
 
     let reassignedCount = 0;
     const reassignmentDetails: Array<{ appointmentId: string; petName: string; oldDate: Date; newDate: Date; newStartTime: string }> = [];
@@ -489,6 +499,24 @@ export const approveResignation = async (req: Request, res: Response) => {
             reason: 'vet_resignation',
           }
         );
+
+        if ((owner as any).email) {
+          try {
+            await sendAppointmentReassigned({
+              ownerEmail: (owner as any).email,
+              ownerFirstName: (owner as any).firstName,
+              petName: pet?.name || 'your pet',
+              previousVetName: resigningVetNameForEmail,
+              newVetName: backupVetNameForEmail,
+              clinicName: clinicNameForEmail,
+              date: target.date,
+              startTime: target.startTime,
+              types: appointment.types,
+            });
+          } catch (emailErr) {
+            console.error('[Resignation] sendAppointmentReassigned email failed (non-fatal):', emailErr);
+          }
+        }
       }
 
       await writeAudit({
@@ -508,8 +536,8 @@ export const approveResignation = async (req: Request, res: Response) => {
       });
     }
 
-    const resigningVet = await User.findById(resignation.vetId).select('firstName lastName');
-    const backupVet = await User.findById(resignation.backupVetId).select('firstName lastName');
+    const resigningVet = resigningVetForEmail;
+    const backupVet = backupVetForEmail;
 
     await createNotification(
       resignation.vetId.toString(),

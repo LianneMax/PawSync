@@ -29,6 +29,9 @@ export type NotificationType =
   | 'vet_resigned'
   | 'clinic_vet_resignation_review'
   | 'appointment_reassigned'
+  | 'appointment_transfer_consent_requested'
+  | 'appointment_transfer_approved'
+  | 'appointment_transfer_declined'
   | 'pet_tag_ready'
   | 'confinement_monitoring_alert'
   | 'medical_record_shared'
@@ -79,6 +82,9 @@ const NotificationSchema = new Schema<INotification>(
         'vet_resigned',
         'clinic_vet_resignation_review',
         'appointment_reassigned',
+        'appointment_transfer_consent_requested',
+        'appointment_transfer_approved',
+        'appointment_transfer_declined',
         'confinement_monitoring_alert',
         'medical_record_shared',
         'vaccine_batch_expiring_soon',

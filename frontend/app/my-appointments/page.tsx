@@ -12,6 +12,7 @@ import {
   createAppointment,
   cancelAppointment,
   rescheduleAppointment,
+  respondToVetTransfer,
   type Appointment,
   type TimeSlot,
 } from '@/lib/appointments'
@@ -419,6 +420,25 @@ function MyAppointmentsPageContent() {
     setAppointmentToCancel(id)
   }
 
+  const [transferResponding, setTransferResponding] = useState<string | null>(null)
+
+  const handleTransferResponse = async (id: string, approve: boolean) => {
+    setTransferResponding(id)
+    try {
+      const res = await respondToVetTransfer(id, approve, token || undefined)
+      if (res.status === 'SUCCESS') {
+        toast.success(approve ? 'Vet transfer approved' : 'Vet transfer declined')
+        refreshAppointments()
+      } else {
+        toast.error(res.message || 'Failed to respond to transfer request')
+      }
+    } catch {
+      toast.error('An error occurred while responding to the transfer request')
+    } finally {
+      setTransferResponding(null)
+    }
+  }
+
   const confirmCancel = async () => {
     if (!appointmentToCancel) return
     setCancelSubmitting(true)
@@ -782,6 +802,30 @@ function MyAppointmentsPageContent() {
                       )
                     })()}
                   </div>
+                  {appt.transferRequest?.status === 'pending' && (
+                    <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 md:col-span-2">
+                      <p className="text-xs text-amber-800">
+                        The clinic wants to move this appointment to Dr. {appt.transferRequest.newVetId?.firstName} {appt.transferRequest.newVetId?.lastName} for a sensitive procedure. Please approve or decline.
+                        {appt.transferRequest.reason && <span className="block mt-1 italic">"{appt.transferRequest.reason}"</span>}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => handleTransferResponse(appt._id, true)}
+                          disabled={transferResponding === appt._id}
+                          className="px-4 py-1.5 bg-[#7FA5A3] text-white rounded-lg text-xs font-medium hover:bg-[#6b9391] transition-colors disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleTransferResponse(appt._id, false)}
+                          disabled={transferResponding === appt._id}
+                          className="px-4 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-[#4F4F4F] hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

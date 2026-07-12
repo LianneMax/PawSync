@@ -17,6 +17,14 @@ export interface IAppointment extends Document {
   isEmergency: boolean;
   medicalRecordId: mongoose.Types.ObjectId | null;
   rescheduleCount: number;
+  transferRequest: {
+    newVetId: mongoose.Types.ObjectId;
+    previousVetId: mongoose.Types.ObjectId;
+    reason?: string;
+    requestedBy: mongoose.Types.ObjectId;
+    requestedAt: Date;
+    status: 'pending' | 'approved' | 'declined';
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +111,17 @@ const AppointmentSchema = new Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    transferRequest: {
+      type: {
+        newVetId: { type: Schema.Types.ObjectId, ref: 'User' },
+        previousVetId: { type: Schema.Types.ObjectId, ref: 'User' },
+        reason: { type: String },
+        requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        requestedAt: { type: Date },
+        status: { type: String, enum: ['pending', 'approved', 'declined'] },
+      },
+      default: null,
     }
   },
   {

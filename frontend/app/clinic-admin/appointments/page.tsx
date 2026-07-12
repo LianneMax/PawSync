@@ -20,6 +20,7 @@ import {
   cancelAppointment,
   rescheduleAppointment,
   transferAppointmentVet,
+  isSensitiveAppointmentType,
   clinicCheckInAppointment,
   updateAppointmentStatus,
   type Appointment,
@@ -4198,7 +4199,11 @@ function TransferVetModal({
       )
 
       if (res.status === 'SUCCESS') {
-        toast.success('Appointment transferred successfully')
+        toast.success(
+          res.data?.requiresConsent
+            ? 'Sensitive procedure — consent request sent to the pet owner'
+            : 'Appointment transferred successfully'
+        )
         onTransferred()
       } else {
         toast.error(res.message || 'Failed to transfer appointment')
@@ -4209,6 +4214,8 @@ function TransferVetModal({
       setSubmitting(false)
     }
   }
+
+  const sensitive = isSensitiveAppointmentType(appointment?.types || [])
 
   return (
     <Dialog open={!!appointment} onOpenChange={(v) => { if (!v) onClose() }}>
@@ -4267,6 +4274,12 @@ function TransferVetModal({
             )}
           </div>
 
+          {sensitive && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
+              This is a sensitive procedure (surgery / pregnancy delivery). The pet owner must approve this vet change before it takes effect — the current vet stays assigned until they respond.
+            </div>
+          )}
+
           <div>
             <p className="text-sm font-semibold text-[#2C3E2D] mb-2">Reason (optional)</p>
             <textarea
@@ -4284,7 +4297,7 @@ function TransferVetModal({
               disabled={submitting || !selectedVetId || availableVets.length === 0}
               className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
             >
-              {submitting ? 'Transferring...' : 'Transfer Appointment'}
+              {submitting ? 'Submitting...' : sensitive ? 'Request Transfer (Consent Needed)' : 'Transfer Appointment'}
             </button>
             <button
               onClick={onClose}
