@@ -840,6 +840,7 @@ export const getMyAppointments = async (req: Request, res: Response) => {
       .populate('vetId', 'firstName lastName')
       .populate('clinicId', 'name')
       .populate('clinicBranchId', 'name address')
+      .populate('transferRequest.newVetId', 'firstName lastName')
       .sort({ date: filter === 'upcoming' ? 1 : -1, startTime: 1 });
 
     return res.status(200).json({
