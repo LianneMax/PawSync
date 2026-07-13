@@ -36,7 +36,7 @@ export const REPORT_TYPE_CONFIG: ReportTypeConfig[] = [
   },
   {
     value: 'surgery',
-    label: 'Surgery / Anesthesia Report',
+    label: 'Surgery Report',
     description: 'Operative log with pre-op summary, surgical steps, intraoperative monitoring, and post-op care.',
   },
   {

@@ -108,6 +108,10 @@ function formatVaccinationBlock(vaccinations?: any[]): string {
   }).join('\n')}`;
 }
 
+function isDeceasedRecord(record: any): boolean {
+  return record?.emergencyCase?.outcome === 'deceased';
+}
+
 const MAX_DETAILED_RECORDS = 15;
 
 function formatRecordSummaryLine(record: any, index: number): string {
@@ -115,7 +119,7 @@ function formatRecordSummaryLine(record: any, index: number): string {
     ? new Date(record.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
     : 'Unknown date';
   const assessment = (record.assessment || '').slice(0, 160);
-  return `VISIT ${index + 1} — ${visitDate}: ${record.chiefComplaint || 'No chief complaint'}${assessment ? ` | Assessment: ${assessment}` : ''}`;
+  return `VISIT ${index + 1} — ${visitDate}: ${record.chiefComplaint || 'No chief complaint'}${assessment ? ` | Assessment: ${assessment}` : ''}${isDeceasedRecord(record) ? ' | PATIENT OUTCOME: DECEASED' : ''}`;
 }
 
 function formatRecordBlock(record: any, index: number): string {
@@ -142,6 +146,9 @@ function formatRecordBlock(record: any, index: number): string {
   }
   if (record.confinementAction === 'confined') {
     extras.push(`  Confinement: ${record.confinementDays || 0} day(s)`);
+  }
+  if (isDeceasedRecord(record)) {
+    extras.push(`  PATIENT OUTCOME: DECEASED — the patient passed away during or as a result of this visit${record.emergencyCase?.dispositionNotes ? `: ${record.emergencyCase.dispositionNotes}` : ''}. This MUST be stated explicitly wherever this visit is discussed; do not describe ongoing treatment, recovery, or a future prognosis for this visit as if the patient survived.`);
   }
   if (record.immunityTesting?.enabled && record.immunityTesting.rows?.length) {
     const titers = record.immunityTesting.rows
@@ -253,7 +260,7 @@ VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}
 CLINIC: ${record.clinicId}
 
 CHIEF COMPLAINT: ${record.chiefComplaint || 'Not specified'}
-
+${isDeceasedRecord(record) ? `\nPATIENT OUTCOME: DECEASED — the patient passed away during or as a result of this visit${record.emergencyCase?.dispositionNotes ? `: ${record.emergencyCase.dispositionNotes}` : ''}. The assessment and prognosis sections MUST state this outcome explicitly. Do NOT describe a management plan, recovery expectations, or forward-looking prognosis as if the patient survived.\n` : ''}
 VITALS:
 ${vitalLines || '  (no vitals recorded)'}
 
@@ -677,9 +684,11 @@ function buildDischargeSummaryPrompt(
     ? `Confined for ${record.confinementDays || 0} day(s).`
     : 'Not confined.';
 
+  const deceased = isDeceasedRecord(record);
+
   return `You are a veterinary discharge summary writer. Generate a Discharge Summary in plain, clear, owner-friendly language for the most recent visit below${priorVisits.length ? ', taking the prior visits into account as case history' : ''}.
 ${priorBlock}
-
+${deceased ? `\nPATIENT OUTCOME: DECEASED — the patient did not survive this visit${record.emergencyCase?.dispositionNotes ? `: ${record.emergencyCase.dispositionNotes}` : ''}. This is NOT a routine discharge. Every section below MUST reflect this outcome honestly and compassionately: do not write medication, feeding, activity, or follow-up instructions as if the pet is going home. Explain what happened plainly and gently instead.\n` : ''}
 ${patientBlock(pet)}
 
 VETERINARIAN: ${vet?.firstName || ''} ${vet?.lastName || ''}

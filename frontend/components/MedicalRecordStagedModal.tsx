@@ -1286,6 +1286,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
         setEmergencyDispositionNotes(r.emergencyCase.dispositionNotes || '')
         setEmergencySkipReasons(Array.isArray(r.emergencyCase.skipReasons) ? r.emergencyCase.skipReasons : [])
         setEmergencyDeferredFields(Array.isArray(r.emergencyCase.deferredFields) ? r.emergencyCase.deferredFields : [])
+        setEuthanasia(r.emergencyCase.outcome === 'deceased')
       } else if (useEmergencyFlow) {
         setEmergencyDeferredFields(['vitals', 'soap'])
       }
@@ -1799,7 +1800,11 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
   }
 
   const buildEmergencyCasePayload = () => {
-    if (!isEmergencyVisit) return undefined
+    // Euthanasia must be persisted even on a visit never flagged as emergency —
+    // otherwise a death recorded via the regular Care Plan euthanasia toggle
+    // (post-procedure, non-emergency appointment) has nowhere to live and
+    // silently vanishes from the record and any report generated from it.
+    if (!isEmergencyVisit && !euthanasia) return undefined
     const resolvedOutcome = emergencyOutcome || (euthanasia
       ? 'deceased'
       : confined
@@ -1821,7 +1826,7 @@ export default function MedicalRecordStagedModal({ recordId, appointmentId, petI
       return `${field} deferred due to emergency prioritization`
     })
     return {
-      isEmergency: true,
+      isEmergency: isEmergencyVisit,
       triageLevel: emergencyTriageLevel,
       interventionNotes: emergencyInterventionNotes,
       outcome: resolvedOutcome,
