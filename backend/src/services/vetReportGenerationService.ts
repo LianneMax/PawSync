@@ -10,7 +10,7 @@ import {
   type ReportStyleProfile,
 } from './aiGuardrails';
 
-export const REPORT_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+export const REPORT_MODEL = 'gemini-3.1-flash-lite';
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI | null {

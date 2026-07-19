@@ -11,7 +11,7 @@ flowchart TD
   C --> D[Sanitize vetContextNotes]
   D --> E[Build Prompt by reportType]
   E --> F[Apply Style Adaptation\n(profile + masked exemplars)]
-  F --> G[LLM Call: llama-4-scout\nresponse_format=json_object]
+  F --> G[LLM Call: llama-3.3-70b-versatile\nresponse_format=json_object]
   G --> H[Parse + Normalize JSON]
   H --> I[Deterministic Guardrails\n(key lock, strip fluff/format, grounding checks)]
   I --> J[Save sections, mark AI generated, clear ownerSummary]
@@ -103,3 +103,5 @@ Result: tone and structure can adapt, while clinical facts remain grounded to cu
 - Current grounding checks are primarily token-level for numbers and medication-name support, not full semantic fact verification.
 - Vet context is sanitized on generation use; if needed, additional sanitization-at-write can be added where notes are saved.
 - Guardrails are deterministic and auditable (no second LLM guard call).
+- Owner-mode number grounding exempts digits inside a recognized "Month Day[, Year]" phrase, since the humanize prompt deliberately asks the model to compute a specific recheck/return date from the report date and stated interval; that computed day number won't appear verbatim in the source otherwise, and without the exemption the whole sentence (often carrying a diagnostic-test callback alongside the date) was silently dropped.
+- REPORT_MODEL is `llama-3.3-70b-versatile` (Groq) as of 2026-07-19, replacing the deprecated `meta-llama/llama-4-scout-17b-16e-instruct`. On Groq's on-demand tier this model has a daily token budget (TPD) that is noticeably tighter than the old model's; sustained report generation can exhaust it, surfacing as a 502 from the generate/humanize endpoints (`ReportGenerationError`/OpenAI 429). Worth monitoring or moving to a paid Groq tier if generation volume grows.
